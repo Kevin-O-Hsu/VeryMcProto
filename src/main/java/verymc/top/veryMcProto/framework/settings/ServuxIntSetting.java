@@ -1,0 +1,99 @@
+package verymc.top.veryMcProto.framework.settings;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonPrimitive;
+
+import net.minecraft.network.chat.Component;
+
+import verymc.top.veryMcProto.framework.dataproviders.IDataProvider;
+
+/**
+ * int 类型 setting（含 min/max 校验）。照抄原版 {@code ServuxIntSetting}。
+ */
+public class ServuxIntSetting extends AbstractServuxSetting<Integer>
+{
+    private final int maxValue;
+    private final int minValue;
+
+    public ServuxIntSetting(IDataProvider dataProvider, String name, Component prettyName, Component comment,
+                            int defaultValue, int maxValue, int minValue, IServuxSettingCallback<Integer> callback)
+    {
+        super(dataProvider, name, prettyName, comment, defaultValue, callback);
+        this.maxValue = maxValue;
+        this.minValue = minValue;
+    }
+
+    public ServuxIntSetting(IDataProvider dataProvider, String name, Component prettyName, Component comment,
+                            int defaultValue, int maxValue, int minValue)
+    {
+        super(dataProvider, name, prettyName, comment, defaultValue);
+        this.maxValue = maxValue;
+        this.minValue = minValue;
+    }
+
+    public ServuxIntSetting(IDataProvider dataProvider, String name, int defaultValue, int maxValue, int minValue, IServuxSettingCallback<Integer> callback)
+    {
+        this(dataProvider, name, null, null, defaultValue, maxValue, minValue, callback);
+    }
+
+    public ServuxIntSetting(IDataProvider dataProvider, String name, int defaultValue, int maxValue, int minValue)
+    {
+        this(dataProvider, name, null, null, defaultValue, maxValue, minValue);
+    }
+
+    public ServuxIntSetting(IDataProvider dataProvider, String name, int defaultValue, IServuxSettingCallback<Integer> callback)
+    {
+        this(dataProvider, name, null, null, defaultValue, Integer.MAX_VALUE, Integer.MIN_VALUE, callback);
+    }
+
+    public ServuxIntSetting(IDataProvider dataProvider, String name, int defaultValue)
+    {
+        this(dataProvider, name, null, null, defaultValue, Integer.MAX_VALUE, Integer.MIN_VALUE);
+    }
+
+    @Override
+    public boolean validateString(String value)
+    {
+        try
+        {
+            int val = Integer.parseInt(value);
+            return val >= this.minValue && val <= this.maxValue;
+        }
+        catch (NumberFormatException e)
+        {
+            return false;
+        }
+    }
+
+    @Override
+    public String valueToString(Object value)
+    {
+        return ((Integer) value).toString();
+    }
+
+    @Override
+    public Integer valueFromString(String value)
+    {
+        return Integer.parseInt(value);
+    }
+
+    @Override
+    public void readFromJson(JsonElement element)
+    {
+        if (element.isJsonPrimitive())
+        {
+            var value = element.getAsJsonPrimitive();
+
+            if (value.isNumber())
+            {
+                this.setValueNoCallback(value.getAsInt());
+            }
+        }
+    }
+
+    @Override
+    public JsonElement writeToJson()
+    {
+        return new JsonPrimitive(this.getValue());
+    }
+}

@@ -1,7 +1,11 @@
 plugins {
-    id("java-library")
+    `java-library`
+    id("io.papermc.paperweight.userdev") version "2.0.0-beta.21"
     id("xyz.jpenilla.run-paper") version "3.0.2"
 }
+
+group = "verymc.top"
+version = "1.0.0"
 
 repositories {
     mavenCentral()
@@ -9,26 +13,34 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+    // paperDevBundle 提供 Mojang 官方映射（全 deobfuscated）的 NMS（net.minecraft.*），开发时直接用 Mojang 名访问。
+    // 锁定：paperweight 2.0.0-beta.21 + Paper 1.21.11 dev bundle（旧格式 1.21.11-R0.1-SNAPSHOT）。
+    // 与姊妹项目 VeryMcBot 一致，已在该环境验证通过。
+    paperweight.paperDevBundle("1.21.11-R0.1-SNAPSHOT")
 }
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(21)
 }
 
+// 1.21.11 支持 reobf：reobfJar 产出 Spigot 运行时映射 jar，标准 Paper 服务器可直接加载。
+// 经典 plugin.yml 按 Paper 默认假设为 Spigot-mapped，加载时自动 deobfuscate 回 Mojang 运行时映射——与此产出匹配。
+// 反射（Reflect）用 Mojang 名访问私有成员：reobf 不转换反射字符串，而 Paper 运行时即 Mojang 映射，故反射 Mojang 名天然正确。
+tasks.assemble {
+    dependsOn(tasks.reobfJar)
+}
+
 tasks {
     runServer {
-        // Configure the Minecraft version for our task.
-        // This is the only required configuration besides applying the plugin.
-        // Your plugin's jar (or shadowJar if present) will be used automatically.
+        // 仅供本地测试（M1/M2 验证）；与 paperweight 互补，不影响 build/reobf。
         minecraftVersion("1.21.11")
         jvmArgs("-Xms2G", "-Xmx2G")
     }
 
     processResources {
-        val props = mapOf("version" to version)
-        filesMatching("plugin.yml") {
-            expand(props)
+        val projectVersion = project.version
+        filesMatching(listOf("plugin.yml", "paper-plugin.yml")) {
+            expand(mapOf("version" to projectVersion))
         }
     }
 }

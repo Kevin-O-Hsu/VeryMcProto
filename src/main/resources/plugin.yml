@@ -1,6 +1,16 @@
 name: VeryMcProto
 version: '${version}'
-
 main: verymc.top.veryMcProto.VeryMcProto
-api-version: '1.21.11'
+api-version: '1.21'
 load: POSTWORLD
+author: VeryMc
+description: Fabric 协议 Mod 的 Paper 插件移植框架（含 Servux 协议移植）。
+commands:
+  servux:
+    description: Servux 协议配置与诊断命令
+    usage: /servux reload|save|set|info|list|enable|disable|search
+    permission: servux.command
+permissions:
+  servux.command:
+    description: 允许使用 /servux 命令
+    default: op

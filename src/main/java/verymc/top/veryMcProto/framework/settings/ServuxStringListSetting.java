@@ -1,0 +1,67 @@
+package verymc.top.veryMcProto.framework.settings;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonPrimitive;
+
+import net.minecraft.network.chat.Component;
+
+import verymc.top.veryMcProto.framework.dataproviders.IDataProvider;
+
+import java.util.List;
+
+/**
+ * {@code List<String>} setting。照抄原版 {@code ServuxStringListSetting}。
+ */
+public class ServuxStringListSetting extends ServuxListSetting<String>
+{
+    public ServuxStringListSetting(IDataProvider dataProvider, String name, Component prettyName, Component comment,
+                                   List<String> defaultValue, List<String> examples, IServuxSettingCallback<List<String>> callback)
+    {
+        super(dataProvider, name, prettyName, comment, defaultValue, examples, callback);
+    }
+
+    public ServuxStringListSetting(IDataProvider dataProvider, String name, Component prettyName, Component comment,
+                                   List<String> defaultValue, List<String> examples)
+    {
+        super(dataProvider, name, prettyName, comment, defaultValue, examples);
+    }
+
+    public ServuxStringListSetting(IDataProvider dataProvider, String name, Component prettyName, Component comment,
+                                   List<String> defaultValue, IServuxSettingCallback<List<String>> callback)
+    {
+        super(dataProvider, name, prettyName, comment, defaultValue, List.of(), callback);
+    }
+
+    public ServuxStringListSetting(IDataProvider dataProvider, String name, Component prettyName, Component comment, List<String> defaultValue)
+    {
+        super(dataProvider, name, prettyName, comment, defaultValue, List.of());
+    }
+
+    public ServuxStringListSetting(IDataProvider dataProvider, String name, List<String> defaultValue, IServuxSettingCallback<List<String>> callback)
+    {
+        super(dataProvider, name, null, null, defaultValue, List.of(), callback);
+    }
+
+    public ServuxStringListSetting(IDataProvider dataProvider, String name, List<String> defaultValue)
+    {
+        super(dataProvider, name, null, null, defaultValue, List.of());
+    }
+
+    @Override
+    public boolean validateJsonForElement(JsonElement value)
+    {
+        return value instanceof JsonPrimitive primitive && primitive.isString();
+    }
+
+    @Override
+    public String readElementFromJson(JsonElement element)
+    {
+        return element.getAsString();
+    }
+
+    @Override
+    public JsonElement writeElementToJson(String value)
+    {
+        return new JsonPrimitive(value);
+    }
+}

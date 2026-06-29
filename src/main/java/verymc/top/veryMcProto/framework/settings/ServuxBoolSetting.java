@@ -1,0 +1,75 @@
+package verymc.top.veryMcProto.framework.settings;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonPrimitive;
+
+import net.minecraft.network.chat.Component;
+
+import verymc.top.veryMcProto.framework.dataproviders.IDataProvider;
+
+import java.util.List;
+
+/**
+ * boolean 类型 setting。照抄原版 {@code ServuxBoolSetting}。
+ */
+public class ServuxBoolSetting extends AbstractServuxSetting<Boolean>
+{
+    public ServuxBoolSetting(IDataProvider dataProvider, String name, Component prettyName, Component comment,
+                             boolean defaultValue, IServuxSettingCallback<Boolean> callback)
+    {
+        super(dataProvider, name, prettyName, comment, defaultValue, List.of("true", "false"), callback);
+    }
+
+    public ServuxBoolSetting(IDataProvider dataProvider, String name, Component prettyName, Component comment, boolean defaultValue)
+    {
+        super(dataProvider, name, prettyName, comment, defaultValue, List.of("true", "false"), null);
+    }
+
+    public ServuxBoolSetting(IDataProvider dataProvider, String name, boolean defaultValue, IServuxSettingCallback<Boolean> callback)
+    {
+        super(dataProvider, name, null, null, defaultValue, List.of("true", "false"), callback);
+    }
+
+    public ServuxBoolSetting(IDataProvider dataProvider, String name, boolean defaultValue)
+    {
+        super(dataProvider, name, null, null, defaultValue, List.of("true", "false"), null);
+    }
+
+    @Override
+    public boolean validateString(String value)
+    {
+        return value.equalsIgnoreCase("true") || value.equalsIgnoreCase("false");
+    }
+
+    @Override
+    public String valueToString(Object value)
+    {
+        return ((Boolean) value).toString();
+    }
+
+    @Override
+    public Boolean valueFromString(String value)
+    {
+        return Boolean.parseBoolean(value);
+    }
+
+    @Override
+    public void readFromJson(JsonElement element)
+    {
+        if (element.isJsonPrimitive())
+        {
+            var value = element.getAsJsonPrimitive();
+
+            if (value.isBoolean())
+            {
+                this.setValueNoCallback(value.getAsBoolean());
+            }
+        }
+    }
+
+    @Override
+    public JsonElement writeToJson()
+    {
+        return new JsonPrimitive(this.getValue());
+    }
+}
