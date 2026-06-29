@@ -1,0 +1,67 @@
+# =============================================================================
+# VeryMcProto .gitignore
+# 覆盖两类子项目：根 Paper 插件（paperweight userdev）+ OriginImpl/ 原版对照（Fabric loom）
+# 说明：不带前导斜杠的规则（如 build/）会匹配【任意层级】目录，
+#       因此根项目与 OriginImpl/ 子目录里的同名产物会被一并忽略。
+# =============================================================================
+
+# -------- Gradle --------
+.gradle/
+build/
+buildSrc/build/
+out/
+bin/
+
+# -------- IDE: IntelliJ IDEA --------
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# -------- IDE: Eclipse --------
+.settings/
+.classpath
+.project
+.metadata/
+.factorypath
+
+# -------- IDE: VS Code --------
+.vscode/
+
+# -------- IDE: NetBeans --------
+.nbproject/
+
+# -------- Paper / Minecraft 运行时 --------
+# run-paper 起的测试服目录（含 cache/ libraries/ versions/ plugins/ logs/ eula.txt 等）
+# 注意：世界存档（world/ world_nether/ ...）默认也在 run/ 下，已被本规则覆盖，
+#       因此【不要】单独写顶层 world/ 规则——那会误伤 OriginImpl 的 mixin/world/ 源码包。
+run/
+run-data/
+logs/
+*.log
+crash-reports/
+
+# -------- 操作系统杂项 --------
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
+
+# -------- 备份 / 临时 / 编辑器 --------
+*.bak
+*.tmp
+*~
+*.orig
+*.swp
+*.swo
+
+# -------- 保密 / 凭据（保险，本项目目前无，预防误提交）--------
+*.pem
+*.key
+.env
+.env.*
+
+# -------- 说明：以下【不忽略】，须保留 --------
+#   - gradle/wrapper/gradle-wrapper.jar  （gradlew 依赖，必须入库）
+#   - OriginImpl/**/LICENSE.txt、README.md、.github/  （合规与上游元信息）

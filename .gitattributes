@@ -1,0 +1,63 @@
+# =============================================================================
+# VeryMcProto .gitattributes
+# 统一行尾：仓库内一律 LF；仅 Windows 批处理用 CRLF；二进制不做转换。
+# 配合 .gitignore，保证 Windows/Linux/macOS 多平台协作时行尾一致。
+# =============================================================================
+
+# 默认：自动判别文本，统一签入为 LF
+* text=auto eol=lf
+
+# -------- 代码（强制 LF）--------
+*.java     text eol=lf
+*.kt       text eol=lf
+*.kts      text eol=lf
+*.groovy   text eol=lf
+*.scala    text eol=lf
+
+# -------- 构建 / 配置（强制 LF）--------
+*.gradle   text eol=lf
+*.yml      text eol=lf
+*.yaml     text eol=lf
+*.json     text eol=lf
+*.toml     text eol=lf
+*.properties        text eol=lf
+gradle/wrapper/gradle-wrapper.properties  text eol=lf
+
+# -------- 文档 / 文本 --------
+*.md       text eol=lf
+*.txt      text eol=lf
+*.sh       text eol=lf
+COPYING    text eol=lf
+COPYING.txt text eol=lf
+LICENSE     text eol=lf
+LICENSE.txt text eol=lf
+
+# -------- 元信息 --------
+.gitattributes   text eol=lf
+.gitignore       text eol=lf
+
+# -------- Windows 脚本（CRLF）--------
+*.bat      text eol=crlf
+*.cmd      text eol=crlf
+
+# -------- Gradle Wrapper 可执行脚本（LF，但本身无扩展名）--------
+gradlew    text eol=lf
+
+# -------- 二进制（不做行尾转换）--------
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.dat   binary
+*.bin   binary
+*.nbt   binary
+*.schem binary
+*.litematic binary
+*.exe   binary
+*.dll   binary
+*.zip   binary
+*.jar   binary
+*.7z    binary
+*.gz    binary
+*.db    binary

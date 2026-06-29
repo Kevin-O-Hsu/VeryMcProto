@@ -1,0 +1,6 @@
+name: VeryMcProto
+version: '${version}'
+
+main: verymc.top.veryMcProto.VeryMcProto
+api-version: '1.21.11'
+load: POSTWORLD
