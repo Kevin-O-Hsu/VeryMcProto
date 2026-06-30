@@ -547,12 +547,10 @@ public class LitematicaSchematic
 
     public void sendTransmitFile(CompoundTag nbtIn, final long sessionKey, ServerPlayer player)
     {
-        Path file = this.getFile();
-        CompoundTag output = new CompoundTag();
+        final Path file = this.getFile();
         final int bufferSize = SchematicBuffer.BUFFER_SIZE;
-        long totalBytes;
-        int totalSlices;
-
+        final long totalBytes;
+        final int totalSlices;
         try
         {
             totalBytes = Files.size(file);
@@ -564,60 +562,85 @@ public class LitematicaSchematic
             return;
         }
 
-        output.putString("Task", "Litematic-TransmitStart");
-        output.putString("FileName", file.getFileName().toString());
-        output.store("FileType", FileType.CODEC, this.schematicType);
-        output.putLong("SliceKey", sessionKey);
-        output.putInt("TotalSlices", totalSlices);
-        output.putLong("TotalSize", totalBytes);
+        final FileType sType = this.schematicType;
+        final ServerPlayer target = player;
+        final long sKey = sessionKey;
+        final int tSlices = totalSlices;
+        final long tBytes = totalBytes;
+        final String fName = file.getFileName().toString();
+        final CompoundTag placementData = nbtIn;
+        final Path filePath = file;
 
-        if (!nbtIn.isEmpty())
+        // 分 tick 发送：每 tick 一个包（Start / Data×N / End），避免 masa 客户端连续 PacketSplitter 流串台。
+        new org.bukkit.scheduler.BukkitRunnable()
         {
-            output.put("PlacementData", nbtIn);
-        }
+            private byte[] buf = new byte[bufferSize];
+            private java.io.InputStream is;
+            private boolean startSent = false;
 
-        ServuxLitematicaHandler.getInstance().encodeServerData(player, ServuxLitematicaPacket.ResponseC2SStart(output));
-
-        // File Stream
-        output.putLong("SliceKey", sessionKey);
-        byte[] buffer = new byte[bufferSize];
-
-        try (java.io.InputStream is = Files.newInputStream(file))
-        {
-            int bytesRead = 0;
-            output.putString("Task", "Litematic-TransmitData");
-
-            while ((bytesRead = is.read(buffer, 0, bufferSize)) != -1)
+            private CompoundTag baseOutput()
             {
-                output.remove("Slice");
-                output.remove("Size");
-                output.remove("Data");
-                output.putInt("Slice", totalSlices);
-                output.putInt("Size", bytesRead);
-
-                byte[] correctedData = new byte[bytesRead];
-                System.arraycopy(buffer, 0, correctedData, 0, bytesRead);
-                output.putByteArray("Data", correctedData);
-                ServuxLitematicaHandler.getInstance().encodeServerData(player, ServuxLitematicaPacket.ResponseC2SStart(output));
+                CompoundTag out = new CompoundTag();
+                out.putString("FileName", fName);
+                out.store("FileType", FileType.CODEC, sType);
+                out.putLong("SliceKey", sKey);
+                out.putInt("TotalSlices", tSlices);
+                out.putLong("TotalSize", tBytes);
+                return out;
             }
-        }
-        catch (Exception err)
-        {
-            output = new CompoundTag();
-            output.putLong("SliceKey", sessionKey);
-            output.putString("Task", "Litematic-TransmitCancel");
-            ServuxLitematicaHandler.getInstance().encodeServerData(player, ServuxLitematicaPacket.ResponseC2SStart(output));
-            Log.error("sliceForServux: Exception reading file; {}", err.getLocalizedMessage());
-            return;
-        }
 
-        // End Slice
-        output.remove("Slice");
-        output.remove("Size");
-        output.remove("Data");
+            @Override
+            public void run()
+            {
+                try
+                {
+                    if (!startSent)
+                    {
+                        startSent = true;
+                        CompoundTag out = baseOutput();
+                        out.putString("Task", "Litematic-TransmitStart");
+                        if (placementData != null && !placementData.isEmpty())
+                        {
+                            out.put("PlacementData", placementData);
+                        }
+                        ServuxLitematicaHandler.getInstance().encodeServerData(target, ServuxLitematicaPacket.ResponseC2SStart(out));
+                        is = Files.newInputStream(filePath);
+                        return;
+                    }
 
-        output.putString("Task", "Litematic-TransmitEnd");
-        ServuxLitematicaHandler.getInstance().encodeServerData(player, ServuxLitematicaPacket.ResponseC2SStart(output));
+                    int bytesRead = is.read(buf, 0, bufferSize);
+
+                    if (bytesRead == -1)
+                    {
+                        CompoundTag out = baseOutput();
+                        out.putString("Task", "Litematic-TransmitEnd");
+                        ServuxLitematicaHandler.getInstance().encodeServerData(target, ServuxLitematicaPacket.ResponseC2SStart(out));
+                        is.close();
+                        cancel();
+                        return;
+                    }
+
+                    CompoundTag out = baseOutput();
+                    out.putString("Task", "Litematic-TransmitData");
+                    out.putInt("Slice", tSlices);
+                    out.putInt("Size", bytesRead);
+                    byte[] corrected = new byte[bytesRead];
+                    System.arraycopy(buf, 0, corrected, 0, bytesRead);
+                    out.putByteArray("Data", corrected);
+                    ServuxLitematicaHandler.getInstance().encodeServerData(target, ServuxLitematicaPacket.ResponseC2SStart(out));
+                }
+                catch (Exception err)
+                {
+                    CompoundTag out = new CompoundTag();
+                    out.putLong("SliceKey", sKey);
+                    out.putString("Task", "Litematic-TransmitCancel");
+                    ServuxLitematicaHandler.getInstance().encodeServerData(target, ServuxLitematicaPacket.ResponseC2SStart(out));
+                    Log.error("sendTransmitFile: Exception reading file; {}", err.getLocalizedMessage());
+                    try { if (is != null) is.close(); } catch (Exception ignore) {}
+                    cancel();
+                }
+            }
+        }.runTaskTimer(verymc.top.veryMcProto.Reference.plugin(), 0L, 1L);
     }
 
     public static @Nullable Pair<LitematicaSchematic, CompoundTag> receiveFileTransmit(CompoundTag nbt, ServerPlayer player)
