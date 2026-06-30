@@ -77,9 +77,11 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 - **运行时即时生效**（推荐）：服务端执行
   ```
-  /servux debug                       # 切换总开关
-  /servux debug handshake             # 切换单个分类（握手）
-  /servux debug packet                # 切换数据包分类（收发 / 分片）
+  /servux debug on                    # 一键全开（总开关 + 全分类），最常用
+  /servux debug status                # 查看当前状态（master + 已开启分类）
+  /servux debug cat handshake         # 切换单个分类（握手）
+  /servux debug cat packet            # 切换数据包分类（收发 / 分片）
+  /servux debug off                   # 关闭总开关
   ```
   完整分类见 `framework/debug/Debug.java` 的 `Cat` 枚举：`lifecycle / handshake / network / packet / tick / permission / provider / config`。
 - **持久化**：编辑 `run/plugins/VeryMcProto/servux.json`，设 `servux_main.debug_log: true`，重启。
@@ -135,7 +137,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 | 步骤 | 操作 |
 |---|---|
-| 1 | 服务端开 debug：`/servux debug` + `/servux debug handshake` |
+| 1 | 服务端开 debug：`/servux debug on`（或精准切分类：`/servux debug cat handshake` + `cat packet`） |
 | 2 | 客户端开 `entityDataSync`（Litematica 配置 → Generic） |
 | 3 | 客户端进服（或重连） |
 
@@ -239,9 +241,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
   │                 （与服务端无关，先排除！）
   │
   └─ not_connected / 无数据 → 握手失败 → 开服务端 debug：
-        /servux debug
-        /servux debug handshake
-        /servux debug packet
+        /servux debug on
         重连，看日志：
         │
         ├─ 无 "C2S <通道> ← 玩家 type=METADATA_REQUEST"
