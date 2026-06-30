@@ -32,6 +32,9 @@ import verymc.top.veryMcProto.mod.servux.ServuxLog;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
 import verymc.top.veryMcProto.mod.servux.network.ServuxLitematicaHandler;
 import verymc.top.veryMcProto.mod.servux.network.ServuxLitematicaPacket;
+import verymc.top.veryMcProto.mod.servux.schematic.transmit.SchematicBufferManager;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import verymc.top.veryMcProto.mod.servux.util.nbt.NbtView;
 
 /**
@@ -72,6 +75,7 @@ public class LitematicsDataProvider extends DataProviderBase
     );
 
     private final List<UUID> invalidPlayers = new ArrayList<>();
+    private final SchematicBufferManager bufferManager = new SchematicBufferManager();
 
     protected LitematicsDataProvider()
     {
@@ -100,6 +104,27 @@ public class LitematicsDataProvider extends DataProviderBase
     public void unregisterHandler() { ServerPlayHandler.getInstance().unregisterServerPlayHandler(HANDLER); }
 
     @Override public IPluginServerPlayHandler getPacketHandler() { return HANDLER; }
+
+    public SchematicBufferManager getBufferManager() { return this.bufferManager; }
+
+    /** Schematic 文件传输目录（plugins/VeryMcProto/schematics/），首次自动创建。移植自原版 getTransmitDir。 */
+    public Path getTransmitDir()
+    {
+        Path dir = verymc.top.veryMcProto.Reference.plugin().getDataFolder().toPath().resolve("schematics").normalize();
+        try
+        {
+            if (!Files.isDirectory(dir))
+            {
+                Files.createDirectories(dir);
+                verymc.top.veryMcProto.Reference.logger().warning("getTransmitDir(): created schematic dir " + dir.toAbsolutePath());
+            }
+        }
+        catch (java.io.IOException err)
+        {
+            verymc.top.veryMcProto.Reference.logger().severe("getTransmitDir(): failed: " + err.getMessage());
+        }
+        return dir;
+    }
 
     @Override public boolean isPlayerRegistered(ServerPlayer player) { return !this.isPlayerInvalid(player); }
 

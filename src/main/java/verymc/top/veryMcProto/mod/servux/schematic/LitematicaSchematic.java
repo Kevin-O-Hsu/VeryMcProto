@@ -60,6 +60,8 @@ import verymc.top.veryMcProto.mod.servux.util.data.FileType;
 import verymc.top.veryMcProto.mod.servux.util.nbt.NbtUtils;
 import verymc.top.veryMcProto.mod.servux.util.nbt.NbtView;
 import verymc.top.veryMcProto.mod.servux.util.position.PositionUtils;
+import verymc.top.veryMcProto.mod.servux.schematic.transmit.SchematicBuffer;
+import verymc.top.veryMcProto.mod.servux.schematic.transmit.SchematicBufferManager;
 
 public class LitematicaSchematic
 {
@@ -550,7 +552,69 @@ public class LitematicaSchematic
 
     public static @Nullable Pair<LitematicaSchematic, CompoundTag> receiveFileTransmit(CompoundTag nbt, ServerPlayer player)
     {
-        // TODO P7: 桩化（降级），原版 ORIGIN/schematic/LitematicaSchematic.java
+        SchematicBufferManager manager = LitematicsDataProvider.INSTANCE.getBufferManager();
+        String task = nbt.getStringOr("Task", "");
+        final long key = nbt.getLongOr("SliceKey", -1L);
+
+        if (task.isEmpty() || key == -1L)
+        {
+            Log.error("receiveFileTransmit: Invalid sessionKey or Task received.");
+            return null;
+        }
+
+        switch (task)
+        {
+            case "Litematic-TransmitStart" ->
+            {
+                FileType type = nbt.read("FileType", FileType.CODEC).orElse(FileType.LITEMATICA_SCHEMATIC);
+                String name = nbt.getStringOr("FileName", "default_file");
+                final int totalSlices = nbt.getIntOr("TotalSlices", 1);
+                final long totalSize = nbt.getLongOr("TotalSize", -1L);
+                manager.createBuffer(name, totalSlices, totalSize, type, key, nbt.getCompoundOrEmpty("PlacementData"), player);
+            }
+            case "Litematic-TransmitData" ->
+            {
+                final int slice = nbt.getIntOr("Slice", -1);
+                final int size = nbt.getIntOr("Size", -1);
+                final byte[] data = nbt.getByteArray("Data").orElse(new byte[0]);
+
+                if (slice < 0 || size < 0 || data.length == 0)
+                {
+                    Log.error("receiveFileTransmit: Invalid Slice Data received for session key [{}]", key);
+                    return null;
+                }
+
+                manager.receiveSlice(key, slice, data, size);
+            }
+            case "Litematic-TransmitCancel" ->
+            {
+                Log.warn("receiveFileTransmit: Cancel received for session key [{}]", key);
+                manager.cancelBuffer(key);
+            }
+            case "Litematic-TransmitEnd" ->
+            {
+                final int totalSlices = nbt.getIntOr("TotalSlices", -1);
+                final long totalSize = nbt.getLongOr("TotalSize", -1L);
+                Path dir = LitematicsDataProvider.INSTANCE.getTransmitDir();
+                CompoundTag optional = manager.getOptionalNbt(key);
+                LitematicaSchematic schematic = manager.finishBuffer(key, dir);
+                manager.removePlayer(player);
+
+                if (schematic == null)
+                {
+                    Log.warn("receiveFileTransmit: Failed to create Schematic for finishing session key [{}]", key);
+                    return null;
+                }
+
+                Log.debugLog("receiveFileTransmit: Received file {}, [tS: {}, tB: {}]", schematic.getFile().toAbsolutePath().toString(), totalSlices, totalSize);
+                return Pair.of(schematic, optional);
+            }
+            default ->
+            {
+                Log.error("receiveFileTransmit: Invalid sessionKey or Task received.");
+            }
+        }
+
         return null;
     }
 

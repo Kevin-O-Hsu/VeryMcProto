@@ -1,0 +1,153 @@
+package verymc.top.veryMcProto.mod.servux.schematic.transmit;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import verymc.top.veryMcProto.mod.servux.util.Log;
+import verymc.top.veryMcProto.mod.servux.util.data.FileType;
+
+public class SchematicBuffer
+{
+    public static final int BUFFER_SIZE = 16384;
+    private final String name;
+    private final FileType type;
+    private Slice[] buffer;
+    private final int totalExpectedSlices;
+    private final long totalExpectedSize;
+    private final AtomicInteger receivedSlices = new AtomicInteger(0);
+
+    public SchematicBuffer(String name, int totalExpectedSlices, long totalExpectedSize)
+    {
+        this(name, totalExpectedSlices, totalExpectedSize, FileType.LITEMATICA_SCHEMATIC);
+    }
+
+    public SchematicBuffer(String name, int totalExpectedSlices, long totalExpectedSize, FileType type)
+    {
+        this.name = name;
+        this.type = type;
+        this.totalExpectedSlices = totalExpectedSlices;
+        this.totalExpectedSize = totalExpectedSize;
+        this.buffer = new Slice[totalExpectedSlices];
+    }
+
+    public String getName()
+    {
+        return this.name;
+    }
+
+    public FileType getType()
+    {
+        return this.type;
+    }
+
+    public Path getFileName()
+    {
+        String ext = FileType.getFileExt(this.type);
+
+        if (this.name.contains(ext))
+        {
+            return Path.of(this.name);
+        }
+        else
+        {
+            return Path.of(this.name + ext);
+        }
+    }
+
+    public void receiveSlice(final int number, Slice slice)
+    {
+        if (number >= 0 && number < this.totalExpectedSlices)
+        {
+            if (this.buffer[number] == null)
+            {
+                this.buffer[number] = slice;
+                this.receivedSlices.incrementAndGet();
+            }
+        }
+    }
+
+    public boolean isComplete()
+    {
+        return this.receivedSlices.get() == this.totalExpectedSlices;
+    }
+
+    public Path writeFile(Path dir)
+    {
+        if (!this.isComplete())
+        {
+            Log.error("SchematicBuffer#writeFile(): Attempted to write incomplete buffer! Expected: {}, Received: {}", this.totalExpectedSlices, this.receivedSlices.get());
+            return null;
+        }
+
+        if (!Files.isDirectory(dir))
+        {
+            try
+            {
+                Files.createDirectory(dir);
+                Log.debugLog("LitematicBuffer#writeFile(): Created directory '{}' successfully", dir.toAbsolutePath().toString());
+            }
+            catch (IOException err)
+            {
+                Log.error("LitematicBuffer#writeFile(): Exception creating directory '{}'; {}", dir.toAbsolutePath().toString(), err.getLocalizedMessage());
+                return null;
+            }
+        }
+
+        Path file = dir.resolve(this.getFileName());
+
+        if (Files.exists(file))
+        {
+            try
+            {
+                Files.delete(file);
+                Log.debugLog("LitematicBuffer#writeFile(): Deleted file '{}' successfully", file.toAbsolutePath().toString());
+            }
+            catch (IOException err)
+            {
+                Log.error("LitematicBuffer#writeFile(): Exception deleting file '{}'; {}", file.toAbsolutePath().toString(), err.getLocalizedMessage());
+                return null;
+            }
+        }
+
+        try (OutputStream os = Files.newOutputStream(file))
+        {
+            // Write in correct Slice order
+            for (Slice entry : this.buffer)
+            {
+                os.write(entry.data(), 0, entry.size());
+            }
+        }
+        catch (Exception err)
+        {
+            Log.error("LitematicBuffer#writeFile(): Exception saving file '{}'; {}", file.toAbsolutePath().toString(), err.getLocalizedMessage());
+            return null;
+        }
+
+        try
+        {
+            long actualSize = Files.size(file);
+
+            if (actualSize != this.totalExpectedSize)
+            {
+                Log.error("SchematicBuffer#writeFile(): File size mismatch for '{}'! Expected: {} bytes, Actual: {} bytes. Deleting corrupted file.",
+                                        file.getFileName(), this.totalExpectedSize, actualSize);
+                Files.deleteIfExists(file);
+                return null;
+            }
+        }
+        catch (IOException err)
+        {
+            Log.error("SchematicBuffer#writeFile(): Exception verifying file size for '{}'; {}", file.toAbsolutePath().toString(), err.getLocalizedMessage());
+            return null;
+        }
+
+        Log.debugLog("SchematicBuffer#writeFile(): Saved file '{}' successfully", file.toAbsolutePath().toString());
+        this.buffer = null;
+        return file;
+    }
+
+    public record Slice(byte[] data, int size) {}
+}

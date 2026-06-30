@@ -1,0 +1,142 @@
+package verymc.top.veryMcProto.mod.servux.schematic.transmit;
+
+import java.nio.file.Path;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.Nullable;
+
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerPlayer;
+
+import verymc.top.veryMcProto.mod.servux.util.Log;
+import verymc.top.veryMcProto.mod.servux.dataproviders.LitematicsDataProvider;
+import verymc.top.veryMcProto.mod.servux.schematic.LitematicaSchematic;
+import verymc.top.veryMcProto.mod.servux.util.data.FileType;
+
+public class SchematicBufferManager
+{
+    private final ConcurrentHashMap<Long, SchematicBuffer> fileBuffers;
+    private final ConcurrentHashMap<Long, CompoundTag> optionalNbt;
+    private final ConcurrentHashMap<UUID, Long> playerMap;
+
+    public SchematicBufferManager()
+    {
+        this.fileBuffers = new ConcurrentHashMap<>(16, 0.9f, 1);
+        this.optionalNbt = new ConcurrentHashMap<>(16, 0.9f, 1);
+        this.playerMap = new ConcurrentHashMap<>(16, 0.9f, 1);
+    }
+
+    public void createBuffer(String name, int totalExpectedSlices, long totalExpectedSize, final long sessionKey, ServerPlayer player)
+    {
+        this.createBuffer(name, totalExpectedSlices, totalExpectedSize, FileType.LITEMATICA_SCHEMATIC, sessionKey, null, player);
+    }
+
+    public void createBuffer(String name, int totalExpectedSlices, long totalExpectedSize, final long sessionKey, @Nullable CompoundTag optional, ServerPlayer player)
+    {
+        this.createBuffer(name, totalExpectedSlices, totalExpectedSize, FileType.LITEMATICA_SCHEMATIC, sessionKey, optional, player);
+    }
+
+    public void createBuffer(String name, int totalExpectedSlices, long totalExpectedSize, FileType type, final long sessionKey, @Nullable CompoundTag optional, ServerPlayer player)
+    {
+        if (this.fileBuffers.containsKey(sessionKey) || this.optionalNbt.containsKey(sessionKey))
+        {
+            Log.warn("createBuffer: Cannot create a new buffer for an existing session key!");
+            return;
+        }
+
+        SchematicBuffer newBuf = new SchematicBuffer(name, totalExpectedSlices, totalExpectedSize, type);
+        this.fileBuffers.put(sessionKey, newBuf);
+
+        if (optional != null && !optional.isEmpty())
+        {
+            this.optionalNbt.put(sessionKey, optional.copy());
+        }
+
+        this.playerMap.put(player.getUUID(), sessionKey);
+    }
+
+    private @Nullable SchematicBuffer getBuffer(final long sessionKey)
+    {
+        if (this.fileBuffers.containsKey(sessionKey))
+        {
+            return this.fileBuffers.get(sessionKey);
+        }
+
+        return null;
+    }
+
+    public CompoundTag getOptionalNbt(final long sessionKey)
+    {
+        if (this.optionalNbt.containsKey(sessionKey))
+        {
+            return this.optionalNbt.get(sessionKey);
+        }
+
+        return new CompoundTag();
+    }
+
+    public void receiveSlice(final long sessionKey, final int slice, byte[] dataIn, final int size)
+    {
+        if (this.fileBuffers.containsKey(sessionKey))
+        {
+            this.fileBuffers.get(sessionKey).receiveSlice(slice, new SchematicBuffer.Slice(dataIn, size));
+        }
+        else
+        {
+            Log.error("receiveSlice: Error; cannot receive a slice for a non-existing session");
+        }
+    }
+
+    public void cancelBuffer(final long sessionKey)
+    {
+        if (this.fileBuffers.containsKey(sessionKey))
+        {
+            try
+            {
+                this.fileBuffers.remove(sessionKey);
+            }
+            catch (Exception ignored) {}
+        }
+
+        this.optionalNbt.remove(sessionKey);
+    }
+
+    public void removePlayer(ServerPlayer player)
+    {
+        UUID uuid = player.getUUID();
+
+        if (this.playerMap.containsKey(uuid))
+        {
+            final long key = this.playerMap.get(uuid);
+            this.cancelBuffer(key);
+            this.playerMap.remove(uuid);
+        }
+    }
+
+    public @Nullable LitematicaSchematic finishBuffer(final long sessionKey, @Nullable Path dir)
+    {
+        if (this.fileBuffers.containsKey(sessionKey))
+        {
+            SchematicBuffer buffer = this.fileBuffers.get(sessionKey);
+
+            if (dir == null)
+            {
+                dir = LitematicsDataProvider.INSTANCE.getTransmitDir();
+            }
+
+            Path file = buffer.writeFile(dir);
+
+            if (file == null)
+            {
+                Log.error("finishBuffer: Failed writing Schematic Buffer to file: '{}'", buffer.getFileName());
+                return null;
+            }
+
+            LitematicaSchematic schematic = LitematicaSchematic.createFromFile(dir, buffer.getName(), buffer.getType());
+            this.cancelBuffer(sessionKey);
+            return schematic;
+        }
+
+        return null;
+    }
+}
