@@ -273,7 +273,7 @@ verymc.top.veryMcProto/
 - **修复**：三者补 `onPlayerRegisterChannel`，客户端声明其通道时立即重发 `sendMetadata`（幂等）。HUD 已有该钩子；Structures 握手由 C2S `STRUCTURES_REGISTER` 驱动，`onPlayerRegisterChannel` 仅记录通道声明、不主动推 metadata。
 - 与调试目标一致：开 `HANDSHAKE` 日志即可验证 entity/tweaks/litematics 的 metadata 在客户端声明通道后是否 `ok=true`。
 
-**验收方法**：进服后执行 `/servux debug on` + `/servux debug all`，重点观察日志：
+**验收方法**：进服后执行 `/servux debug on` + `/servux debug cat all`，重点观察日志：
 1. `onPlayerRegisterChannel: <玩家> 声明监听 → servux:entity_data`（确认客户端装了对应 mod 并声明通道）；
 2. `entity onPlayerRegisterChannel: ... → 重发 metadata` + `entity sendMetadata → ... ok=true`（确认 metadata 可达）；
 3. `send OK servux:entity_data → <玩家> bytes=...`（确认字节实际投递）。

@@ -131,13 +131,12 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
     /**
      * /servux debug —— 调试宏开关热切换（运行时即时生效，无需重编译/reload）。
      *
-     * <p>用法：
+     * <p>用法（<b>master 总开关</b>与<b>分类</b>是两个正交维度，各管各的）：
      * <ul>
-     *   <li>{@code /servux debug} —— 查看当前状态；</li>
-     *   <li>{@code /servux debug on|off} —— 总开关；</li>
-     *   <li>{@code /servux debug all|none} —— 全开/清空分类；</li>
-     *   <li>{@code /servux debug cat <name>} —— 切换单个分类（lifecycle/handshake/network/packet/tick/permission/provider/config）；</li>
-     *   <li>{@code /servux debug status} —— 状态。</li>
+     *   <li>{@code /servux debug} / {@code status} —— 查看状态；</li>
+     *   <li>{@code /servux debug on|off} —— <b>总开关</b>死活（仅 master，<b>不碰分类</b>）；</li>
+     *   <li>{@code /servux debug cat all|none} —— 全开/清空<b>分类</b>；</li>
+     *   <li>{@code /servux debug cat <name>} —— 切换单个分类（lifecycle/handshake/network/packet/tick/permission/provider/config）。</li>
      * </ul>
      * <p>注：命令切换<b>不持久化</b>（重启/reload 恢复为配置值）；需持久请 {@code /servux set servux_main:debug_log true}。
      */
@@ -146,7 +145,8 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
         if (args.length < 2)
         {
             sender.sendMessage("§6调试状态: §f" + Debug.statusLine());
-            sender.sendMessage("§7用法: /servux debug <on|off|all|none|cat <name>|status>");
+            sender.sendMessage("§7用法: §f/servux debug <on|off|status>§7 —— master 总开关 / 状态");
+            sender.sendMessage("§7用法: §f/servux debug cat <all|none|分类名>§7 —— 分类（master 与分类正交，两者皆开才输出）");
             sender.sendMessage("§7分类: §flifecycle handshake network packet tick permission provider config");
             return;
         }
@@ -154,21 +154,29 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
         String sub = args[1].toLowerCase();
         switch (sub)
         {
-            case "on" -> { Debug.setMaster(true); Debug.enableAll(); sender.sendMessage("§a调试已开启（总开关+全分类）: §f" + Debug.statusLine()); }
-            case "off" -> { Debug.setMaster(false); sender.sendMessage("§e调试总开关已关闭: §f" + Debug.statusLine()); }
-            case "all" -> { Debug.enableAll(); sender.sendMessage("§a已开启全分类: §f" + Debug.statusLine()); }
-            case "none" -> { Debug.clearCats(); sender.sendMessage("§e已清空全部分类: §f" + Debug.statusLine()); }
+            // master 总开关维度：on/off 只管 master 死活，绝不越权动分类（分类是正交的另一维度）。
+            case "on" ->
+            {
+                Debug.setMaster(true);
+                String tip = Debug.active().isEmpty() ? " §7(分类为空，用 §f/servux debug cat all§7 开全分类)" : "";
+                sender.sendMessage("§a调试总开关已开启 §7(仅 master): §f" + Debug.statusLine() + tip);
+            }
+            case "off" -> { Debug.setMaster(false); sender.sendMessage("§e调试总开关已关闭 §7(仅 master): §f" + Debug.statusLine()); }
             case "status" -> sender.sendMessage("§6调试状态: §f" + Debug.statusLine());
+            // 分类维度：全部归到 cat 下。all/none 是 cat 的特殊值（set 语义，全开/清空）；单个 name 走 toggle。
             case "cat" ->
             {
-                if (args.length < 3) { sender.sendMessage("§e/servux debug cat <name>"); return; }
+                if (args.length < 3) { sender.sendMessage("§e/servux debug cat <all|none|分类名>"); return; }
+                String catName = args[2].toLowerCase();
+                if (catName.equals("all")) { Debug.enableAll(); sender.sendMessage("§a已开启全分类: §f" + Debug.statusLine()); return; }
+                if (catName.equals("none")) { Debug.clearCats(); sender.sendMessage("§e已清空全分类: §f" + Debug.statusLine()); return; }
                 Debug.Cat cat = Debug.parseCat(args[2]);
-                if (cat == null) { sender.sendMessage("§c未知分类: " + args[2]); return; }
+                if (cat == null) { sender.sendMessage("§c未知分类: " + args[2] + " §7(all|none|分类名)"); return; }
                 boolean now = Debug.toggle(cat);
                 sender.sendMessage("§a分类 " + cat.name().toLowerCase() + " → " + (now ? "§aON" : "§cOFF"));
                 sender.sendMessage("§7当前: §f" + Debug.statusLine());
             }
-            default -> sender.sendMessage("§c未知子命令: " + sub + " §7(on/off/all/none/cat/status)");
+            default -> sender.sendMessage("§c未知子命令: " + sub + " §7(on/off/cat/status)");
         }
     }
 
@@ -207,7 +215,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
             }
             else if (sub.equals("debug"))
             {
-                for (String s : List.of("on", "off", "all", "none", "cat", "status"))
+                for (String s : List.of("on", "off", "cat", "status"))
                 {
                     if (s.startsWith(typed)) { out.add(s); }
                 }
@@ -226,6 +234,10 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
         }
         else if (args.length == 3 && args[0].equalsIgnoreCase("debug") && args[1].equalsIgnoreCase("cat"))
         {
+            for (String s : List.of("all", "none"))
+            {
+                if (s.startsWith(typed)) { out.add(s); }
+            }
             for (Debug.Cat c : Debug.Cat.values())
             {
                 String n = c.name().toLowerCase();
