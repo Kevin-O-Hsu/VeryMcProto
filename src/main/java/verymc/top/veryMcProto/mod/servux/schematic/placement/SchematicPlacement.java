@@ -11,6 +11,7 @@ import verymc.top.veryMcProto.mod.servux.schematic.selection.Box;
 import verymc.top.veryMcProto.mod.servux.util.*;
 import verymc.top.veryMcProto.mod.servux.util.nbt.NbtUtils;
 import verymc.top.veryMcProto.mod.servux.util.position.PositionUtils;
+import verymc.top.veryMcProto.mod.servux.util.SchematicPlacingUtils;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -586,6 +587,13 @@ public class SchematicPlacement
 
     public void pasteTo(ServerLevel serverWorld, ReplaceBehavior replaceBehavior, PasteLayerBehavior layerBehavior, @Nullable LayerRange layerRange)
     {
-        // TODO P6: 回填 pasteTo（原版 ORIGIN/schematic/placement/SchematicPlacement.java:587），调 SchematicPlacingUtils.placeToWorldWithinChunk。
+        Box bb = this.getEnclosingBox();
+
+        if (bb != null)
+        {
+            bb.toVanilla().intersectingChunks().forEach(chunkPos ->
+                SchematicPlacingUtils.placeToWorldWithinChunk(serverWorld, chunkPos, this, replaceBehavior, layerBehavior, layerRange, false)
+            );
+        }
     }
 }

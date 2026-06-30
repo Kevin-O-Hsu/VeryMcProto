@@ -22,6 +22,8 @@ import net.minecraft.world.level.border.WorldBorder;
 import net.minecraft.world.phys.Vec3;
 
 import verymc.top.veryMcProto.mod.servux.schematic.selection.Box;
+import verymc.top.veryMcProto.mod.servux.schematic.placement.SchematicPlacement;
+import verymc.top.veryMcProto.mod.servux.schematic.placement.SubRegionPlacement;
 import verymc.top.veryMcProto.mod.servux.util.IntBoundingBox;
 
 public class PositionUtils
@@ -419,7 +421,13 @@ public class PositionUtils
                 pos.getZ() >= posMin.getZ() && pos.getZ() <= posMax.getZ();
     }
 
-    // TODO P6: 回填 getTransformedPlacementPosition(BlockPos, SchematicPlacement, SubRegionPlacement)（原版 ORIGIN/util/position/PositionUtils.java:425），placement 闭环就绪后加回。
+    public static BlockPos getTransformedPlacementPosition(BlockPos posWithinSub, SchematicPlacement schematicPlacement, SubRegionPlacement placement)
+    {
+        BlockPos pos = posWithinSub;
+        pos = getTransformedBlockPos(pos, schematicPlacement.getMirror(), schematicPlacement.getRotation());
+        pos = getTransformedBlockPos(pos, placement.getMirror(), placement.getRotation());
+        return pos;
+    }
 
     public static boolean arePositionsWithinWorld(Level world, BlockPos pos1, BlockPos pos2)
     {
