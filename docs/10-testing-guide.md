@@ -126,8 +126,8 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 2. **批量区块 NBT 拉取** ⭐（黄金验证点）：`requestServuxBulkEntityData(chunkPos, minY, maxY)`
    （`EntityDataManager.java:679`）—— **保存投影（Save Schematic）时**，对该区域每个区块请求
    全部方块实体 + 实体的完整 NBT。响应 `BulkEntityReply`（`TileEntities` + `Entities` + `chunkX/Z`）。
-3. **投影文件传输**（服务器→客户端投递 .litematic）：`Litematic-TransmitStart/Data/End`。**⚠️ 已降级**。
-4. **投影粘贴**（C2S 上传投影让服务端放置）：`handleClientPasteRequest`。**⚠️ 已降级**。
+3. **投影文件传输**（服务器→客户端投递 .litematic）：`Litematic-TransmitStart/Data/End`。**✅ 已实现**（schematic 子系统已移植；`/servux litematic transmit <file> [player]` 触发投递）
+4. **投影粘贴**（C2S 上传投影让服务端放置）：`handleClientPasteRequest`。**✅ 已实现**（客户端上传 → `SchematicBufferManager` 组装 → `createFromFile` → `pasteTo` 写世界；需创造模式 + paste 权限）
 
 > 我们的插件 `LitematicsDataProvider.onBulkEntityRequest` 在响应批量请求时会向玩家**聊天框**发送
 > `Litematics bulk reply: <世界> <区块> TE=<方块实体数> E=<实体数> (<耗时>ms)`——**这是最直观的验证信号**。
@@ -177,8 +177,8 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 | 功能 | 状态 | 表现 |
 |---|---|---|
-| 投影文件传输（服务器投递投影给客户端） | ❌ 未实现 | 服务端重组后仅 `ServuxLog.debug` 记录，不加载。Litematica 收不到服务器推送的投影 |
-| 投影粘贴（客户端上传投影让服务端放置） | ❌ 未实现 | 玩家收到 `§c粘贴功能未实现（schematic 系统未移植）`。详见 [`05-schematic-system.md`](05-schematic-system.md) |
+| 投影文件传输（服务器投递投影给客户端） | ✅ 已实现 | `/servux litematic transmit <file>` → `sendTransmitFile` 16KiB 分片投递（schematic 子系统已移植，见 [11](11-schematic-migration-plan.md)） |
+| 投影粘贴（客户端上传投影让服务端放置） | ✅ 已实现 | 客户端 Litematica 上传 → `receiveFileTransmit` 组装 → `pasteTo` 写世界（创造模式 + paste 权限）。详见 [11](11-schematic-migration-plan.md) |
 | 单个 / 批量 NBT 查询 | ✅ 已实现 | 上述测试 A / B 覆盖 |
 
 ---
@@ -287,12 +287,12 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 | 功能 | 所属通道 | 降级表现 |
 |---|---|---|
-| 投影文件传输（服务器→客户端投递投影） | litematics | 重组后仅日志，不加载 |
-| 投影粘贴（C2S 上传放置） | litematics | 玩家收到「未实现」提示 |
+| 投影文件传输（服务器→客户端投递投影） | litematics | ✅ 已实现（`/servux litematic transmit`） |
+| 投影粘贴（C2S 上传放置） | litematics | ✅ 已实现（客户端上传 → pasteTo） |
 | 服务端潜影盒堆叠行为 | tweaks | 配置可下发，但服务端不真改堆叠上限 |
 | EasyPlace（Tweakeroo 服务端配合放置） | servux_main | 降级 / 省略 |
 | UpdateSuppression | — | 省略 |
-| 镜像修复（箱子/铁轨/楼梯 180°） | litematics | 仅在（未实现的）粘贴路径用，当前无影响 |
+| 镜像修复（箱子 180°） | litematics | ✅ 已实现（SchematicPlacingUtils 内联 + fixChestMirror setting）。铁轨/楼梯靠 BlockState.mirror/rotate 自身（原版 Mixin 降级，可能不完美） |
 
 > **已实现且应正常工作的**：所有通道的握手 + 实体/方块实体 NBT 查询 + 批量 NBT 拉取 +
 > HUD 数据 + 结构边界框 + 潜影盒配置下发。

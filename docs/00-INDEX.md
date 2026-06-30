@@ -34,7 +34,8 @@
 | 06 | [fabric-vs-paper.md](06-fabric-vs-paper.md) | Fabric ↔ Paper 框架差异**对照表**：生命周期、权限、网络、配置、命令、构建、NMS 可达性 | 差异映射 |
 | 07 | [migration-architecture.md](07-migration-architecture.md) ⭐ | **完整迁移方案**：目标架构、网络层迁移（plugin messaging + NMS）、数据采集迁移、Mixin 降级矩阵、字节限制方案、可行性验证（含网络文档引用） | 方案设计 |
 | 08 | [implementation-plan.md](08-implementation-plan.md) | 实施步骤：5 个阶段（环境→网络→数据采集→各 Provider→打磨）、任务拆解、依赖关系、里程碑、验收标准 | 任务拆分 |
-| 10 | [testing-guide.md](10-testing-guide.md) | **客户端兼容测试**：5 通道↔3 mod 映射、C2S 拉取模型、Litematica / Tweakeroo 测试步骤、排错流程、降级清单、结果记录表 | 实测验证 |
+| 10 | [testing-guide.md](10-testing-guide.md) |
+| 11 | [schematic-migration-plan.md](11-schematic-migration-plan.md) | schematic 子系统（投影投递+粘贴）移植的**逐阶段作战手册**：P0-P9 文件清单、降级点、编译门、状态表 | 实施蓝图 | **客户端兼容测试**：5 通道↔3 mod 映射、C2S 拉取模型、Litematica / Tweakeroo 测试步骤、排错流程、降级清单、结果记录表 | 实测验证 |
 | — | [references.md](references.md) | 外部参考链接汇总 | 资源 |
 
 ---
