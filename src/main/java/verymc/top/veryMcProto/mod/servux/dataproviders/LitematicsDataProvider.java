@@ -21,6 +21,7 @@ import net.minecraft.world.phys.Vec3;
 
 import verymc.top.veryMcProto.Reference;
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderBase;
+import verymc.top.veryMcProto.framework.debug.Debug;
 import verymc.top.veryMcProto.framework.network.IPluginServerPlayHandler;
 import verymc.top.veryMcProto.framework.network.ServerPlayHandler;
 import verymc.top.veryMcProto.framework.permission.Perms;
@@ -104,10 +105,20 @@ public class LitematicsDataProvider extends DataProviderBase
 
     public void sendMetadata(ServerPlayer player)
     {
-        if (!this.isEnabled()) { return; }
-        if (!this.hasPermission(player)) { ServuxLog.debug("litematic_data: 拒绝 " + player.getName().getString() + "（权限不足）"); return; }
-        ServuxLog.debug("litematic_data: sendMetadata → " + player.getName().getString());
-        HANDLER.sendPlayPayload(player, ServuxLitematicaPacket.MetadataResponse(this.metadata));
+        if (!this.isEnabled())
+        {
+            Debug.log(Debug.Cat.HANDSHAKE, "litematic sendMetadata 跳过: provider disabled");
+            return;
+        }
+        if (!this.hasPermission(player))
+        {
+            Debug.log(Debug.Cat.HANDSHAKE, "litematic sendMetadata 拒绝 " + player.getName().getString() + " (权限不足)");
+            return;
+        }
+        boolean ok = HANDLER.sendPlayPayload(player, ServuxLitematicaPacket.MetadataResponse(this.metadata));
+        Debug.log(Debug.Cat.HANDSHAKE, "litematic sendMetadata → " + player.getName().getString()
+                + " ok=" + ok + " servux=" + this.metadata.getStringOr("servux", "?")
+                + " ver=" + this.metadata.getIntOr("version", -1));
     }
 
     public void onPacketFailure(ServerPlayer player) { this.setPlayerInvalid(player); }
@@ -299,8 +310,20 @@ public class LitematicsDataProvider extends DataProviderBase
     public void onPlayerJoin(ServerPlayer player)
     {
         if (!this.isEnabled()) { return; }
-        // plugin messaging 握手需时间，直接 sendMetadata（与 Entities 一致；必要时可改延迟）
+        // plugin messaging 握手需时间，直接 sendMetadata（与 Entities 一致；configuration phase 多半失败，由 onPlayerRegisterChannel 补救）
         this.sendMetadata(player);
+    }
+
+    @Override
+    public void onPlayerRegisterChannel(ServerPlayer player, String channel)
+    {
+        // ★ 修复 litematic sync not_enabled：onPlayerJoin 时通道未声明，sendMetadata 丢弃；
+        // 客户端声明 servux:litematics（= 装了 Litematica）时立即重发。sendMetadata 幂等。
+        if (this.getNetworkChannel().toString().equals(channel))
+        {
+            Debug.log(Debug.Cat.HANDSHAKE, "litematic onPlayerRegisterChannel: 客户端声明 " + channel + " → 重发 metadata");
+            this.sendMetadata(player);
+        }
     }
 
     @Override public void onPlayerQuit(ServerPlayer player) { this.removePlayer(player); }

@@ -26,8 +26,10 @@ import net.minecraft.world.level.storage.ServerLevelData;
 
 import verymc.top.veryMcProto.Reference;
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderBase;
+import verymc.top.veryMcProto.framework.debug.Debug;
 import verymc.top.veryMcProto.framework.network.IPluginServerPlayHandler;
 import verymc.top.veryMcProto.framework.network.ServerPlayHandler;
+import verymc.top.veryMcProto.framework.nms.Nms;
 import verymc.top.veryMcProto.framework.permission.Perms;
 import verymc.top.veryMcProto.framework.settings.IServuxSetting;
 import verymc.top.veryMcProto.framework.settings.IServuxSettingCallback;
@@ -350,10 +352,14 @@ public class HudDataProvider extends DataProviderBase
 
     public void sendMetadata(ServerPlayer player)
     {
-        if (!this.isEnabled()) { return; }
+        if (!this.isEnabled())
+        {
+            Debug.log(Debug.Cat.HANDSHAKE, "hud sendMetadata 跳过: provider disabled");
+            return;
+        }
         if (!this.hasPermission(player))
         {
-            ServuxLog.debug("hud_service: 拒绝玩家 " + player.getName().getString() + "（权限不足）");
+            Debug.log(Debug.Cat.HANDSHAKE, "hud sendMetadata 拒绝 " + player.getName().getString() + " (权限不足)");
             return;
         }
 
@@ -364,10 +370,13 @@ public class HudDataProvider extends DataProviderBase
 
         if (!this.hasPermissionsForSeed(player) && nbt.contains("worldSeed")) { nbt.remove("worldSeed"); }
 
-        ServuxLog.debug("hudDataChannel: sendMetadata → " + player.getName().getString());
-
         // 方案 A：走 plugin messaging（原版走 NMS networkHandler 首发保真，Paper 用握手重试替代）
-        HANDLER.sendPlayPayload(player, ServuxHudPacket.MetadataResponse(nbt));
+        boolean ok = HANDLER.sendPlayPayload(player, ServuxHudPacket.MetadataResponse(nbt));
+        Debug.log(Debug.Cat.HANDSHAKE, "hud sendMetadata → " + player.getName().getString()
+                + " ok=" + ok + " servux=" + nbt.getStringOr("servux", "?")
+                + " ver=" + nbt.getIntOr("version", -1)
+                + " keys=" + nbt.keySet()
+                + " loggers=" + (this.isLoggersEnabled() ? "ON" : "off"));
     }
 
     public void refreshLoggers(ServerPlayer player, CompoundTag nbt)
@@ -611,6 +620,24 @@ public class HudDataProvider extends DataProviderBase
 
     @Override public void onTickEndPre() { /* NO-OP */ }
     @Override public void onTickEndPost() { /* NO-OP */ }
+
+    @Override
+    public void onConfigLoaded()
+    {
+        // 配置加载后（server 已就绪）同步真实世界出生点，替代原版 MixinMinecraftServer 钩子。
+        // 否则 spawnPos 恒为构造默认 (0,0,0)，MiniHUD 的 spawn 坐标/指针显示错误。
+        try
+        {
+            MinecraftServer server = Nms.server();
+            if (server != null)
+            {
+                this.updateSpawnFromServer(server);
+                GlobalPos sp = this.getSpawnPos();
+                Debug.log(Debug.Cat.HANDSHAKE, "hud onConfigLoaded: 同步出生点 → dim=" + sp.dimension().identifier() + " pos=" + sp.pos());
+            }
+        }
+        catch (Exception ignored) { }
+    }
 
     public static class BoolCallback implements IServuxSettingCallback<Boolean>
     {

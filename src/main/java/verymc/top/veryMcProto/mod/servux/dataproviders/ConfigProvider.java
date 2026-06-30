@@ -9,8 +9,10 @@ import net.minecraft.server.level.ServerPlayer;
 
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderBase;
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderManager;
+import verymc.top.veryMcProto.framework.debug.Debug;
 import verymc.top.veryMcProto.framework.permission.Perms;
 import verymc.top.veryMcProto.framework.settings.IServuxSetting;
+import verymc.top.veryMcProto.framework.settings.IServuxSettingCallback;
 import verymc.top.veryMcProto.framework.settings.ServuxBoolSetting;
 import verymc.top.veryMcProto.framework.settings.ServuxIntSetting;
 import verymc.top.veryMcProto.framework.settings.ServuxStringSetting;
@@ -36,7 +38,7 @@ public class ConfigProvider extends DataProviderBase
     private final ServuxIntSetting easyPlacePermissionLevel = new ServuxIntSetting(this, "permission_level_easy_place", 0, 4, 0);
     private final ServuxBoolSetting easyPlaceValidatorEnabled = new ServuxBoolSetting(this, "easy_place_validator_enabled", true);
     private final ServuxStringSetting defaultLanguage = new ServuxStringSetting(this, "default_language", "en_us", List.of("en_us"), false);
-    private final ServuxBoolSetting debugLog = new ServuxBoolSetting(this, "debug_log", false);
+    private final ServuxBoolSetting debugLog = new ServuxBoolSetting(this, "debug_log", false, new DebugLogCallback());
     private final List<IServuxSetting<?>> settings = List.of(
             this.basePermissionLevel, this.adminPermissionLevel,
             this.easyPlacePermissionLevel, this.easyPlaceValidatorEnabled,
@@ -80,6 +82,31 @@ public class ConfigProvider extends DataProviderBase
         return this.debugLog.getValue() || ServuxReference.DEV_DEBUG;
     }
 
+    /**
+     * 把 {@code servux_main:debug_log} 同步到框架 {@link Debug} 宏开关。
+     *
+     * <p>开启时自动 {@link Debug#enableAll()}（全分类），方便排障；关闭则静默。
+     * 由 {@link DebugLogCallback}（命令 {@code /servux set} 触发）与 {@link #onConfigLoaded}（配置文件读取）双入口调用，
+     * 保证「命令即时切换」与「改 servux.json 重启/reload」两条路径都生效。
+     */
+    public void syncDebugToFramework(boolean debugLogValue)
+    {
+        boolean on = debugLogValue || ServuxReference.DEV_DEBUG;
+        Debug.setMaster(on);
+        if (on)
+        {
+            Debug.enableAll();
+            Debug.debug("调试宏开关已启用（servux_main:debug_log=" + debugLogValue
+                    + ", DEV_DEBUG=" + ServuxReference.DEV_DEBUG + "），已开启全分类。");
+        }
+    }
+
+    @Override
+    public void onConfigLoaded()
+    {
+        this.syncDebugToFramework(this.debugLog.getValue());
+    }
+
     @Override
     public boolean hasPermission(ServerPlayer player)
     {
@@ -100,4 +127,14 @@ public class ConfigProvider extends DataProviderBase
     @Override public void onTickEndPre() { /* NO-OP */ }
 
     @Override public void onTickEndPost() { /* NO-OP */ }
+
+    /** debug_log setting 变更回调：命令 {@code /servux set servux_main:debug_log <bool>} 时即时同步框架 Debug。 */
+    public static class DebugLogCallback implements IServuxSettingCallback<Boolean>
+    {
+        @Override
+        public void onValueChanged(IServuxSetting<Boolean> setting, Boolean oldValue, Boolean value)
+        {
+            ConfigProvider.INSTANCE.syncDebugToFramework(value);
+        }
+    }
 }

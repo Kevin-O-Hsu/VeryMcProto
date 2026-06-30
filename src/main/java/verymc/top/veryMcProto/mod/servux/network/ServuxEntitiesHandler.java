@@ -9,6 +9,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
 import verymc.top.veryMcProto.Reference;
+import verymc.top.veryMcProto.framework.debug.Debug;
 import verymc.top.veryMcProto.framework.network.IPluginServerPlayHandler;
 import verymc.top.veryMcProto.framework.network.IServerPayloadData;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
@@ -52,6 +53,7 @@ public class ServuxEntitiesHandler implements IPluginServerPlayHandler
     {
         ServuxEntitiesPacket packet = ServuxEntitiesPacket.fromPacket(data);
         if (packet == null) { return; }
+        Debug.log(Debug.Cat.PACKET, "C2S entity ← " + player.getName().getString() + " type=" + packet.getType());
         this.decodeServerData(CHANNEL_ID, player, packet);
     }
 
@@ -86,6 +88,8 @@ public class ServuxEntitiesHandler implements IPluginServerPlayHandler
 
         if (packet.getType().equals(ServuxEntitiesPacket.Type.PACKET_S2C_NBT_RESPONSE_START))
         {
+            Debug.log(Debug.Cat.PACKET, "encodeServerData entity → " + player.getName().getString()
+                    + " type=" + packet.getType() + " → PacketSplitter 分包");
             // 大包：VarInt transactionId + NBT，走 PacketSplitter
             var buf = new FriendlyByteBuf(io.netty.buffer.Unpooled.buffer());
             buf.writeVarInt(packet.getTransactionId());
@@ -96,7 +100,13 @@ public class ServuxEntitiesHandler implements IPluginServerPlayHandler
         {
             UUID id = player.getUUID();
             int count = this.failures.getOrDefault(id, 0) + 1;
-            if (count >= MAX_FAILURES) { this.failures.remove(id); EntitiesDataProvider.INSTANCE.onPacketFailure(player); }
+            if (count >= MAX_FAILURES)
+            {
+                this.failures.remove(id);
+                Debug.log(Debug.Cat.PACKET, "encodeServerData entity → " + player.getName().getString()
+                        + " 连续 " + MAX_FAILURES + " 次发送失败，触发 onPacketFailure");
+                EntitiesDataProvider.INSTANCE.onPacketFailure(player);
+            }
             else { this.failures.put(id, count); }
         }
     }

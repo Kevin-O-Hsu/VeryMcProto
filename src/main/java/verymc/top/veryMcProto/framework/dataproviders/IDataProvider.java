@@ -94,6 +94,15 @@ public interface IDataProvider
      */
     default void onPlayerRegisterChannel(ServerPlayer player, String channel) { }
 
+    /**
+     * 配置加载完成后由 {@code DataProviderManager.readFromConfig()} 末尾遍历调用（每次 reload 也会触发）。
+     *
+     * <p>provider 可覆写以做配置后处理（典型：全局配置 provider 据自身 setting 同步框架级开关，如
+     * {@code debug_log} → {@link verymc.top.veryMcProto.framework.debug.Debug} 宏开关）。框架层不感知具体 mod，
+     * 通过此通用钩子解耦。
+     */
+    default void onConfigLoaded() { }
+
     void onTickEndPre();
 
     void onTickEndPost();

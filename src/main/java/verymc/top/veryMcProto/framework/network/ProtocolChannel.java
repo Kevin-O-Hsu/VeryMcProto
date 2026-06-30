@@ -12,6 +12,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
 import verymc.top.veryMcProto.Reference;
+import verymc.top.veryMcProto.framework.debug.Debug;
 
 /**
  * 单条 plugin messaging 通道封装（框架层）。
@@ -24,14 +25,15 @@ import verymc.top.veryMcProto.Reference;
  *   <li>{@link #send} = 原版 {@code ServerPlayNetworking.send}（plugin messaging 发送）。</li>
  * </ul>
  *
- * <p><b>客户端支持检测</b>（替代原版 {@code ServerPlayNetworking.canSend}）：
- * {@link #send} 检查 {@code player.getListeningPluginChannels().contains(name)}。
- * Fabric 客户端装了对应 masa mod 才会通过 MC|Register 声明监听 {@code servux:*}；
- * 未装的玩家永远不含 → send 返回 false → handler 失败计数 → 最终标记 invalid（不刷屏）。
- * 这比原版 canSend 更可靠地识别"客户端无对应 mod"。
+ * <p><b>客户端支持检测（策略变更：不再门控）</b>：曾用 {@code player.getListeningPluginChannels().contains(name)}
+ * 门控丢弃，但 masa 客户端通过 1.20.5+ {@code PayloadTypeRegistry.playS2C()} 在配置阶段声明通道（新式协商），
+ * 该声明不必然反映到 Bukkit 旧式 {@code MC|Register} 机制，且到达晚于 {@code onPlayerJoin} 首包 → metadata 被
+ * 永久丢弃 → entity/tweaks/litematics {@code not_enabled}（实测 BUG）。故现改为<b>不门控直接发送</b>，与原版
+ * {@code player.connection.send(ClientboundCustomPayloadPacket)} 等价（{@code sendPluginMessage} 在 Paper 上同样
+ * 发 {@code ClientboundCustomPayloadPacket}）；仅在日志记录 {@code listening} 状态供诊断。客户端未声明时 Fabric
+ * 丢弃（对 masa 客户端安全）；原版/vanilla 客户端的断连风险见 docs/09 §10.6。
  *
- * <p>plugin messaging 注册的通道由 Paper 内置路由，<b>不会因未知 payload 踢玩家</b>（这是用 plugin messaging
- * 而非裸 NMS 发包的根本理由）。
+ * <p>plugin messaging 注册的通道由 Paper 内置路由 C2S 接收，<b>不会因未知 C2S payload 踢玩家</b>。
  */
 public final class ProtocolChannel
 {
@@ -51,6 +53,7 @@ public final class ProtocolChannel
             {
                 return;
             }
+            Debug.log(Debug.Cat.NETWORK, "C2S 收到 " + channelId + " ← " + player.getName() + " bytes=" + message.length);
             try
             {
                 FriendlyByteBuf buf = FriendlyByteBufs.wrap(message);
@@ -90,6 +93,7 @@ public final class ProtocolChannel
         }
         plugin.getServer().getMessenger().registerIncomingPluginChannel(plugin, name(), listener);
         incoming = true;
+        Debug.log(Debug.Cat.NETWORK, "registerIncoming OK " + channelId);
     }
 
     public synchronized void registerOutgoing()
@@ -100,6 +104,7 @@ public final class ProtocolChannel
         }
         plugin.getServer().getMessenger().registerOutgoingPluginChannel(plugin, name());
         outgoing = true;
+        Debug.log(Debug.Cat.NETWORK, "registerOutgoing OK " + channelId);
     }
 
     public synchronized void unregister()
@@ -146,17 +151,22 @@ public final class ProtocolChannel
     {
         if (!outgoing)
         {
+            Debug.log(Debug.Cat.NETWORK, "send FAIL " + channelId + " bytes=" + bytes.length
+                    + " : outgoing 未注册（provider 未 registerHandler / 通道已注销）");
             return false;
         }
         if (player == null || !player.isOnline())
         {
+            Debug.log(Debug.Cat.NETWORK, "send FAIL " + channelId + " bytes=" + bytes.length + " : player 离线/null");
             return false;
         }
-        // 客户端必须已声明监听本通道（plugin messaging 握手 MC|Register）；未声明 = 客户端无对应 mod。
-        if (!player.getListeningPluginChannels().contains(name()))
-        {
-            return false;
-        }
+        // ★ 命门修复：不再用 getListeningPluginChannels 门控丢弃。
+        // masa 客户端通过 1.20.5+ PayloadTypeRegistry.playS2C() 在配置阶段声明通道（新式协商），
+        // 该声明不一定反映到 Bukkit 旧式 MC|Register 机制，且到达晚于 onPlayerJoin 首包 →
+        // metadata 被永久丢弃 → entity/tweaks/litematics not_enabled。原版 Fabric 直接
+        // player.connection.send(ClientboundCustomPayloadPacket) 不门控；Paper sendPluginMessage 同样
+        // 发 ClientboundCustomPayloadPacket，去掉门控即等价。客户端声明了则收，未声明 Fabric 丢弃（安全）。
+        boolean listening = player.getListeningPluginChannels().contains(name());
         if (bytes.length > Messenger.MAX_MESSAGE_SIZE)
         {
             Reference.logger().warning("ProtocolChannel[" + channelId + "] 拒绝发送超限包: " + bytes.length
@@ -166,6 +176,8 @@ public final class ProtocolChannel
         try
         {
             player.sendPluginMessage(plugin, name(), bytes);
+            Debug.log(Debug.Cat.NETWORK, "send OK " + channelId + " → " + player.getName()
+                    + " bytes=" + bytes.length + " listening=" + listening);
             return true;
         }
         catch (Exception e)

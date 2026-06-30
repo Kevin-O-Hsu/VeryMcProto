@@ -17,6 +17,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderBase;
+import verymc.top.veryMcProto.framework.debug.Debug;
 import verymc.top.veryMcProto.framework.network.IPluginServerPlayHandler;
 import verymc.top.veryMcProto.framework.network.ServerPlayHandler;
 import verymc.top.veryMcProto.framework.permission.Perms;
@@ -153,17 +154,23 @@ public class TweaksDataProvider extends DataProviderBase
 
     public void sendMetadata(ServerPlayer player)
     {
-        if (!this.isEnabled()) { return; }
+        if (!this.isEnabled())
+        {
+            Debug.log(Debug.Cat.HANDSHAKE, "tweaks sendMetadata 跳过: provider disabled");
+            return;
+        }
         if (!this.hasPermission(player))
         {
-            ServuxLog.debug("tweaks_service: 拒绝 " + player.getName().getString() + "（权限不足）");
+            Debug.log(Debug.Cat.HANDSHAKE, "tweaks sendMetadata 拒绝 " + player.getName().getString() + " (权限不足)");
             return;
         }
 
-        ServuxLog.debug("tweaksDataChannel: sendMetadata → " + player.getName().getString());
         this.checkTweaksMetadata();
-
-        HANDLER.sendPlayPayload(player, ServuxTweaksPacket.MetadataResponse(this.metadata));
+        boolean ok = HANDLER.sendPlayPayload(player, ServuxTweaksPacket.MetadataResponse(this.metadata));
+        Debug.log(Debug.Cat.HANDSHAKE, "tweaks sendMetadata → " + player.getName().getString()
+                + " ok=" + ok + " servux=" + this.metadata.getStringOr("servux", "?")
+                + " ver=" + this.metadata.getIntOr("version", -1)
+                + " keys=" + this.metadata.keySet());
     }
 
     public void onPacketFailure(ServerPlayer player) { this.setPlayerInvalid(player); }
@@ -254,6 +261,19 @@ public class TweaksDataProvider extends DataProviderBase
     @Override public boolean hasPermission(ServerPlayer player) { return Perms.check(player, this.permNode, this.permissionLevel.getValue()); }
 
     @Override public void onPlayerJoin(ServerPlayer player) { this.sendMetadata(player); }
+
+    @Override
+    public void onPlayerRegisterChannel(ServerPlayer player, String channel)
+    {
+        // ★ 修复 tweaks sync not_enabled：onPlayerJoin 时通道未声明，sendMetadata 丢弃；
+        // 客户端声明 servux:tweaks（= 装了 Tweakeroo 等）时立即重发。sendMetadata 幂等。
+        if (this.getNetworkChannel().toString().equals(channel))
+        {
+            Debug.log(Debug.Cat.HANDSHAKE, "tweaks onPlayerRegisterChannel: 客户端声明 " + channel + " → 重发 metadata");
+            this.sendMetadata(player);
+        }
+    }
+
     @Override public void onPlayerQuit(ServerPlayer player) { this.removePlayer(player); }
 
     @Override public void onTickEndPre() { /* NO-OP */ }

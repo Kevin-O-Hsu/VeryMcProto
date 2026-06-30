@@ -17,6 +17,7 @@ import net.minecraft.server.level.ServerPlayer;
 import verymc.top.veryMcProto.Reference;
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderManager;
 import verymc.top.veryMcProto.framework.dataproviders.IDataProvider;
+import verymc.top.veryMcProto.framework.debug.Debug;
 import verymc.top.veryMcProto.framework.nms.Nms;
 
 /**
@@ -95,6 +96,7 @@ public class LifecycleBridge implements Listener
         try
         {
             MinecraftServer server = Nms.server();
+            Debug.log(Debug.Cat.LIFECYCLE, "onServerLoad: 捕获 RegistryAccess → readFromConfig → writeToConfig");
             // 须在 server 完全启动后捕获 RegistryAccess，否则 Recipe / NbtView / palette 拿空注册表。
             DataProviderManager.INSTANCE.onCaptureImmutable(server.registryAccess());
             DataProviderManager.INSTANCE.readFromConfig();
@@ -111,10 +113,15 @@ public class LifecycleBridge implements Listener
     public void onPlayerJoin(PlayerJoinEvent event)
     {
         ServerPlayer player = Nms.toNms(event.getPlayer());
+        // 关键诊断点：configuration phase 下此时 getListeningPluginChannels 通常为空——
+        // 客户端的 MC|Register（servux:* 声明）在配置阶段之后才到达，故此时直推 metadata 多半失败。
+        Debug.log(Debug.Cat.HANDSHAKE, "onPlayerJoin: " + player.getName().getString()
+                + " | 此时监听通道=" + event.getPlayer().getListeningPluginChannels());
         for (IDataProvider p : DataProviderManager.INSTANCE.getAllProviders())
         {
             if (!p.isEnabled())
             {
+                Debug.log(Debug.Cat.HANDSHAKE, "  skip " + p.getName() + ".onPlayerJoin (provider disabled)");
                 continue;
             }
             try
@@ -132,6 +139,7 @@ public class LifecycleBridge implements Listener
     public void onPlayerQuit(PlayerQuitEvent event)
     {
         ServerPlayer player = Nms.toNms(event.getPlayer());
+        Debug.log(Debug.Cat.HANDSHAKE, "onPlayerQuit: " + player.getName().getString() + " → 清理 provider 会话");
         for (IDataProvider p : DataProviderManager.INSTANCE.getAllProviders())
         {
             try
@@ -178,6 +186,12 @@ public class LifecycleBridge implements Listener
     {
         String channel = event.getChannel();
         ServerPlayer player = Nms.toNms(event.getPlayer());
+        // ★ 最关键诊断点：客户端声明监听某通道 = 装了对应 mod 的可靠信号（configuration phase 完成后到达）。
+        // 记录声明的通道名 + 当前全部监听集合，可定位 entity/tweaks/litematics 的 metadata 为何 not_enabled：
+        //   - 若客户端从不声明某 servux:* 通道 → 该 mod 未装（如未装 Tweakeroo/实体查询 mod）；
+        //   - 若声明了但服务端无 provider 主动响应（sendMetadata）→ 该 provider 缺 onPlayerRegisterChannel 钩子。
+        Debug.log(Debug.Cat.HANDSHAKE, "onPlayerRegisterChannel: " + player.getName().getString()
+                + " 声明监听 → " + channel + " | 全部监听=" + event.getPlayer().getListeningPluginChannels());
         for (IDataProvider p : DataProviderManager.INSTANCE.getAllProviders())
         {
             if (!p.isEnabled())

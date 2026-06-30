@@ -17,6 +17,7 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.server.MinecraftServer;
 
 import verymc.top.veryMcProto.Reference;
+import verymc.top.veryMcProto.framework.debug.Debug;
 import verymc.top.veryMcProto.framework.settings.IServuxSetting;
 import verymc.top.veryMcProto.framework.util.JsonUtils;
 
@@ -69,9 +70,10 @@ public class DataProviderManager
             this.providers.put(name, provider);
             this.providersImmutable = List.copyOf(this.providers.values());
 
-            if (Reference.DEV_DEBUG)
+            if (Debug.isOn(Debug.Cat.PROVIDER))
             {
-                Reference.logger().info("registerDataProvider: " + provider);
+                Debug.log(Debug.Cat.PROVIDER, "registerDataProvider: " + provider.getName()
+                        + " channel=" + provider.getNetworkChannel() + " protoVer=" + provider.getProtocolVersion());
             }
 
             return true;
@@ -90,9 +92,10 @@ public class DataProviderManager
     {
         boolean wasEnabled = provider.isEnabled();
 
-        if (Reference.DEV_DEBUG)
+        if (Debug.isOn(Debug.Cat.PROVIDER))
         {
-            Reference.logger().info("setProviderEnabled: " + enabled + " (" + provider + ")");
+            Debug.log(Debug.Cat.PROVIDER, "setProviderEnabled: " + provider.getName()
+                    + " was=" + wasEnabled + " → now=" + enabled);
         }
 
         if (enabled || wasEnabled != enabled)
@@ -103,6 +106,7 @@ public class DataProviderManager
             if (enabled && provider.shouldTick() && this.providersTicking.contains(provider) == false)
             {
                 this.providersTicking.add(provider);
+                Debug.log(Debug.Cat.PROVIDER, "  → 加入 ticking 列表，interval=" + provider.getTickInterval());
             }
             else
             {
@@ -123,6 +127,8 @@ public class DataProviderManager
             {
                 if ((tickCounter % provider.getTickInterval()) == 0)
                 {
+                    Debug.log(Debug.Cat.TICK, "tick[" + provider.getName() + "] @tick=" + tickCounter
+                            + " interval=" + provider.getTickInterval());
                     try
                     {
                         provider.tick(server, tickCounter);
@@ -148,10 +154,12 @@ public class DataProviderManager
     {
         if (provider.isEnabled())
         {
+            Debug.log(Debug.Cat.PROVIDER, "updatePacketHandlerRegistration: " + provider.getName() + " → registerHandler()");
             provider.registerHandler();
         }
         else
         {
+            Debug.log(Debug.Cat.PROVIDER, "updatePacketHandlerRegistration: " + provider.getName() + " → unregisterHandler() + setRegistered(false)");
             provider.unregisterHandler();
             provider.setRegistered(false); // 与 registerHandler 内 setRegistered(true) 对称，消除 provider 级标志撒谎
         }
@@ -236,7 +244,7 @@ public class DataProviderManager
         JsonElement el = JsonUtils.parseJsonFileAsPath(this.getConfigFile());
         JsonObject obj = null;
 
-        debugLog("DataProviderManager#readFromConfig()");
+        Debug.log(Debug.Cat.CONFIG, "DataProviderManager#readFromConfig() file=" + this.getConfigFile());
 
         if (el != null && el.isJsonObject())
         {
@@ -278,11 +286,34 @@ public class DataProviderManager
         }
         else
         {
+            Debug.log(Debug.Cat.CONFIG, "readFromConfig: 配置文件不存在，首次启动默认全启用");
             // 首次无 config：全启用（除 debug_data，本版无）
             for (IDataProvider provider : this.providersImmutable)
             {
                 this.setProviderEnabled(provider, !provider.getName().equals("debug_data"));
             }
+        }
+
+        // 配置加载完成：通知各 provider 做后处理（如 ConfigProvider 同步框架 Debug 宏开关）
+        for (IDataProvider provider : this.providersImmutable)
+        {
+            try { provider.onConfigLoaded(); }
+            catch (Exception ex) { Reference.logger().warning("onConfigLoaded[" + provider.getName() + "] 异常: " + ex.getMessage()); }
+        }
+
+        // 汇总各 provider 启停结果（一次打印，便于核对 enabled/registered/tick 三态）
+        if (Debug.isOn(Debug.Cat.CONFIG))
+        {
+            StringBuilder sb = new StringBuilder("readFromConfig 完成 → providers:");
+            for (IDataProvider provider : this.providersImmutable)
+            {
+                sb.append("\n  - ").append(provider.getName())
+                  .append(" [").append(provider.isEnabled() ? "ON" : "OFF").append("]")
+                  .append(" reg=").append(provider.isRegistered())
+                  .append(" shouldTick=").append(provider.shouldTick())
+                  .append(" ch=").append(provider.getNetworkChannel());
+            }
+            Debug.log(Debug.Cat.CONFIG, sb.toString());
         }
     }
 
@@ -291,7 +322,7 @@ public class DataProviderManager
         JsonObject root = new JsonObject();
         JsonObject objToggles = new JsonObject();
 
-        debugLog("DataProviderManager#writeToConfig()");
+        Debug.log(Debug.Cat.CONFIG, "DataProviderManager#writeToConfig() → " + this.getConfigFile());
 
         for (IDataProvider provider : this.providersImmutable)
         {
@@ -332,13 +363,5 @@ public class DataProviderManager
         }
 
         return this.configDir.resolve("servux.json");
-    }
-
-    private static void debugLog(String msg)
-    {
-        if (Reference.DEV_DEBUG)
-        {
-            Reference.logger().info(msg);
-        }
     }
 }

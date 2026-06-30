@@ -13,6 +13,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.util.Util;
 
 import verymc.top.veryMcProto.Reference;
+import verymc.top.veryMcProto.framework.debug.Debug;
 import verymc.top.veryMcProto.framework.network.IPluginServerPlayHandler;
 import verymc.top.veryMcProto.framework.network.IServerPayloadData;
 import verymc.top.veryMcProto.framework.network.PacketSplitter;
@@ -60,6 +61,7 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
     {
         ServuxLitematicaPacket packet = ServuxLitematicaPacket.fromPacket(data);
         if (packet == null) { return; }
+        Debug.log(Debug.Cat.PACKET, "C2S litematics ← " + player.getName().getString() + " type=" + packet.getType());
         this.decodeServerData(CHANNEL_ID, player, packet);
     }
 
@@ -90,19 +92,13 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
                     readingSessionKey = this.readingSessionKeys.get(uuid);
                 }
 
-                if (ServuxReference.DEV_DEBUG)
-                {
-                    Reference.logger().info("ServuxLitematicaHandler#decodeServerData: 收到投影分片 size=" + packet.getTotalSize() + " key=" + readingSessionKey);
-                }
+                Debug.log(Debug.Cat.PACKET, "decodeServerData litematics: 收到投影分片 size=" + packet.getTotalSize() + " key=" + readingSessionKey);
 
                 FriendlyByteBuf fullPacket = PacketSplitter.receive(this, readingSessionKey, packet.getBuffer());
 
                 if (fullPacket != null)
                 {
-                    if (ServuxReference.DEV_DEBUG)
-                    {
-                        Reference.logger().info("ServuxLitematicaHandler#decodeServerData: 投影完整包 size=" + fullPacket.readableBytes() + " key=" + readingSessionKey);
-                    }
+                    Debug.log(Debug.Cat.PACKET, "decodeServerData litematics: 投影完整包 size=" + fullPacket.readableBytes() + " key=" + readingSessionKey);
                     try
                     {
                         this.readingSessionKeys.remove(uuid);
@@ -157,6 +153,8 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
 
         if (packet.getType().equals(ServuxLitematicaPacket.Type.PACKET_S2C_NBT_RESPONSE_START))
         {
+            Debug.log(Debug.Cat.PACKET, "encodeServerData litematics → " + player.getName().getString()
+                    + " type=" + packet.getType() + " → PacketSplitter 分包");
             // 大包：VarInt transactionId + NBT，走 PacketSplitter
             var buf = new FriendlyByteBuf(io.netty.buffer.Unpooled.buffer());
             buf.writeVarInt(packet.getTransactionId());
@@ -170,11 +168,8 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
             if (count >= MAX_FAILURES)
             {
                 this.failures.remove(id);
-                if (ServuxReference.DEV_DEBUG)
-                {
-                    Reference.logger().info("ServuxLitematicaHandler: 在 " + MAX_FAILURES + " 次失败后注销客户端 "
-                            + player.getName().getString() + "（可能未安装 Litematica）");
-                }
+                Debug.log(Debug.Cat.PACKET, "encodeServerData litematics → " + player.getName().getString()
+                        + " 连续 " + MAX_FAILURES + " 次发送失败，触发 onPacketFailure（可能未安装 Litematica）");
                 LitematicsDataProvider.INSTANCE.onPacketFailure(player);
             }
             else { this.failures.put(id, count); }

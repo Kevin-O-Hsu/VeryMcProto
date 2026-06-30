@@ -11,6 +11,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
 import verymc.top.veryMcProto.Reference;
+import verymc.top.veryMcProto.framework.debug.Debug;
 import verymc.top.veryMcProto.framework.network.IPluginServerPlayHandler;
 import verymc.top.veryMcProto.framework.network.IServerPayloadData;
 import verymc.top.veryMcProto.framework.network.PacketSplitter;
@@ -88,6 +89,7 @@ public class ServuxStructuresHandler implements IPluginServerPlayHandler
         {
             return;
         }
+        Debug.log(Debug.Cat.PACKET, "C2S structures ← " + player.getName().getString() + " type=" + packet.getType());
         this.decodeServerData(CHANNEL_ID, player, packet);
     }
 
@@ -138,6 +140,8 @@ public class ServuxStructuresHandler implements IPluginServerPlayHandler
 
         if (packet.getType().equals(ServuxStructuresPacket.Type.PACKET_S2C_STRUCTURE_DATA_START))
         {
+            Debug.log(Debug.Cat.PACKET, "encodeServerData structures → " + player.getName().getString()
+                    + " type=" + packet.getType() + " → PacketSplitter 分包");
             // 大包：NBT，走 PacketSplitter 分片
             FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
             buffer.writeNbt(packet.getCompound());
@@ -152,11 +156,8 @@ public class ServuxStructuresHandler implements IPluginServerPlayHandler
             if (count >= MAX_FAILURES)
             {
                 this.failures.remove(id);
-                if (ServuxReference.DEV_DEBUG)
-                {
-                    Reference.logger().info("注销 Structures 客户端 " + player.getName().getString()
-                            + "（连续 " + MAX_FAILURES + " 次失败，可能未装 MiniHUD）");
-                }
+                Debug.log(Debug.Cat.PACKET, "encodeServerData structures → " + player.getName().getString()
+                        + " 连续 " + MAX_FAILURES + " 次发送失败，注销该玩家结构订阅（可能未装 MiniHUD）");
 
                 StructureDataProvider.INSTANCE.unregister(player);
             }

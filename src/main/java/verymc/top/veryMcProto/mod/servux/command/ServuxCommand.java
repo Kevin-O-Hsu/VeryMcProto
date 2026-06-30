@@ -11,6 +11,7 @@ import org.bukkit.command.TabCompleter;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderManager;
+import verymc.top.veryMcProto.framework.debug.Debug;
 import verymc.top.veryMcProto.framework.settings.IServuxSetting;
 import verymc.top.veryMcProto.mod.servux.dataproviders.ConfigProvider;
 
@@ -22,7 +23,7 @@ import verymc.top.veryMcProto.mod.servux.dataproviders.ConfigProvider;
  */
 public class ServuxCommand implements CommandExecutor, TabCompleter
 {
-    private static final String USAGE = "§e/servux §7reload|save|set|info|list|enable|disable|search";
+    private static final String USAGE = "§e/servux §7reload|save|set|info|list|enable|disable|search|debug";
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args)
@@ -50,6 +51,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
                 case "enable" -> handleToggle(sender, args, true);
                 case "disable" -> handleToggle(sender, args, false);
                 case "search" -> handleSearch(sender, args);
+                case "debug" -> handleDebug(sender, args);
                 default -> sender.sendMessage(USAGE);
             }
         }
@@ -126,6 +128,50 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
         }
     }
 
+    /**
+     * /servux debug —— 调试宏开关热切换（运行时即时生效，无需重编译/reload）。
+     *
+     * <p>用法：
+     * <ul>
+     *   <li>{@code /servux debug} —— 查看当前状态；</li>
+     *   <li>{@code /servux debug on|off} —— 总开关；</li>
+     *   <li>{@code /servux debug all|none} —— 全开/清空分类；</li>
+     *   <li>{@code /servux debug cat <name>} —— 切换单个分类（lifecycle/handshake/network/packet/tick/permission/provider/config）；</li>
+     *   <li>{@code /servux debug status} —— 状态。</li>
+     * </ul>
+     * <p>注：命令切换<b>不持久化</b>（重启/reload 恢复为配置值）；需持久请 {@code /servux set servux_main:debug_log true}。
+     */
+    private void handleDebug(CommandSender sender, String[] args)
+    {
+        if (args.length < 2)
+        {
+            sender.sendMessage("§6调试状态: §f" + Debug.statusLine());
+            sender.sendMessage("§7用法: /servux debug <on|off|all|none|cat <name>|status>");
+            sender.sendMessage("§7分类: §flifecycle handshake network packet tick permission provider config");
+            return;
+        }
+
+        String sub = args[1].toLowerCase();
+        switch (sub)
+        {
+            case "on" -> { Debug.setMaster(true); Debug.enableAll(); sender.sendMessage("§a调试已开启（总开关+全分类）: §f" + Debug.statusLine()); }
+            case "off" -> { Debug.setMaster(false); sender.sendMessage("§e调试总开关已关闭: §f" + Debug.statusLine()); }
+            case "all" -> { Debug.enableAll(); sender.sendMessage("§a已开启全分类: §f" + Debug.statusLine()); }
+            case "none" -> { Debug.clearCats(); sender.sendMessage("§e已清空全部分类: §f" + Debug.statusLine()); }
+            case "status" -> sender.sendMessage("§6调试状态: §f" + Debug.statusLine());
+            case "cat" ->
+            {
+                if (args.length < 3) { sender.sendMessage("§e/servux debug cat <name>"); return; }
+                Debug.Cat cat = Debug.parseCat(args[2]);
+                if (cat == null) { sender.sendMessage("§c未知分类: " + args[2]); return; }
+                boolean now = Debug.toggle(cat);
+                sender.sendMessage("§a分类 " + cat.name().toLowerCase() + " → " + (now ? "§aON" : "§cOFF"));
+                sender.sendMessage("§7当前: §f" + Debug.statusLine());
+            }
+            default -> sender.sendMessage("§c未知子命令: " + sub + " §7(on/off/all/none/cat/status)");
+        }
+    }
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args)
     {
@@ -134,7 +180,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
 
         if (args.length == 1)
         {
-            for (String s : List.of("reload", "save", "set", "info", "list", "enable", "disable", "search"))
+            for (String s : List.of("reload", "save", "set", "info", "list", "enable", "disable", "search", "debug"))
             {
                 if (s.startsWith(typed)) { out.add(s); }
             }
@@ -159,6 +205,13 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
                     }
                 }
             }
+            else if (sub.equals("debug"))
+            {
+                for (String s : List.of("on", "off", "all", "none", "cat", "status"))
+                {
+                    if (s.startsWith(typed)) { out.add(s); }
+                }
+            }
         }
         else if (args.length == 3 && args[0].equalsIgnoreCase("set"))
         {
@@ -169,6 +222,14 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
                 {
                     if (ex.toLowerCase().startsWith(typed)) { out.add(ex); }
                 }
+            }
+        }
+        else if (args.length == 3 && args[0].equalsIgnoreCase("debug") && args[1].equalsIgnoreCase("cat"))
+        {
+            for (Debug.Cat c : Debug.Cat.values())
+            {
+                String n = c.name().toLowerCase();
+                if (n.startsWith(typed)) { out.add(n); }
             }
         }
         return out;

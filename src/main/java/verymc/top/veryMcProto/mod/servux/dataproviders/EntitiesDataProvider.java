@@ -14,6 +14,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderBase;
+import verymc.top.veryMcProto.framework.debug.Debug;
 import verymc.top.veryMcProto.framework.network.IPluginServerPlayHandler;
 import verymc.top.veryMcProto.framework.network.ServerPlayHandler;
 import verymc.top.veryMcProto.framework.permission.Perms;
@@ -91,10 +92,20 @@ public class EntitiesDataProvider extends DataProviderBase
 
     public void sendMetadata(ServerPlayer player)
     {
-        if (!this.isEnabled()) { return; }
-        if (!this.hasPermission(player)) { ServuxLog.debug("entity_data: 拒绝 " + player.getName().getString() + "（权限不足）"); return; }
-        ServuxLog.debug("entityDataChannel: sendMetadata → " + player.getName().getString());
-        HANDLER.sendPlayPayload(player, ServuxEntitiesPacket.MetadataResponse(this.metadata));
+        if (!this.isEnabled())
+        {
+            Debug.log(Debug.Cat.HANDSHAKE, "entity sendMetadata 跳过: provider disabled");
+            return;
+        }
+        if (!this.hasPermission(player))
+        {
+            Debug.log(Debug.Cat.HANDSHAKE, "entity sendMetadata 拒绝 " + player.getName().getString() + " (权限不足)");
+            return;
+        }
+        boolean ok = HANDLER.sendPlayPayload(player, ServuxEntitiesPacket.MetadataResponse(this.metadata));
+        Debug.log(Debug.Cat.HANDSHAKE, "entity sendMetadata → " + player.getName().getString()
+                + " ok=" + ok + " servux=" + this.metadata.getStringOr("servux", "?")
+                + " ver=" + this.metadata.getIntOr("version", -1));
     }
 
     public void onPacketFailure(ServerPlayer player) { this.setPlayerInvalid(player); }
@@ -190,6 +201,20 @@ public class EntitiesDataProvider extends DataProviderBase
     @Override public boolean hasPermission(ServerPlayer player) { return Perms.check(player, this.permNode, this.permissionLevel.getValue()); }
 
     @Override public void onPlayerJoin(ServerPlayer player) { this.sendMetadata(player); }
+
+    @Override
+    public void onPlayerRegisterChannel(ServerPlayer player, String channel)
+    {
+        // ★ 修复 entity sync not_enabled 根因：onPlayerJoin 时客户端尚未声明 servux:entity_data（configuration phase），
+        // sendMetadata 的 ProtocolChannel.send 会因 getListeningPluginChannels 不含该通道而失败丢弃 metadata。
+        // 客户端声明该通道（= 装了实体查询 mod）时立即重发，确保 metadata 可达。sendMetadata 幂等，重复无害。
+        if (this.getNetworkChannel().toString().equals(channel))
+        {
+            Debug.log(Debug.Cat.HANDSHAKE, "entity onPlayerRegisterChannel: 客户端声明 " + channel + " → 重发 metadata");
+            this.sendMetadata(player);
+        }
+    }
+
     @Override public void onPlayerQuit(ServerPlayer player) { this.removePlayer(player); }
 
     @Override public void onTickEndPre() { /* NO-OP */ }

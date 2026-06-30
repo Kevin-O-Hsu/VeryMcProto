@@ -255,3 +255,26 @@ verymc.top.veryMcProto/
 4. **C2S 不踢人**：5 条通道均 `registerIncomingPluginChannel`，Paper 内置路由，客户端 C2S 不会因「Invalid payload」被踢。
 5. **互通性未真机验证**：workflow 调研确认方案可行（`blocksRuntime=false`），但 Fabric+masa 客户端 ↔ Paper 1.21.11 的端到端字节级 round-trip **仍需实测确认**（FabricMC #4430 是求助帖非权威结论；其作者曾反映「能发不能收」，masa mod 因正确注册 PayloadTypeRegistry.playS2C 而可用）。
 6. **可能残留的待实测点**：批量实体查询 AABB 边界、批量实体 Pos NBT 字段、NbtView 反射 `output` 字段运行时验证（子 agent 实现的不确定点，见 §5.5）。
+
+### 10.7 调试系统 + 握手缺陷修复（运行时宏开关）
+
+**背景**：实测进服后 MiniHUD 能看到 servux 版本号（HUD metadata 已送达客户端），但 HUD sync / entity sync 始终 `not_enabled`。定位此问题需丰富的运行时调试数据；同时静态分析发现 entity/tweaks/litematics 三通道存在握手缺陷。
+
+**A. 统一调试门面 `framework/debug/Debug.java`（框架层，全 mod 共用）**
+- 运行时可热切换的**宏开关**（`Debug.master`，`volatile`），无需重编译。旧实现开关碎片化（`Reference.DEV_DEBUG` / `ServuxReference.DEV_DEBUG` 为编译期常量、`ServuxLog` 与 `DataProviderManager.debugLog` 各走各的）统一收敛于此。
+- **8 分类**避免全开刷屏：`LIFECYCLE / HANDSHAKE / NETWORK / PACKET / TICK / PERMISSION / PROVIDER / CONFIG`。
+- 开关来源优先级：命令 `/servux debug`（即时）> 配置 `servux_main:debug_log`（`onServerLoad` 同步）> 编译期 `Reference.DEV_DEBUG`（兜底）。
+- 命令：`/servux debug [on|off|all|none|cat <name>|status]`（命令切换**不持久**；持久用 `/servux set servux_main:debug_log true` + reload）。
+- 日志点覆盖全数据流：握手（`onPlayerJoin` / `onPlayerRegisterChannel` + `sendMetadata` 摘要）、网络（`ProtocolChannel.send` 各失败原因 + 字节数 + C2S 接收）、包（packet type / bytes / ok / 失败计数触发）、周期 tick、权限判定、provider 状态机、配置加载汇总。
+- `ServuxLog.debug` / 原 `DataProviderManager.debugLog` 统一委托 Debug；新增 `IDataProvider.onConfigLoaded()` 框架钩子，让 `ConfigProvider` 在配置加载后同步 Debug（框架层不依赖具体 mod）。
+
+**B. 🔑 握手缺陷修复（entity / tweaks / litematics `not_enabled` 根因）**
+- **根因**：`EntitiesDataProvider` / `TweaksDataProvider` / `LitematicsDataProvider` 仅在 `onPlayerJoin` 直推 `sendMetadata`，但 configuration phase 下客户端尚未声明监听对应通道 → `ProtocolChannel.send` 的 `getListeningPluginChannels` 门控返回 false → metadata 被丢弃；三者**此前均无 `onPlayerRegisterChannel` 重写**（仅 Hud 有）→ 客户端就绪后 metadata 永不重发 → 客户端收不到这三条通道的 metadata → 显示 `not_enabled`。
+- **修复**：三者补 `onPlayerRegisterChannel`，客户端声明其通道时立即重发 `sendMetadata`（幂等）。HUD 已有该钩子；Structures 握手由 C2S `STRUCTURES_REGISTER` 驱动，`onPlayerRegisterChannel` 仅记录通道声明、不主动推 metadata。
+- 与调试目标一致：开 `HANDSHAKE` 日志即可验证 entity/tweaks/litematics 的 metadata 在客户端声明通道后是否 `ok=true`。
+
+**验收方法**：进服后执行 `/servux debug on` + `/servux debug all`，重点观察日志：
+1. `onPlayerRegisterChannel: <玩家> 声明监听 → servux:entity_data`（确认客户端装了对应 mod 并声明通道）；
+2. `entity onPlayerRegisterChannel: ... → 重发 metadata` + `entity sendMetadata → ... ok=true`（确认 metadata 可达）；
+3. `send OK servux:entity_data → <玩家> bytes=...`（确认字节实际投递）。
+若 `ok=false`，日志会打印 `ProtocolChannel` 的具体失败原因（outgoing 未注册 / 客户端未声明监听 / 超限等）。

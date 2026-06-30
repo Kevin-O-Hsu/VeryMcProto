@@ -4,6 +4,8 @@ import org.bukkit.entity.Player;
 
 import net.minecraft.server.level.ServerPlayer;
 
+import verymc.top.veryMcProto.framework.debug.Debug;
+
 /**
  * 权限工具（框架层）。替代原版 {@code me.lucko.fabric.api.permissions.v0.Permissions}。
  *
@@ -31,6 +33,8 @@ public final class Perms
         {
             return false;
         }
+        boolean result;
+        String reason;
         try
         {
             Player bukkit = player.getBukkitEntity();
@@ -38,20 +42,28 @@ public final class Perms
             // 显式权限优先（LuckPerms / permission attachment 设置过的节点）
             if (bukkit != null && bukkit.isPermissionSet(node))
             {
-                return bukkit.hasPermission(node);
+                result = bukkit.hasPermission(node);
+                reason = "explicit";
             }
-
-            if (level <= 0)
+            else if (level <= 0)
             {
-                return true; // 全员
+                result = true; // 全员
+                reason = "level<=0";
             }
-
-            // op 满足 level >= 1（servux 的管理类 permission_level 2/3/4）
-            return bukkit != null && bukkit.isOp();
+            else
+            {
+                // op 满足 level >= 1（servux 的管理类 permission_level 2/3/4）
+                result = bukkit != null && bukkit.isOp();
+                reason = "op";
+            }
         }
         catch (Exception e)
         {
-            return level <= 0;
+            result = level <= 0;
+            reason = "exception:" + e.getClass().getSimpleName();
         }
+        Debug.log(Debug.Cat.PERMISSION, "check " + player.getName().getString()
+                + " node=" + node + " level=" + level + " → " + result + " (" + reason + ")");
+        return result;
     }
 }

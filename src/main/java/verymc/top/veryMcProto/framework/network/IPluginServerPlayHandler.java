@@ -9,6 +9,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
 import verymc.top.veryMcProto.Reference;
+import verymc.top.veryMcProto.framework.debug.Debug;
 
 /**
  * 「一条通道的收发逻辑」抽象（框架层）。移植自原版 {@code fi.dy.masa.servux.network.IPluginServerPlayHandler}，
@@ -75,31 +76,31 @@ public interface IPluginServerPlayHandler
     /**
      * 发送普通 S2C 包（plugin messaging，方案 A）。
      *
-     * @return 是否成功投递（用于失败计数）。plugin messaging 无 canSend，此处以
-     *         {@link ProtocolChannel#send} 的结果（含客户端是否声明监听该通道）为近似信号。
+     * <p>Paper 的 plugin messaging 通道由 {@code registerOutgoingPluginChannel} 注册，Paper 内部以
+     * {@code DiscardedPayload} codec 投递 {@code byte[]}（= {@link FriendlyByteBufs#encodePayload} 的 toPacket
+     * 裸字节）。masa 客户端为 {@code servux:*} 注册了 {@code Payload.CODEC}，可正确解码。
+     *
+     * <p><b>禁用 NMS 直发</b>：曾尝试 {@code player.connection.send(new ClientboundCustomPayloadPacket(payload))}，
+     * 但 Paper 已把 {@code servux:*} 的 payload codec 注册为 {@code DiscardedPayload}，自定义 Payload 编码时
+     * 强转 DiscardedPayload 失败（ClassCastException → 踢玩家，实测）。覆盖该注册需反射改写 payload registry，
+     * 暂不采用。故 S2C 统一走 plugin messaging。
+     *
+     * @return 是否投递（{@link ChannelManager#send} 结果，用于失败计数）。
      */
     default <P extends IServerPayloadData> boolean sendPlayPayload(@Nonnull ServerPlayer player, @Nonnull P data)
     {
-        if (!isPlayRegistered(getPayloadChannel()))
+        Identifier ch = getPayloadChannel();
+        if (!isPlayRegistered(ch))
         {
-            Reference.logger().warning("sendPlayPayload: 通道未注册 " + getPayloadChannel());
+            // 真异常：handler 未 setPlayRegistered。setPlayRegistered 修复后正常不触发；保留 warning 以便漏诊时可见。
+            Reference.logger().warning("sendPlayPayload: 通道未注册 " + ch + "（handler 未 setPlayRegistered?）");
             return false;
         }
         Objects.requireNonNull(player, "player");
         byte[] bytes = FriendlyByteBufs.encodePayload(data);
-        return ChannelManager.instance().send(getPayloadChannel(), player.getBukkitEntity(), bytes);
-    }
-
-    /**
-     * 发送裸字节（分包单片用，{@link #encodeWithSplitter} 内部调此）。
-     */
-    default boolean sendPlayPayload(@Nonnull ServerPlayer player, @Nonnull FriendlyByteBuf buf)
-    {
-        if (!isPlayRegistered(getPayloadChannel()))
-        {
-            return false;
-        }
-        byte[] bytes = FriendlyByteBufs.readableBytes(buf);
-        return ChannelManager.instance().send(getPayloadChannel(), player.getBukkitEntity(), bytes);
+        boolean ok = ChannelManager.instance().send(ch, player.getBukkitEntity(), bytes);
+        Debug.log(Debug.Cat.PACKET, "sendPlayPayload(pluginMsg) " + ch + " → " + player.getName().getString()
+                + " pktType=" + data.getPacketType() + " bytes=" + bytes.length + " ok=" + ok);
+        return ok;
     }
 }

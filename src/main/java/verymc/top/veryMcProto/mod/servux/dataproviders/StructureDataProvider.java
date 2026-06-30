@@ -27,6 +27,7 @@ import net.minecraft.world.level.levelgen.structure.TerrainAdjustment;
 import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSerializationContext;
 
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderBase;
+import verymc.top.veryMcProto.framework.debug.Debug;
 import verymc.top.veryMcProto.framework.network.IPluginServerPlayHandler;
 import verymc.top.veryMcProto.framework.network.ServerPlayHandler;
 import verymc.top.veryMcProto.framework.permission.Perms;
@@ -189,13 +190,15 @@ public class StructureDataProvider extends DataProviderBase
     {
         if (!this.isEnabled()) { return false; }
 
+        Debug.log(Debug.Cat.HANDSHAKE, "structures register(): " + player.getName().getString() + " (C2S STRUCTURES_REGISTER)");
+
         boolean registered = false;
         MinecraftServer server = player.createCommandSourceStack().getServer();
         UUID uuid = player.getUUID();
 
         if (!this.hasPermission(player))
         {
-            ServuxLog.debug("structure_bounding_boxes: 拒绝玩家 " + player.getName().getString() + "（权限不足）");
+            Debug.log(Debug.Cat.HANDSHAKE, "structures register 拒绝 " + player.getName().getString() + " (权限不足)");
             return registered;
         }
 
@@ -208,6 +211,11 @@ public class StructureDataProvider extends DataProviderBase
             this.initialSyncStructuresToPlayerWithinRange(player, server != null ? server.getPlayerList().getViewDistance() + 2 : this.retainDistance, tickCounter);
 
             registered = true;
+            Debug.log(Debug.Cat.HANDSHAKE, "structures register OK: " + player.getName().getString() + " → 已加入订阅，推 metadata + initialSync");
+        }
+        else
+        {
+            Debug.log(Debug.Cat.HANDSHAKE, "structures register: " + player.getName().getString() + " 已在订阅列表（重复 REGISTER，跳过）");
         }
 
         return registered;
@@ -222,13 +230,24 @@ public class StructureDataProvider extends DataProviderBase
     /** 发送 metadata（ PACKET_S2C_METADATA，NBT）。 */
     public void sendMetadata(ServerPlayer player)
     {
-        if (!this.isEnabled()) { return; }
-        if (!this.hasPermission(player)) { return; }
+        if (!this.isEnabled())
+        {
+            Debug.log(Debug.Cat.HANDSHAKE, "structures sendMetadata 跳过: provider disabled");
+            return;
+        }
+        if (!this.hasPermission(player))
+        {
+            Debug.log(Debug.Cat.HANDSHAKE, "structures sendMetadata 拒绝 " + player.getName().getString() + " (权限不足)");
+            return;
+        }
 
         CompoundTag nbt = new CompoundTag();
         nbt.merge(this.metadata);
-        ServuxLog.debug("structure_bounding_boxes: sendMetadata → " + player.getName().getString());
-        HANDLER.sendPlayPayload(player, new ServuxStructuresPacket(ServuxStructuresPacket.Type.PACKET_S2C_METADATA, nbt));
+        boolean ok = HANDLER.sendPlayPayload(player, new ServuxStructuresPacket(ServuxStructuresPacket.Type.PACKET_S2C_METADATA, nbt));
+        Debug.log(Debug.Cat.HANDSHAKE, "structures sendMetadata → " + player.getName().getString()
+                + " ok=" + ok + " servux=" + nbt.getStringOr("servux", "?")
+                + " ver=" + nbt.getIntOr("version", -1)
+                + " timeout=" + nbt.getIntOr("timeout", -1));
     }
 
     /** 周期扫描：玩家当前 chunk 视野内的结构引用 → 起点 → NBT，全量发送。 */
@@ -425,6 +444,18 @@ public class StructureDataProvider extends DataProviderBase
     public void onPlayerJoin(ServerPlayer player)
     {
         // NO-OP：Structures 由客户端主动 PACKET_C2S_STRUCTURES_REGISTER 触发 register，无需 join 推送。
+    }
+
+    @Override
+    public void onPlayerRegisterChannel(ServerPlayer player, String channel)
+    {
+        // Structures 握手模式与 HUD/Entity 不同：由客户端主动 C2S STRUCTURES_REGISTER 触发 register→sendMetadata。
+        // 此处仅记录客户端声明了该通道（= 装了 MiniHUD），不主动推 metadata（避免与 REGISTER 流程重复 / 大数据提前推送）。
+        if (this.getNetworkChannel().toString().equals(channel))
+        {
+            Debug.log(Debug.Cat.HANDSHAKE, "structures onPlayerRegisterChannel: 客户端声明 " + channel
+                    + " → 等待 C2S STRUCTURES_REGISTER（由客户端主动触发 register）");
+        }
     }
 
     @Override
