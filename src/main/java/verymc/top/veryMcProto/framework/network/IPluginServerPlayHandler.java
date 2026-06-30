@@ -43,6 +43,13 @@ public interface IPluginServerPlayHandler
     /** 标记该通道已注册。 */
     void setPlayRegistered(Identifier channel);
 
+    /**
+     * 标记该通道已注销（unregister 时由框架 {@code ServerPlayHandler} 调用）。
+     * default 空实现：未覆写的 handler 降级为「不清标志」（功能安全——disabled 时 encodeServerData
+     * 会提前 return 不发送；re-register 时 setPlayRegistered 覆盖）。覆写后使 disable/enable 循环状态完全干净。
+     */
+    default void clearPlayRegistered(Identifier channel) { }
+
     /** 全局重置（如服务端关闭时清失败计数 / 缓冲）。 */
     void reset(Identifier channel);
 

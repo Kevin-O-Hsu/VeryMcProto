@@ -45,6 +45,9 @@ public class ServuxTweaksHandler implements IPluginServerPlayHandler
     public void setPlayRegistered(Identifier channel) { if (channel.equals(CHANNEL_ID)) { this.payloadRegistered = true; } }
 
     @Override
+    public void clearPlayRegistered(Identifier channel) { if (channel.equals(CHANNEL_ID)) { this.payloadRegistered = false; } }
+
+    @Override
     public void reset(Identifier channel) { if (channel.equals(CHANNEL_ID)) { this.failures.clear(); } }
 
     public void resetFailures(Identifier channel, ServerPlayer player)
@@ -103,11 +106,12 @@ public class ServuxTweaksHandler implements IPluginServerPlayHandler
         else if (!this.sendPlayPayload(player, packet))
         {
             UUID id = player.getUUID();
+            int count = this.failures.getOrDefault(id, 0) + 1;
 
-            // Packet failure tracking
-            if (!this.failures.containsKey(id)) { this.failures.put(id, 1); }
-            else if (this.failures.get(id) > MAX_FAILURES)
+            // Packet failure tracking（第 MAX_FAILURES 次触发并清零）
+            if (count >= MAX_FAILURES)
             {
+                this.failures.remove(id);
                 if (ServuxReference.DEV_DEBUG)
                 {
                     Reference.logger().info("Unregistering Tweaks Client " + player.getName().getString()
@@ -115,7 +119,7 @@ public class ServuxTweaksHandler implements IPluginServerPlayHandler
                 }
                 TweaksDataProvider.INSTANCE.onPacketFailure(player);
             }
-            else { this.failures.put(id, this.failures.get(id) + 1); }
+            else { this.failures.put(id, count); }
         }
     }
 }

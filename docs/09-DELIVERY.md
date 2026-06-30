@@ -72,7 +72,7 @@ verymc.top.veryMcProto/
 
 ### 3.1 网络层：plugin messaging（方案 A）+ 客户端监听检测
 - Servux 5 条通道 = Bukkit plugin messaging channel（`servux:hud_metadata` 等字符串名）。`onPluginMessageReceived` 的 `byte[]` = `FriendlyByteBuf` 裸字节，原版 `fromPacket/toPacket` 逻辑零改动复用。
-- **S2C 分片常量 32000**（plugin messaging 单包上限 32768，留余量），`PacketSplitter` 照抄并改此常量。
+- **S2C 分片常量 32000**（防御原版客户端 ClientboundCustomPayload 32767 字节解码上限，留余量给 VarInt 头；注：1.21.x Bukkit `MAX_MESSAGE_SIZE` 已上调至 ~1MiB，真正瓶颈是客户端 32767 而非 Bukkit），`PacketSplitter` 照抄并改此常量。
 - **客户端支持检测**（替代原版 `ServerPlayNetworking.canSend`）：`ProtocolChannel.send` 检查 `player.getListeningPluginChannels().contains(channel)`。Fabric 客户端装了 masa mod 才会 MC|Register 声明监听 `servux:*`；未装的玩家永远 false → send 返回 false → 失败计数 → 标记 invalid（不刷屏）。比原版 canSend 更可靠。
 - **不踢玩家**：plugin messaging 注册的通道由 Paper 内置路由，不会因"未知 payload"踢人（这是选 plugin messaging 而非裸 NMS 发包的根本理由）。
 
@@ -109,6 +109,7 @@ verymc.top.veryMcProto/
 | **List.copyOf(enum[])** | 不接受数组 | 用 `Arrays.asList(values())`（ImmutableList.copyOf 已移除） |
 | **commons-lang3 Fraction** | 不保证暴露 | MathUtils 去掉 Fraction 重载 |
 | **@NotNull/@Environment 注解** | Fabric 专有 | 全部删除 |
+| **Messenger.MAX_MESSAGE_SIZE 不再是 32768** | 旧文档（docs/02/05/06/07 等）曾称 32768（32KiB），CLAUDE.md §1 已更正 | 1.21.x 已上调（Spigot API `1048576`≈1MiB）；**真 S2C 瓶颈是原版客户端 ClientboundCustomPayload 32767 字节解码上限**（超过客户端断连）。PacketSplitter S2C 分片 32000 仍正确（防御 32767，余量充足） |
 
 ---
 
@@ -167,7 +168,7 @@ verymc.top.veryMcProto/
 - **所有装配 try-catch**：主类 onEnable/onDisable、LifecycleBridge 事件分发、tickProviders，单点异常不影响整体。
 - **反射防御**：`Reflect.getOr(obj, field, default)` 失败返回默认值（TPS 的 `remainingSprintTicks` 漂移返回 0，NbtView 的 `output` 失败返回 null）。
 - **并发安全**：`PacketSplitter.READING_SESSIONS` 用 `ConcurrentHashMap` + `ReadingSession.receive` 加 `synchronized`；坏包立即丢弃 session。
-- **大包保护**：`ProtocolChannel.send` 拒绝超 32KiB 包（应走 PacketSplitter）；PacketSplitter `receive` 校验 `maxLength`。
+- **大包保护**：`ProtocolChannel.send` 拒绝超 `Messenger.MAX_MESSAGE_SIZE` 的包（应走 PacketSplitter；真正 S2C 瓶颈是客户端 32767 字节上限）；PacketSplitter `receive` 校验 `maxLength`。
 - **客户端未装 mod**：`getListeningPluginChannels` 检测 + MAX_FAILURES 计数 → invalid，不刷屏。
 - **配置原子写**：`JsonUtils.writeJsonToFileAsPath` 用 `.tmp` + move 原子写。
 - **RegistryAccess 时机**：必须在 `ServerLoadEvent(STARTED)` 后捕获（否则 Recipe/NbtView/palette 拿空注册表）。
@@ -202,3 +203,55 @@ verymc.top.veryMcProto/
 - **MOD_STRING**：`servux-paper-1.21.11-1.0.0`（保持 `servux-` 前缀供客户端识别；版本协商走各通道 protocol version，不变）。
 - **方案 B（NMS 发包）预留**：当前方案 A（plugin messaging，S2C 分片 32000）。Payload record 保留，后续大包（Recipe/Litematic）可升级方案 B（NMS `ClientboundCustomPayloadPacket` 保 1MiB 分片）。
 - ** Structures 性能**：周期扫描玩家 view distance 区块，玩家多时 CPU 占用；默认 update_interval=100t（5s）+ 只扫 view distance 内 + 去重。
+
+---
+
+## 10. 实测调试修复记录（2026-06，首次 runServer 验收）
+
+> 首次 `runServer` + Fabric 客户端实测发现一批网络层阻断 / 健壮性问题，均已修复。本节记录根因与修复，供验收与后续维护参照。
+> 修复均经 4-agent workflow 对抗审查验证（命门调研 + 代码审查 + 对抗性质疑）。
+
+### 10.1 ⚠️ 致命 BUG：所有 servux:* 通道「未注册」（S2C 全部发送失败）
+
+- **症状**：玩家进服后日志狂刷 `sendPlayPayload: 通道未注册 servux:hud_metadata`（5 条通道全部），HUD/Structures 周期推送全失败，客户端收不到任何数据。
+- **根因**：`framework/network/ServerPlayHandler.registerServerPlayHandler` 注册通道时**漏调** `handler.setPlayRegistered(channel)`。plugin messaging 通道其实已通过 `Messenger` 注册成功（`outgoing=true`），但 handler 的镜像标志 `payloadRegistered` 恒为 `false` → `sendPlayPayload` 第一道门 `isPlayRegistered()` 永远 false → 整个 S2C 发送在第一道检查就被拦。
+  - 注：`DataProviderBase` 有自己的 provider 级 `playRegistered`（`setRegistered(true)`，registerHandler 里设），与 handler 级 `payloadRegistered` 是**两个独立标志**。BUG 本质：只设了 provider 级，handler 级被框架遗漏。
+- **修复**：
+  - `ServerPlayHandler.registerServerPlayHandler` 末尾补 `handler.setPlayRegistered(channel)`（标志管理收归框架层，对应原版 `registerPlayPayload` 成功后的 setPlayRegistered）。
+  - `ServerPlayHandler.unregisterServerPlayHandler` 补 `handler.clearPlayRegistered(channel)`（Paper plugin messaging 通道可反复 register/unregister，比原版 fabric `PayloadTypeRegistry` 语义更干净；`IPluginServerPlayHandler` 新增 `default clearPlayRegistered`，5 个 handler 各覆写）。
+- **验证**：workflow 对抗审查确认修复正确充分，disable→enable 循环状态自洽（unregister 在 `existing==handler` 守卫下真删 + 清标志，re-register 的 `putIfAbsent` 命中空槽重新 setPlayRegistered）。
+
+### 10.2 连带 BUG：失败计数 off-by-one + 触发后不清零
+
+- **根因**：5 个 `Servux*Handler.encodeServerData` 的失败计数 `if(!containsKey)put(1); else if(get>MAX)onPacketFailure; else put(get+1)`：
+  - `MAX_FAILURES=4` 但实际要**连续失败 6 次**才触发（off-by-one，与常量名/Javadoc/日志宣称的 4 次不符）。
+  - 触发 `onPacketFailure` 后 `failures` map 不清零 → 之后每次失败都**重复触发** onPacketFailure/unregister（虽幂等，是噪声）+ 玩家条目常驻（内存泄漏）+ 无自愈。
+- **修复**：5 个 handler 统一改为 `int count = failures.getOrDefault(id,0)+1; if(count>=MAX_FAILURES){ failures.remove(id); onPacketFailure(...); } else failures.put(id,count);` —— 第 4 次失败即触发 + 触发后清零，语义与常量名一致。
+
+### 10.3 🔑 命门：1.20.2+ configuration phase 导致 join 时无法识别「客户端装了 mod」
+
+- **现象/风险**：1.20.2+ Mojang 引入 configuration phase（Login 与 Play 之间），客户端声明监听通道（`minecraft:register`）的包在 configuration phase **之后**才到达。故 `PlayerJoinEvent` 时 `player.getListeningPluginChannels()` **通常为空**，且**无固定 N-tick 保证**（SpigotMC 实证：1.20.1 可用的 brand/channel 检测在 1.20.2 失效）。
+- **原代码隐患**：HUD `onPlayerJoin` 固定延迟 40t（2s）后 sendMetadata——是「时间猜」而非「事件等」，慢客户端/重连/mod 延迟初始化时首包可能失败。
+- **修复（事件驱动握手）**：
+  - 框架 `IDataProvider` 新增 `default void onPlayerRegisterChannel(player, channel)`；`LifecycleBridge` 监听 `PlayerRegisterChannelEvent` 分发给 enabled providers。
+  - `HudDataProvider` 覆写：客户端声明 `servux:hud_metadata` 时立即 `sendMetadata`（configuration phase 后的可靠信号，取代仅靠 40t 延迟；sendMetadata 幂等且会 `removeInvalidPlayer` 清标记）。
+  - 保留 `onPlayerJoin` 40t 兜底 + 客户端主动 C2S `PACKET_C2S_METADATA_REQUEST` 自愈（原版握手语义）。
+- **架构**：握手钩子在框架层（`IDataProvider`/`LifecycleBridge`），具体响应在 mod 层（`HudDataProvider`），保持 framework/mod 分层（便于后续迁移其他 mod）。
+
+### 10.4 Structures 周期扫描门控
+
+- `StructureDataProvider.rescanAndSend` 顶部加门控：客户端未声明 `servux:structures`（`getListeningPluginChannels` 不含）则跳过采集（不 createTag / 不遍历区块），避免重活白干 + 发送失败累计计数误注销。
+
+### 10.5 标志对称 + 文档勘误
+
+- `DataProviderManager.updatePacketHandlerRegistration` 禁用分支补 `provider.setRegistered(false)`，与 `registerHandler` 内 `setRegistered(true)` 对称，消除 provider 级标志「撒谎」。
+- **`MAX_MESSAGE_SIZE` 文档勘误**：1.21.x Bukkit `Messenger.MAX_MESSAGE_SIZE` 已上调至 ~1MiB（Spigot API `1048576`），旧文档（docs/02/05/06/07、CLAUDE.md §1 旧版）称 `32768` 已过时。**真正 S2C 瓶颈是原版客户端 ClientboundCustomPayload 32767 字节解码上限**。PacketSplitter S2C 分片 32000 仍正确（防御 32767）。已更正 CLAUDE.md §1 + 本文档 §4。`docs/research/*` 为历史研究笔记，保留原貌。
+
+### 10.6 验收关键注意（实测前必读）
+
+1. **客户端必须装 masa mod**（MiniHUD/Litematica/Tweakeroo + servux 协议）：plugin messaging ↔ vanilla custom payload 互通**当且仅当**客户端通过 1.20.5+ `PayloadTypeRegistry.playS2C()` 注册通道 id（masa mod 这么做了）。原版/未装 mod 客户端收不到 servux 数据。
+2. **勿对原版客户端推测性发 S2C**：1.20.5+ payload registry 下，原版客户端收到未注册 ResourceLocation 的 custom payload **可能断连**（disconnect）也可能静默丢弃——此点 1.21.11 未完全明确（Fabric 倾向丢弃，NeoForge/vanilla 倾向断连）。当前代码用 `getListeningPluginChannels` 门控 + 失败计数规避，但**玩家 join 后首包（40t 延迟的 sendMetadata）仍可能在客户端声明通道前发出**。混合玩家群体（部分原版）需实测确认无断连；若发现问题，可把 HUD 的 onPlayerJoin 40t 兜底改为纯事件驱动（仅 onPlayerRegisterChannel 触发）。
+3. **握手时序**：HUD 现有三道保障（onPlayerJoin 40t / onPlayerRegisterChannel 事件 / 客户端 C2S 主动请求），首包可靠性已大幅提升。
+4. **C2S 不踢人**：5 条通道均 `registerIncomingPluginChannel`，Paper 内置路由，客户端 C2S 不会因「Invalid payload」被踢。
+5. **互通性未真机验证**：workflow 调研确认方案可行（`blocksRuntime=false`），但 Fabric+masa 客户端 ↔ Paper 1.21.11 的端到端字节级 round-trip **仍需实测确认**（FabricMC #4430 是求助帖非权威结论；其作者曾反映「能发不能收」，masa mod 因正确注册 PayloadTypeRegistry.playS2C 而可用）。
+6. **可能残留的待实测点**：批量实体查询 AABB 边界、批量实体 Pos NBT 字段、NbtView 反射 `output` 字段运行时验证（子 agent 实现的不确定点，见 §5.5）。

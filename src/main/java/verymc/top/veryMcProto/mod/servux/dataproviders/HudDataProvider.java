@@ -597,6 +597,18 @@ public class HudDataProvider extends DataProviderBase
     @Override
     public void onPlayerQuit(ServerPlayer player) { this.removePlayer(player); }
 
+    @Override
+    public void onPlayerRegisterChannel(ServerPlayer player, String channel)
+    {
+        // 客户端声明监听 servux:hud_metadata = 装了 MiniHUD（configuration phase 后的可靠信号，
+        // 比 onPlayerJoin 固定 40t 延迟更准时）。立即主动推 metadata；sendMetadata 幂等，重复无害，
+        // 且会 removeInvalidPlayer 清除可能的失败计数 invalid 标记。
+        if (ServuxReference.CHANNEL_HUD.toString().equals(channel))
+        {
+            this.sendMetadata(player);
+        }
+    }
+
     @Override public void onTickEndPre() { /* NO-OP */ }
     @Override public void onTickEndPost() { /* NO-OP */ }
 

@@ -64,6 +64,12 @@ public class ServuxStructuresHandler implements IPluginServerPlayHandler
     }
 
     @Override
+    public void clearPlayRegistered(Identifier channel)
+    {
+        if (channel.equals(CHANNEL_ID)) { this.payloadRegistered = false; }
+    }
+
+    @Override
     public void reset(Identifier channel)
     {
         if (channel.equals(CHANNEL_ID)) { this.failures.clear(); }
@@ -139,15 +145,13 @@ public class ServuxStructuresHandler implements IPluginServerPlayHandler
         }
         else if (!this.sendPlayPayload(player, packet))
         {
-            // 普通包发送失败 → 计数
+            // 普通包发送失败 → 计数（第 MAX_FAILURES 次触发注销并清零）
             UUID id = player.getUUID();
+            int count = this.failures.getOrDefault(id, 0) + 1;
 
-            if (!this.failures.containsKey(id))
+            if (count >= MAX_FAILURES)
             {
-                this.failures.put(id, 1);
-            }
-            else if (this.failures.get(id) > MAX_FAILURES)
-            {
+                this.failures.remove(id);
                 if (ServuxReference.DEV_DEBUG)
                 {
                     Reference.logger().info("注销 Structures 客户端 " + player.getName().getString()
@@ -158,7 +162,7 @@ public class ServuxStructuresHandler implements IPluginServerPlayHandler
             }
             else
             {
-                this.failures.put(id, this.failures.get(id) + 1);
+                this.failures.put(id, count);
             }
         }
     }

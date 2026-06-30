@@ -234,6 +234,14 @@ public class StructureDataProvider extends DataProviderBase
     /** 周期扫描：玩家当前 chunk 视野内的结构引用 → 起点 → NBT，全量发送。 */
     protected void rescanAndSend(ServerPlayer player)
     {
+        // 门控：客户端未声明监听 servux:structures（getListeningPluginChannels 不含该通道）则跳过采集，
+        // 避免 createTag / 遍历 view-distance 区块的重活白干 + 发送失败累计计数误注销
+        // （1.20.2+ configuration phase 后，通道声明可能晚于客户端 C2S STRUCTURES_REGISTER）。
+        if (!player.getBukkitEntity().getListeningPluginChannels().contains(this.getNetworkChannel().toString()))
+        {
+            return;
+        }
+
         ServerLevel world = (ServerLevel) player.level();
         ChunkPos center = player.getLastSectionPos().chunk();
 

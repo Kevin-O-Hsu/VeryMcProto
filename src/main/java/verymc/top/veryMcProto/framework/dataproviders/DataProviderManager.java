@@ -153,6 +153,7 @@ public class DataProviderManager
         else
         {
             provider.unregisterHandler();
+            provider.setRegistered(false); // 与 registerHandler 内 setRegistered(true) 对称，消除 provider 级标志撒谎
         }
     }
 

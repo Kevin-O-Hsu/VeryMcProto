@@ -61,6 +61,12 @@ public class ServuxHudHandler implements IPluginServerPlayHandler
     }
 
     @Override
+    public void clearPlayRegistered(Identifier channel)
+    {
+        if (channel.equals(CHANNEL_ID)) { this.payloadRegistered = false; }
+    }
+
+    @Override
     public void reset(Identifier channel)
     {
         if (channel.equals(CHANNEL_ID)) { this.failures.clear(); }
@@ -126,20 +132,18 @@ public class ServuxHudHandler implements IPluginServerPlayHandler
         }
         else if (!this.sendPlayPayload(player, packet))
         {
-            // 普通包发送失败 → 计数
+            // 普通包发送失败 → 计数（第 MAX_FAILURES 次触发 onPacketFailure 并清零，避免重复触发 + 内存泄漏）
             UUID id = player.getUUID();
+            int count = this.failures.getOrDefault(id, 0) + 1;
 
-            if (!this.failures.containsKey(id))
+            if (count >= MAX_FAILURES)
             {
-                this.failures.put(id, 1);
-            }
-            else if (this.failures.get(id) > MAX_FAILURES)
-            {
+                this.failures.remove(id);
                 HudDataProvider.INSTANCE.onPacketFailure(player);
             }
             else
             {
-                this.failures.put(id, this.failures.get(id) + 1);
+                this.failures.put(id, count);
             }
         }
     }

@@ -132,7 +132,12 @@ public final class ProtocolChannel
     }
 
     /**
-     * 发送 S2C（plugin messaging，方案 A）。超 32KiB 由 {@link PacketSplitter} 分包保证。
+     * 发送 S2C（plugin messaging，方案 A）。
+     *
+     * <p><b>包大小命门</b>：1.21.x Bukkit {@code Messenger.MAX_MESSAGE_SIZE} 已上调至 ~1MiB（Spigot API 1048576），
+     * 故本方法对 Bukkit API 合约而言不会因 32KiB 拒绝；真正的 S2C 瓶颈是<b>原版客户端对 ClientboundCustomPayload
+     * 的 32767 字节解码上限</b>——超过会让客户端断连。故 {@link PacketSplitter} S2C 分片用 32000（留余量给 VarInt 头），
+     * 大包必须走分包，不能直接 send。
      *
      * @return 是否成功投递。返回 false 含义：通道未注册 outgoing / 玩家离线 / 客户端未声明监听该通道 / 发送异常。
      *         调用方据此做失败计数。
@@ -155,7 +160,7 @@ public final class ProtocolChannel
         if (bytes.length > Messenger.MAX_MESSAGE_SIZE)
         {
             Reference.logger().warning("ProtocolChannel[" + channelId + "] 拒绝发送超限包: " + bytes.length
-                    + " > " + Messenger.MAX_MESSAGE_SIZE + "（应走 PacketSplitter 分包）");
+                    + " > Bukkit MAX_MESSAGE_SIZE（应走 PacketSplitter 分包；注意真正 S2C 瓶颈是客户端 32767 上限）");
             return false;
         }
         try

@@ -42,6 +42,9 @@ public class ServuxEntitiesHandler implements IPluginServerPlayHandler
     public void setPlayRegistered(Identifier channel) { if (channel.equals(CHANNEL_ID)) { this.payloadRegistered = true; } }
 
     @Override
+    public void clearPlayRegistered(Identifier channel) { if (channel.equals(CHANNEL_ID)) { this.payloadRegistered = false; } }
+
+    @Override
     public void reset(Identifier channel) { if (channel.equals(CHANNEL_ID)) { this.failures.clear(); } }
 
     @Override
@@ -92,9 +95,9 @@ public class ServuxEntitiesHandler implements IPluginServerPlayHandler
         else if (!this.sendPlayPayload(player, packet))
         {
             UUID id = player.getUUID();
-            if (!this.failures.containsKey(id)) { this.failures.put(id, 1); }
-            else if (this.failures.get(id) > MAX_FAILURES) { EntitiesDataProvider.INSTANCE.onPacketFailure(player); }
-            else { this.failures.put(id, this.failures.get(id) + 1); }
+            int count = this.failures.getOrDefault(id, 0) + 1;
+            if (count >= MAX_FAILURES) { this.failures.remove(id); EntitiesDataProvider.INSTANCE.onPacketFailure(player); }
+            else { this.failures.put(id, count); }
         }
     }
 }

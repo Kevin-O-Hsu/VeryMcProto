@@ -28,15 +28,20 @@ public final class ServerPlayHandler
 
     private ServerPlayHandler() { }
 
-    /** 注册 handler + 同步注册 plugin messaging 通道（incoming + outgoing + receiver）。 */
+    /** 注册 handler + 同步注册 plugin messaging 通道（incoming + outgoing + receiver）+ 标记已注册。 */
     public void registerServerPlayHandler(IPluginServerPlayHandler handler)
     {
         Identifier channel = handler.getPayloadChannel();
         handlers.putIfAbsent(channel, handler);
         ChannelManager.instance().register(channel, handler);
+        // ★ 必须标记已注册：sendPlayPayload 的 isPlayRegistered 门控依赖此标志。
+        // 漏调会导致 payloadRegistered 恒为 false → 所有 S2C 发送被「通道未注册」拦截
+        // （实测 BUG：5 条 servux:* 通道全部 sendPlayPayload 失败）。对应原版 registerPlayPayload
+        // 成功后由 fabric 回调触发的 setPlayRegistered。
+        handler.setPlayRegistered(channel);
     }
 
-    /** 反注册 handler + 注销 plugin messaging 通道。 */
+    /** 反注册 handler + 注销 plugin messaging 通道 + 清除已注册标记。 */
     public void unregisterServerPlayHandler(IPluginServerPlayHandler handler)
     {
         Identifier channel = handler.getPayloadChannel();
@@ -45,6 +50,7 @@ public final class ServerPlayHandler
         {
             handlers.remove(channel);
             handler.reset(channel);
+            handler.clearPlayRegistered(channel);
             ChannelManager.instance().unregister(channel);
         }
     }

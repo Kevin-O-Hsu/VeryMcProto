@@ -78,9 +78,10 @@
 - **决定性结论**（实证：[FabricMC Discussion #4430](https://github.com/orgs/FabricMC/discussions/4430)）：Paper 的 **plugin messaging channel（`namespace:path` 命名）直接映射到原版 custom payload 通道**，`PluginMessageListener.onPluginMessageReceived(channel, player, byte[])` 收到的 `byte[]` 就是 `FriendlyByteBuf` 的**裸字节**，`player.sendPluginMessage(...)` 发出的 `byte[]` 同理。因此 Servux 的 5 条通道可用**标准 Paper API 直接收发，无需 ProtocolLib / PacketEvents**。
 
 **字节限制命门（务必注意）**：
-- Bukkit plugin messaging 单包硬上限 `Messenger.MAX_MESSAGE_SIZE = 32768`（32 KiB）。
-- Servux 原版 `PacketSplitter`：S2C 分片大小 `MAX_PAYLOAD_PER_PACKET_S2C = 1MiB`，C2S `= 32767`。
-- **迁移处置**：若全程走 plugin messaging，需把 `PacketSplitter` 的 S2C 分片大小从 **1MiB 改为 ≤ 32760**（留余量给 VarInt 头），否则大包（Recipe / Litematic 投影）会被 Bukkit 拒绝；或 S2C 改走 NMS `player.connection.send(new ClientboundCustomPayloadPacket(payload))` 绕过 32KiB 限制（仍可保持 1MiB 分片）。详见 [`docs/02-network-protocol.md`](docs/02-network-protocol.md) §分片与 [`docs/07-migration-architecture.md`](docs/07-migration-architecture.md) §网络层。
+- 1.21.x Bukkit `Messenger.MAX_MESSAGE_SIZE` 已上调至 ~1MiB（Spigot API `1048576`），plugin messaging API 层不再以 32KiB 拒绝（旧文档称 `32768` 已过时）。
+- **真正的 S2C 瓶颈是原版客户端对 `ClientboundCustomPayload` 的 32767 字节解码上限**——超过会让客户端断连（实测风险，见 [`docs/09-DELIVERY.md`](docs/09-DELIVERY.md) §10）。
+- Servux 原版 `PacketSplitter`：S2C 分片 `MAX_PAYLOAD_PER_PACKET_S2C = 1MiB`（原版走 NMS 直发），C2S `= 32767`。
+- **迁移处置（已落地）**：本移植方案 A 全程走 plugin messaging，`PacketSplitter` S2C 分片已从 1MiB 改为 **32000**（留余量给 VarInt 头，防御客户端 32767 上限）。大包（Recipe / Litematic 投影）必须走分包。若后续 S2C 改走 NMS `player.connection.send(new ClientboundCustomPayloadPacket(payload))`，仍受同一客户端 32767 上限，分片不变。详见 [`docs/02-network-protocol.md`](docs/02-network-protocol.md) §分片与 [`docs/07-migration-architecture.md`](docs/07-migration-architecture.md) §网络层。
 
 **C2S 接收命门**：Paper 原版服务端对未注册的 custom payload 会**踢玩家**（"Invalid payload"）。plugin messaging 注册的通道由 Paper 内置路由、不踢人——这正是用 `Messenger.registerIncomingPluginChannel` 接收 C2S 的理由。
 

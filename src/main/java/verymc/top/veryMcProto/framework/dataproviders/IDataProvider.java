@@ -81,6 +81,19 @@ public interface IDataProvider
 
     default void onPlayerRespawn(ServerPlayer player) { }
 
+    /**
+     * 客户端向服务端声明监听某通道时触发（对应 Bukkit {@link org.bukkit.event.player.PlayerRegisterChannelEvent}）。
+     *
+     * <p><b>框架增强（命门修复）</b>：1.20.2+ 引入 configuration phase 后，玩家进服瞬间
+     * {@code player.getListeningPluginChannels()} 尚为空（客户端的通道注册包在 configuration phase 之后才到达），
+     * 故 {@link #onPlayerJoin} 时无法可靠判断客户端是否装了对应 mod。而本事件在客户端真正声明通道时触发，
+     * 是「客户端已就绪、装了对应 mod」的可靠信号。Provider 可覆写以在客户端声明其通道后立即主动推送
+     * （如 HUD 的 metadata），取代固定延迟猜测。
+     *
+     * @param channel 客户端刚声明的通道名（如 {@code servux:hud_metadata}）
+     */
+    default void onPlayerRegisterChannel(ServerPlayer player, String channel) { }
+
     void onTickEndPre();
 
     void onTickEndPost();

@@ -50,6 +50,9 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
     public void setPlayRegistered(Identifier channel) { if (channel.equals(CHANNEL_ID)) { this.payloadRegistered = true; } }
 
     @Override
+    public void clearPlayRegistered(Identifier channel) { if (channel.equals(CHANNEL_ID)) { this.payloadRegistered = false; } }
+
+    @Override
     public void reset(Identifier channel) { if (channel.equals(CHANNEL_ID)) { this.failures.clear(); } }
 
     @Override
@@ -163,9 +166,10 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
         else if (!this.sendPlayPayload(player, packet))
         {
             UUID id = player.getUUID();
-            if (!this.failures.containsKey(id)) { this.failures.put(id, 1); }
-            else if (this.failures.get(id) > MAX_FAILURES)
+            int count = this.failures.getOrDefault(id, 0) + 1;
+            if (count >= MAX_FAILURES)
             {
+                this.failures.remove(id);
                 if (ServuxReference.DEV_DEBUG)
                 {
                     Reference.logger().info("ServuxLitematicaHandler: 在 " + MAX_FAILURES + " 次失败后注销客户端 "
@@ -173,7 +177,7 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
                 }
                 LitematicsDataProvider.INSTANCE.onPacketFailure(player);
             }
-            else { this.failures.put(id, this.failures.get(id) + 1); }
+            else { this.failures.put(id, count); }
         }
     }
 }

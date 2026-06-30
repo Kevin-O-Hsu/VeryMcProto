@@ -5,6 +5,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRegisterChannelEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.server.ServerLoadEvent;
 import org.bukkit.plugin.Plugin;
@@ -161,6 +162,35 @@ public class LifecycleBridge implements Listener
             catch (Exception ex)
             {
                 Reference.logger().warning("onPlayerRespawn[" + p.getName() + "] 异常: " + ex.getMessage());
+            }
+        }
+    }
+
+    /**
+     * 客户端向服务端声明监听某通道时触发（masa mod 在 configuration phase 后注册 servux:*）。
+     *
+     * <p><b>命门</b>：1.20.2+ 后 {@link org.bukkit.event.player.PlayerJoinEvent} 时 {@code getListeningPluginChannels}
+     * 尚为空，无法可靠识别「客户端装了对应 mod」。本事件是 configuration phase 完成后的可靠信号——
+     * 分发给各 enabled provider 的 {@link IDataProvider#onPlayerRegisterChannel}，由其决定是否主动推送。
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerRegisterChannel(PlayerRegisterChannelEvent event)
+    {
+        String channel = event.getChannel();
+        ServerPlayer player = Nms.toNms(event.getPlayer());
+        for (IDataProvider p : DataProviderManager.INSTANCE.getAllProviders())
+        {
+            if (!p.isEnabled())
+            {
+                continue;
+            }
+            try
+            {
+                p.onPlayerRegisterChannel(player, channel);
+            }
+            catch (Exception ex)
+            {
+                Reference.logger().warning("onPlayerRegisterChannel[" + p.getName() + "] 异常: " + ex.getMessage());
             }
         }
     }
