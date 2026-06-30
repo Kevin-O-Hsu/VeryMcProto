@@ -141,6 +141,7 @@ Servux 共 **26 个 Mixin + 2 个 AccessWidener 字段**。Paper 无 Mixin 运�
 | [`docs/06-fabric-vs-paper.md`](docs/06-fabric-vs-paper.md) | Fabric ↔ Paper 框架差异对照表（生命周期/权限/网络/配置/构建） | (b) 差异转换 |
 | [`docs/07-migration-architecture.md`](docs/07-migration-architecture.md) ⭐ | **完整迁移技术方案**：架构设计、网络层/数据采集/降级矩阵、可行性验证（含网络文档） | (c) 迁移方案 |
 | [`docs/08-implementation-plan.md`](docs/08-implementation-plan.md) | 实施步骤：阶段划分 + 大任务拆小任务 + 依赖与里程碑 | (d) 实施规划 |
+| [`docs/10-testing-guide.md`](docs/10-testing-guide.md) | **客户端兼容测试**：5 通道↔3 mod 映射、Litematica/Tweakeroo 测试步骤、排错流程、降级清单 | 实测验证 |
 | [`docs/references.md`](docs/references.md) | 参考资源链接（Paper/Fabric/Protocol Wiki/Servux 源码） | 参考 |
 
 ---
