@@ -547,7 +547,77 @@ public class LitematicaSchematic
 
     public void sendTransmitFile(CompoundTag nbtIn, final long sessionKey, ServerPlayer player)
     {
-        // TODO P8: 桩化（降级），原版 ORIGIN/schematic/LitematicaSchematic.java
+        Path file = this.getFile();
+        CompoundTag output = new CompoundTag();
+        final int bufferSize = SchematicBuffer.BUFFER_SIZE;
+        long totalBytes;
+        int totalSlices;
+
+        try
+        {
+            totalBytes = Files.size(file);
+            totalSlices = (int) ((totalBytes + bufferSize - 1) / bufferSize);
+        }
+        catch (java.io.IOException e)
+        {
+            Log.error("sendTransmitFile: Unable to read file size; {}", e.getLocalizedMessage());
+            return;
+        }
+
+        output.putString("Task", "Litematic-TransmitStart");
+        output.putString("FileName", file.getFileName().toString());
+        output.store("FileType", FileType.CODEC, this.schematicType);
+        output.putLong("SliceKey", sessionKey);
+        output.putInt("TotalSlices", totalSlices);
+        output.putLong("TotalSize", totalBytes);
+
+        if (!nbtIn.isEmpty())
+        {
+            output.put("PlacementData", nbtIn);
+        }
+
+        ServuxLitematicaHandler.getInstance().encodeServerData(player, ServuxLitematicaPacket.ResponseC2SStart(output));
+
+        // File Stream
+        output.putLong("SliceKey", sessionKey);
+        byte[] buffer = new byte[bufferSize];
+
+        try (java.io.InputStream is = Files.newInputStream(file))
+        {
+            int bytesRead = 0;
+            output.putString("Task", "Litematic-TransmitData");
+
+            while ((bytesRead = is.read(buffer, 0, bufferSize)) != -1)
+            {
+                output.remove("Slice");
+                output.remove("Size");
+                output.remove("Data");
+                output.putInt("Slice", totalSlices);
+                output.putInt("Size", bytesRead);
+
+                byte[] correctedData = new byte[bytesRead];
+                System.arraycopy(buffer, 0, correctedData, 0, bytesRead);
+                output.putByteArray("Data", correctedData);
+                ServuxLitematicaHandler.getInstance().encodeServerData(player, ServuxLitematicaPacket.ResponseC2SStart(output));
+            }
+        }
+        catch (Exception err)
+        {
+            output = new CompoundTag();
+            output.putLong("SliceKey", sessionKey);
+            output.putString("Task", "Litematic-TransmitCancel");
+            ServuxLitematicaHandler.getInstance().encodeServerData(player, ServuxLitematicaPacket.ResponseC2SStart(output));
+            Log.error("sliceForServux: Exception reading file; {}", err.getLocalizedMessage());
+            return;
+        }
+
+        // End Slice
+        output.remove("Slice");
+        output.remove("Size");
+        output.remove("Data");
+
+        output.putString("Task", "Litematic-TransmitEnd");
+        ServuxLitematicaHandler.getInstance().encodeServerData(player, ServuxLitematicaPacket.ResponseC2SStart(output));
     }
 
     public static @Nullable Pair<LitematicaSchematic, CompoundTag> receiveFileTransmit(CompoundTag nbt, ServerPlayer player)

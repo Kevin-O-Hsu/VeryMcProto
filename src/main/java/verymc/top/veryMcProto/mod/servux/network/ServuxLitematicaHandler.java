@@ -20,6 +20,8 @@ import verymc.top.veryMcProto.framework.network.PacketSplitter;
 import verymc.top.veryMcProto.mod.servux.ServuxLog;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
 import verymc.top.veryMcProto.mod.servux.dataproviders.LitematicsDataProvider;
+import verymc.top.veryMcProto.mod.servux.schematic.LitematicaSchematic;
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Litematics 通道收发 Handler（mod 层）。移植自原版 {@code ServuxLitematicaHandler}（去 Fabric + networkHandler 形参）。
@@ -131,8 +133,13 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
             // File-Transmit support（客户端上传投影文件）
             case "Litematic-TransmitStart", "Litematic-TransmitCancel", "Litematic-TransmitData", "Litematic-TransmitEnd" ->
             {
-                ServuxLog.debug("litematic_data: 收到客户端上传投影 NBT（Task=" + task + "，type=" + type
-                        + "）from " + player.getName().getString() + "，schematic 系统未移植，已降级忽略");
+                Pair<LitematicaSchematic, CompoundTag> schemPair = LitematicaSchematic.receiveFileTransmit(nbt, player);
+
+                if (schemPair != null && schemPair.getLeft().getFile() != null)
+                {
+                    Debug.log(Debug.Cat.PACKET, "handleBulkData(): 收到 litematic " + schemPair.getLeft().getFile().toAbsolutePath().toString() + " from " + player.getName().getString());
+                    LitematicsDataProvider.INSTANCE.handleClientPasteRequestPair(player, type, schemPair);
+                }
             }
             default -> LitematicsDataProvider.INSTANCE.handleClientPasteRequest(player, type, nbt);
         }
@@ -151,7 +158,7 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
 
         ServuxLitematicaPacket packet = (ServuxLitematicaPacket) data;
 
-        if (packet.getType().equals(ServuxLitematicaPacket.Type.PACKET_S2C_NBT_RESPONSE_START))
+        if (packet.getType().equals(ServuxLitematicaPacket.Type.PACKET_S2C_NBT_RESPONSE_START) || packet.getType().equals(ServuxLitematicaPacket.Type.PACKET_C2S_NBT_RESPONSE_START))
         {
             Debug.log(Debug.Cat.PACKET, "encodeServerData litematics → " + player.getName().getString()
                     + " type=" + packet.getType() + " → PacketSplitter 分包");

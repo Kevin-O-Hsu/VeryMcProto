@@ -32,6 +32,12 @@ import verymc.top.veryMcProto.mod.servux.ServuxLog;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
 import verymc.top.veryMcProto.mod.servux.network.ServuxLitematicaHandler;
 import verymc.top.veryMcProto.mod.servux.network.ServuxLitematicaPacket;
+import verymc.top.veryMcProto.mod.servux.schematic.LitematicaSchematic;
+import verymc.top.veryMcProto.mod.servux.schematic.placement.SchematicPlacement;
+import verymc.top.veryMcProto.mod.servux.util.ReplaceBehavior;
+import verymc.top.veryMcProto.mod.servux.util.PasteLayerBehavior;
+import verymc.top.veryMcProto.mod.servux.util.LayerRange;
+import org.apache.commons.lang3.tuple.Pair;
 import verymc.top.veryMcProto.mod.servux.schematic.transmit.SchematicBufferManager;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -319,8 +325,47 @@ public class LitematicsDataProvider extends DataProviderBase
 
         if (tags != null && tags.getStringOr("Task", "").equals("LitematicaPaste"))
         {
-            ServuxLog.debug("litematic_data: 收到粘贴请求 from " + player.getName().getString() + "，schematic 系统未移植，已降级");
-            player.displayClientMessage(net.minecraft.network.chat.Component.literal("§c粘贴功能未实现（schematic 系统未移植）"), false);
+            ServuxLog.debug("litematic_data: 执行粘贴 from " + player.getName().getString());
+            long timeStart = System.currentTimeMillis();
+            SchematicPlacement placement = SchematicPlacement.createFromNbt(tags);
+            ReplaceBehavior replaceMode = ReplaceBehavior.fromStringStatic(tags.getStringOr("ReplaceMode", ReplaceBehavior.NONE.name()));
+            PasteLayerBehavior layerBehavior = PasteLayerBehavior.fromStringStatic(tags.getStringOr("PasteLayerBehavior", PasteLayerBehavior.ALL.name()));
+            LayerRange layerRange = tags.read("RenderLayerRange", LayerRange.CODEC).orElse(null);
+            placement.pasteTo(player.level(), replaceMode, layerBehavior, layerRange);
+            long timeElapsed = System.currentTimeMillis() - timeStart;
+            player.displayClientMessage(net.minecraft.network.chat.Component.literal(
+                    "§aPasted §b" + placement.getName() + "§r to §d" + player.level().dimension().identifier().toString() + "§r in §a" + timeElapsed + "§rms."), false);
+        }
+    }
+
+    public void handleClientPasteRequestPair(ServerPlayer player, int transactionId, Pair<LitematicaSchematic, CompoundTag> schemPair)
+    {
+        if (!this.isEnabled()) { return; }
+
+        if (!this.hasPermission(player) || !this.hasPermissionsForPaste(player))
+        {
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§cLitematics paste: insufficient permissions."));
+            return;
+        }
+        if (!player.isCreative())
+        {
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§cLitematics paste: creative mode required."));
+            return;
+        }
+
+        if (schemPair.getLeft() != null)
+        {
+            ServuxLog.debug("litematic_data: 执行粘贴(Pair) from " + player.getName().getString());
+            long timeStart = System.currentTimeMillis();
+            CompoundTag tags = schemPair.getRight();
+            SchematicPlacement placement = SchematicPlacement.createFromNbt(schemPair.getLeft(), tags);
+            ReplaceBehavior replaceMode = ReplaceBehavior.fromStringStatic(tags.getStringOr("ReplaceMode", ReplaceBehavior.NONE.name()));
+            PasteLayerBehavior layerBehavior = PasteLayerBehavior.fromStringStatic(tags.getStringOr("PasteLayerBehavior", PasteLayerBehavior.ALL.name()));
+            LayerRange layerRange = tags.read("RenderLayerRange", LayerRange.CODEC).orElse(null);
+            placement.pasteTo(player.level(), replaceMode, layerBehavior, layerRange);
+            long timeElapsed = System.currentTimeMillis() - timeStart;
+            player.displayClientMessage(net.minecraft.network.chat.Component.literal(
+                    "§aPasted §b" + placement.getName() + "§r to §d" + player.level().dimension().identifier().toString() + "§r in §a" + timeElapsed + "§rms."), false);
         }
     }
 
