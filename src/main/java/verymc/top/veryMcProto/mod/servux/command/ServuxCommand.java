@@ -14,6 +14,8 @@ import verymc.top.veryMcProto.framework.dataproviders.DataProviderManager;
 import verymc.top.veryMcProto.framework.debug.Debug;
 import verymc.top.veryMcProto.framework.settings.IServuxSetting;
 import verymc.top.veryMcProto.mod.servux.dataproviders.ConfigProvider;
+import verymc.top.veryMcProto.mod.servux.dataproviders.LitematicsDataProvider;
+import verymc.top.veryMcProto.mod.servux.schematic.LitematicaSchematic;
 
 /**
  * /servux 命令（mod 层）。移植自原版 {@code ServuxCommand}（Brigadier）→ Bukkit {@link CommandExecutor}/{@link TabCompleter}。
@@ -23,7 +25,7 @@ import verymc.top.veryMcProto.mod.servux.dataproviders.ConfigProvider;
  */
 public class ServuxCommand implements CommandExecutor, TabCompleter
 {
-    private static final String USAGE = "§e/servux §7reload|save|set|info|list|enable|disable|search|debug";
+    private static final String USAGE = "§e/servux §7reload|save|set|info|list|enable|disable|search|debug|litematic";
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args)
@@ -52,6 +54,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
                 case "disable" -> handleToggle(sender, args, false);
                 case "search" -> handleSearch(sender, args);
                 case "debug" -> handleDebug(sender, args);
+                case "litematic" -> handleLitematic(sender, args);
                 default -> sender.sendMessage(USAGE);
             }
         }
@@ -140,6 +143,57 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
      * </ul>
      * <p>注：命令切换<b>不持久化</b>（重启/reload 恢复为配置值）；需持久请 {@code /servux set servux_main:debug_log true}。
      */
+    /**
+     * /servux litematic —— Litematica 投影管理（mod 层）。
+     * <ul>
+     *   <li>{@code list} —— 列出 schematics/ 目录的 .litematic 文件；</li>
+     *   <li>{@code transmit <file> [player]} —— 加载服务端投影并通过 servux:litematics 通道投递给客户端。</li>
+     * </ul>
+     * 权限：{@code servux.command}（已在 onCommand 检查）+ litematic_data provider 启用。
+     */
+    private void handleLitematic(CommandSender sender, String[] args)
+    {
+        LitematicsDataProvider prov = LitematicsDataProvider.INSTANCE;
+        if (!prov.isEnabled()) { sender.sendMessage("§clitematic_data provider 未启用（/servux enable litematic_data）"); return; }
+        if (args.length < 2) { sender.sendMessage("§e/servux litematic <list|transmit <file> [player]>"); return; }
+
+        switch (args[1].toLowerCase())
+        {
+            case "list" ->
+            {
+                java.nio.file.Path dir = prov.getTransmitDir();
+                sender.sendMessage("§6schematics 目录: §f" + dir.toAbsolutePath());
+                try (var stream = java.nio.file.Files.list(dir))
+                {
+                    var files = stream.filter(f -> f.toString().endsWith(".litematic")).sorted().toList();
+                    if (files.isEmpty()) { sender.sendMessage(" §7（无 .litematic 文件）"); }
+                    for (var f : files) { sender.sendMessage(" §7- §f" + f.getFileName()); }
+                }
+                catch (Exception e) { sender.sendMessage("§c读取目录失败: " + e.getMessage()); }
+            }
+            case "transmit" ->
+            {
+                if (args.length < 3) { sender.sendMessage("§e/servux litematic transmit <file> [player]"); return; }
+                if (!(sender instanceof org.bukkit.entity.Player) && args.length < 4)
+                {
+                    sender.sendMessage("§c控制台需指定目标玩家: /servux litematic transmit <file> <player>");
+                    return;
+                }
+                org.bukkit.entity.Player target = args.length >= 4 ? org.bukkit.Bukkit.getPlayerExact(args[3]) : (org.bukkit.entity.Player) sender;
+                if (target == null) { sender.sendMessage("§c玩家不在线: " + (args.length >= 4 ? args[3] : "")); return; }
+
+                String fileName = args[2];
+                LitematicaSchematic schematic = LitematicaSchematic.createFromFile(prov.getTransmitDir(), fileName);
+                if (schematic == null) { sender.sendMessage("§c加载投影失败（文件不存在或格式错误）: " + fileName); return; }
+
+                long sessionKey = net.minecraft.util.RandomSource.create(net.minecraft.util.Util.getMillis()).nextLong();
+                net.minecraft.server.level.ServerPlayer nmsTarget = verymc.top.veryMcProto.framework.nms.Nms.toNms(target);
+                schematic.sendTransmitFile(new net.minecraft.nbt.CompoundTag(), sessionKey, nmsTarget);
+                sender.sendMessage("§a投递投影 §b" + fileName + " §a→ §f" + target.getName());
+            }
+            default -> sender.sendMessage("§e/servux litematic <list|transmit <file> [player]>");
+        }
+    }
     private void handleDebug(CommandSender sender, String[] args)
     {
         if (args.length < 2)
@@ -188,7 +242,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
 
         if (args.length == 1)
         {
-            for (String s : List.of("reload", "save", "set", "info", "list", "enable", "disable", "search", "debug"))
+            for (String s : List.of("reload", "save", "set", "info", "list", "enable", "disable", "search", "debug", "litematic"))
             {
                 if (s.startsWith(typed)) { out.add(s); }
             }
@@ -216,6 +270,13 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
             else if (sub.equals("debug"))
             {
                 for (String s : List.of("on", "off", "cat", "status"))
+                {
+                    if (s.startsWith(typed)) { out.add(s); }
+                }
+            }
+            else if (sub.equals("litematic"))
+            {
+                for (String s : List.of("list", "transmit"))
                 {
                     if (s.startsWith(typed)) { out.add(s); }
                 }
