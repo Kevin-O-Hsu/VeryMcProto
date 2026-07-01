@@ -1,0 +1,278 @@
+package verymc.top.veryMcProto.mod.syncmatica;
+
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Arrays;
+import org.bukkit.plugin.Plugin;
+
+import verymc.top.veryMcProto.mod.syncmatica.communication.CommunicationManager;
+import verymc.top.veryMcProto.mod.syncmatica.communication.FeatureSet;
+import verymc.top.veryMcProto.mod.syncmatica.data.FileStorage;
+import verymc.top.veryMcProto.mod.syncmatica.data.IFileStorage;
+import verymc.top.veryMcProto.mod.syncmatica.data.SyncmaticManager;
+import verymc.top.veryMcProto.mod.syncmatica.extended_core.PlayerIdentifierProvider;
+import verymc.top.veryMcProto.mod.syncmatica.service.DebugService;
+import verymc.top.veryMcProto.mod.syncmatica.service.IService;
+import verymc.top.veryMcProto.mod.syncmatica.service.JsonConfiguration;
+import verymc.top.veryMcProto.mod.syncmatica.service.QuotaService;
+import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaLog;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+
+/**
+ * 领域根容器（移植自 {@code ch.endte.syncmatica.Context}）。
+ *
+ * <p>聚合 {@link IFileStorage} / {@link CommunicationManager} / {@link SyncmaticManager} /
+ * {@link QuotaService} / {@link DebugService} / {@link PlayerIdentifierProvider}，管理配置与生命周期。
+ *
+ * <p><b>Paper 适配</b>：
+ * <ul>
+ *   <li>去掉 {@code Reference.isClient()/isIntegratedServer()/isOpenToLan()} 分支（恒 dedicated server）；</li>
+ *   <li>去掉 {@code registerReceivers()}（通道注册移到 P9 {@code SyncmaticaApp} 的 {@code onEnable}）；</li>
+ *   <li>{@code Syncmatica.LOGGER} → {@link SyncmaticaLog}；</li>
+ *   <li>FileStorage 不再 {@code setContext}，改为 {@code setDownloadStateProvider}（函数式注入 comMan.getDownloadState）；</li>
+ *   <li>IService（Quota/Debug）不再 {@code setContext}（P3 解耦）。</li>
+ * </ul>
+ */
+public class SyncmaticaContext
+{
+    private final Plugin plugin;
+    private final IFileStorage files;
+    private final CommunicationManager comMan;
+    private final SyncmaticManager synMan;
+    private FeatureSet fs = null;
+    private final QuotaService quota;
+    private final DebugService debugService;
+    private final PlayerIdentifierProvider playerIdentifierProvider;
+    private final Path litematicFolder;
+    private final Path configFolder;
+    private boolean isStarted = false;
+
+    public SyncmaticaContext(final Plugin plugin,
+                             final IFileStorage files,
+                             final CommunicationManager comMan,
+                             final SyncmaticManager synMan,
+                             final Path litematicFolder,
+                             final Path configFolder)
+    {
+        this.plugin = plugin;
+        this.files = files;
+        this.comMan = comMan;
+        this.synMan = synMan;
+        this.litematicFolder = litematicFolder;
+        this.configFolder = configFolder;
+
+        // 反向注入（comMan/synMan 需要 context 引用；FileStorage/IService 已解耦，不 setContext）
+        comMan.setContext(this);
+        synMan.setContext(this);
+
+        quota = new QuotaService();
+        playerIdentifierProvider = new PlayerIdentifierProvider();
+        debugService = new DebugService();
+
+        // FileStorage 的 downloadState 查询由 comMan 提供（替代原版 context.getCommunicationManager().getDownloadState）
+        if (files instanceof FileStorage)
+        {
+            ((FileStorage) files).setDownloadStateProvider(placement -> comMan.getDownloadState(placement));
+        }
+
+        if (!Files.exists(litematicFolder))
+        {
+            try
+            {
+                Files.createDirectories(litematicFolder);
+            }
+            catch (Exception e)
+            {
+                throw new RuntimeException("Context(): Fatal error creating litematic Folder. Exception: " + e.getLocalizedMessage(), e);
+            }
+        }
+
+        loadConfiguration();
+    }
+
+    public Plugin getPlugin() { return plugin; }
+
+    public IFileStorage getFileStorage() { return files; }
+
+    public CommunicationManager getCommunicationManager() { return comMan; }
+
+    public SyncmaticManager getSyncmaticManager() { return synMan; }
+
+    public QuotaService getQuotaService() { return quota; }
+
+    public DebugService getDebugService() { return debugService; }
+
+    public PlayerIdentifierProvider getPlayerIdentifierProvider() { return playerIdentifierProvider; }
+
+    public FeatureSet getFeatureSet()
+    {
+        if (fs == null)
+        {
+            generateFeatureSet();
+        }
+        return fs;
+    }
+
+    // Paper 恒 dedicated server
+    public boolean isServer() { return true; }
+
+    public boolean isClient() { return false; }
+
+    public boolean isIntegratedServer() { return false; }
+
+    public boolean isStarted() { return isStarted; }
+
+    public Path getLitematicFolder() { return litematicFolder; }
+
+    private void generateFeatureSet()
+    {
+        // 声明全集 FeatureSet（配合 MOD_VERSION="1.0.0" 触发 FEATURE 交换，使双方用全集编码）
+        fs = new FeatureSet(Arrays.asList(Feature.values()));
+    }
+
+    public void startup()
+    {
+        quota.startup();
+        debugService.startup();
+        isStarted = true;
+        synMan.startup();
+    }
+
+    public void shutdown()
+    {
+        quota.shutdown();
+        debugService.shutdown();
+        isStarted = false;
+        synMan.shutdown();
+    }
+
+    public boolean checkPartnerVersion(final String version)
+    {
+        return !version.equals("0.0.1");
+    }
+
+    public Path getConfigFolder()
+    {
+        return configFolder;
+    }
+
+    public Path getConfigFile()
+    {
+        return configFolder.resolve(SyncmaticaReference.CONFIG_FILE_NAME);
+    }
+
+    public Path getAndCreateConfigFile() throws IOException
+    {
+        if (!Files.exists(configFolder))
+        {
+            Files.createDirectories(configFolder);
+        }
+        Path configFile = getConfigFile();
+        if (!Files.exists(configFile))
+        {
+            Files.createFile(configFile);
+        }
+        return configFile;
+    }
+
+    public void loadConfiguration()
+    {
+        boolean attemptToLoad = false;
+        JsonObject configuration;
+        Path f = getConfigFile();
+
+        try
+        {
+            configuration = new Gson().fromJson(new BufferedReader(new FileReader(f.toFile())), JsonObject.class);
+            attemptToLoad = true;
+        }
+        catch (final Exception ignored)
+        {
+            configuration = new JsonObject();
+        }
+        boolean needsRewrite = false;
+        // Paper 恒 server：quota + debug 都装配（原版 quota 仅 server 分支）
+        needsRewrite = loadConfigurationForService(quota, configuration, attemptToLoad);
+        needsRewrite |= loadConfigurationForService(debugService, configuration, attemptToLoad);
+        if (needsRewrite)
+        {
+            try (final Writer writer = new BufferedWriter(new FileWriter(getAndCreateConfigFile().toFile())))
+            {
+                final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                writer.write(gson.toJson(configuration));
+            }
+            catch (final Exception e)
+            {
+                SyncmaticaLog.error("loadConfiguration(): Exception loading config file '{}'; {}", f.getFileName(), e.getLocalizedMessage());
+            }
+        }
+    }
+
+    private Boolean loadConfigurationForService(final IService service, final JsonObject configuration, final boolean attemptToLoad)
+    {
+        final String configKey = service.getConfigKey();
+        JsonObject serviceJson = null;
+        JsonConfiguration serviceConfiguration = null;
+        boolean started = false;
+
+        if (attemptToLoad && configuration.has(configKey))
+        {
+            try
+            {
+                serviceJson = configuration.getAsJsonObject(configKey);
+                if (serviceJson != null)
+                {
+                    serviceConfiguration = new JsonConfiguration(serviceJson);
+                    service.configure(serviceConfiguration);
+                    started = true;
+                    if (!serviceConfiguration.hadError())
+                    {
+                        return false;
+                    }
+                }
+            }
+            catch (final Exception e)
+            {
+                SyncmaticaLog.error("loadConfigurationForService(): Exception loading service config; {}", e.getLocalizedMessage());
+            }
+        }
+        if (serviceJson == null)
+        {
+            serviceJson = new JsonObject();
+            configuration.add(configKey, serviceJson);
+        }
+        if (serviceConfiguration == null)
+        {
+            serviceConfiguration = new JsonConfiguration(serviceJson);
+        }
+        service.getDefaultConfiguration(serviceConfiguration);
+        if (!started)
+        {
+            service.configure(serviceConfiguration);
+        }
+        return true;
+    }
+
+    public static class DuplicateContextAssignmentException extends RuntimeException
+    {
+        private static final long serialVersionUID = -514754466116075630L;
+
+        public DuplicateContextAssignmentException(final String reason)
+        {
+            super(reason);
+        }
+    }
+
+    public static class ContextMismatchException extends RuntimeException
+    {
+        private static final long serialVersionUID = 2769376183212635479L;
+
+        public ContextMismatchException(final String reason)
+        {
+            super(reason);
+        }
+    }
+}

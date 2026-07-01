@@ -70,6 +70,37 @@ public final class VeryMcProto extends JavaPlugin
                 Reference.logger().severe("[" + Reference.PLUGIN_NAME + "] 注册 jei_recipe_bridge 模块失败: " + ex.getMessage());
             }
 
+            // 注册协议 mod 模块（第三个：Syncmatica —— 投影共享中央仓库，单通道 + Exchange 会话）
+            try
+            {
+                new verymc.top.veryMcProto.mod.syncmatica.app.SyncmaticaModule().enable(this);
+                Reference.logger().info("[" + Reference.PLUGIN_NAME + "] 已注册协议 mod: syncmatica");
+            }
+            catch (Exception ex)
+            {
+                Reference.logger().severe("[" + Reference.PLUGIN_NAME + "] 注册 syncmatica 模块失败: " + ex.getMessage());
+            }
+
+            // 注册 /syncmatica 命令
+            try
+            {
+                var syncmCmd = getCommand("syncmatica");
+                if (syncmCmd != null)
+                {
+                    var syncmCtx = verymc.top.veryMcProto.mod.syncmatica.app.SyncmaticaModule.getInstance().getContext();
+                    if (syncmCtx != null)
+                    {
+                        var syncmExecutor = new verymc.top.veryMcProto.mod.syncmatica.command.SyncmaticaCommand(syncmCtx);
+                        syncmCmd.setExecutor(syncmExecutor);
+                        syncmCmd.setTabCompleter(syncmExecutor);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] 注册 /syncmatica 命令失败: " + ex.getMessage());
+            }
+
             // 注册 /servux 命令
             try
             {
@@ -105,6 +136,12 @@ public final class VeryMcProto extends JavaPlugin
             }
             DataProviderManager.INSTANCE.writeToConfig();
             DataProviderManager.INSTANCE.onServerTickEndPre();
+            // syncmatica 卸载（shutdown 保存 placements.json + 注销 handler；须在 ChannelManager.unregisterAll 前）
+            try
+            {
+                verymc.top.veryMcProto.mod.syncmatica.app.SyncmaticaModule.getInstance().disable();
+            }
+            catch (Exception ignored) { }
             ChannelManager.instance().unregisterAll();
         }
         catch (Exception e)

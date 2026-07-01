@@ -8,6 +8,7 @@
 
 - **Servux**（`OriginImpl/servux-LTS-1.21.11/`）—— masa 开发的服务端协议 Mod，为 masa 的客户端 Mod（**MiniHUD / Litematica / Tweakeroo** 等）提供**服务端→客户端的数据投递与协议**，并通过自定义网络通道（`servux:*`）下发：世界元数据、出生点、天气、TPS/MobCap、结构边界框、Litematica 投影投递/粘贴、实体与方块实体 NBT 查询、EasyPlace 服务端放置协议等。5 通道 + schematic + EasyPlace 全功能已实现并实测通过。
 - **JEI Recipe Bridge**（`OriginImpl/JEIRecipeBridge-1.21.11/`）—— 玩家进服时把服务端配方表同步给 JEI 客户端，按 client brand 走 `fabric:recipe_sync` / `neoforge:recipe_content` 两条原版 custom payload 通道（NMS `ClientboundCustomPayloadPacket` 直发，绕过 plugin messaging size 上限）。已实现（`mod/jeirecipebridge/`，5 文件，纯 S2C / 一次性 / 无配置 / 无 provider）。
+- **Syncmatica**（`OriginImpl/syncmatica-LTS-1.21.11/`）—— **投影共享**协议 Mod：服务端作中央仓库存储 `.litematic`，多玩家上传/下载/协同修改放置位置。单物理通道 `syncmatica:main` + 18 逻辑 PacketType + Exchange 会话层（请求-应答状态机）+ 文件存储 + JSON 持久化。与 Servux（单向广播）根本不同——**双向、有状态、多玩家共享**。**文档已就绪（[`docs/20-`](docs/20-syncmatica-architecture.md)～[`24`](docs/24-syncmatica-testing-guide.md)），实施待启动**。
 
 > **本项目的本质是"协议层移植"**：客户端仍是 masa 的 Fabric Mod；我们要在 Paper 服务端复刻它们期待的**网络协议 + 数据采集**，使"Fabric 客户端 + Paper 服务端"的组合能像"Fabric 客户端 + Servux 服务端"一样工作。
 
@@ -23,7 +24,7 @@
 | **构建** | Gradle（Kotlin DSL） + **paperweight `userdev`** + `run-paper` |
 | **NMS 映射** | 开发期用 `paperDevBundle("1.21.11-R0.1-SNAPSHOT")` 提供 Mojang 全反混淆的 `net.minecraft.*`；产物经 `reobfJar` 转 Spigot 运行时映射，标准 Paper 直接加载 |
 | **反射用 Mojang 名** | `reobf` 不转换反射字符串，Paper 运行时即 Mojang 映射 → 反射私有成员直接用 Mojang 名 |
-| **当前状态** | paperweight userdev 已就绪；servux 5 通道 + schematic（投影粘贴/投递）+ EasyPlace 全功能已实现并实测通过；JEI Recipe Bridge（配方同步）已实现。逐阶段记录见 [`docs/11-schematic-migration-plan.md`](docs/11-schematic-migration-plan.md) |
+| **当前状态** | paperweight userdev 已就绪；servux 5 通道 + schematic（投影粘贴/投递）+ EasyPlace 全功能已实现并实测通过；JEI Recipe Bridge（配方同步）已实现；**Syncmatica（投影共享）文档已就绪（[`docs/20-`](docs/20-syncmatica-architecture.md)～[`docs/24-`](docs/24-syncmatica-testing-guide.md)），实施待启动**。逐阶段记录见 [`docs/11-schematic-migration-plan.md`](docs/11-schematic-migration-plan.md)（servux schematic）/ [`docs/23-syncmatica-implementation-plan.md`](docs/23-syncmatica-implementation-plan.md)（syncmatica） |
 
 构建命令（迁移完成后）：
 ```bash
@@ -142,7 +143,7 @@ Litematica 投影子系统（`mod/servux/schematic/`，约 8000 行）已移植�
 - **参考源码**（`OriginImpl/` 下，逐行对照的权威实现；**遇到分歧以真实源码为准**）：
   - **servux**（移植目标）：`OriginImpl/servux-LTS-1.21.11/`——服务端协议实现。
   - **litematica / malilib**（masa 客户端，**协议的接收端**）：`OriginImpl/litematica-LTS-1.21.11/`、`OriginImpl/malilib-LTS-1.21.11/`。任何协议字段语义、分包重组、Task 分派都要回来对照客户端源码确认，**不要凭服务端代码猜客户端行为**（见核心约束 §6 教训 1）。
-  - **syncmatica**（投影共享协议参考）：`OriginImpl/syncmatica-LTS-1.21.11/`；**JEIRecipeBridge**（JEI 配方同步参考）：`OriginImpl/JEIRecipeBridge-1.21.11/`。
+  - **syncmatica**（投影共享——**下一个移植目标**，文档见 [`docs/20-syncmatica-architecture.md`](docs/20-syncmatica-architecture.md)）：`OriginImpl/syncmatica-LTS-1.21.11/`；**JEIRecipeBridge**（JEI 配方同步参考）：`OriginImpl/JEIRecipeBridge-1.21.11/`。
   - ⚠️ servux 里**未被调用的公开 API**（如 `LitematicaSchematic.sendTransmitFile`）可能是**未经验证的死代码**、含字段语义 bug——照抄后必须对照客户端源码验证（见 §6 教训 2）。
 
 ---
@@ -162,6 +163,12 @@ Litematica 投影子系统（`mod/servux/schematic/`，约 8000 行）已移植�
 | [`docs/08-implementation-plan.md`](docs/08-implementation-plan.md) | 实施步骤：阶段划分 + 大任务拆小任务 + 依赖与里程碑 | (d) 实施规划 |
 | [`docs/10-testing-guide.md`](docs/10-testing-guide.md) | **客户端兼容测试**：5 通道↔3 mod 映射、Litematica/Tweakeroo 测试步骤、排错流程、降级清单 | 实测验证 |
 | [`docs/11-schematic-migration-plan.md`](docs/11-schematic-migration-plan.md) | schematic 子系统（投影投递+粘贴）移植的**逐阶段作战手册**：P0-P9 文件清单/降级点/编译门/状态表 | 实施蓝图 |
+| **Syncmatica 移植**（文档 20–24） | 投影共享中央仓库：单通道 + Exchange 会话层 + 文件存储（文档已就绪，实施待启动） | — |
+| [`docs/20-syncmatica-architecture.md`](docs/20-syncmatica-architecture.md) | 原版架构 + **与 Servux 本质差异对比表** + Exchange 会话模型 + framework 复用边界 | 导航/架构 |
+| [`docs/21-syncmatica-protocol.md`](docs/21-syncmatica-protocol.md) ⭐ | 单通道 `[Identifier][body]` 包体、18 PacketType、Feature 协商、metadata 字段表、Exchange 状态机、stop-and-wait 分片 | (a) 原版细节 |
+| [`docs/22-syncmatica-mixin-migration.md`](docs/22-syncmatica-mixin-migration.md) ⭐ | 5 Mixin→Bukkit 映射、网络层/持久化/权限/命令迁移、降级矩阵（material 死代码）、目标包结构 | (b)/(c) |
+| [`docs/23-syncmatica-implementation-plan.md`](docs/23-syncmatica-implementation-plan.md) | P0-P9 逐阶段作战手册 + 编译门 + 状态表 + 里程碑 M1-M8 | (d) 实施规划 |
+| [`docs/24-syncmatica-testing-guide.md`](docs/24-syncmatica-testing-guide.md) | 客户端兼容测试：握手/分享/下载/修改/持久化/多玩家步骤 + 排错 | 实测验证 |
 | [`docs/references.md`](docs/references.md) | 参考资源链接（Paper/Fabric/Protocol Wiki/Servux 源码） | 参考 |
 
 ---

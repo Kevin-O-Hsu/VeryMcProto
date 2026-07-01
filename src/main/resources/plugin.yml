@@ -5,13 +5,26 @@ api-version: '1.21'
 load: POSTWORLD
 softdepend: [packetevents]
 author: VeryMc
-description: Fabric 协议 Mod 的 Paper 插件移植框架（含 Servux 协议 + JEI Recipe Bridge）。
+description: Fabric 协议 Mod 的 Paper 插件移植框架（含 Servux 协议 + JEI Recipe Bridge + Syncmatica 投影共享）。
 commands:
   servux:
     description: Servux 协议配置与诊断命令
     usage: /servux reload|save|set|info|list|enable|disable|search
     permission: servux.command
+  syncmatica:
+    description: Syncmatica 投影共享命令（从磁盘加载 .litematic 为服务端 placement）
+    usage: /syncmatica load [file]
+    permission: syncmatica.command
 permissions:
   servux.command:
     description: 允许使用 /servux 命令
     default: op
+  syncmatica.command:
+    description: 允许使用 /syncmatica 命令
+    default: true
+  syncmatica.command.load:
+    description: 允许 /syncmatica load
+    default: true
+  syncmatica.command.load_each:
+    description: 允许 /syncmatica load <file>
+    default: true
