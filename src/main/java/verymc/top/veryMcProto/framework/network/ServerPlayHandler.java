@@ -36,7 +36,7 @@ public final class ServerPlayHandler
         Identifier channel = handler.getPayloadChannel();
         boolean existed = handlers.containsKey(channel);
         handlers.putIfAbsent(channel, handler);
-        ChannelManager.instance().register(channel, handler);
+        ChannelManager.INSTANCE.register(channel, handler);
         // ★ 必须标记已注册：sendPlayPayload 的 isPlayRegistered 门控依赖此标志。
         // 漏调会导致 payloadRegistered 恒为 false → 所有 S2C 发送被「通道未注册」拦截
         // （实测 BUG：5 条 servux:* 通道全部 sendPlayPayload 失败）。对应原版 registerPlayPayload
@@ -57,7 +57,7 @@ public final class ServerPlayHandler
             handlers.remove(channel);
             handler.reset(channel);
             handler.clearPlayRegistered(channel);
-            ChannelManager.instance().unregister(channel);
+            ChannelManager.INSTANCE.unregister(channel);
             ServuxDebug.log(ServuxDebug.Cat.NETWORK, "unregisterServerPlayHandler: " + channel
                     + " → ChannelManager.unregister + clearPlayRegistered(false)");
         }

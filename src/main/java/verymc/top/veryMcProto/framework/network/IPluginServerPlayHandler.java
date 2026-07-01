@@ -98,7 +98,7 @@ public interface IPluginServerPlayHandler
         }
         Objects.requireNonNull(player, "player");
         byte[] bytes = FriendlyByteBufs.encodePayload(data);
-        boolean ok = ChannelManager.instance().send(ch, player.getBukkitEntity(), bytes);
+        boolean ok = ChannelManager.INSTANCE.send(ch, player.getBukkitEntity(), bytes);
         ServuxDebug.log(ServuxDebug.Cat.PACKET, "sendPlayPayload(pluginMsg) " + ch + " → " + player.getName().getString()
                 + " pktType=" + data.getPacketType() + " bytes=" + bytes.length + " ok=" + ok);
         return ok;

@@ -40,7 +40,7 @@ public final class VeryMcProto extends JavaPlugin
         try
         {
             // 框架初始化
-            ChannelManager.instance().init(this);
+            ChannelManager.INSTANCE.init(this);
             DataProviderManager.INSTANCE.setConfigDir(getDataFolder().toPath());
 
             // 生命周期事件 + tick 调度
@@ -158,7 +158,7 @@ public final class VeryMcProto extends JavaPlugin
                 verymc.top.veryMcProto.mod.syncmatica.app.SyncmaticaModule.getInstance().disable();
             }
             catch (Exception e) { Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] syncmatica disable 异常（placements.json shutdown 保存可能失败）: " + e.getMessage()); }
-            ChannelManager.instance().unregisterAll();
+            ChannelManager.INSTANCE.unregisterAll();
         }
         catch (Exception e)
         {

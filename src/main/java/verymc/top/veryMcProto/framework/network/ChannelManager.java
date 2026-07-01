@@ -16,12 +16,7 @@ import net.minecraft.resources.Identifier;
  */
 public final class ChannelManager
 {
-    private static final ChannelManager INSTANCE = new ChannelManager();
-
-    public static ChannelManager instance()
-    {
-        return INSTANCE;
-    }
+    public static final ChannelManager INSTANCE = new ChannelManager();
 
     private final Map<Identifier, ProtocolChannel> channels = new ConcurrentHashMap<>();
     private volatile Plugin plugin;

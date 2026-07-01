@@ -107,7 +107,7 @@ public class ExchangeTarget
         else
         {
             route = "pluginMsg";
-            ok = ChannelManager.instance().send(SyncmaticaReference.NETWORK_ID, player, bytes);
+            ok = ChannelManager.INSTANCE.send(SyncmaticaReference.NETWORK_ID, player, bytes);
         }
 
         SyncmaticaDebug.log(SyncmaticaDebug.Cat.NETWORK, "[syncm] sendPacket(" + route + ") " + type + " → " + persistentName
