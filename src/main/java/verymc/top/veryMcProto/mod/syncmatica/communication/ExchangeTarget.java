@@ -145,7 +145,8 @@ public class ExchangeTarget
         }
         catch (Exception e)
         {
-            SyncmaticaLog.error("ExchangeTarget#sendViaNms(): NMS 直发异常 partner={} bytes={}", e, persistentName, bytes.length);
+            // 显式走 error(String, Throwable) 语义：e 是异常栈，文案直接拼接，避免靠 vararg 重载决议巧合命中
+            SyncmaticaLog.error("ExchangeTarget#sendViaNms(): NMS 直发异常 partner=" + persistentName + " bytes=" + bytes.length, e);
             return false;
         }
     }
