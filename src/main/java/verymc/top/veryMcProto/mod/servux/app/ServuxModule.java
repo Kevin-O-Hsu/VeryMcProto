@@ -36,15 +36,17 @@ public class ServuxModule implements ModModule
         manager.registerDataProvider(LitematicsDataProvider.INSTANCE);
 
         // EasyPlace（Tweakeroo 服务端配合）：拦截原版 use_item_on，用 masa 协议 v3 解码精确放置状态。
-        // 运行时依赖 PacketEvents 插件（plugin.yml: softdepend），未安装则跳过（不影响其余 5 通道功能）。
+        // 运行时依赖 PacketEvents 插件（plugin.yml: softdepend）。
+        // ⚠ PE 类引用必须隔离在 EasyPlaceBootstrap 里、用反射加载：若直接在本方法引用 PE 类，
+        //    JVM 解析 onRegister 时就触发 PE 类加载，服务器未装 PE 会抛 NoClassDefFoundError 且发生在
+        //    方法体执行前（try 进不去），拖垮整个 ServuxModule / 6 个 provider 注册。
         try
         {
-            com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager()
-                    .registerListener(new verymc.top.veryMcProto.mod.servux.easyplace.EasyPlaceListener(),
-                            com.github.retrooper.packetevents.event.PacketListenerPriority.NORMAL);
+            Class.forName("verymc.top.veryMcProto.mod.servux.easyplace.EasyPlaceBootstrap")
+                    .getMethod("register").invoke(null);
             verymc.top.veryMcProto.Reference.logger().info("[VeryMcProto] EasyPlace 已启用（依赖 PacketEvents）。");
         }
-        catch (NoClassDefFoundError | Exception ex)
+        catch (Throwable ex)
         {
             verymc.top.veryMcProto.Reference.logger().warning("[VeryMcProto] PacketEvents 未安装，EasyPlace（精确放置）不可用。其余功能不受影响。");
         }
