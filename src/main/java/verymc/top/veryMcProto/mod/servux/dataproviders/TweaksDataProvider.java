@@ -13,7 +13,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderBase;
@@ -23,7 +22,6 @@ import verymc.top.veryMcProto.framework.network.ServerPlayHandler;
 import verymc.top.veryMcProto.framework.permission.Perms;
 import verymc.top.veryMcProto.framework.settings.IServuxSetting;
 import verymc.top.veryMcProto.framework.settings.IServuxSettingCallback;
-import verymc.top.veryMcProto.framework.settings.ServuxBoolSetting;
 import verymc.top.veryMcProto.framework.settings.ServuxIntSetting;
 import verymc.top.veryMcProto.mod.servux.ServuxLog;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
@@ -39,11 +37,14 @@ import verymc.top.veryMcProto.mod.servux.util.nbt.NbtView;
  * 直接复用 {@link EntitiesDataProvider}（与原版一致）。
  *
  * <p><b>适配</b>：Permissions→{@link Perms}；registerHandler 去 registerPlayPayload/receiver；
- * sendMetadata 走 plugin messaging（去 networkHandler 重载分支）；tick 去 ProfilerFiller 形参与 push/pop。
+ * sendMetadata 走 plugin messaging（去 networkHandler 重载分支）；tick 去 ProfilerFiller 形参。
  *
- * <p><b>降级</b>：潜影盒堆叠的服务端行为（原 Mixin 改 {@code ItemStack}/{@code Hopper} 逻辑）
- * <b>省略</b>——仅保留 setting 字段 + 下发 {@code stackingShulkers/stackingShulkersMax} 元数据
- * 告知客户端（Tweakeroo 等客户端侧自行处理）。{@code getEmptyShulkersMaxCount} 保留只读语义。
+ * <p><b>潜影盒堆叠——未实现（不可能实现）</b>：原版通过 Mixin 改 {@code ItemStack.getMaxStackSize()} /
+ * {@code HopperBlockEntity} 的 NMS 方法全局返回行为，使空潜影盒可堆叠。Paper 无 Mixin 运行时，
+ * 反射改不了方法行为、Bukkit 事件模拟在 {@code maxStackSize=1} 前提下不成立、设 MAX_STACK_SIZE 组件
+ * 是 per-item 且污染序列化——三条路均不通。故本 provider <b>不保留</b>原版的 {@code stackable_shulkers}
+ * 系列 setting 与 {@code stackingShulkers} 元数据下发（避免客户端误以为服务端开了堆叠而与服务端不一致）。
+ * 详见 {@code docs/04-mixin-analysis.md} §1 / §4。
  */
 public class TweaksDataProvider extends DataProviderBase
 {
@@ -51,20 +52,13 @@ public class TweaksDataProvider extends DataProviderBase
     protected static final ServuxTweaksHandler HANDLER = ServuxTweaksHandler.getInstance();
 
     protected final CompoundTag metadata = new CompoundTag();
-    private final BoolCallbacks boolCallback = new BoolCallbacks();
     private final IntCallbacks intCallback = new IntCallbacks();
 
     private final ServuxIntSetting permissionLevel = new ServuxIntSetting(this, "permission_level", 0, 4, 0, this.intCallback);
     private final ServuxIntSetting updateInterval = new ServuxIntSetting(this, "update_interval", 120, 1200, 40, this.intCallback);
-    private final ServuxBoolSetting stackableShulkers = new ServuxBoolSetting(this, "stackable_shulkers", false, this.boolCallback);
-    private final ServuxIntSetting stackableShulkersSize = new ServuxIntSetting(this, "stackable_shulkers_count", 64, 99, 1, this.intCallback);
-    private final ServuxBoolSetting stackableShulkersFix = new ServuxBoolSetting(this, "stackable_shulkers_fix", true, this.boolCallback);
     private final List<IServuxSetting<?>> settings = List.of(
             this.permissionLevel,
-            this.updateInterval,
-            this.stackableShulkers,
-            this.stackableShulkersSize,
-            this.stackableShulkersFix
+            this.updateInterval
     );
 
     private final List<UUID> invalidPlayers = new ArrayList<>();
@@ -84,7 +78,6 @@ public class TweaksDataProvider extends DataProviderBase
         this.metadata.putString("servux", ServuxReference.MOD_STRING);
 
         this.setTickRate(40);
-        this.checkTweaksMetadata();
     }
 
     @Override public List<IServuxSetting<?>> getSettings() { return this.settings; }
@@ -123,28 +116,10 @@ public class TweaksDataProvider extends DataProviderBase
 
     @Override public boolean isPlayerRegistered(ServerPlayer player) { return !this.isPlayerInvalid(player); }
 
-    private void checkTweaksMetadata()
-    {
-        // Only send the config when the Tweak is enabled;
-        // (ie; don't turn it off in case they are using Carpet)
-        if (this.shouldEmptyShulkersStack())
-        {
-            this.metadata.putBoolean("stackingShulkers", this.shouldEmptyShulkersStack());
-            this.metadata.putInt("stackingShulkersMax", this.stackableShulkersSize.getValue());
-        }
-        else
-        {
-            if (this.metadata.contains("stackingShulkers")) { this.metadata.remove("stackingShulkers"); }
-            if (this.metadata.contains("stackingShulkersMax")) { this.metadata.remove("stackingShulkersMax"); }
-        }
-    }
-
     public void updateAllTweaks(MinecraftServer server)
     {
         ServuxLog.debug("tweaksData: Invoke updateAllTweaks()");
         List<ServerPlayer> players = server.getPlayerList().getPlayers();
-
-        this.checkTweaksMetadata();
 
         for (ServerPlayer player : players)
         {
@@ -165,7 +140,6 @@ public class TweaksDataProvider extends DataProviderBase
             return;
         }
 
-        this.checkTweaksMetadata();
         boolean ok = HANDLER.sendPlayPayload(player, ServuxTweaksPacket.MetadataResponse(this.metadata));
         Debug.log(Debug.Cat.HANDSHAKE, "tweaks sendMetadata → " + player.getName().getString()
                 + " ok=" + ok + " servux=" + this.metadata.getStringOr("servux", "?")
@@ -233,31 +207,6 @@ public class TweaksDataProvider extends DataProviderBase
         }
     }
 
-    public boolean shouldEmptyShulkersStack() { return this.stackableShulkers.getValue(); }
-
-    public boolean isStackableShulkersFixActive()
-    {
-        return this.shouldEmptyShulkersStack() && this.stackableShulkersFix.getValue();
-    }
-
-    public int defaultEmptyShulkersMaxCount()
-    {
-        if (this.shouldEmptyShulkersStack()) { return this.stackableShulkersSize.getValue(); }
-        return 1;
-    }
-
-    /**
-     * 潜影盒最大堆叠数查询（降级：服务端不真改堆叠行为，仅返回 setting 值或物品默认值）。
-     */
-    public int getEmptyShulkersMaxCount(ItemStack stack)
-    {
-        if (this.shouldEmptyShulkersStack() && stack != null && stack.is(net.minecraft.tags.ItemTags.SHULKER_BOXES))
-        {
-            return this.defaultEmptyShulkersMaxCount();
-        }
-        return stack != null ? stack.getMaxStackSize() : 1;
-    }
-
     @Override public boolean hasPermission(ServerPlayer player) { return Perms.check(player, this.permNode, this.permissionLevel.getValue()); }
 
     @Override public void onPlayerJoin(ServerPlayer player) { this.sendMetadata(player); }
@@ -280,16 +229,6 @@ public class TweaksDataProvider extends DataProviderBase
     @Override public void onTickEndPost() { /* NO-OP */ }
 
     // Callbacks marks the config as dirty so that we can broadcast the config changes
-    public static class BoolCallbacks implements IServuxSettingCallback<Boolean>
-    {
-        @Override
-        public void onValueChanged(IServuxSetting<Boolean> setting, Boolean oldValue, Boolean value)
-        {
-            ServuxLog.debug("Config Change detected; " + setting.dataProvider().getName() + ":" + setting.name());
-            TweaksDataProvider.INSTANCE.configDirty = true;
-        }
-    }
-
     public static class IntCallbacks implements IServuxSettingCallback<Integer>
     {
         @Override
