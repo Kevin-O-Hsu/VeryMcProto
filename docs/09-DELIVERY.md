@@ -61,7 +61,7 @@ verymc.top.veryMcProto/
 | 3 | **HUD Provider (M1)**：元数据/出生点/天气/配方/TPS/MobCap | ✅ 完成 | ✅ |
 | 4 | Entities / Tweaks Provider | ✅ 完成 | ✅ |
 | 5 | Structures Provider（周期扫描） | ✅ 完成 | ✅ |
-| 6 | Litematics（精简：握手+实体查询，投影投递/粘贴降级） | ✅ 完成（精简） | ✅ |
+| 6 | **Litematics (M2)**：握手 + 实体/方块实体/批量查询 + 投影投递/粘贴（schematic 全套） | ✅ 完成 | ✅ |
 | 7 | 打磨/降级 + 交付 MD | ✅ 交付（见 §6 降级、§9 限制） | ✅ |
 
 **M1（HUD 协议跑通）代码已就绪**：MiniHUD 客户端连 Paper 测试服，应能显示世界元数据/出生点/天气/TPS/MobCap（需实测，见 §8）。
@@ -139,13 +139,12 @@ verymc.top.veryMcProto/
 - NMS 结构采集（paperweight 直连，不需反射）：`ChunkAccess.getAllReferences/getStartForStructure/StructureStart.createTag/StructurePieceSerializationContext.fromLevel`。
 - 黑白名单 setting 保留；timeout 简化为周期全量刷新。
 
-### 5.5 Litematics（servux:litematics，协议版本 1）—— ⚠️ 精简移植（投影降级）
-- **元数据握手 / 方块实体 NBT 查询 / 实体 NBT 查询 / 批量实体查询（onBulkEntityRequest）**：✅ 正常实现（复用 Entities 的 `NbtView` + `be.saveWithFullMetadata` / `entity.saveWithoutId` + 玩家背包/末影箱权限过滤；批量查询拼 ListTag 走 PacketSplitter 分包）。
-- **协议帧（toPacket/fromPacket）**：✅ 照抄原版（含四阶段 TransmitStart/Data/End/Cancel + SliceKey + CHANNEL_ID=servux:litematics + 协议版本1）。
-- **投影文件投递（客户端上传 .litematic）+ 粘贴（pasteTo）**：❌ **降级**——schematic 系统（BitArray/Palette/LitematicaSchematic/placement，~9000 行）本次**未移植**（单 session 工作量限制）。Handler 收到上传分片用 `PacketSplitter.receive` 重组后【不】加载为投影（`ServuxLog.debug` 记录忽略）；粘贴请求静默忽略。
-- **效果**：Litematica 客户端能握手 + 查询实体/方块实体/批量实体；**上传投影 / 粘贴投影降级（不生效）**。
-- **待移植**（M2 完整）：`schematic/` 全套（container/transmit/selection/conversion/LitematicaSchematic/placement）+ `NbtUtils` + `util/data/tag` 子系统，迁移笔记见 [`docs/research/01-schematic-algo.md`](research/01-schematic-algo.md) 与 [`02-schematic-world.md`](research/02-schematic-world.md)。
-- **subagent 实现的不确定点（需实测验证）**：① 批量实体查询的 AABB 边界（+1 偏移推测）；② 批量实体 `Pos` NBT 字段（DoubleTag ListTag 顺序/键）；③ onPlayerJoin 同步 sendMetadata（握手可能首次失败，靠客户端 C2S 重请求恢复）。
+### 5.5 Litematics（servux:litematics，协议版本 1）—— ✅ 全功能（含投影粘贴 / 投递）
+- **元数据握手 / 方块实体 NBT 查询 / 实体 NBT 查询 / 批量实体查询（onBulkEntityRequest）**：✅ 实现（复用 Entities 的 `NbtView` + `be.saveWithFullMetadata` / `entity.saveWithoutId` + 玩家背包/末影箱权限过滤；批量查询拼 ListTag 走 PacketSplitter 分包）。
+- **协议帧（toPacket/fromPacket）**：✅ 照抄原版（含四阶段 TransmitStart/Data/End/Cancel + SliceKey + CHANNEL_ID=servux:litematics + 协议版本 1）。
+- **投影文件投递（客户端上传 .litematic）+ 粘贴（pasteTo）**：✅ **已实现**（schematic 子系统 `mod/servux/schematic/` 全套移植，详见 [05](05-schematic-system.md)）。客户端上传分片经 `ServuxLitematicaHandler` 重组 → `handleBulkData` 分流：`Litematic-Transmit*` 走 `LitematicaSchematic.receiveFileTransmit` 落盘到 `schematics/` + 粘贴；`LitematicaPaste` 走 `LitematicsDataProvider.handleClientPasteRequest` 加载 `SchematicPlacement` + `pasteTo` 放置（含 ReplaceMode / PasteLayerBehavior / LayerRange，需创造模式 + paste 权限）。
+- **S2C 文件投递命令**：✅ `/servux litematic transmit <file> [player]` 加载服务端 `schematics/*.litematic` 投递给客户端。
+- **降级点**（schematic 边缘能力，不影响粘贴主链路）：从世界选区创建/采集投影（保存侧）、Sponge/Vanilla structure 格式导入、DataFixer 旧版转换——servux 服务端只消费现成 .litematic，这些原版保存/转换 API 保留签名返回默认值。迁移笔记见 [`research/01-schematic-algo.md`](research/01-schematic-algo.md) 与 [`02-schematic-world.md`](research/02-schematic-world.md)。
 
 ---
 

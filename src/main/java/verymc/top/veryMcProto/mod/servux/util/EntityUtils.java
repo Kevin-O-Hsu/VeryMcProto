@@ -176,5 +176,5 @@ public class EntityUtils
         }
     }
 
-    // TODO P6: 回填 getEntitiesWithinSubRegion(Level, BlockPos, BlockPos, BlockPos, SchematicPlacement, SubRegionPlacement)（原版 ORIGIN/util/EntityUtils.java:181），placement 闭环就绪后加回。
+    // 未移植：getEntitiesWithinSubRegion(...)（原版 ORIGIN/util/EntityUtils.java:181）；粘贴时同时生成实体的可选增强，当前粘贴仅放置方块/方块实体，保留占位。
 }

@@ -137,7 +137,7 @@ Litematic 文件 (5 MiB)
 
 ## 3. 传输协议：四阶段（`LitematicaSchematic` 传输方法）
 
-> `LitematicaSchematic.java:995-1140`（发送）+ 接收端。通过 `servux:litematic_data` 通道，packetType 用 `*_RESPONSE_*` 系列，`Task` 字段区分阶段。
+> `LitematicaSchematic.java:995-1140`（发送）+ 接收端。通过 `servux:litematics` 通道，packetType 用 `*_RESPONSE_*` 系列，`Task` 字段区分阶段。
 
 ### 3.1 服务端→客户端发送投影文件
 
@@ -271,7 +271,7 @@ class AreaSelection {
 
 ## 8. 与网络层的衔接（移植注意）
 
-- 投影传输走 `servux:litematic_data` 通道（[03](03-dataproviders-detail.md) §Litematics）。
+- 投影传输走 `servux:litematics` 通道（[03](03-dataproviders-detail.md) §Litematics）。
 - 大投影 = SchematicBuffer(16KiB) → PacketSplitter(网络包) 两级分包（[02](02-network-protocol.md) §5）。
 - Paper 端若 plugin messaging 限制 32KiB：每个 16KiB slice 仍在限制内，**单 slice 不会再触发 PacketSplitter 二次分包**（16KiB < 32KiB），反而简化——但仍保留 PacketSplitter 作为保险（应对极端情况）。
 - session key（`SliceKey`）需在插件侧维护 `Map<UUID, Long>` 映射，与原版 `SchematicBufferManager.playerMap` 一致。

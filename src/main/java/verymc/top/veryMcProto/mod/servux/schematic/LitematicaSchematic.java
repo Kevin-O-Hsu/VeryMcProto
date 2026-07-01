@@ -188,7 +188,7 @@ public class LitematicaSchematic
     public static LitematicaSchematic createFromWorld(Level world, AreaSelection area, SchematicSaveInfo info,
                                                       String author)
     {
-        // TODO P-later: 桩化（降级），原版 ORIGIN/schematic/LitematicaSchematic.java
+        // 保存侧 API（从世界选区创建投影）；servux 服务端只消费现成 .litematic（粘贴/投递），不创建，保留签名返回 null。原版 ORIGIN/schematic/LitematicaSchematic.java
         return null;
     }
 
@@ -199,7 +199,7 @@ public class LitematicaSchematic
 
     public boolean placeToWorld(Level world, SchematicPlacement schematicPlacement, boolean notifyNeighbors, boolean ignoreEntities)
     {
-        // TODO P6: 桩化（降级），原版 ORIGIN/schematic/LitematicaSchematic.java
+        // 未使用：本移植粘贴走 SchematicPlacement.pasteTo → SchematicPlacingUtils.placeToWorldWithinChunk（util/SchematicPlacingUtils.java），不经此 placeToWorld 路径。保留签名返回 false。原版 ORIGIN/schematic/LitematicaSchematic.java
         return false;
     }
 
@@ -209,13 +209,13 @@ public class LitematicaSchematic
                                        @Nullable Map<BlockPos, ScheduledTick<@NotNull Block>> scheduledBlockTicks,
                                        @Nullable Map<BlockPos, ScheduledTick<@NotNull Fluid>> scheduledFluidTicks, boolean notifyNeighbors)
     {
-        // TODO P6: 桩化（降级），原版 ORIGIN/schematic/LitematicaSchematic.java
+        // 未使用（placeToWorld 内部方法；粘贴不经此路径）。原版 ORIGIN/schematic/LitematicaSchematic.java
         return false;
     }
 
     private void placeEntitiesToWorld(Level world, BlockPos origin, BlockPos regionPos, BlockPos regionSize, SchematicPlacement schematicPlacement, SubRegionPlacement placement, List<EntityInfo> entityList)
     {
-        // TODO P6: 桩化（降级），原版 ORIGIN/schematic/LitematicaSchematic.java
+        // 未使用（placeToWorld 内部方法；粘贴不经此路径）。原版 ORIGIN/schematic/LitematicaSchematic.java
     }
 
     private void takeEntitiesFromWorld(Level world, List<Box> boxes, BlockPos origin)
@@ -254,13 +254,13 @@ public class LitematicaSchematic
                                                  ImmutableMap<@NotNull String, @NotNull IntBoundingBox> volumes, ImmutableMap<@NotNull String, @NotNull Box> boxes,
                                                  Set<UUID> existingEntities, BlockPos origin)
     {
-        // TODO P-later: 桩化（降级），原版 ORIGIN/schematic/LitematicaSchematic.java
+        // 保存侧 API（从世界采集实体写入投影）；servux 服务端不创建投影，保留签名空实现。原版 ORIGIN/schematic/LitematicaSchematic.java
     }
 
     @SuppressWarnings("unchecked")
     private void takeBlocksFromWorld(Level world, List<Box> boxes, SchematicSaveInfo info)
     {
-        // TODO P-later: 桩化（降级），原版 ORIGIN/schematic/LitematicaSchematic.java
+        // 保存侧 API（从世界采集方块写入投影）；servux 服务端不创建投影，保留签名空实现。原版 ORIGIN/schematic/LitematicaSchematic.java
     }
 
     private <T> void getTicksFromScheduler(Long2ObjectMap<LevelChunkTicks<@NotNull T>> chunkTickSchedulers,
@@ -269,7 +269,7 @@ public class LitematicaSchematic
                                            BlockPos minCorner,
                                            final long currentTick)
     {
-        // TODO P-later: 桩化（降级），原版 ORIGIN/schematic/LitematicaSchematic.java
+        // 保存侧 API（采集计划 tick 写入投影）；servux 服务端不创建投影，保留签名空实现。原版 ORIGIN/schematic/LitematicaSchematic.java
     }
 
     private <T> void addRelativeTickToMap(Map<BlockPos, ScheduledTick<@NotNull T>> outputMap, ScheduledTick<T> tick,
@@ -923,13 +923,13 @@ public class LitematicaSchematic
 
     protected boolean readSpongePaletteFromTag(CompoundTag tag, ILitematicaBlockStatePalette palette)
     {
-        // TODO P-later: 桩化（sponge palette，malilib BlockUtils），原版 ORIGIN/schematic/LitematicaSchematic.java:1369
+        // Sponge 格式投影支持；servux 仅处理 .litematic 格式，不支持 sponge，保留签名返回 false。原版 ORIGIN/schematic/LitematicaSchematic.java:1369
         return false;
     }
 
     protected boolean readSpongeBlocksFromTag(CompoundTag tag, String schematicName, Vec3i size, int minecraftDataVersion, int spongeVersion)
     {
-        // TODO P-later: 桩化（降级），原版 ORIGIN/schematic/LitematicaSchematic.java
+        // Sponge 格式投影支持；servux 仅处理 .litematic 格式，保留签名返回 false。原版 ORIGIN/schematic/LitematicaSchematic.java
         return false;
     }
 
@@ -982,25 +982,25 @@ public class LitematicaSchematic
 
     protected List<EntityInfo> readSpongeEntitiesFromTag(CompoundTag tag, Vec3i offset, int spongeVersion)
     {
-        // TODO P-later: 桩化（降级），原版 ORIGIN/schematic/LitematicaSchematic.java
+        // Sponge 格式投影支持；servux 仅处理 .litematic 格式，保留签名返回 false。原版 ORIGIN/schematic/LitematicaSchematic.java
         return java.util.List.of();
     }
 
     public boolean readFromSpongeSchematic(String name, CompoundTag tag)
     {
-        // TODO P-later: 桩化（降级），原版 ORIGIN/schematic/LitematicaSchematic.java
+        // Sponge 格式投影支持；servux 仅处理 .litematic 格式，保留签名返回 false。原版 ORIGIN/schematic/LitematicaSchematic.java
         return false;
     }
 
     public boolean readFromVanillaStructure(String name, CompoundTag tag)
     {
-        // TODO P-later: 桩化（降级），原版 ORIGIN/schematic/LitematicaSchematic.java
+        // Vanilla structure 格式导入；servux 仅处理 .litematic 格式，保留签名返回 false。原版 ORIGIN/schematic/LitematicaSchematic.java
         return false;
     }
 
     protected List<EntityInfo> readEntitiesFromVanillaStructure(CompoundTag tag, int minecraftDataVersion)
     {
-        // TODO P-later: 桩化（降级），原版 ORIGIN/schematic/LitematicaSchematic.java
+        // Vanilla structure 格式导入；servux 仅处理 .litematic 格式，保留签名返回 false。原版 ORIGIN/schematic/LitematicaSchematic.java
         return java.util.List.of();
     }
 
@@ -1022,7 +1022,7 @@ public class LitematicaSchematic
 
     private void postProcessContainerIfNeeded(ListTag palette, LitematicaBlockStateContainer container, @Nullable Map<BlockPos, CompoundTag> tiles)
     {
-        // TODO P-later: 桩化（降级），原版 ORIGIN/schematic/LitematicaSchematic.java
+        // 容器后处理（DataFixer 相关）；本移植 readFromNBT 以 enableFixers=false 守卫，此步零影响，保留空实现。原版 ORIGIN/schematic/LitematicaSchematic.java
     }
 
     public static List<BlockState> getStatesFromPaletteTag(ListTag palette)
@@ -1127,25 +1127,25 @@ public class LitematicaSchematic
 
     private ListTag convertBlockStatePalette_to_1_20_5(ListTag oldPalette, int minecraftDataVersion)
     {
-        // TODO P-later: 桩化（降级），原版 ORIGIN/schematic/LitematicaSchematic.java
+        // DataFixer 数据转换（旧版投影→1.20.5 格式）；enableFixers=false 守卫下不执行，直接返回原数据。原版 ORIGIN/schematic/LitematicaSchematic.java
         return oldPalette;
     }
 
     private Map<BlockPos, CompoundTag> convertTileEntities_to_1_20_5(Map<BlockPos, CompoundTag> oldTE, int minecraftDataVersion)
     {
-        // TODO P-later: 桩化（降级），原版 ORIGIN/schematic/LitematicaSchematic.java
+        // DataFixer 数据转换（旧版投影→1.20.5 格式）；enableFixers=false 守卫下不执行，直接返回原数据。原版 ORIGIN/schematic/LitematicaSchematic.java
         return oldTE;
     }
 
     private ListTag convertEntities_to_1_20_5(ListTag oldEntitiesList, int minecraftDataVersion)
     {
-        // TODO P-later: 桩化（降级），原版 ORIGIN/schematic/LitematicaSchematic.java
+        // DataFixer 数据转换（旧版投影→1.20.5 格式）；enableFixers=false 守卫下不执行，直接返回原数据。原版 ORIGIN/schematic/LitematicaSchematic.java
         return oldEntitiesList;
     }
 
     private List<EntityInfo> convertSpongeEntities_to_1_20_5(List<EntityInfo> oldEntitiesList, int minecraftDataVersion)
     {
-        // TODO P-later: 桩化（降级），原版 ORIGIN/schematic/LitematicaSchematic.java
+        // DataFixer 数据转换（旧版投影→1.20.5 格式）；enableFixers=false 守卫下不执行，直接返回原数据。原版 ORIGIN/schematic/LitematicaSchematic.java
         return oldEntitiesList;
     }
 

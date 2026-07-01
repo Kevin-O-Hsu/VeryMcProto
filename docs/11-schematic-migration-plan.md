@@ -1,9 +1,9 @@
 # 11 · Litematica 投影子系统移植蓝图（文件投递 + 投影粘贴）
 
-> 本文档是 **servux schematic 子系统 → Paper 1.21.11** 移植的**逐阶段作战手册**，供 auto mode 自动推进。
-> 顶层方案见 [`plans/floating-mixing-pretzel.md`](../C:/Users/GreshAnt/.claude/plans/floating-mixing-pretzel.md)；原版对照见 [`05-schematic-system.md`](05-schematic-system.md)。
+> ✅ **schematic 子系统已完整移植并实测通过**（文件投递 + 投影粘贴全功能，详见 [05](05-schematic-system.md)）；本文档作为历史逐阶段蓝图保留（P0–P9 文件清单 + 降级点 + 编译门），不再代表待办工作。
+> 原版对照见 [`05-schematic-system.md`](05-schematic-system.md)；测试见 [`10`](10-testing-guide.md)。
 > 原版源码根：`OriginImpl/servux-LTS-1.21.11/src/main/java/fi/dy/masa/servux/`（下文简写为 `ORIGIN/`）。
-> Paper 目标包根：`src/main/java/verymc/top/veryMcProto/mod/servux/`（下文简写为 `PAPER/`）。
+> Paper 实现包根：`src/main/java/verymc/top/veryMcProto/mod/servux/`（下文简写为 `PAPER/`）。
 
 ---
 

@@ -490,14 +490,14 @@ public class PositionUtils
         return new BlockPos(x, y, z);
     }
 
-    // TODO P5: 回填 getValidBoxes(AreaSelection)（原版行 494），AreaSelection 闭环就绪后加回。
+    // 未移植：getValidBoxes(AreaSelection)（原版 ORIGIN/util/position/PositionUtils.java:494）；servux 粘贴路径不依赖此选区校验，保留占位。
 
     public static boolean isBoxValid(Box box)
     {
         return box.getPos1() != null && box.getPos2() != null;
     }
 
-    // TODO P5: 回填 getEnclosingAreaSize(AreaSelection)（原版行 515），AreaSelection 闭环就绪后加回。
+    // 未移植：getEnclosingAreaSize(AreaSelection)（原版 ORIGIN/util/position/PositionUtils.java:515）；已有 getEnclosingAreaSize(Collection<Box>) 重载覆盖使用场景，此 AreaSelection 重载保留占位。
 
     public static BlockPos getEnclosingAreaSize(Collection<Box> boxes)
     {

@@ -56,8 +56,10 @@ import verymc.top.veryMcProto.mod.servux.util.nbt.NbtView;
  *   <li>settings：permission_level / paste_permission_level（照抄原版）。</li>
  * </ul>
  *
- * <p><b>降级</b>：投影文件投递（C2S 上传）+ 粘贴（{@link #handleClientPasteRequest}）— schematic 投影系统未移植，
- * 粘贴请求返回「功能未实现」提示，上传在 Handler 层静默忽略。
+ * <p><b>投影粘贴 / 投递</b>：客户端上传的 .litematic 经 ServuxLitematicaHandler 重组后，由
+ * {@link #handleClientPasteRequest} / {@link #handleClientPasteRequestPair} 加载为 SchematicPlacement
+ * 并 pasteTo 放置到世界（含 ReplaceMode / PasteLayerBehavior / LayerRange）；文件投递（Transmit*）走
+ * LitematicaSchematic.receiveFileTransmit 落盘到 schematics/。详见 schematic 子系统。
  */
 public class LitematicsDataProvider extends DataProviderBase
 {
@@ -303,7 +305,8 @@ public class LitematicsDataProvider extends DataProviderBase
     }
 
     /**
-     * 降级：粘贴请求。原版加载投影 + placement.pasteTo；schematic 系统未移植，返回未实现提示。
+     * 粘贴请求：从客户端上传的 NBT 加载 SchematicPlacement，按 ReplaceMode / PasteLayerBehavior /
+     * LayerRange 调 SchematicPlacement.pasteTo 放置到玩家所在世界。需创造模式 + paste 权限。
      */
     public void handleClientPasteRequest(ServerPlayer player, int transactionId, CompoundTag tags)
     {

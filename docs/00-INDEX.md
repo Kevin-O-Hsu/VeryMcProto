@@ -2,11 +2,10 @@
 
 > 本目录是 **VeryMcProto**（Fabric 协议 Mod → Paper 1.21.11 插件移植）的全部技术文档。
 >
-> **已完成移植**：
-> - **Servux**（masa 服务端协议）—— 5 通道 + schematic（投影投递/粘贴）+ EasyPlace，已实测通过。
-> - **JEI Recipe Bridge**（配方同步）—— 已实现。
->
-> **进行中**：**Syncmatica**（投影共享中央仓库）—— 文档已就绪（20–24），实施待启动。
+> **三个协议 mod 全部已完整实现并实测通过**：
+> - **Servux**（masa 服务端协议）—— 5 数据通道 + schematic（投影投递/粘贴）+ EasyPlace。
+> - **JEI Recipe Bridge**（配方同步）—— 玩家进服按 client brand（fabric/neoforge）同步配方表。
+> - **Syncmatica**（投影共享中央仓库）—— 单通道 + Exchange 会话层 + 文件存储 + JSON 持久化（实现说明见 20–24）。
 >
 > 顶层项目说明见根目录 [`../CLAUDE.md`](../CLAUDE.md)。
 > 原版 Fabric 源码对照：[`../OriginImpl/`](../OriginImpl/)（`servux` / `syncmatica` / `litematica` / `malilib` / `syncmatica` / `JEIRecipeBridge` 各子目录）。
@@ -40,9 +39,9 @@
 | 05 | [schematic-system.md](05-schematic-system.md) ⭐ | Litematica 投影系统：BitArray/Palette/Container 压缩、`SchematicBuffer` 分片传输、四阶段传输协议、几何 `Box`/`AreaSelection`、NBT 序列化、纯算法可移植性 | 大模块 |
 | 06 | [fabric-vs-paper.md](06-fabric-vs-paper.md) | Fabric ↔ Paper 框架差异**对照表**：生命周期、权限、网络、配置、命令、构建、NMS 可达性 | 差异映射 |
 | 07 | [migration-architecture.md](07-migration-architecture.md) ⭐ | **完整迁移方案**：目标架构、网络层迁移（plugin messaging + NMS）、数据采集迁移、Mixin 降级矩阵、字节限制方案、可行性验证（含网络文档引用） | 方案设计 |
-| 08 | [implementation-plan.md](08-implementation-plan.md) | 实施步骤：5 个阶段（环境→网络→数据采集→各 Provider→打磨）、任务拆解、依赖关系、里程碑、验收标准 | 任务拆分 |
+| 08 | [implementation-plan.md](08-implementation-plan.md) | servux 历史实施蓝图（阶段 0–7 任务拆解、依赖、里程碑）；**已全部完成** | 历史蓝图 |
 | 10 | [testing-guide.md](10-testing-guide.md) | **客户端兼容测试**：5 通道↔3 mod 映射、C2S 拉取模型、Litematica / Tweakeroo 测试步骤、排错流程、降级清单、结果记录表 | 实测验证 |
-| 11 | [schematic-migration-plan.md](11-schematic-migration-plan.md) | schematic 子系统（投影投递+粘贴）移植的**逐阶段作战手册**：P0-P9 文件清单、降级点、编译门、状态表 | 实施蓝图 |
+| 11 | [schematic-migration-plan.md](11-schematic-migration-plan.md) | schematic 子系统历史移植蓝图（P0-P9 文件清单、降级点、编译门）；**已完整移植** | 历史蓝图 |
 | — | [references.md](references.md) | 外部参考链接汇总 | 资源 |
 
 ## 推荐阅读路线（Servux）
@@ -54,12 +53,12 @@
 4. [02-network-protocol.md](02-network-protocol.md) —— **网络层是最关键、必须先吃透的**
 5. [07-migration-architecture.md](07-migration-architecture.md) §1–§3 —— 迁移总体方案与可行性结论
 
-**动手移植时（按模块查）**：
-- 要移植某条协议 → [02](02-network-protocol.md) + [03](03-dataproviders-detail.md)
-- 遇到 Mixin 不知道怎么办 → [04](04-mixin-analysis.md) + [07](07-migration-architecture.md) §降级矩阵
-- 搞 Litematica 投影 → [05](05-schematic-system.md)
-- 不确定 Fabric 用法在 Paper 怎么写 → [06](06-fabric-vs-paper.md)
-- 不知道下一步做啥 → [08](08-implementation-plan.md)
+**维护 / 查阅时（按模块查）**：
+- 某条协议的字节布局 → [02](02-network-protocol.md) + [03](03-dataproviders-detail.md)
+- Mixin 的 Paper 处置 → [04](04-mixin-analysis.md) + [07](07-migration-architecture.md) §降级矩阵
+- Litematica 投影系统 → [05](05-schematic-system.md)
+- Fabric ↔ Paper 用法对照 → [06](06-fabric-vs-paper.md)
+- 历史实施拆解 → [08](08-implementation-plan.md) / [11](11-schematic-migration-plan.md)
 
 **升级 / 排错时**：
 - NMS 签名漂移 → [04](04-mixin-analysis.md) 的反射点 + [02](02-network-protocol.md) 的 NMS 约束
@@ -68,11 +67,11 @@
 
 ---
 
-# 二、Syncmatica 移植（文档 20–24）
+# 二、Syncmatica 实现（文档 20–24）
 
 ## 一句话定位
 
-**Syncmatica 是一个「投影共享」协议 Mod**：让多个玩家在同一服务端共享 Litematica 投影——服务端作为**中央仓库**存储 `.litematic` 文件，玩家可上传、下载、并协同修改投影的放置位置。我们要在 Paper 复刻其**单物理通道 `syncmatica:main` + 18 逻辑 PacketType + Exchange 会话层 + 文件存储 + 持久化**。
+**Syncmatica 是一个「投影共享」协议 Mod**：让多个玩家在同一服务端共享 Litematica 投影——服务端作为**中央仓库**存储 `.litematic` 文件，玩家可上传、下载、并协同修改投影的放置位置。本项目在 Paper 复刻了其**单物理通道 `syncmatica:main` + 18 逻辑 PacketType + Exchange 会话层 + 文件存储 + 持久化**（已完整实现）。
 
 > 与 Servux（服务端→客户端**单向广播**）根本不同：syncmatica 是**客户端⇄服务端⇄客户端的双向、有状态、多玩家共享**协议。客户端仍是 syncmatica 自己的 Fabric 客户端 Mod（注入 Litematica GUI）。
 
@@ -80,22 +79,22 @@
 
 | # | 文档 | 内容速览 | 关键词 |
 |---|---|---|---|
-| 20 | [syncmatica-architecture.md](20-syncmatica-architecture.md) | 原版架构：顶层包结构、启动生命周期、Context 容器、**Exchange 会话层模型**、数据模型、5 大服务端流程、**与 Servux 的本质差异对比表**、framework 复用边界 | 架构骨架 |
-| 21 | [syncmatica-protocol.md](21-syncmatica-protocol.md) ⭐ | **网络协议核心**：单通道 `[Identifier][body]` 包体、18 PacketType 全表（含 `request_download`/`mesage` 拼写陷阱）、Feature 协商、metadata/position 字段表、8 Exchange 状态机、文件分片 stop-and-wait、MD5→UUID hash、JSON 序列化 | 协议层 |
-| 22 | [syncmatica-mixin-migration.md](22-syncmatica-mixin-migration.md) ⭐ | **迁移方案**：5 服务端 Mixin→Bukkit 事件逐项映射、生命周期总表、网络层迁移（通道/handler/ExchangeTarget/分片）、持久化路径映射、权限/命令/服务层迁移、降级矩阵（material 死代码）、目标包结构、依赖变更 | 方案设计 |
-| 23 | [syncmatica-implementation-plan.md](23-syncmatica-implementation-plan.md) | **逐阶段作战手册**：P0–P9 文件清单 + 编译门 + 状态表、依赖与编译顺序、风险点、里程碑 M1–M8 验收 | 实施蓝图 |
-| 24 | [syncmatica-testing-guide.md](24-syncmatica-testing-guide.md) | **客户端兼容测试**：环境准备（syncmatica + litematica + malilib）、握手/分享/下载/修改/删除/命令/持久化/配额/多玩家协同测试步骤、判官逻辑、排错流程、降级清单、结果记录表 | 实测验证 |
+| 20 | [syncmatica-architecture.md](20-syncmatica-architecture.md) | 实际架构：包结构、装配生命周期（双保险握手）、Context 容器、**Exchange 会话层模型**、数据模型、**与 Servux 的本质差异对比表**、framework 复用边界 | 架构骨架 |
+| 21 | [syncmatica-protocol.md](21-syncmatica-protocol.md) ⭐ | **网络协议核心**：单通道 `[Identifier][body]` 包体、18 PacketType 全表（⚠️ `request_download`/`mesage` 拼写陷阱）、Feature 协商、metadata/position 字段表、Exchange 状态机、文件分片 stop-and-wait（16KB）、MD5→UUID hash | 协议层 |
+| 22 | [syncmatica-mixin-migration.md](22-syncmatica-mixin-migration.md) ⭐ | **迁移实现记录**：5 服务端 Mixin→Bukkit 已落地映射、生命周期、网络层迁移（通道/handler/ExchangeTarget/S2C NMS 直发）、持久化路径、权限/命令/服务层、降级矩阵、实际包结构 | 迁移记录 |
+| 23 | [syncmatica-implementation-plan.md](23-syncmatica-implementation-plan.md) | **实现总览**：实际包结构全树、关键实现决策表、完成状态、文档导航 | 实现总览 |
+| 24 | [syncmatica-testing-guide.md](24-syncmatica-testing-guide.md) | **客户端兼容测试**：环境准备、握手/分享/下载/修改/删除/命令/持久化/配额/多玩家协同测试步骤、判官逻辑、排错流程 + 症状表 | 实测验证 |
 
 ## 推荐阅读路线（Syncmatica）
 
 **第一次读（建立全貌）**：
-1. [20-syncmatica-architecture.md](20-syncmatica-architecture.md) —— **重点看 §1「与 Servux 的本质差异」对比表**，避免把它当「又一个 Servux provider」
-2. [21-syncmatica-protocol.md](21-syncmatica-protocol.md) —— 重点 §1 包体复合结构 + §4 metadata 字段表 + §6 分片协议
-3. [22-syncmatica-mixin-migration.md](22-syncmatica-mixin-migration.md) §1–§4 —— Mixin 映射 + 网络层迁移 + 持久化映射
+1. [20-syncmatica-architecture.md](20-syncmatica-architecture.md) —— **重点看「与 Servux 的本质差异」对比表**，避免把它当「又一个 Servux provider」
+2. [21-syncmatica-protocol.md](21-syncmatica-protocol.md) —— 包体复合结构 + metadata 字段表 + Exchange 状态机 + 分片协议
+3. [22-syncmatica-mixin-migration.md](22-syncmatica-mixin-migration.md) —— Mixin 已落地映射 + 网络层 + 持久化映射
 
-**动手移植**：按 [23](23-syncmatica-implementation-plan.md) 的 **P0→P9** 顺序，每阶段过 `compileJava` 编译门。
+**了解实现全貌**：[23](23-syncmatica-implementation-plan.md) 实际包结构 + 关键决策表 + 完成状态。
 
-**排错**：[24](24-syncmatica-testing-guide.md) §12 排错流程 + 症状→病因表。
+**排错**：[24](24-syncmatica-testing-guide.md) 排错流程 + 症状→病因表。
 
 ---
 
@@ -106,10 +105,10 @@
 | 术语 | 含义 |
 |---|---|
 | **Provider / DataProvider** | Servux 中"一条协议功能"的封装单元，每条对应一条网络通道。共 5 条 + 1 条配置主通道。 |
-| **通道（channel）** | 一条原版自定义 payload 通道，形如 `servux:main`。对应客户端的一个 `ResourceLocation`。 |
+| **通道（channel）** | 一条原版自定义 payload 通道，形如 `servux:hud_metadata`。对应客户端的一个 `ResourceLocation`。 |
 | **Payload** | 一次协议消息的载荷，`record Payload(...) implements CustomPacketPayload`。 |
 | **packetType** | Payload 内部用 VarInt 区分的子消息类型（如 HUD 的 `PACKET_S2C_METADATA=1`）。 |
-| **PacketSplitter** | Servux 自研的应用层分包器，把超大 NBT 拆成多个 ≤1MiB 的网络包发送，接收端按 session 重组。**（syncmatica 不复用此器，见下）** |
+| **PacketSplitter** | Servux 自研的应用层分包器，把超大 NBT 拆成多个 ≤32000 字节的网络包发送（S2C `MAX_TOTAL_PER_PACKET_S2C=32000`，防御客户端 32767 解码上限），接收端按 session 重组。**（syncmatica 不复用此器，自写 stop-and-wait）** |
 
 ### Syncmatica 术语
 

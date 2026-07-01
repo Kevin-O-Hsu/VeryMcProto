@@ -41,7 +41,6 @@ public abstract class CommunicationManager
     protected int PACKET_MAX_STRING_SIZE = FriendlyByteBuf.MAX_STRING_LENGTH;
     protected final Collection<ExchangeTarget> broadcastTargets;
 
-    // TODO: Refactor this bs
     protected final Map<UUID, Boolean> downloadState;
     protected final Map<UUID, Exchange> modifyState;
 

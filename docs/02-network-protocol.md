@@ -11,7 +11,7 @@
 
 Servux 用的是 **Mojang 在 1.20.2+ 引入的原版 `CustomPacketPayload`** 协议，**不是**旧的 Spigot plugin-messaging（`MC|Brand` 那套）。
 
-- 每条功能 = 一条通道（`Identifier` / `ResourceLocation`，形如 `servux:main`）
+- 每条功能 = 一条通道（`Identifier` / `ResourceLocation`，形如 `servux:hud_metadata`）
 - 每条通道 = 一个 `CustomPacketPayload` 实现类型（`record Payload(...) implements CustomPacketPayload`）
 - Fabric 的 `ServerPlayNetworking` / `PayloadTypeRegistry` **只是这套原版机制的注册封装**
 - Payload 内部用 **VarInt `packetType`** 区分子消息，消息体是 **NBT（`CompoundTag`）** 或 **原始字节（`FriendlyByteBuf` slice）**
@@ -20,17 +20,17 @@ Servux 用的是 **Mojang 在 1.20.2+ 引入的原版 `CustomPacketPayload`** �
 
 ---
 
-## 2. 五条通道总表
+## 2. 通道总表（5 条数据通道 + 1 配置 provider）
 
-| 通道 ID（channel） | 协议版本 | Provider（Fabric） | Packet 类 | 客户端配套 Mod | 用途 |
+| 通道 ID（channel） | 协议版本 | Provider（逻辑名） | Packet 类 | 客户端配套 Mod | 用途 |
 |---|---|---|---|---|---|
-| `servux:main` | **2** | `HudDataProvider` | `ServuxHudPacket` | **MiniHUD** | 世界元数据 / 出生点 / 天气 / 配方 / TPS·MobCap logger |
-| `servux:entity_data` | 1 | `EntitiesDataProvider` | `ServuxEntitiesPacket` | MiniHUD / Tweakeroo | 方块实体 & 实体 NBT 查询（含玩家背包权限过滤） |
-| `servux:tweaks_data` | 1 | `TweaksDataProvider` | `ServuxTweaksPacket` | Tweakeroo | NBT 查询（潜影盒堆叠未实现，见 [04](04-mixin-analysis.md)） |
-| `servux:structure_bounding_boxes` | **2** | `StructureDataProvider` | `ServuxStructuresPacket` | MiniHUD | 原版结构边界框（村庄/神殿/要塞…） |
-| `servux:litematic_data` | 1 | `LitematicsDataProvider` | `ServuxLitematicaPacket` | **Litematica** | Litematica 投影投递 / 粘贴 / 批量实体数据 |
+| `servux:hud_metadata` | **2** | `HudDataProvider`（hud_data） | `ServuxHudPacket` | **MiniHUD** | 世界元数据 / 出生点 / 天气 / 配方 / TPS·MobCap logger |
+| `servux:entity_data` | 1 | `EntitiesDataProvider`（entity_data） | `ServuxEntitiesPacket` | MiniHUD / Tweakeroo | 方块实体 & 实体 NBT 查询（含玩家背包权限过滤） |
+| `servux:tweaks` | 1 | `TweaksDataProvider`（tweaks_data） | `ServuxTweaksPacket` | Tweakeroo | NBT 查询（潜影盒堆叠未实现，见 [04](04-mixin-analysis.md)） |
+| `servux:structures` | **2** | `StructureDataProvider`（structure_bounding_boxes） | `ServuxStructuresPacket` | MiniHUD | 原版结构边界框（村庄/神殿/要塞…） |
+| `servux:litematics` | 1 | `LitematicsDataProvider`（litematic_data） | `ServuxLitematicaPacket` | **Litematica** | Litematica 投影投递 / 粘贴 / 批量实体数据 |
 
-> 配置主通道由 `ServuxConfigProvider`（`servux_main` provider，**永不可禁用**）管理，但**不是独立网络通道**——配置走 `/servux` 命令与 `servux.json`，不下发网络包。
+> **配置 provider**：`ConfigProvider`（逻辑名 `servux_main`，`DataProviderBase` 元信息 channel 标记为 `servux:main`，但 `registerHandler` 是 NO-OP——**不注册网络通道、不下发网络包**），承载全局 settings（permission_level / easy_place / debug 等），走 `/servux` 命令与 `servux.json` 持久化。
 
 通道常量定义位置（Fabric）：
 - `ServuxHudHandler.CHANNEL_ID = Identifier.fromNamespaceAndPath("servux", "hud_metadata")` ← **注意：HUD 通道网络名是 `servux:hud_metadata`，不是 `servux:main`**（"main" 只是 provider 的逻辑名）

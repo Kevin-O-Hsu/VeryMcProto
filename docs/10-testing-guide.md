@@ -16,10 +16,10 @@ servux 共 5 条通道，对应 **3 个 masa 客户端 mod**。映射关系由�
 | 通道 | 协议版本 | 客户端 Mod（声明源） | 功能 | 当前状态 |
 |---|---|---|---|---|
 | `servux:hud_metadata` | 2 | **MiniHUD** (`ServuxHudHandler`) | spawn / seed / 天气 / TPS / MobCap HUD | ✅ 已验证 |
-| `servux:structure_bounding_boxes` | 2 | **MiniHUD** (`ServuxStructuresHandler`) | 结构边界框渲染 | ✅ 已验证 |
+| `servux:structures` | 2 | **MiniHUD** (`ServuxStructuresHandler`) | 结构边界框渲染 | ✅ 已验证 |
 | `servux:entity_data` | 1 | **MiniHUD** (`ServuxEntitiesHandler`) | 实体 / 方块实体 NBT 查询 | ✅ 已验证 |
-| `servux:tweaks` | 1 | **Tweakeroo** (`ServuxTweaksHandler`) | NBT 查询（潜影盒堆叠未实现） | ❓ **待测** |
-| `servux:litematics` | 1 | **Litematica** (`ServuxLitematicaHandler`) + Tweakeroo | NBT 查询 + **批量区块 NBT 拉取** + 投影传输/粘贴 | ❓ **待测** |
+| `servux:tweaks` | 1 | **Tweakeroo** (`ServuxTweaksHandler`) | NBT 查询（潜影盒堆叠未实现） | ✅ 已验证 |
+| `servux:litematics` | 1 | **Litematica** (`ServuxLitematicaHandler`) + Tweakeroo | NBT 查询 + **批量区块 NBT 拉取** + 投影传输/粘贴 | ✅ 已验证 |
 
 > **itemscroller 不碰任何 servux 通道**（源码无 `servux` namespace 引用），无需测试。
 >

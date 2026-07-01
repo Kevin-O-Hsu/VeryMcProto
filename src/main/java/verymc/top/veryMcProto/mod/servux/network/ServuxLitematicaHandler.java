@@ -28,8 +28,9 @@ import org.apache.commons.lang3.tuple.Pair;
  * <p>通道 servux:litematics，协议版本 1。收 C2S（metadata / block entity / entity / 批量 / 投影投递分片）
  * → 分发到 {@link LitematicsDataProvider}；发 S2C 响应（plugin messaging，大包走 PacketSplitter）。
  *
- * <p><b>降级</b>：客户端上传投影 NBT（{@code PACKET_C2S_NBT_RESPONSE_DATA} 分片）走 PacketSplitter.receive 重组，
- * 但组装完成后【不】加载为 LitematicaSchematic（schematic 系统未移植），仅 ServuxDebug.log(SCHEMATIC) 记录已降级忽略。
+ * <p><b>投影上传 / 粘贴</b>：客户端上传的投影 NBT（{@code PACKET_C2S_NBT_RESPONSE_DATA} 分片）走 PacketSplitter.receive 重组，
+ * 组装完成后由 {@link #handleBulkData} 分流——Transmit* 走 LitematicaSchematic.receiveFileTransmit 落盘 + 粘贴，
+ * 普通 LitematicaPaste 走 LitematicsDataProvider.handleClientPasteRequest 直接粘贴。
  */
 public class ServuxLitematicaHandler implements IPluginServerPlayHandler
 {
@@ -117,11 +118,10 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
     }
 
     /**
-     * 降级处理：客户端上传的投影 NBT 重组完成后的去向。
+     * 客户端上传的投影 NBT 重组完成后的分流。
      *
-     * <p>原版分支：TransmitStart/Data/End/Cancel 走 {@code LitematicaSchematic.receiveFileTransmit}，普通粘贴走
-     * {@code handleClientPasteRequest}（加载投影 → placement.pasteTo）。<b>schematic 系统未移植</b>，故全部降级：
-     * 仅记录日志，不加载、不粘贴。
+     * <p>TransmitStart/Data/End/Cancel 走 LitematicaSchematic.receiveFileTransmit（落盘到 schematics/ + 粘贴）；
+     * 普通 LitematicaPaste 走 LitematicsDataProvider.handleClientPasteRequest（加载 + pasteTo 粘贴）。
      */
     private void handleBulkData(ServerPlayer player, final int type, CompoundTag nbt)
     {

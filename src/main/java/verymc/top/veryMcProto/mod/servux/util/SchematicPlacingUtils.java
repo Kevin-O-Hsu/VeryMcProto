@@ -166,7 +166,6 @@ public class SchematicPlacingUtils
         final int endY = Math.abs(regionSize.getY()) - 1;
         BlockPos.MutableBlockPos posMutable = new BlockPos.MutableBlockPos();
 
-        //System.out.printf("sx: %d, sy: %d, sz: %d => ex: %d, ey: %d, ez: %d\n", startX, startY, startZ, endX, endY, endZ);
 
         if (startX < 0 || startZ < 0 || endX >= container.getSize().getX() || endZ >= container.getSize().getZ())
         {
@@ -467,7 +466,6 @@ public class SchematicPlacingUtils
                 if (entity != null)
                 {
                     rotateEntity(entity, x, y, z, rotationCombined, mirrorMain, mirrorSub);
-                    //System.out.printf("post: %.1f - rot: %s, mm: %s, ms: %s\n", rotationYaw, rotationCombined, mirrorMain, mirrorSub);
 
                     // Update the sleeping position to the current position
                     if (entity instanceof LivingEntity living && living.isSleeping())

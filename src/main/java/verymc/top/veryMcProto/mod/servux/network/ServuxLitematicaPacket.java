@@ -22,7 +22,7 @@ import verymc.top.veryMcProto.framework.network.IServerPayloadData;
  * <ul>
  *   <li>{@link Type#PACKET_C2S_BULK_ENTITY_NBT_REQUEST}：区块内批量方块实体 + 实体 NBT（minY/maxY 切片）；</li>
  *   <li>四阶段文件投递（C2S）{@link Type#PACKET_C2S_NBT_RESPONSE_START}/{@code _DATA}：
- *       客户端上传 Litematica 投影（本次降级：仅重组，不加载）。</li>
+ *       客户端上传 Litematica 投影（重组后加载并粘贴）。</li>
  * </ul>
  *
  * <p><b>字节布局严格照抄原版</b>：toPacket/fromPacket 与原版逐字节一致，含 ChunkPos / Bulk 切片。
