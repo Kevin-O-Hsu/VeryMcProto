@@ -246,7 +246,8 @@ public abstract class CommunicationManager
     {
         if (!context.getFileStorage().getLocalState(syncmatic).isReadyForDownload())
         {
-            // forgot a negation here
+            // 逻辑正确：未就绪则抛异常（!ready ⇒ throw）。原版作者英文注释 "forgot a negation here" 字面像
+            // "忘了取反"，但此处语义自洽、与下方异常文案 "is not ready for download" 一致——勿误改。
             throw new IllegalArgumentException(syncmatic.toString() + " is not ready for download local state is: " + context.getFileStorage().getLocalState(syncmatic).toString());
         }
         final Path toDownload = context.getFileStorage().createLocalLitematic(syncmatic);
