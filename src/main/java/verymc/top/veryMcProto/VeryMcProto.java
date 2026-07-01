@@ -157,7 +157,7 @@ public final class VeryMcProto extends JavaPlugin
             {
                 verymc.top.veryMcProto.mod.syncmatica.app.SyncmaticaModule.getInstance().disable();
             }
-            catch (Exception ignored) { }
+            catch (Exception e) { Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] syncmatica disable 异常（placements.json shutdown 保存可能失败）: " + e.getMessage()); }
             ChannelManager.instance().unregisterAll();
         }
         catch (Exception e)
