@@ -8,6 +8,7 @@ import verymc.top.veryMcProto.framework.ModModule;
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderManager;
 import verymc.top.veryMcProto.mod.jeirecipebridge.JeiRecipeBridgeReference;
 import verymc.top.veryMcProto.mod.jeirecipebridge.RecipeSyncHandler;
+import verymc.top.veryMcProto.mod.jeirecipebridge.config.JeiConfiguration;
 
 /**
  * JEI Recipe Bridge 协议 mod 模块（mod 层）。对应原版 {@code JEIRecipeBridgePlugin}（独立 JavaPlugin）——
@@ -44,6 +45,9 @@ public class JeiRecipeBridgeModule implements ModModule
         // Paper Messenger 合规声明（与原版一致）——否则部分 Paper 版本会对未声明通道的 sendPluginMessage 拒绝。
         messenger.registerOutgoingPluginChannel(plugin, JeiRecipeBridgeReference.CHANNEL_FABRIC.toString());
         messenger.registerOutgoingPluginChannel(plugin, JeiRecipeBridgeReference.CHANNEL_NEOFORGE.toString());
+
+        // 初始化模块配置（构造即注册单例 + 首启落盘默认值），须在 RecipeSyncHandler 触发前完成。
+        new JeiConfiguration(plugin.getDataFolder().toPath());
 
         plugin.getServer().getPluginManager().registerEvents(new RecipeSyncHandler(), plugin);
     }

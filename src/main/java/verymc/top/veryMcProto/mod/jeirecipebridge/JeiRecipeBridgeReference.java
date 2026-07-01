@@ -15,6 +15,9 @@ public final class JeiRecipeBridgeReference
 
     public static final String MOD_ID = "jei_recipe_bridge";
 
+    /** JEI 模块配置文件名（{@code enabled} 开关持久化），相对插件数据目录。 */
+    public static final String CONFIG_FILE_NAME = "jei-recipe-bridge.json";
+
     /** fabric 客户端配方同步通道（payload 由 {@code FabricRecipeSyncPayload} 编码）。 */
     public static final Identifier CHANNEL_FABRIC = Identifier.fromNamespaceAndPath("fabric", "recipe_sync");
     /** neoforge 客户端配方内容通道（payload 由 {@code NeoforgeRecipeSyncPayload} 编码）。 */

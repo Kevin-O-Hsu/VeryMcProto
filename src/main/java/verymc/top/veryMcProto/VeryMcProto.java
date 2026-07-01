@@ -117,6 +117,22 @@ public final class VeryMcProto extends JavaPlugin
                 Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] 注册 /servux 命令失败: " + ex.getMessage());
             }
 
+            // 注册 /jei 命令（JEI Recipe Bridge：启用/禁用进服配方同步）
+            try
+            {
+                var jeiCmd = getCommand("jei");
+                if (jeiCmd != null)
+                {
+                    var executor = new verymc.top.veryMcProto.mod.jeirecipebridge.command.JeiCommand();
+                    jeiCmd.setExecutor(executor);
+                    jeiCmd.setTabCompleter(executor);
+                }
+            }
+            catch (Exception ex)
+            {
+                Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] 注册 /jei 命令失败: " + ex.getMessage());
+            }
+
             Reference.logger().info("[" + Reference.PLUGIN_NAME + "] 框架就绪。");
         }
         catch (Exception e)

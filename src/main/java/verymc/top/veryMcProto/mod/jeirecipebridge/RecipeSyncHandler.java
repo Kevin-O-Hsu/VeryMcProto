@@ -27,6 +27,7 @@ import net.minecraft.world.item.crafting.RecipeType;
 
 import verymc.top.veryMcProto.Reference;
 import verymc.top.veryMcProto.framework.nms.Nms;
+import verymc.top.veryMcProto.mod.jeirecipebridge.config.JeiConfiguration;
 import verymc.top.veryMcProto.mod.jeirecipebridge.payload.FabricRecipeSyncPayload;
 import verymc.top.veryMcProto.mod.jeirecipebridge.payload.NeoforgeRecipeSyncPayload;
 
@@ -50,6 +51,17 @@ public class RecipeSyncHandler implements Listener
     {
         try
         {
+            // 模块门控：/jei disable 后跳过进服同步（通道仍声明、不踢人）。
+            final JeiConfiguration config = JeiConfiguration.getInstance();
+            if (config == null)
+            {
+                Reference.logger().warning("[JEIRecipeBridge] 配置未初始化，跳过进服同步: " + event.getPlayer().getName());
+                return;
+            }
+            if (!config.isEnabled())
+            {
+                return;
+            }
             handle(event.getPlayer());
         }
         catch (Exception e)
