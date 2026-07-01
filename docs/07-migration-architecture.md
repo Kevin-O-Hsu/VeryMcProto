@@ -14,7 +14,7 @@
 | 26 个 Mixin 怎么办？ | ✅ **可控** | 读私有(4-5个)→反射；生命周期(9个)→Bukkit 事件；改行为(11个)→降级省略/内联/PacketEvents；调试(1)→省略。详见 [04](04-mixin-analysis.md) |
 | 大包（配方/投影）能发吗？ | ✅ **能** | PacketSplitter 照抄；plugin messaging 32KiB 限制通过「调小 S2C 分片」或「S2C 走 NMS `ClientboundCustomPayloadPacket` 保 1MiB」解决 |
 | 投影系统（最大模块）能搬吗？ | ✅ **能** | ~60% 纯算法照抄；接口层 NMS 直连 `BlockState`/`CompoundTag`/`NbtIo`。详见 [05](05-schematic-system.md) |
-| 有阻塞性难点吗？ | ⚠️ **EasyPlace / UpdateSuppression** 等改服务端行为的功能需降级（非协议必需，可后续补） | 见 §降级矩阵 |
+| 有阻塞性难点吗？ | ⚠️ **UpdateSuppression** 等改服务端行为的功能需降级（EasyPlace 已用 PacketEvents 实现） | 见 §降级矩阵 |
 
 **总体判定：协议层 100% 可移植；数据采集层绝大部分可直接 NMS 实现；仅少量"改行为"特性降级。迁移可行。**
 
@@ -219,7 +219,7 @@ long sprint = Reflect.get(tickManager, "remainingSprintTicks");  // Mojang 名
 | **Litematica 投影投递/粘贴** | MixinChestBlock/Rail/Stairs（镜像） | ✅ **做**（投影照抄 + 镜像修复**内联**到粘贴） | P2 | 见 [05](05-schematic-system.md) |
 | **潜影盒可堆叠** | MixinItemStack/Hopper | ⛔ **不可能实现** | P3 | 改 NMS 方法全局返回行为，Paper 无 Mixin；已删 Tweaks provider 相关遗留代码（不下发 stackingShulkers 元数据，避免客户端误判）。详见 [04](04-mixin-analysis.md) §4 |
 | **Allay 收集修复** | MixinMob/ItemEntity/Allay | ⚠️ **省略** | P4 | 改行为，影响小 |
-| **EasyPlace**（Tweakeroo 精确放置） | MixinBlockItem_EasyPlace + MixinServerPlayNetworkHandler_EasyPlace | ⚠️ **降级/选做** | P3 | 需 PacketEvents 拦截 `ServerboundUseItemOnPacket` 自行放置；先省略，后续补 |
+| **EasyPlace**（Tweakeroo 精确放置） | MixinBlockItem_EasyPlace + MixinServerPlayNetworkHandler_EasyPlace | ✅ **已实现** | P3 | PacketEvents 拦截 `PLAYER_BLOCK_PLACEMENT` + `PlacementHandler.applyPlacementProtocolV3` + 手动复刻 `BlockItem.place` 副作用（`EasyPlaceListener`） |
 | **UpdateSuppression** | MixinWorld/WorldChunk/Block | ❌ **省略** | P4 | 改行为，Paper 无等价，省略 |
 | **调试 (IDE 模式)** | MixinSharedConstants | ❌ **省略** | — | 生产无用 |
 
@@ -241,7 +241,7 @@ plugins {
 dependencies {
     paperweight.paperDevBundle("1.21.11", "R0.1-SNAPSHOT")
     // paperweight.devBundle 提供 Mojang 全映射 net.minecraft.* + io.papermc.paper.*
-    // 第三方（可选）：implementation("com.github.retrooper:packetevents-api:2.x")  // 若做 EasyPlace
+    // 第三方：compileOnly(`com.github.retrooper:packetevents-spigot:2.13.0`)  // EasyPlace（softdepend 运行时）
 }
 
 java { toolchain.languageVersion = JavaLanguageVersion.of(21) }
@@ -278,7 +278,7 @@ load: POSTWORLD
 | `MOD_STRING` 协议握手字段 | 客户端版本协商 | 改为 `servux-paper-1.21.11-x.y.z`；`version`(协议版本号) **保持不变**（HUD=2 等） |
 | NMS 签名随版本漂移 | 升级 MC 时编译失败 | 反射点集中在 `reflect/`；升级时按 [04](04-mixin-analysis.md) 反射点清单核对 |
 | Structures 周期扫描性能 | 玩家多时 CPU 占用 | 限扫描频率（`update_interval` 默认 100t=5s）；只扫 view distance 内；去重缓存 |
-| EasyPlace 省略 | Tweakeroo 精确放置不可用 | 文档明确为已知降级；后续 PacketEvents 实现 |
+| EasyPlace 已实现 | Tweakeroo 精确放置可用（需服务器装 PacketEvents 插件） | `EasyPlaceListener` 拦截 use_item_on + 协议 v3 解码 |
 | 通道名与 provider 名混淆 | 注册错通道 | 用各 Handler 的 `CHANNEL_ID` 常量（网络名），非 provider 名；见 [02](02-network-protocol.md) §2 |
 
 ---
@@ -303,6 +303,6 @@ load: POSTWORLD
 | 网络协议字节 | **100%** | 同一 `FriendlyByteBuf`/`CompoundTag`，字节级一致 |
 | 通道/版本号 | **100%** | 通道名、协议版本号保持原版 |
 | 数据采集 | **≈95%** | 绝大多数 NMS 直连；TPS/MobCap 个别字段（sprintTicks）反射可能版本敏感 |
-| 服务端行为改造 | **部分降级** | EasyPlace/UpdateSuppression/Allay 省略；潜影盒堆叠不可能实现（已删代码） |
+| 服务端行为改造 | **部分降级** | EasyPlace ✅ 已实现（PacketEvents）；UpdateSuppression/Allay 省略；潜影盒堆叠不可能实现（已删代码） |
 
 > **结论**：对"Fabric 客户端 + Paper 服务端"的核心使用场景（HUD/结构/投影/实体查询），可达到与原版 Servux **功能等价**；仅少数"服务端行为增强"特性降级，且均不影响协议主功能。

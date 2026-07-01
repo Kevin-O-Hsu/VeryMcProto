@@ -84,7 +84,7 @@ verymc.top.veryMcProto/
 ### 3.3 Mixin 三段式处置（无 Mixin 运行时）
 - **读私有字段** → 反射（`Reflect`，缓存 + 防御）。如 `ServerTickRateManager.remainingSprintTicks`、`TagValueOutput.output`。
 - **采集触发/生命周期** → Bukkit 事件 / 周期扫描（如天气周期读、Structures 周期扫描）。
-- **改服务端行为**（EasyPlace/UpdateSuppression/Allay）→ 降级省略（见 §6）；潜影盒堆叠不可能实现（已删代码，见 §6）。
+- **改服务端行为**（EasyPlace ✅ 已实现[PacketEvents]；UpdateSuppression/Allay 降级省略，见 §6）；潜影盒堆叠不可能实现（已删代码，见 §6）。
 
 ---
 
@@ -153,7 +153,7 @@ verymc.top.veryMcProto/
 
 | 功能 | 原版实现 | Paper 处置 | 影响 |
 |---|---|---|---|
-| **EasyPlace**（Tweakeroo 精确放置） | Mixin BlockItem/NetworkHandler | 省略（选做：PacketEvents 拦截） | 协议非必需 |
+| **EasyPlace**（Tweakeroo 精确放置） | Mixin BlockItem/NetworkHandler | ✅ 已实现（PacketEvents `EasyPlaceListener`） | 需服务器装 packetevents 插件 |
 | **UpdateSuppression** | Mixin Level/WorldChunk | 省略 | 协议非必需 |
 | **潜影盒可堆叠** | Mixin ItemStack/Hopper | ⛔ 不可能实现（已删代码） | 改 NMS 全局方法行为，Paper 无等价；不下发元数据避免客户端误判 |
 | **Allay 收集修复** | Mixin Mob/ItemEntity/Allay | 省略 | 影响小 |

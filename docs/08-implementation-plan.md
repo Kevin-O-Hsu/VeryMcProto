@@ -30,7 +30,7 @@
 | 4 | Entities/Tweaks | 实体/方块实体 NBT 查询 | — |
 | 5 | Structures | 结构边界框 | — |
 | 6 | **Litematics** | 投影投递/粘贴/批量实体 | **M2：Litematica 投影互通** |
-| 7 | 打磨/降级 | EasyPlace、性能、边界 | M3：发布候选 |
+| 7 | 打磨/降级 | ~~EasyPlace~~（✅ 已完成）、性能、边界 | M3：发布候选 |
 
 ---
 
@@ -139,7 +139,7 @@
 
 | # | 任务 | 细节 | 优先级 | 参考 |
 |---|---|---|---|---|
-| 7.1 | EasyPlace（选做） | PacketEvents 拦截 `ServerboundUseItemOnPacket`，实现 `PlacementHandler.applyPlacementProtocolV3` | P3 | [04](04-mixin-analysis.md) §4；[07](07-migration-architecture.md) §4 |
+| 7.1 | EasyPlace ✅ 已完成 | PacketEvents 拦截 `PLAYER_BLOCK_PLACEMENT`，实现 `PlacementHandler.applyPlacementProtocolV3` + 手动复刻 place 副作用（`EasyPlaceListener`） | P3 | [04](04-mixin-analysis.md) §4；[07](07-migration-architecture.md) §4 |
 | 7.2 | 大包性能优化 | Recipe/Litematic 通道升级方案 B（NMS 发包保 1MiB 分片） | P2 | [07](07-migration-architecture.md) §2.2 |
 | 7.3 | Structures 性能 | 扫描频率/缓存优化；view distance 限制 | P2 | [07](07-migration-architecture.md) §6 |
 | 7.4 | i18n / 日志 | lang 文件或硬编码消息；`getLogger` | P3 | [01](01-servux-architecture.md) §9 |
@@ -155,7 +155,7 @@
 - **串行必经**：0 → 1 → 2 → 3（M1 前不可跳）。
 - **M1 后可并行**：4 / 5 / 6 三条相对独立，可分配给不同人/不同 session 并行（共享阶段 1-2 的网络与架构层）。
 - **阶段 6 最重**：建议单独排期（投影系统 ~9000 行，但多为照抄）。
-- **阶段 7 可穿插**：7.1（EasyPlace）等降级项可在主功能稳定后再做。
+- **阶段 7 可穿插**：7.1（EasyPlace）✅ 已完成（commit `9968304`）。
 
 ---
 

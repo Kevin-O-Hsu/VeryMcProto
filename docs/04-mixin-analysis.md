@@ -58,10 +58,10 @@
 
 | Mixin | 目标 | 注入 | 归属 | 迁移 |
 |---|---|---|---|---|
-| `MixinBlockItem_EasyPlace` | `BlockItem` | `@Inject("getPlacementState", HEAD, cancellable)` (priority 1010)：权限检查 + `PlacementHandler.applyPlacementProtocolV3` | EasyPlace | **C 降级**（PacketEvents 拦截 `ServerboundUseItemOnPacket`，或省略） |
+| `MixinBlockItem_EasyPlace` | `BlockItem` | `@Inject("getPlacementState", HEAD, cancellable)` (priority 1010)：权限检查 + `PlacementHandler.applyPlacementProtocolV3` | EasyPlace | **C ✅ 已实现**（`EasyPlaceListener` PacketEvents 拦截 `PLAYER_BLOCK_PLACEMENT` + 手动复刻 place 副作用） |
 | `MixinItemStack` | `ItemStack` | `@Inject("getMaxStackSize", RETURN, cancellable)` 空潜影盒可堆叠 | Tweaks | **C 不可能实现**（见下） |
 
-> **EasyPlace 迁移**：见 [07](07-migration-architecture.md) §降级矩阵。最务实先省略（仅影响 Tweakeroo 的精确放置协议）。
+> **EasyPlace 迁移**：✅ **已实现**（`EasyPlaceListener`）。PacketEvents 拦截 `use_item_on`，取消包后用 `applyPlacementProtocolV3` 解码精确状态，再手动 `setBlock` / `setPlacedBy`（初始化方块实体）/ 放置音效 / 物品消耗 / `send(ClientboundBlockChangedAckPacket)` 回 ack。详见 [07](07-migration-architecture.md) §降级矩阵。
 >
 > **潜影盒堆叠——不可能实现**：`MixinItemStack` 改 `ItemStack.getMaxStackSize()` 全局返回值（空潜影盒返回 64），`MixinHopperBlockEntity` 配套改漏斗三方法（`inventoryFull`/`isFullContainer`/`canMergeItems`）。这是改 NMS 核心方法的全局行为，Paper 无 Mixin 运行时无任何 API 等价：反射改不了方法返回值；Bukkit 事件在服务端 `maxStackSize=1` 前提下无法模拟合并（`count < maxStackSize` 恒失败）；设 `MAX_STACK_SIZE` 组件是 per-item 且污染序列化。**已从 `TweaksDataProvider` 删除全部相关遗留代码（setting / 元数据下发 / 死方法），不下发 `stackingShulkers` 元数据**——否则客户端 tweakeroo 据 `EntityDataManager.checkTweaksConfigs` 自动开堆叠渲染而服务端不配合 → 不一致。
 
@@ -82,7 +82,7 @@
 
 | Mixin | 目标 | 注入 | 归属 | 迁移 |
 |---|---|---|---|---|
-| `MixinServerPlayNetworkHandler_EasyPlace` | `ServerGamePacketListenerImpl` | `@WrapOperation("handleUseItemOn" Vec3.subtract)` 强制 `Vec3.ZERO` 去掉命中位置校验 (priority 1010) | EasyPlace | **C 降级/省略** |
+| `MixinServerPlayNetworkHandler_EasyPlace` | `ServerGamePacketListenerImpl` | `@WrapOperation("handleUseItemOn" Vec3.subtract)` 强制 `Vec3.ZERO` 去掉命中位置校验 (priority 1010) | EasyPlace | **C ✅ 已实现**（取消包后由 `EasyPlaceListener` 手动 `send(ClientboundBlockChangedAckPacket)` 回 ack） |
 | `MixinServerPlayNetworkHandler_QueryNbt` | `ServerGamePacketListenerImpl` | `@WrapOperation("handleBlockEntityTagQuery"/"handleEntityTagQuery" PermissionSet.hasPermission)` 改用 `EntitiesDataProvider.hasNbtQueryPermission` (priority 1005) | QueryNbt | **C**：Paper 的 `/data get` 权限本就受 Bukkit 控制，可省略（或用 Paper 权限） |
 
 ---
@@ -137,8 +137,8 @@ accessible field net/minecraft/world/level/NaturalSpawner MAGIC_NUMBER I
 |---|---|---|---|
 | A 反射 | ~5（含 2 AW） | `reflect/` 工具类 + 硬编码魔数 | 小 |
 | B 事件/调度 | ~9 | Bukkit 事件 + scheduler | 中（逐个映射） |
-| C 降级/省略 | ~11 | 多数省略；EasyPlace 选做；镜像修复内联 | 小（多数直接砍） |
+| C 降级/省略 | ~11 | 多数省略；EasyPlace ✅ 已实现（PacketEvents）；镜像修复内联 | 小（多数直接砍） |
 | D 调试 | 1 | 省略 | 0 |
 | **合计** | 26 | — | **中等**（B 类是主体，但 1:1 映射清晰） |
 
-> **关键结论**：Mixin 数量看起来吓人（26），但**真正阻塞移植的只有 EasyPlace 与 UpdateSuppression 这类"改行为"的（C 类）**，且这些功能对"协议能跑起来"非必需，可降级/省略。**A 类（反射）和 B 类（事件）都有干净的 Paper 等价**。完整降级决策见 [07-migration-architecture.md](07-migration-architecture.md) §降级矩阵。
+> **关键结论**：Mixin 数量看起来吓人（26），但**真正改服务端行为的是 UpdateSuppression 等类（C 类）**（EasyPlace 已用 PacketEvents 实现，不再阻塞），这些功能对“协议能跑起来”非必需，可降级/省略。**A 类（反射）和 B 类（事件）都有干净的 Paper 等价**。完整降级决策见 [07-migration-architecture.md](07-migration-architecture.md) §降级矩阵。

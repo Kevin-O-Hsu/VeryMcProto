@@ -268,7 +268,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 | 投影文件传输（服务器→客户端投递投影） | litematics | ✅ 已实现（`/servux litematic transmit`） |
 | 投影粘贴（C2S 上传放置） | litematics | ✅ 已实现（客户端上传 → pasteTo） |
 | 服务端潜影盒堆叠行为 | tweaks | ⛔ 不可能实现（已删代码） |
-| EasyPlace（Tweakeroo 服务端配合放置） | servux_main | 降级 / 省略 |
+| EasyPlace（Tweakeroo 服务端配合放置） | servux_main | ✅ 已实现（PacketEvents） |
 | UpdateSuppression | — | 省略 |
 | 镜像修复（箱子 180°） | litematics | ✅ 已实现（SchematicPlacingUtils 内联 + fixChestMirror setting）。铁轨/楼梯靠 BlockState.mirror/rotate 自身（原版 Mixin 降级，可能不完美） |
 
@@ -290,6 +290,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 | | litematics | Litematica | 保存投影批量拉取 | ⬜ | |
 | | tweaks | Tweakeroo | 握手 | ⬜ | |
 | | tweaks | Tweakeroo | NBT 查询 | ⬜ | |
+| | servux_main | Tweakeroo | EasyPlace 精确放置 | ⬜ | 需服务器装 packetevents 插件 |
 
 ---
 
