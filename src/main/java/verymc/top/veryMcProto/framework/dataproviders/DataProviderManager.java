@@ -31,10 +31,24 @@ import verymc.top.veryMcProto.framework.util.JsonUtils;
  *   <li>配置目录由 {@link #setConfigDir} 注入（{@code plugin.getDataFolder()}），原版用 Fabric config dir；</li>
  *   <li>{@code RegistryAccess.Frozen} 初始 null，由 {@link #onCaptureImmutable} 在 server started 后填充。</li>
  * </ul>
+ *
+ * <p><b>当前servux专属</b>：虽置于 framework/ 包，但下方 {@link #CONFIG_FILE_NAME} /
+ * {@link #ALWAYS_ENABLED_PROVIDER} / {@link #DISABLED_BY_DEFAULT_PROVIDER} 默认值均硬绑 servux
+ * （servux.json / servux_main / debug_data）。JEI / Syncmatica 均不用本类（JeiConfiguration 自管、
+ * SyncmaticaModule 自管）。这是从"servux 独占"演进到"多 mod"时留下的半成品抽象——未下沉到
+ * mod/servux/ 是因为 LifecycleBridge（framework）持有它、下沉会制造反向耦合。未来真正新增非 servux
+ * 消费者时，应把这三项参数化（构造注入）。
  */
 public class DataProviderManager
 {
     public static final DataProviderManager INSTANCE = new DataProviderManager();
+
+    /** 配置文件名（当前 servux 专属默认值）。 */
+    private static final String CONFIG_FILE_NAME = "servux.json";
+    /** 永不禁用的 provider 逻辑名（提供配置管理入口；当前 servux 专属）。 */
+    private static final String ALWAYS_ENABLED_PROVIDER = "servux_main";
+    /** 首次启动默认禁用的 provider 逻辑名（本版无此 provider，保留兼容配置语义）。 */
+    private static final String DISABLED_BY_DEFAULT_PROVIDER = "debug_data";
 
     /** 逻辑名 → provider。 */
     protected final HashMap<String, IDataProvider> providers = new HashMap<>();
@@ -278,7 +292,7 @@ public class DataProviderManager
                 }
 
                 // servux_main 永不被禁用（提供配置管理）
-                if (provider.getName().equals("servux_main") && !provider.isEnabled())
+                if (provider.getName().equals(ALWAYS_ENABLED_PROVIDER) && !provider.isEnabled())
                 {
                     this.setProviderEnabled(provider, true);
                 }
@@ -290,7 +304,7 @@ public class DataProviderManager
             // 首次无 config：全启用（除 debug_data，本版无）
             for (IDataProvider provider : this.providersImmutable)
             {
-                this.setProviderEnabled(provider, !provider.getName().equals("debug_data"));
+                this.setProviderEnabled(provider, !provider.getName().equals(DISABLED_BY_DEFAULT_PROVIDER));
             }
         }
 
@@ -362,6 +376,6 @@ public class DataProviderManager
             }
         }
 
-        return this.configDir.resolve("servux.json");
+        return this.configDir.resolve(CONFIG_FILE_NAME);
     }
 }
