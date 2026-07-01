@@ -205,19 +205,17 @@ if (entity.getType() == EntityType.PLAYER) {
 
 ```
 name="tweaks_data", id="servux:tweaks_data", version=1, servux=<MOD_STRING>
-+ stackingShulkers=<bool>          是否启用空潜影盒堆叠
-+ stackingShulkersMax=<int>        最大堆叠数
 ```
 
 ### 3.2 NBT 查询（复用 Entities 逻辑）
 
 `onBlockEntityRequest` 等与 EntitiesDataProvider 类似，但用 `be.saveWithoutMetadata`（不含位置元数据），权限复用 `EntitiesDataProvider.hasPlayerInventoryPermission`。
 
-### 3.3 服务端行为（潜影盒堆叠）
+### 3.3 潜影盒堆叠——未实现（不可能实现）
 
-实际"空潜影盒可堆叠"是 Mixin 实现的（`MixinItemStack.getMaxStackSize` + `MixinHopperBlockEntity`），**TweaksDataProvider 只下发元数据告诉客户端"服务端开了这功能"**，让 Tweakeroo 客户端配合显示。
+原版“空潜影盒可堆叠”由 Mixin 实现（`MixinItemStack.getMaxStackSize` + `MixinHopperBlockEntity` 改 NMS 方法全局返回行为）。Paper 无 Mixin 运行时：反射改不了方法返回值；Bukkit 事件（`InventoryMoveItemEvent` 等）在服务端 `maxStackSize` 仍为 1 的前提下不成立（NMS 内部 `count < maxStackSize` 恒失败）；给物品设 `DataComponents.MAX_STACK_SIZE` 组件是 per-item、影响新生成物品且污染序列化——三条替代路均不通。
 
-> **Paper 迁移**：元数据下发 = 低难度（照搬）；"可堆叠潜影盒"行为本身需 Mixin（Paper 无法）→ **降级省略** 或后续用 PacketEvents 拦截背包事件模拟（成本高，建议先省略，见 [07](07-migration-architecture.md) 降级矩阵）。
+故本 provider **不保留**原版 `stackable_shulkers` 系列 setting，也**不下发** `stackingShulkers` / `stackingShulkersMax` 元数据。否则客户端 tweakeroo 会据 `EntityDataManager.checkTweaksConfigs`（`OriginImpl/tweakeroo-*/.../EntityDataManager.java:420`）自动开启客户端堆叠渲染，而服务端无法配合 → 客户端/服务端不一致（堆叠的潜影盒交互时被服务端按原上限拆开）。详见 [04](04-mixin-analysis.md) §1/§4。
 
 ---
 

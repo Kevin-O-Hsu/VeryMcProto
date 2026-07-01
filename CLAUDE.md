@@ -93,7 +93,7 @@ Servux 共 **26 个 Mixin + 2 个 AccessWidener 字段**。Paper 无 Mixin 运�
 |---|---|---|---|
 | **协议数据采集必需**（读私有字段） | ~9 | **反射 / NMS 直接访问** | `IMixinServerTickManager`(remainingSprintTicks)、`NaturalSpawner.MAGIC_NUMBER`、`IMixinWorldTickScheduler`(allContainers)、`IMixinNbtRead/WriteView` |
 | **采集触发 / 生命周期**（钩子） | ~7 | **Bukkit 事件 / 调度器替代** | `MixinMinecraftServer`(tick)、`MixinPlayerManager`(join/leave/respawn/op)、`MixinMain`(capture RegistryAccess)、`MixinServerChunkLoadingManager`(watching chunk) |
-| **服务端行为改造**（改逻辑） | ~9 | **降级 / PacketEvents / 事件 / 省略** | EasyPlace(`MixinBlockItem`/`MixinServerPlayNetworkHandler`)、UpdateSuppression(`MixinWorld*`)、潜影盒堆叠(`MixinItemStack`/`MixinHopper`)、Allay 修复(`MixinMob*`)、镜像修复(`MixinChest/Rail/Stairs`) |
+| **服务端行为改造**（改逻辑） | ~9 | **降级 / PacketEvents / 事件 / 省略** | EasyPlace(`MixinBlockItem`/`MixinServerPlayNetworkHandler`)、UpdateSuppression(`MixinWorld*`)、潜影盒堆叠(`MixinItemStack`/`MixinHopper`，⛔ 不可能实现/已删代码，见 §3)、Allay 修复(`MixinMob*`)、镜像修复(`MixinChest/Rail/Stairs`) |
 | **调试** | 1 | 省略 | `MixinSharedConstants`(IS_RUNNING_IN_IDE) |
 | AccessWidener | 2 | 反射 | `SharedConstants.DEBUG_ENABLED`(mutable)、`NaturalSpawner.MAGIC_NUMBER`(accessible) |
 
@@ -104,6 +104,7 @@ Servux 共 **26 个 Mixin + 2 个 AccessWidener 字段**。Paper 无 Mixin 运�
 - **EasyPlace**（Tweakeroo 服务端配合）：Servux 通过 Mixin `BlockItem.getPlacementState` 注入 `PlacementHandler.applyPlacementProtocolV3` + Mixin `ServerGamePacketListenerImpl.handleUseItemOn` 去掉命中位置校验。Paper 无 Mixin，**需降级**：用 PacketEvents 拦截 `ServerboundUseItemOnPacket` 自行放置，或直接省略（最务实）。详见 [`docs/07-migration-architecture.md`](docs/07-migration-architecture.md) §降级矩阵。
 - **UpdateSuppression**：依赖 Mixin 给 `Level`/`LevelChunk` 加接口 + 改 `setBlockState` 副作用。**Paper 上省略**（可选后续用 Paper 的 `World#refreshChunk`/计划 tick 工具部分模拟）。
 - **镜像修复**（箱子/铁轨/楼梯 180° 镜像）：仅 Litematica 投影粘贴时用，**已实现**（见 §6）：箱子镜像修复在 `SchematicPlacingUtils` 内联照抄（`fixChestMirror` setting）；铁轨/楼梯原版靠 Mixin，Paper 降级为 `BlockState.mirror()/rotate()` 自身行为（可能不完美）。
+- **潜影盒堆叠**（Tweakeroo `tweakShulkerBoxStacking` 服务端配合）：原版 Mixin 改 `ItemStack.getMaxStackSize()`（空潜影盒返回 64）+ `MixinHopperBlockEntity` 配套改漏斗三方法（`inventoryFull`/`isFullContainer`/`canMergeItems`）。**不可能实现**——改 NMS 全局方法行为，Paper 无 Mixin 无等价（反射改不了方法返回值；Bukkit 事件在服务端 `maxStackSize=1` 前提下 `count < maxStackSize` 恒失败；设 `MAX_STACK_SIZE` 组件是 per-item 且污染序列化）。**已从 `TweaksDataProvider` 删除全部遗留代码（setting / 元数据下发 / 死方法），不下发 `stackingShulkers` 元数据**——否则客户端 tweakeroo 据 `EntityDataManager.checkTweaksConfigs`（自动同步 `TWEAK_SHULKERBOX_STACKING`）开客户端堆叠渲染而服务端不配合 → 不一致。
 
 ### 4. 1.21.11 关键 NMS 约束（与 VeryMcBot 一致，移植时注意）
 

@@ -101,7 +101,7 @@
 | 4.1 | `ServuxEntitiesPacket` + Handler | 移植；`onBlockEntityRequest`/`onEntityRequest`（NMS `saveWithFullMetadata`/`saveWithoutId`） | 实体/方块实体 NBT 查询可用 | [03](03-dataproviders-detail.md) §2 |
 | 4.2 | 玩家背包/末影箱权限过滤 | 复用 Entities 的权限节点 | 无权限时 NBT 脱敏 | [03](03-dataproviders-detail.md) §2.2 |
 | 4.3 | `NbtView` 重写 | 直接 NMS `Entity.saveWithoutId`，绕开 `IMixinNbtRead/WriteView` | 不依赖 Mixin | [04](04-mixin-analysis.md) §5 |
-| 4.4 | `ServuxTweaksPacket` + Handler | 元数据（stackingShulkers）；NBT 查询复用 Entities | Tweakeroo 元数据握手 OK | [03](03-dataproviders-detail.md) §3 |
+| 4.4 | `ServuxTweaksPacket` + Handler | 元数据握手；NBT 查询复用 Entities（潜影盒堆叠未实现，见 [04](04-mixin-analysis.md) §4） | Tweakeroo 元数据握手 OK | [03](03-dataproviders-detail.md) §3 |
 
 > 注：潜影盒"可堆叠"服务端行为省略（[04](04-mixin-analysis.md) 降级），仅下发元数据。
 

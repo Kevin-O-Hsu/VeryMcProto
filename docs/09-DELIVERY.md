@@ -84,7 +84,7 @@ verymc.top.veryMcProto/
 ### 3.3 Mixin 三段式处置（无 Mixin 运行时）
 - **读私有字段** → 反射（`Reflect`，缓存 + 防御）。如 `ServerTickRateManager.remainingSprintTicks`、`TagValueOutput.output`。
 - **采集触发/生命周期** → Bukkit 事件 / 周期扫描（如天气周期读、Structures 周期扫描）。
-- **改服务端行为**（EasyPlace/UpdateSuppression/潜影盒堆叠/Allay）→ 降级省略（见 §6）。
+- **改服务端行为**（EasyPlace/UpdateSuppression/Allay）→ 降级省略（见 §6）；潜影盒堆叠不可能实现（已删代码，见 §6）。
 
 ---
 
@@ -131,8 +131,7 @@ verymc.top.veryMcProto/
 
 ### 5.3 Tweaks（servux:tweaks，协议版本 1）
 - NBT 查询复用 `EntitiesDataProvider` 权限方法。
-- 元数据下发 `stackingShulkers/stackingShulkersMax` 保留。
-- **降级**：潜影盒"可堆叠"服务端行为省略（仅下发元数据让客户端配合显示，服务端不真堆叠）。
+- **潜影盒堆叠——不可能实现，已删除**：原版 Mixin 改 `ItemStack.getMaxStackSize()` / `HopperBlockEntity` 全局行为，Paper 无 Mixin 无法等价。已从 provider 删除 `stackable_shulkers` 系列 setting 与 `stackingShulkers/stackingShulkersMax` 元数据下发（避免客户端 tweakeroo 自动开堆叠渲染而服务端不配合 → 不一致）。
 - 修正原版 `ResponseS2CData` L120/121 重复赋值 bug。
 
 ### 5.4 Structures（servux:structures，协议版本 2）
@@ -156,7 +155,7 @@ verymc.top.veryMcProto/
 |---|---|---|---|
 | **EasyPlace**（Tweakeroo 精确放置） | Mixin BlockItem/NetworkHandler | 省略（选做：PacketEvents 拦截） | 协议非必需 |
 | **UpdateSuppression** | Mixin Level/WorldChunk | 省略 | 协议非必需 |
-| **潜影盒可堆叠** | Mixin ItemStack/Hopper | 省略（仅下发元数据） | 客户端配合显示，服务端不堆叠 |
+| **潜影盒可堆叠** | Mixin ItemStack/Hopper | ⛔ 不可能实现（已删代码） | 改 NMS 全局方法行为，Paper 无等价；不下发元数据避免客户端误判 |
 | **Allay 收集修复** | Mixin Mob/ItemEntity/Allay | 省略 | 影响小 |
 | **镜像修复**（箱子/铁轨/楼梯） | Mixin Block | 内联到粘贴代码 | Litematica 粘贴时修正 |
 | **/data get 权限覆盖** | Mixin NetworkHandler | 用 Bukkit op 权限 | 等价 |

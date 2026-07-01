@@ -217,7 +217,7 @@ long sprint = Reflect.get(tickManager, "remainingSprintTicks");  // Mojang 名
 | **实体/方块实体 NBT 查询** | MixinServerPlayNetworkHandler_QueryNbt | ✅ **做**（NMS saveWith*） | P1 | 权限走 Bukkit |
 | **结构边界框** | MixinServerChunkLoadingManager | ✅ **做**（NMS getAllReferences，周期扫描触发） | P2 | 工作量最大 |
 | **Litematica 投影投递/粘贴** | MixinChestBlock/Rail/Stairs（镜像） | ✅ **做**（投影照抄 + 镜像修复**内联**到粘贴） | P2 | 见 [05](05-schematic-system.md) |
-| **潜影盒可堆叠** | MixinItemStack/Hopper | ⚠️ **降级省略** | P3 | 改行为，Paper 无 Mixin；Tweaks provider 仍可下发元数据（客户端配合显示），但服务端不真生效 |
+| **潜影盒可堆叠** | MixinItemStack/Hopper | ⛔ **不可能实现** | P3 | 改 NMS 方法全局返回行为，Paper 无 Mixin；已删 Tweaks provider 相关遗留代码（不下发 stackingShulkers 元数据，避免客户端误判）。详见 [04](04-mixin-analysis.md) §4 |
 | **Allay 收集修复** | MixinMob/ItemEntity/Allay | ⚠️ **省略** | P4 | 改行为，影响小 |
 | **EasyPlace**（Tweakeroo 精确放置） | MixinBlockItem_EasyPlace + MixinServerPlayNetworkHandler_EasyPlace | ⚠️ **降级/选做** | P3 | 需 PacketEvents 拦截 `ServerboundUseItemOnPacket` 自行放置；先省略，后续补 |
 | **UpdateSuppression** | MixinWorld/WorldChunk/Block | ❌ **省略** | P4 | 改行为，Paper 无等价，省略 |
@@ -303,6 +303,6 @@ load: POSTWORLD
 | 网络协议字节 | **100%** | 同一 `FriendlyByteBuf`/`CompoundTag`，字节级一致 |
 | 通道/版本号 | **100%** | 通道名、协议版本号保持原版 |
 | 数据采集 | **≈95%** | 绝大多数 NMS 直连；TPS/MobCap 个别字段（sprintTicks）反射可能版本敏感 |
-| 服务端行为改造 | **部分降级** | 潜影盒堆叠/EasyPlace/UpdateSuppression/Allay 省略 |
+| 服务端行为改造 | **部分降级** | EasyPlace/UpdateSuppression/Allay 省略；潜影盒堆叠不可能实现（已删代码） |
 
 > **结论**：对"Fabric 客户端 + Paper 服务端"的核心使用场景（HUD/结构/投影/实体查询），可达到与原版 Servux **功能等价**；仅少数"服务端行为增强"特性降级，且均不影响协议主功能。

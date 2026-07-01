@@ -18,7 +18,7 @@ servux 共 5 条通道，对应 **3 个 masa 客户端 mod**。映射关系由�
 | `servux:hud_metadata` | 2 | **MiniHUD** (`ServuxHudHandler`) | spawn / seed / 天气 / TPS / MobCap HUD | ✅ 已验证 |
 | `servux:structure_bounding_boxes` | 2 | **MiniHUD** (`ServuxStructuresHandler`) | 结构边界框渲染 | ✅ 已验证 |
 | `servux:entity_data` | 1 | **MiniHUD** (`ServuxEntitiesHandler`) | 实体 / 方块实体 NBT 查询 | ✅ 已验证 |
-| `servux:tweaks` | 1 | **Tweakeroo** (`ServuxTweaksHandler`) | NBT 查询 + **潜影盒堆叠配置同步** | ❓ **待测** |
+| `servux:tweaks` | 1 | **Tweakeroo** (`ServuxTweaksHandler`) | NBT 查询（潜影盒堆叠未实现） | ❓ **待测** |
 | `servux:litematics` | 1 | **Litematica** (`ServuxLitematicaHandler`) + Tweakeroo | NBT 查询 + **批量区块 NBT 拉取** + 投影传输/粘贴 | ❓ **待测** |
 
 > **itemscroller 不碰任何 servux 通道**（源码无 `servux` namespace 引用），无需测试。
@@ -31,7 +31,7 @@ servux 共 5 条通道，对应 **3 个 masa 客户端 mod**。映射关系由�
 | 顺序 | 目标 | 为什么 |
 |---|---|---|
 | **1** | **Litematica**（`servux:litematics`） | 验证点最丰富、最直观：握手 + **保存投影触发批量 NBT（聊天框可见反馈）** |
-| **2** | **Tweakeroo**（`servux:tweaks`） | 握手 + 潜影盒堆叠配置同步（需改服务端配置） |
+| **2** | **Tweakeroo**（`servux:tweaks`） | 握手 + NBT 查询（潜影盒堆叠未实现） |
 
 ---
 
@@ -190,11 +190,8 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 源自 `OriginImpl/tweakeroo-*/.../data/EntityDataManager.java` + `network/ServuxTweaksHandler.java`：
 
 1. **握手 + NBT 查询**：与 Litematica 同构（`entityDataSync` 开 → C2S 拉取 → 缓存）。
-2. **潜影盒堆叠配置同步** ⭐（tweaks 通道独有）：`receiveServuxMetadata` → `checkTweaksConfigs`
-   （`EntityDataManager.java:420`）—— 收到服务端下发的 `stackingShulkers` / `stackingShulkersMax`
-   → 自动同步到客户端 `TWEAK_SHULKERBOX_STACKING` 开关与 `SHULKER_MAX_STACK_SIZE`。
 
-> 我们的插件 `TweaksDataProvider.sendMetadata` 仅当 `stackable_shulkers=true` 时才下发这两个字段。
+> **潜影盒堆叠——未实现（不可能实现）**：原版通过 tweaks 通道下发 `stackingShulkers` / `stackingShulkersMax` 元数据，客户端 `EntityDataManager.checkTweaksConfigs`（`EntityDataManager.java:420`）收到后**自动**开启 `TWEAK_SHULKERBOX_STACKING` 客户端堆叠渲染。但“真正可堆叠”靠服务端 Mixin 改 `ItemStack.getMaxStackSize()` 全局行为——Paper 无 Mixin 无法等价（详见 [`04`](04-mixin-analysis.md) §4）。若只下发元数据而不做服务端堆叠，会导致客户端显示可堆叠、服务端按原上限拆开的**不一致**。故本插件**已删除** `stackable_shulkers` 系列 setting，**不下发** `stackingShulkers` 元数据——这是正确的降级，非 bug。
 
 ### 6.2 测试 A：握手（必做，前置）
 
@@ -204,30 +201,11 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 - **预期服务端日志**：`[DBG/HANDSHAKE] tweaks sendMetadata → <玩家> ok=true ... keys=[...]`
 - **预期客户端日志**：`tweaksDataChannel: joining Servux version servux-paper-...`
 
-### 6.3 测试 B：潜影盒堆叠配置同步 ⭐ tweaks 独有
+### 6.3 测试 B：实体 / 方块实体 NBT 查询
 
-**目的**：验证服务端配置变更能下发到客户端并生效。
+与 §5 Litematica 的 NBT 查询同构（`entityDataSync` 开 → 对实体/方块实体发 C2S 查询 → 服务端 `onEntityRequest` / `onBlockEntityRequest` 回 NBT）。判据参考 §5.3。
 
-| 步骤 | 操作 |
-|---|---|
-| 1 | 服务端编辑 `servux.json`：`tweaks_data.stackable_shulkers` 改为 `true`（可选改 `stackable_shulkers_count`，如 `16`） |
-| 2 | `/servux reload`（或重启）使配置生效 |
-| 3 | 客户端确保 `entityDataSync` 开（握手前提） |
-| 4 | 客户端进服 / 重连，触发握手 |
-
-**预期（成功判据）**：
-
-- ✅ 服务端日志：`tweaks sendMetadata → <玩家> ... keys=[stackingShulkers, stackingShulkersMax, ...]`
-  （`keys` 里出现 `stackingShulkers` 说明已下发该字段）
-- ✅ 客户端日志：`checkTweaksConfigs: stackingShulkers: [true]` 与 `stackingShulkersMax: [16]`
-- ✅ 客户端行为：打开 Tweakeroo 配置，`tweakShulkerBoxStacking` 开关被自动设为 `true`（配置同步生效）
-
-### 6.4 降级说明（非 bug）
-
-| 功能 | 状态 | 表现 |
-|---|---|---|
-| 配置下发（`stackingShulkers` / `Max`） | ✅ 已实现 | 上述测试 B 覆盖 |
-| 服务端潜影盒堆叠行为（真正改变堆叠上限） | ❌ 已降级 | 原版用 Mixin 改 `ItemStack` / `Hopper` 逻辑，Paper 无 Mixin，**省略**。客户端虽收到配置并在本地堆叠，但服务端不认 → 重新拾起 / 移动时会被服务端按原上限拆开。**这是已知的、文档化的降级**，非测试失败。详见 [`04-mixin-analysis.md`](04-mixin-analysis.md) |
+> tweaks 通道**不再有**潜影盒堆叠配置同步测试（功能已删除，见上文）。
 
 ---
 
@@ -264,7 +242,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 | `C2S <通道> ← <玩家> type=PACKET_C2S_METADATA_REQUEST` | 客户端主动发起握手 |
 | `<provider> sendMetadata → <玩家> ok=true servux=... ver=N` | 服务端握手成功回程 |
 | `C2S <通道> ← <玩家> type=PACKET_C2S_BULK_ENTITY_NBT_REQUEST` | Litematica 保存投影触发的批量请求 |
-| `<provider> sendMetadata ... keys=[...]` | 下发的 metadata 字段集合（tweaks 看是否含 stackingShulkers） |
+| `<provider> sendMetadata ... keys=[...]` | 下发的 metadata 字段集合 |
 
 ### 7.3 协议版本不匹配告警
 
@@ -289,13 +267,13 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 |---|---|---|
 | 投影文件传输（服务器→客户端投递投影） | litematics | ✅ 已实现（`/servux litematic transmit`） |
 | 投影粘贴（C2S 上传放置） | litematics | ✅ 已实现（客户端上传 → pasteTo） |
-| 服务端潜影盒堆叠行为 | tweaks | 配置可下发，但服务端不真改堆叠上限 |
+| 服务端潜影盒堆叠行为 | tweaks | ⛔ 不可能实现（已删代码） |
 | EasyPlace（Tweakeroo 服务端配合放置） | servux_main | 降级 / 省略 |
 | UpdateSuppression | — | 省略 |
 | 镜像修复（箱子 180°） | litematics | ✅ 已实现（SchematicPlacingUtils 内联 + fixChestMirror setting）。铁轨/楼梯靠 BlockState.mirror/rotate 自身（原版 Mixin 降级，可能不完美） |
 
 > **已实现且应正常工作的**：所有通道的握手 + 实体/方块实体 NBT 查询 + 批量 NBT 拉取 +
-> HUD 数据 + 结构边界框 + 潜影盒配置下发。
+> HUD 数据 + 结构边界框。
 
 ---
 
@@ -311,7 +289,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 | | litematics | Litematica | 握手 | ⬜ | |
 | | litematics | Litematica | 保存投影批量拉取 | ⬜ | |
 | | tweaks | Tweakeroo | 握手 | ⬜ | |
-| | tweaks | Tweakeroo | 潜影盒配置同步 | ⬜ | |
+| | tweaks | Tweakeroo | NBT 查询 | ⬜ | |
 
 ---
 
@@ -321,6 +299,6 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 |---|---|
 | `OriginImpl/litematica-*/.../data/EntityDataManager.java` | `requestServuxBulkEntityData`（保存投影触发点）、`receiveServuxMetadata`、`onClientTick` 握手条件 |
 | `OriginImpl/litematica-*/.../network/ServuxLitematicaHandler.java` | 客户端通道 `servux:litematics` 收发、`handleBulkData` 任务分发 |
-| `OriginImpl/tweakeroo-*/.../data/EntityDataManager.java` | `checkTweaksConfigs`（潜影盒配置同步）、握手条件 |
+| `OriginImpl/tweakeroo-*/.../data/EntityDataManager.java` | 握手条件（`checkTweaksConfigs` 潜影盒同步已废弃，见 §6.1） |
 | `OriginImpl/tweakeroo-*/.../network/ServuxTweaksHandler.java` | 客户端通道 `servux:tweaks` 收发 |
 | 我们的插件 | `mod/servux/dataproviders/LitematicsDataProvider.java`、`TweaksDataProvider.java`、`mod/servux/network/Servux*Litematica/Tweaks*Handler.java` |

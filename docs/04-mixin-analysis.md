@@ -24,7 +24,7 @@
 |---|---|---|---|---|
 | `MixinBlock_UpdateSuppression` | `Block` | `@Inject("popResource", HEAD, cancellable)` 抑制下掉落 | UpdateSuppression | **C 省略** |
 | `MixinChestBlock` | `ChestBlock` | `@Inject("mirror", HEAD, cancellable)` 修双联箱镜像 | Litematics | **C 内联**：粘贴时修正 |
-| `MixinHopperBlockEntity` | `HopperBlockEntity` | `@WrapOperation("inventoryFull"/"isFullContainer" getMaxStackSize)` + `@Inject("canMergeItems")` 修可堆叠潜影盒漏斗行为 (priority 999) | Tweaks | **C 省略** |
+| `MixinHopperBlockEntity` | `HopperBlockEntity` | `@WrapOperation("inventoryFull"/"isFullContainer" getMaxStackSize)` + `@Inject("canMergeItems")` 修可堆叠潜影盒漏斗行为 (priority 999) | Tweaks | **C 不可能实现**（与 MixinItemStack 配套改 NMS 全局方法行为；单独做无意义） |
 | `MixinRailBlocks` | `RailBlock`/`DetectorRailBlock`/`PoweredRailBlock` | `@Inject("rotate", HEAD, cancellable)` 修铁轨 180° 旋转 | Litematics | **C 内联** |
 | `MixinStairsBlock` | `StairBlock` | `@Inject("mirror", HEAD, cancellable)` 修楼梯 X 轴镜像 + 形状翻转 | Litematics | **C 内联** |
 
@@ -59,9 +59,11 @@
 | Mixin | 目标 | 注入 | 归属 | 迁移 |
 |---|---|---|---|---|
 | `MixinBlockItem_EasyPlace` | `BlockItem` | `@Inject("getPlacementState", HEAD, cancellable)` (priority 1010)：权限检查 + `PlacementHandler.applyPlacementProtocolV3` | EasyPlace | **C 降级**（PacketEvents 拦截 `ServerboundUseItemOnPacket`，或省略） |
-| `MixinItemStack` | `ItemStack` | `@Inject("getMaxStackSize", RETURN, cancellable)` 空潜影盒可堆叠 | Tweaks | **C 省略** |
+| `MixinItemStack` | `ItemStack` | `@Inject("getMaxStackSize", RETURN, cancellable)` 空潜影盒可堆叠 | Tweaks | **C 不可能实现**（见下） |
 
 > **EasyPlace 迁移**：见 [07](07-migration-architecture.md) §降级矩阵。最务实先省略（仅影响 Tweakeroo 的精确放置协议）。
+>
+> **潜影盒堆叠——不可能实现**：`MixinItemStack` 改 `ItemStack.getMaxStackSize()` 全局返回值（空潜影盒返回 64），`MixinHopperBlockEntity` 配套改漏斗三方法（`inventoryFull`/`isFullContainer`/`canMergeItems`）。这是改 NMS 核心方法的全局行为，Paper 无 Mixin 运行时无任何 API 等价：反射改不了方法返回值；Bukkit 事件在服务端 `maxStackSize=1` 前提下无法模拟合并（`count < maxStackSize` 恒失败）；设 `MAX_STACK_SIZE` 组件是 per-item 且污染序列化。**已从 `TweaksDataProvider` 删除全部相关遗留代码（setting / 元数据下发 / 死方法），不下发 `stackingShulkers` 元数据**——否则客户端 tweakeroo 据 `EntityDataManager.checkTweaksConfigs` 自动开堆叠渲染而服务端不配合 → 不一致。
 
 ---
 

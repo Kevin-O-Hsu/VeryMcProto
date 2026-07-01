@@ -358,7 +358,7 @@ ServerInitHandler ←─ ModInitializer.onInitialize / Servux.onInitialize() ←
 - **NMS 依赖**: `CompoundTag`, `ListTag`, `BlockPos`, `Identifier`, `MinecraftServer`, `ServerPlayer`, `ProfilerFiller`, `Entity`, `EntityType`, `ItemStack`, `DataComponents`, `BlockEntity`, `NbtView`, `InventoryUtils`(util), `ServuxTweaksHandler/Packet`
 - **Mixin/AW**: `stackable_shulkers` 由 `MixinItemStack`/`MixinHopper`（CLAUDE.md §2 第三类）实现真正的堆叠行为。本 provider 仅提供配置 + 元数据下发。
 - **权限节点**: `servux.provider.tweaks_data`
-- **迁移方式**: 适配。`ItemStack.getComponents().getOrDefault(DataComponents.MAX_STACK_SIZE,1)` 在 paperweight 可直用。`Permissions.check`→`hasPermission`。**堆叠 Mixin 行为在 Paper 降级/省略**（CLAUDE.md §3）——本 provider 仍可正常下发元数据，但服务端不会真把潜影盒堆叠。
+- **迁移方式**: 适配。`ItemStack.getComponents().getOrDefault(DataComponents.MAX_STACK_SIZE,1)` 在 paperweight 可直用。`Permissions.check`→`hasPermission`。**堆叠 Mixin 行为在 Paper 不可能实现**（CLAUDE.md §3）——已从 provider 删除 `stackable_shulkers` 系列 setting 与 `stackingShulkers` 元数据下发（避免客户端 tweakeroo 自动开堆叠渲染而服务端不配合 → 不一致），服务端不堆叠。详见 `docs/04-mixin-analysis.md` §4。
 - **歧义/风险点**:
   1. `onBlockEntityRequest` 用 `saveWithoutMetadata`（不含位置/id 元数据），与 Entities 的 `saveWithFullMetadata` 区别必须保留。
   2. `configDirty` 的 tick 刷新依赖 DataProviderManager.tickProviders 正常调度。

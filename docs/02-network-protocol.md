@@ -26,7 +26,7 @@ Servux 用的是 **Mojang 在 1.20.2+ 引入的原版 `CustomPacketPayload`** �
 |---|---|---|---|---|---|
 | `servux:main` | **2** | `HudDataProvider` | `ServuxHudPacket` | **MiniHUD** | 世界元数据 / 出生点 / 天气 / 配方 / TPS·MobCap logger |
 | `servux:entity_data` | 1 | `EntitiesDataProvider` | `ServuxEntitiesPacket` | MiniHUD / Tweakeroo | 方块实体 & 实体 NBT 查询（含玩家背包权限过滤） |
-| `servux:tweaks_data` | 1 | `TweaksDataProvider` | `ServuxTweaksPacket` | Tweakeroo | 潜影盒堆叠等 tweak 元数据 + NBT 查询 |
+| `servux:tweaks_data` | 1 | `TweaksDataProvider` | `ServuxTweaksPacket` | Tweakeroo | NBT 查询（潜影盒堆叠未实现，见 [04](04-mixin-analysis.md)） |
 | `servux:structure_bounding_boxes` | **2** | `StructureDataProvider` | `ServuxStructuresPacket` | MiniHUD | 原版结构边界框（村庄/神殿/要塞…） |
 | `servux:litematic_data` | 1 | `LitematicsDataProvider` | `ServuxLitematicaPacket` | **Litematica** | Litematica 投影投递 / 粘贴 / 批量实体数据 |
 
