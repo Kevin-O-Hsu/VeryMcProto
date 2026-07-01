@@ -16,6 +16,7 @@ import verymc.top.veryMcProto.mod.syncmatica.service.DebugService;
 import verymc.top.veryMcProto.mod.syncmatica.service.IService;
 import verymc.top.veryMcProto.mod.syncmatica.service.JsonConfiguration;
 import verymc.top.veryMcProto.mod.syncmatica.service.QuotaService;
+import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaDebug;
 import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaLog;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -143,6 +144,7 @@ public class SyncmaticaContext
 
     public void shutdown()
     {
+        saveConfiguration();
         quota.shutdown();
         debugService.shutdown();
         isStarted = false;
@@ -208,6 +210,50 @@ public class SyncmaticaContext
             {
                 SyncmaticaLog.error("loadConfiguration(): Exception loading config file '{}'; {}", f.getFileName(), e.getLocalizedMessage());
             }
+        }
+
+        // 恢复 SyncmaticaDebug 状态（master + 分类）——顶层 "debugLog" 子对象。缺 key 则保持默认 false/空（默认关）。
+        if (attemptToLoad && configuration.has("debugLog"))
+        {
+            try
+            {
+                SyncmaticaDebug.SYS.restore(configuration.getAsJsonObject("debugLog"));
+            }
+            catch (final Exception e)
+            {
+                SyncmaticaLog.error("loadConfiguration(): restore debugLog failed; {}", e.getLocalizedMessage());
+            }
+        }
+    }
+
+    /**
+     * 保存配置到磁盘：重读现有 config（保留 quota/debug service 段不被覆盖），写入 SyncmaticaDebug 快照（"debugLog"），落盘。
+     * 由命令切换与 {@link #shutdown()} 调用。文件不存在/损坏则从空对象重建。
+     */
+    public void saveConfiguration()
+    {
+        JsonObject configuration;
+        try
+        {
+            configuration = new Gson().fromJson(new BufferedReader(new FileReader(getConfigFile().toFile())), JsonObject.class);
+            if (configuration == null)
+            {
+                configuration = new JsonObject();
+            }
+        }
+        catch (final Exception ignored)
+        {
+            configuration = new JsonObject();
+        }
+        configuration.add("debugLog", SyncmaticaDebug.SYS.snapshot());
+        try (final Writer writer = new BufferedWriter(new FileWriter(getAndCreateConfigFile().toFile())))
+        {
+            final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            writer.write(gson.toJson(configuration));
+        }
+        catch (final Exception e)
+        {
+            SyncmaticaLog.error("saveConfiguration(): Exception saving config file; {}", e.getLocalizedMessage());
         }
     }
 

@@ -141,7 +141,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
      *   <li>{@code /servux debug cat all|none} —— 全开/清空<b>分类</b>；</li>
      *   <li>{@code /servux debug cat <name>} —— 切换单个分类（lifecycle/handshake/network/packet/tick/permission/provider/config）。</li>
      * </ul>
-     * <p>注：命令切换<b>不持久化</b>（重启/reload 恢复为配置值）；需持久请 {@code /servux set servux_main:debug_log true}。
+     * <p>命令切换<b>即时持久化</b>到 {@code servux.json}（master + 分类各自独立保存），重启后完全恢复。
      */
     /**
      * /servux litematic —— Litematica 投影管理（mod 层）。
@@ -208,30 +208,39 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
         String sub = args[1].toLowerCase();
         switch (sub)
         {
-            // master 总开关维度：on/off 只管 master 死活，绝不越权动分类（分类是正交的另一维度）。
+            // master 总开关维度：on/off 只管 master 死活，绝不越权动分类（分类是正交的另一维度）。切换即时持久化。
             case "on" ->
             {
                 ServuxDebug.setMaster(true);
                 String tip = ServuxDebug.active().isEmpty() ? " §7(分类为空，用 §f/servux debug cat all§7 开全分类)" : "";
                 sender.sendMessage("§a调试总开关已开启 §7(仅 master): §f" + ServuxDebug.statusLine() + tip);
+                persistDebug();
             }
-            case "off" -> { ServuxDebug.setMaster(false); sender.sendMessage("§e调试总开关已关闭 §7(仅 master): §f" + ServuxDebug.statusLine()); }
+            case "off" -> { ServuxDebug.setMaster(false); sender.sendMessage("§e调试总开关已关闭 §7(仅 master): §f" + ServuxDebug.statusLine()); persistDebug(); }
             case "status" -> sender.sendMessage("§6调试状态: §f" + ServuxDebug.statusLine());
-            // 分类维度：全部归到 cat 下。all/none 是 cat 的特殊值（set 语义，全开/清空）；单个 name 走 toggle。
+            // 分类维度：全部归到 cat 下。all/none 是 cat 的特殊值（set 语义，全开/清空）；单个 name 走 toggle。切换即时持久化。
             case "cat" ->
             {
                 if (args.length < 3) { sender.sendMessage("§e/servux debug cat <all|none|分类名>"); return; }
                 String catName = args[2].toLowerCase();
-                if (catName.equals("all")) { ServuxDebug.enableAll(); sender.sendMessage("§a已开启全分类: §f" + ServuxDebug.statusLine()); return; }
-                if (catName.equals("none")) { ServuxDebug.clearCats(); sender.sendMessage("§e已清空全分类: §f" + ServuxDebug.statusLine()); return; }
+                if (catName.equals("all")) { ServuxDebug.enableAll(); sender.sendMessage("§a已开启全分类: §f" + ServuxDebug.statusLine()); persistDebug(); return; }
+                if (catName.equals("none")) { ServuxDebug.clearCats(); sender.sendMessage("§e已清空全分类: §f" + ServuxDebug.statusLine()); persistDebug(); return; }
                 ServuxDebug.Cat cat = ServuxDebug.parseCat(args[2]);
                 if (cat == null) { sender.sendMessage("§c未知分类: " + args[2] + " §7(all|none|分类名)"); return; }
                 boolean now = ServuxDebug.toggle(cat);
                 sender.sendMessage("§a分类 " + cat.name().toLowerCase() + " → " + (now ? "§aON" : "§cOFF"));
                 sender.sendMessage("§7当前: §f" + ServuxDebug.statusLine());
+                persistDebug();
             }
             default -> sender.sendMessage("§c未知子命令: " + sub + " §7(on/off/cat/status)");
         }
+    }
+
+    /** 把当前 servux 调试状态（master + 分类）同步回 settings 并即时落盘 servux.json。 */
+    private void persistDebug()
+    {
+        ConfigProvider.INSTANCE.syncFrameworkToSettings();
+        DataProviderManager.INSTANCE.writeToConfig();
     }
 
     @Override

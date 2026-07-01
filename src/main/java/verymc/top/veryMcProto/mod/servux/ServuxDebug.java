@@ -71,6 +71,8 @@ public final class ServuxDebug
     public static boolean toggleMaster() { return SYS.toggleMaster(); }
     public static boolean isOn(Cat cat) { return SYS.isOn(cat); }
     public static Set<Cat> active() { return SYS.active(); }
+    /** 当前启用分类的小写名集合（持久化导出用）。 */
+    public static Set<String> activeNames() { return SYS.activeNames(); }
     public static void enable(Cat cat) { SYS.enable(cat); }
     public static void disable(Cat cat) { SYS.disable(cat); }
     public static boolean toggle(Cat cat) { return SYS.toggle(cat); }

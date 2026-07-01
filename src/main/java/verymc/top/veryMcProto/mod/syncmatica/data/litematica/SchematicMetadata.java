@@ -496,13 +496,4 @@ public class SchematicMetadata
         return "SchematicMetadata[" + nbt.toString() + "]";
     }
 
-    /**
-     * FOR DEBUGGING PURPOSES ONLY
-     */
-    public void dumpMetadata()
-    {
-        System.out.print("SchematicMetadata() DUMP -->\n");
-        System.out.printf("   %s\n", this.toString());
-        System.out.print("<END>\n");
-    }
 }

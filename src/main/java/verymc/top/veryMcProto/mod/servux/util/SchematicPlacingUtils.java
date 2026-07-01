@@ -31,6 +31,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.ticks.LevelTicks;
 import net.minecraft.world.ticks.ScheduledTick;
 
+import verymc.top.veryMcProto.mod.servux.ServuxDebug;
 import verymc.top.veryMcProto.mod.servux.util.Log;
 import verymc.top.veryMcProto.mod.servux.dataproviders.LitematicsDataProvider;
 import verymc.top.veryMcProto.mod.servux.schematic.LitematicaSchematic;
@@ -169,8 +170,8 @@ public class SchematicPlacingUtils
 
         if (startX < 0 || startZ < 0 || endX >= container.getSize().getX() || endZ >= container.getSize().getZ())
         {
-            System.out.printf("DEBUG ============= OUT OF BOUNDS - region: %s, sx: %d, sz: %d, ex: %d, ez: %d - size x: %d z: %d =============\n",
-                              regionName, startX, startZ, endX, endZ, container.getSize().getX(), container.getSize().getZ());
+            ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, String.format("OUT OF BOUNDS - region: %s, sx: %d, sz: %d, ex: %d, ez: %d - size x: %d z: %d",
+                              regionName, startX, startZ, endX, endZ, container.getSize().getX(), container.getSize().getZ()));
             return false;
         }
 

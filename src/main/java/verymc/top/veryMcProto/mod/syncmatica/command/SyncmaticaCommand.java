@@ -117,7 +117,7 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
      * </ul>
      * <p>诊断 syncmatica 不可用：先 {@code /syncmatica debug on}，再 {@code /syncmatica debug cat all}（或单独 handshake/network/packet），
      * 观察握手链路：声明通道 → tryStartHandshake → init 推 REGISTER_VERSION → 客户端回版本 → FeatureSet → CONFIRM_USER → broadcastTargets。
-     * 命令切换不持久化（重启恢复为配置值）。
+     * 命令切换即时持久化到 {@code syncmatica-config.json}（master + 分类各自独立保存），重启后完全恢复。
      */
     private void handleDebug(final CommandSender sender, final String[] args)
     {
@@ -139,12 +139,13 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
                 SyncmaticaDebug.setMaster(true);
                 final String tip = SyncmaticaDebug.active().isEmpty() ? " §7(分类为空，用 §f/syncmatica debug cat all§7 开全分类)" : "";
                 sender.sendMessage("§a调试总开关已开启 §7(仅 master): §f" + SyncmaticaDebug.statusLine() + tip);
+                context.saveConfiguration();
             }
-            case "off" -> { SyncmaticaDebug.setMaster(false); sender.sendMessage("§e调试总开关已关闭 §7(仅 master): §f" + SyncmaticaDebug.statusLine()); }
+            case "off" -> { SyncmaticaDebug.setMaster(false); sender.sendMessage("§e调试总开关已关闭 §7(仅 master): §f" + SyncmaticaDebug.statusLine()); context.saveConfiguration(); }
             case "status" -> sender.sendMessage("§6调试状态: §f" + SyncmaticaDebug.statusLine());
             case "s2c" ->
             {
-                // S2C 发送路径切换（诊断 plugin messaging vs NMS DiscardedPayload 直发哪条客户端能响应）。
+                // S2C 发送路径切换（诊断 plugin messaging vs NMS DiscardedPayload 直发哪条客户端能响应）。不持久化（路由诊断开关，非 debug 日志开关）。
                 final boolean now = ExchangeTarget.S2C_VIA_NMS;
                 if (args.length < 3)
                 {
@@ -162,13 +163,14 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
             {
                 if (args.length < 3) { sender.sendMessage("§e/syncmatica debug cat <all|none|分类名>"); return; }
                 final String catName = args[2].toLowerCase();
-                if (catName.equals("all")) { SyncmaticaDebug.enableAll(); sender.sendMessage("§a已开启全分类: §f" + SyncmaticaDebug.statusLine()); return; }
-                if (catName.equals("none")) { SyncmaticaDebug.clearCats(); sender.sendMessage("§e已清空全分类: §f" + SyncmaticaDebug.statusLine()); return; }
+                if (catName.equals("all")) { SyncmaticaDebug.enableAll(); sender.sendMessage("§a已开启全分类: §f" + SyncmaticaDebug.statusLine()); context.saveConfiguration(); return; }
+                if (catName.equals("none")) { SyncmaticaDebug.clearCats(); sender.sendMessage("§e已清空全分类: §f" + SyncmaticaDebug.statusLine()); context.saveConfiguration(); return; }
                 final SyncmaticaDebug.Cat cat = SyncmaticaDebug.parseCat(args[2]);
                 if (cat == null) { sender.sendMessage("§c未知分类: " + args[2] + " §7(all|none|分类名)"); return; }
                 final boolean now = SyncmaticaDebug.toggle(cat);
                 sender.sendMessage("§a分类 " + cat.name().toLowerCase() + " → " + (now ? "§aON" : "§cOFF"));
                 sender.sendMessage("§7当前: §f" + SyncmaticaDebug.statusLine());
+                context.saveConfiguration();
             }
             default -> sender.sendMessage("§c未知子命令: " + sub + " §7(on/off/cat/status)");
         }

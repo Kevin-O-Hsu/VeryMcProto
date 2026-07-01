@@ -1,8 +1,14 @@
 package verymc.top.veryMcProto.framework.debug;
 
+import java.util.Collection;
 import java.util.EnumSet;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Set;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 import verymc.top.veryMcProto.Reference;
 
@@ -130,5 +136,91 @@ public final class DebugSystem<C extends Enum<C>>
         }
         sb.append("]");
         return sb.toString();
+    }
+
+    // ───── 持久化（snapshot/restore：master + 分类集合，供各 mod 配置系统读写） ─────
+
+    /**
+     * 当前启用分类的小写名集合（保序 {@link LinkedHashSet}），供持久化导出。
+     */
+    public Set<String> activeNames()
+    {
+        Set<String> names = new LinkedHashSet<>();
+        for (C c : active)
+        {
+            names.add(c.name().toLowerCase(Locale.ROOT));
+        }
+        return names;
+    }
+
+    /**
+     * 从「master + 分类名集合」恢复（servux setting 体系用）。
+     *
+     * <p>完整设置两个正交维度：master 直接赋值；分类集合按 {@link #parseCat} 容错解析后<b>整体替换</b>
+     * （未知名跳过、不抛异常）。传空集合即清空分类——与「master 与分类独立」的正交语义一致。
+     */
+    public void restore(boolean master, Collection<String> categoryNames)
+    {
+        EnumSet<C> next = EnumSet.noneOf(catType);
+        if (categoryNames != null)
+        {
+            for (String name : categoryNames)
+            {
+                C c = parseCat(name);
+                if (c != null)
+                {
+                    next.add(c);
+                }
+            }
+        }
+        this.master = master;
+        this.active = next;
+    }
+
+    /**
+     * 序列化为可持久化 JSON：{@code {"master":bool, "categories":[小写名]}}（syncmatica JsonObject 配置用）。
+     */
+    public JsonObject snapshot()
+    {
+        JsonObject o = new JsonObject();
+        o.addProperty("master", master);
+        JsonArray arr = new JsonArray();
+        for (String n : activeNames())
+        {
+            arr.add(n);
+        }
+        o.add("categories", arr);
+        return o;
+    }
+
+    /**
+     * 从 JSON 恢复（syncmatica JsonObject 配置用）。容错：缺 {@code master} 保留当前值；
+     * 缺/非数组 {@code categories} 保留当前分类集合；未知名跳过。
+     */
+    public void restore(JsonObject o)
+    {
+        if (o == null)
+        {
+            return;
+        }
+        JsonElement m = o.get("master");
+        if (m != null && m.isJsonPrimitive() && m.getAsJsonPrimitive().isBoolean())
+        {
+            this.master = m.getAsBoolean();
+        }
+        JsonElement c = o.get("categories");
+        if (c != null && c.isJsonArray())
+        {
+            EnumSet<C> next = EnumSet.noneOf(catType);
+            for (JsonElement e : c.getAsJsonArray())
+            {
+                C cat = parseCat(e.getAsString());
+                if (cat != null)
+                {
+                    next.add(cat);
+                }
+            }
+            this.active = next;
+        }
     }
 }

@@ -1,8 +1,11 @@
 package verymc.top.veryMcProto.mod.servux.dataproviders;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.bukkit.command.CommandSender;
+
+import com.google.gson.JsonObject;
 
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -15,6 +18,7 @@ import verymc.top.veryMcProto.framework.settings.IServuxSetting;
 import verymc.top.veryMcProto.framework.settings.IServuxSettingCallback;
 import verymc.top.veryMcProto.framework.settings.ServuxBoolSetting;
 import verymc.top.veryMcProto.framework.settings.ServuxIntSetting;
+import verymc.top.veryMcProto.framework.settings.ServuxStringListSetting;
 import verymc.top.veryMcProto.framework.settings.ServuxStringSetting;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
 
@@ -39,10 +43,12 @@ public class ConfigProvider extends DataProviderBase
     private final ServuxBoolSetting easyPlaceValidatorEnabled = new ServuxBoolSetting(this, "easy_place_validator_enabled", true);
     private final ServuxStringSetting defaultLanguage = new ServuxStringSetting(this, "default_language", "en_us", List.of("en_us"), false);
     private final ServuxBoolSetting debugLog = new ServuxBoolSetting(this, "debug_log", false, new DebugLogCallback());
+    /** 启用的 servux 调试分类（小写名）；与 debug_log 正交——master 开 + 分类开才输出。持久化到 servux.json。 */
+    private final ServuxStringListSetting debugCategories = new ServuxStringListSetting(this, "debug_categories", List.of());
     private final List<IServuxSetting<?>> settings = List.of(
             this.basePermissionLevel, this.adminPermissionLevel,
             this.easyPlacePermissionLevel, this.easyPlaceValidatorEnabled,
-            this.defaultLanguage, this.debugLog
+            this.defaultLanguage, this.debugLog, this.debugCategories
     );
 
     protected ConfigProvider()
@@ -83,22 +89,44 @@ public class ConfigProvider extends DataProviderBase
     }
 
     /**
-     * 把 {@code servux_main:debug_log} 同步到 {@link ServuxDebug} 宏开关。
+     * 把持久化的调试配置（{@code debug_log} master + {@code debug_categories} 分类）恢复到 {@link ServuxDebug}。
      *
-     * <p>开启时自动 {@link ServuxDebug#enableAll()}（全分类），方便排障；关闭则静默。
-     * 由 {@link DebugLogCallback}（命令 {@code /servux set} 触发）与 {@link #onConfigLoaded}（配置文件读取）双入口调用，
-     * 保证「命令即时切换」与「改 servux.json 重启/reload」两条路径都生效。
+     * <p>master 与分类是<b>两个正交维度</b>，各自独立恢复——不再「debug_log=true 自动 enableAll」
+     * （旧语义是命令/配置脱节 bug 的根源：{@code /servux debug off} 只改内存、{@code save} 写入旧值、重启复活）。
+     * 由 {@link DebugLogCallback}（{@code /servux set}）与 {@link #onConfigLoaded}（配置读取）双入口调用。
      */
     public void syncDebugToFramework(boolean debugLogValue)
     {
         boolean on = debugLogValue || ServuxReference.DEV_DEBUG;
-        ServuxDebug.setMaster(on);
+        ServuxDebug.SYS.restore(on, this.debugCategories.getValue());
         if (on)
         {
-            ServuxDebug.enableAll();
-            ServuxDebug.log(ServuxDebug.Cat.CONFIG, "调试宏开关已启用（servux_main:debug_log=" + debugLogValue
-                    + ", DEV_DEBUG=" + ServuxReference.DEV_DEBUG + "），已开启全分类。");
+            ServuxDebug.log(ServuxDebug.Cat.CONFIG, "调试状态已恢复 master=" + on
+                    + "（debug_log=" + debugLogValue + ", DEV_DEBUG=" + ServuxReference.DEV_DEBUG
+                    + "）cats=" + this.debugCategories.getValue());
         }
+    }
+
+    /**
+     * 反向同步：把 {@link ServuxDebug} 当前运行时状态（master + 启用分类）写回 settings，供 {@code writeToConfig} 落盘。
+     *
+     * <p>用 {@code setValueNoCallback} 避免触发 {@link DebugLogCallback} 回环。由 {@link #toJson()} 覆写统一调用，
+     * 保证任何写盘路径（{@code /servux save} / {@code onDisable}）都先同步后序列化，杜绝命令切换后未落盘。
+     */
+    public void syncFrameworkToSettings()
+    {
+        this.debugLog.setValueNoCallback(ServuxDebug.master());
+        this.debugCategories.setValueNoCallback(new ArrayList<>(ServuxDebug.activeNames()));
+    }
+
+    /**
+     * 覆写：序列化前先把 {@link ServuxDebug} 运行时状态同步回 settings。
+     */
+    @Override
+    public JsonObject toJson()
+    {
+        syncFrameworkToSettings();
+        return super.toJson();
     }
 
     @Override
