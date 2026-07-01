@@ -105,7 +105,7 @@ Paper 的 **plugin messaging channel（`namespace:path` 命名）直接映射到
 - **真正的 S2C 瓶颈是原版客户端对 `ClientboundCustomPayload` 的 32767 字节解码上限**——超过会让客户端断连。
 - `PacketSplitter`（`framework/network/PacketSplitter.java`）分片常量：
   - S2C：`MAX_TOTAL_PER_PACKET_S2C = 32_000`，`MAX_PAYLOAD_PER_PACKET_S2C = 31_995`（留余量给 VarInt 头，防御客户端 32767 上限）
-  - C2S：`MAX_TOTAL_PER_PACKET_C2S = 32_767`，`MAX_PAYLOAD_PER_PACKET_C2S = 32_762`
+  - 接收上限：`DEFAULT_MAX_RECEIVE_SIZE_S2C = 64MB`（`receive` 默认用它；C2S 上传如 litematic 粘贴同走此路径，单物理通道不分方向。原版 C2S 专用常量 `MAX_TOTAL_PER_PACKET_C2S` / `MAX_PAYLOAD_PER_PACKET_C2S` / `DEFAULT_MAX_RECEIVE_SIZE_C2S` 已删——零引用死代码，见 docs/TECH_DEBT_AUDIT F006）
 - 大包（Recipe / Litematic 投影 / Structures / 批量实体）必须走 `PacketSplitter` 分片。Syncmatica 文件分片**不复用 `PacketSplitter`**，自写 stop-and-wait（`BUFFER_SIZE=16384`，每片确认）。详见 [`docs/02-network-protocol.md`](docs/02-network-protocol.md) §分片与 [`docs/21-syncmatica-protocol.md`](docs/21-syncmatica-protocol.md) §6。
 
 **C2S 接收命门**：Paper 原版服务端对未注册的 custom payload 会**踢玩家**（"Invalid payload"）。plugin messaging 注册的通道由 Paper 内置路由、不踢人——这正是用 `Messenger.registerIncomingPluginChannel` 接收 C2S 的理由。**握手机制命门**：configuration phase 期间 `sendPluginMessage` 会静默丢弃，客户端收不到。框架用 `PlayerRegisterChannelEvent`（客户端声明通道 = 装了对应 mod = configuration phase 已完成）作为可靠信号，在 `IDataProvider.onPlayerRegisterChannel` / syncmatica `onPlayerRegisterChannel` 重发 metadata / 发起握手。

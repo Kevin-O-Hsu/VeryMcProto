@@ -24,14 +24,13 @@ import net.minecraft.server.level.ServerPlayer;
  */
 public class PacketSplitter
 {
-    // 方案 A：plugin messaging 32KiB 上限。S2C 分片留余量。
+    // 方案 A：plugin messaging 32KiB 上限。S2C 分片留余量（防御客户端 ClientboundCustomPayload 32767 解码上限）。
     public static final int MAX_TOTAL_PER_PACKET_S2C = 32_000;
     public static final int MAX_PAYLOAD_PER_PACKET_S2C = MAX_TOTAL_PER_PACKET_S2C - 5;
 
-    public static final int MAX_TOTAL_PER_PACKET_C2S = 32_767;
-    public static final int MAX_PAYLOAD_PER_PACKET_C2S = MAX_TOTAL_PER_PACKET_C2S - 5;
-
-    public static final int DEFAULT_MAX_RECEIVE_SIZE_C2S = 16_777_216;
+    // 接收端缓冲上限。receive 默认用此（C2S 上传——如 servux litematic 粘贴——也走同一 receive 路径：
+    // plugin messaging 单物理通道不分方向）。原版另有 C2S 专用常量，但本实现 C2S/S2C 共用一通道，
+    // 故只保留一个接收上限（C2S 专用死常量已删——见 docs/TECH_DEBT_AUDIT F006）。DoS 防护最后防线。
     public static final int DEFAULT_MAX_RECEIVE_SIZE_S2C = 67_108_864;
 
     private static final Map<Long, ReadingSession> READING_SESSIONS = new ConcurrentHashMap<>();

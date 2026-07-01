@@ -138,12 +138,12 @@ public interface IServerPayloadData {
 
 ```java
 // PacketSplitter.java:22-27
-public static final int MAX_TOTAL_PER_PACKET_S2C = 1048576;        // 1 MiB（S2C 单包总上限）
-public static final int MAX_PAYLOAD_PER_PACKET_S2C = MAX_TOTAL_PER_PACKET_S2C - 5; // ≈1MiB（留 VarInt 头）
-public static final int MAX_TOTAL_PER_PACKET_C2S = 32767;          // 32 KiB（C2S 单包上限）
-public static final int MAX_PAYLOAD_PER_PACKET_C2S = MAX_TOTAL_PER_PACKET_C2S - 5;
-public static final int DEFAULT_MAX_RECEIVE_SIZE_C2S = 16777216;   // 16 MiB（接收端缓冲上限）
-public static final int DEFAULT_MAX_RECEIVE_SIZE_S2C = 67108864;   // 64 MiB
+public static final int MAX_TOTAL_PER_PACKET_S2C = 32_000;          // S2C 单片总上限（防御客户端 32767 解码上限）
+public static final int MAX_PAYLOAD_PER_PACKET_S2C = MAX_TOTAL_PER_PACKET_S2C - 5; // ≈31995（留 VarInt 头）
+public static final int DEFAULT_MAX_RECEIVE_SIZE_S2C = 67_108_864;  // 64 MiB（接收端缓冲上限；receive 默认用它）
+// 原版另有 MAX_TOTAL_PER_PACKET_C2S / MAX_PAYLOAD_PER_PACKET_C2S / DEFAULT_MAX_RECEIVE_SIZE_C2S
+// 三个 C2S 专用常量，但本实现 C2S/S2C 共用单物理通道，C2S 常量全代码库零引用——已在 F006 删除。
+// C2S 上传（servux litematic 粘贴）的 receive 也走 DEFAULT_MAX_RECEIVE_SIZE_S2C（64MB）。
 ```
 
 > ⚠️ **移植核心风险点**：Bukkit plugin messaging 单包硬上限是 `Messenger.MAX_MESSAGE_SIZE = 32768`（32 KiB），**远小于** S2C 的 1 MiB。详见 [07](07-migration-architecture.md) §网络层 · 字节限制方案。若 Paper 端全程走 plugin messaging，S2C 分片常量须改为 ≤32760。
