@@ -8,6 +8,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
+import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaDebug;
 import verymc.top.veryMcProto.mod.syncmatica.Feature;
 import verymc.top.veryMcProto.mod.syncmatica.SyncmaticaContext;
 import verymc.top.veryMcProto.mod.syncmatica.communication.exchange.DownloadExchange;
@@ -77,11 +78,18 @@ public abstract class CommunicationManager
         }
         if (handler == null)
         {
+            SyncmaticaDebug.log(SyncmaticaDebug.Cat.PACKET, "[syncm] onPacket: 无 exchange 认领 " + type
+                    + " → 走一次性 handle（来自 " + source.getPersistentName() + "）");
             handle(source, type, packetBuf);
         }
-        else if (handler.isFinished())
+        else
         {
-            notifyClose(handler);
+            SyncmaticaDebug.log(SyncmaticaDebug.Cat.PACKET, "[syncm] onPacket: exchange " + handler.getClass().getSimpleName()
+                    + " 认领 " + type + "（来自 " + source.getPersistentName() + "）finished=" + handler.isFinished());
+            if (handler.isFinished())
+            {
+                notifyClose(handler);
+            }
         }
     }
 

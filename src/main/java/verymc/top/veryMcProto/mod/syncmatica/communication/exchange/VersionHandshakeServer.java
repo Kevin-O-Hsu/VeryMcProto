@@ -2,6 +2,7 @@ package verymc.top.veryMcProto.mod.syncmatica.communication.exchange;
 
 import java.util.Collection;
 import net.minecraft.network.FriendlyByteBuf;
+import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaDebug;
 import verymc.top.veryMcProto.mod.syncmatica.SyncmaticaContext;
 import verymc.top.veryMcProto.mod.syncmatica.SyncmaticaReference;
 import verymc.top.veryMcProto.mod.syncmatica.communication.ExchangeTarget;
@@ -37,8 +38,12 @@ public class VersionHandshakeServer extends FeatureExchange
         if (type.equals(PacketType.REGISTER_VERSION))
         {
             partnerVersion = packetBuf.readUtf(PACKET_MAX_STRING_SIZE);
+            SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] VersionHandshakeServer: 收到客户端 REGISTER_VERSION[版本="
+                    + partnerVersion + "] ← " + getPartner().getPersistentName());
             if (!getContext().checkPartnerVersion(partnerVersion))
             {
+                SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] VersionHandshakeServer: checkPartnerVersion 拒绝（客户端版本 "
+                        + partnerVersion + "）→ close(false)");
                 SyncmaticaLog.warn("Denying syncmatica join due to outdated client with local version {} and client version {} from partner {}",
                         SyncmaticaReference.MOD_VERSION, partnerVersion, getPartner().getPersistentName());
                 // same as client - avoid further packets
@@ -48,10 +53,12 @@ public class VersionHandshakeServer extends FeatureExchange
             final FeatureSet fs = FeatureSet.fromVersionString(partnerVersion);
             if (fs == null)
             {
+                SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] VersionHandshakeServer: fromVersionString 返回 null → requestFeatureSet（FEATURE 交换）");
                 requestFeatureSet();
             }
             else
             {
+                SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] VersionHandshakeServer: fromVersionString 命中默认集 → setFeatureSet + onFeatureSetReceive");
                 getPartner().setFeatureSet(fs);
                 onFeatureSetReceive();
             }
@@ -65,10 +72,13 @@ public class VersionHandshakeServer extends FeatureExchange
     @Override
     public void onFeatureSetReceive()
     {
+        final Collection<ServerPlacement> l = getContext().getSyncmaticManager().getAll();
+        SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] VersionHandshakeServer.onFeatureSetReceive: 推 CONFIRM_USER[placementCount="
+                + l.size() + "] → " + getPartner().getPersistentName()
+                + "（local=" + SyncmaticaReference.MOD_VERSION + " client=" + partnerVersion + "）");
         SyncmaticaLog.info("Syncmatica client joining with local version {} and client version {}",
                 SyncmaticaReference.MOD_VERSION, partnerVersion);
         final FriendlyByteBuf newBuf = new FriendlyByteBuf(Unpooled.buffer());
-        final Collection<ServerPlacement> l = getContext().getSyncmaticManager().getAll();
         newBuf.writeInt(l.size());
         for (final ServerPlacement p : l)
         {
@@ -81,6 +91,8 @@ public class VersionHandshakeServer extends FeatureExchange
     @Override
     public void init()
     {
+        SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] VersionHandshakeServer.init: 推 REGISTER_VERSION[服务端版本="
+                + SyncmaticaReference.MOD_VERSION + "] → " + getPartner().getPersistentName());
         final FriendlyByteBuf newBuf = new FriendlyByteBuf(Unpooled.buffer());
         newBuf.writeUtf(SyncmaticaReference.MOD_VERSION);
         getPartner().sendPacket(PacketType.REGISTER_VERSION, newBuf, getContext());

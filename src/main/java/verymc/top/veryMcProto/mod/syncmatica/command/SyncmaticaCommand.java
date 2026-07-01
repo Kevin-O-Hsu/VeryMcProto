@@ -18,6 +18,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
+import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaDebug;
 import verymc.top.veryMcProto.mod.syncmatica.SyncmaticaContext;
 import verymc.top.veryMcProto.mod.syncmatica.communication.ExchangeTarget;
 import verymc.top.veryMcProto.mod.syncmatica.communication.ServerCommunicationManager;
@@ -42,7 +43,7 @@ import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaUtil;
  */
 public class SyncmaticaCommand implements CommandExecutor, TabCompleter
 {
-    private static final String USAGE = "§e/syncmatica §7load [file]";
+    private static final String USAGE = "§e/syncmatica §7load [file] | debug [on|off|cat|status]";
 
     private final SyncmaticaContext context;
     private final HashMap<Path, Pair<SchematicMetadata, SchematicSchema>> files = new HashMap<>();
@@ -89,8 +90,71 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
             return true;
         }
 
+        if (args[0].equalsIgnoreCase("debug"))
+        {
+            if (!sender.hasPermission("syncmatica.command.debug"))
+            {
+                sender.sendMessage("§c权限不足。");
+                return true;
+            }
+            handleDebug(sender, args);
+            return true;
+        }
+
         sender.sendMessage(USAGE);
         return true;
+    }
+
+    /**
+     * /syncmatica debug —— 调试日志宏开关热切换（运行时即时生效，使用 syncmatica 独立的 SyncmaticaDebug，与 /servux debug 互不影响）。
+     *
+     * <p>用法（master 总开关与分类正交，两者皆开才输出）：
+     * <ul>
+     *   <li>{@code /syncmatica debug} / {@code status} —— 查看状态；</li>
+     *   <li>{@code /syncmatica debug on|off} —— 总开关死活（仅 master，不碰分类）；</li>
+     *   <li>{@code /syncmatica debug cat all|none} —— 全开/清空分类；</li>
+     *   <li>{@code /syncmatica debug cat <name>} —— 切换单个分类（lifecycle/handshake/network/packet/exchange）。</li>
+     * </ul>
+     * <p>诊断 syncmatica 不可用：先 {@code /syncmatica debug on}，再 {@code /syncmatica debug cat all}（或单独 handshake/network/packet），
+     * 观察握手链路：声明通道 → tryStartHandshake → init 推 REGISTER_VERSION → 客户端回版本 → FeatureSet → CONFIRM_USER → broadcastTargets。
+     * 命令切换不持久化（重启恢复为配置值）。
+     */
+    private void handleDebug(final CommandSender sender, final String[] args)
+    {
+        if (args.length < 2)
+        {
+            sender.sendMessage("§6调试状态: §f" + SyncmaticaDebug.statusLine());
+            sender.sendMessage("§7用法: §f/syncmatica debug <on|off|status>§7 —— master 总开关 / 状态");
+            sender.sendMessage("§7用法: §f/syncmatica debug cat <all|none|分类名>§7 —— 分类（master 与分类正交，两者皆开才输出）");
+            sender.sendMessage("§7分类: §flifecycle handshake network packet exchange");
+            return;
+        }
+
+        final String sub = args[1].toLowerCase();
+        switch (sub)
+        {
+            case "on" ->
+            {
+                SyncmaticaDebug.setMaster(true);
+                final String tip = SyncmaticaDebug.active().isEmpty() ? " §7(分类为空，用 §f/syncmatica debug cat all§7 开全分类)" : "";
+                sender.sendMessage("§a调试总开关已开启 §7(仅 master): §f" + SyncmaticaDebug.statusLine() + tip);
+            }
+            case "off" -> { SyncmaticaDebug.setMaster(false); sender.sendMessage("§e调试总开关已关闭 §7(仅 master): §f" + SyncmaticaDebug.statusLine()); }
+            case "status" -> sender.sendMessage("§6调试状态: §f" + SyncmaticaDebug.statusLine());
+            case "cat" ->
+            {
+                if (args.length < 3) { sender.sendMessage("§e/syncmatica debug cat <all|none|分类名>"); return; }
+                final String catName = args[2].toLowerCase();
+                if (catName.equals("all")) { SyncmaticaDebug.enableAll(); sender.sendMessage("§a已开启全分类: §f" + SyncmaticaDebug.statusLine()); return; }
+                if (catName.equals("none")) { SyncmaticaDebug.clearCats(); sender.sendMessage("§e已清空全分类: §f" + SyncmaticaDebug.statusLine()); return; }
+                final SyncmaticaDebug.Cat cat = SyncmaticaDebug.parseCat(args[2]);
+                if (cat == null) { sender.sendMessage("§c未知分类: " + args[2] + " §7(all|none|分类名)"); return; }
+                final boolean now = SyncmaticaDebug.toggle(cat);
+                sender.sendMessage("§a分类 " + cat.name().toLowerCase() + " → " + (now ? "§aON" : "§cOFF"));
+                sender.sendMessage("§7当前: §f" + SyncmaticaDebug.statusLine());
+            }
+            default -> sender.sendMessage("§c未知子命令: " + sub + " §7(on/off/cat/status)");
+        }
     }
 
     @Override
@@ -102,6 +166,10 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
             if ("load".startsWith(args[0].toLowerCase()))
             {
                 out.add("load");
+            }
+            if ("debug".startsWith(args[0].toLowerCase()))
+            {
+                out.add("debug");
             }
         }
         else if (args.length == 2 && args[0].equalsIgnoreCase("load"))
@@ -117,6 +185,25 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
                 {
                     out.add(name);
                 }
+            }
+        }
+        else if (args.length == 2 && args[0].equalsIgnoreCase("debug"))
+        {
+            for (final String s : List.of("on", "off", "cat", "status"))
+            {
+                if (s.startsWith(args[1].toLowerCase())) { out.add(s); }
+            }
+        }
+        else if (args.length == 3 && args[0].equalsIgnoreCase("debug") && args[1].equalsIgnoreCase("cat"))
+        {
+            for (final String s : List.of("all", "none"))
+            {
+                if (s.startsWith(args[2].toLowerCase())) { out.add(s); }
+            }
+            for (final SyncmaticaDebug.Cat c : SyncmaticaDebug.Cat.values())
+            {
+                final String n = c.name().toLowerCase();
+                if (n.startsWith(args[2].toLowerCase())) { out.add(n); }
             }
         }
         return out;

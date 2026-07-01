@@ -4,6 +4,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import org.bukkit.entity.Player;
+import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaDebug;
 import verymc.top.veryMcProto.framework.network.IPluginServerPlayHandler;
 import verymc.top.veryMcProto.mod.syncmatica.SyncmaticaContext;
 import verymc.top.veryMcProto.mod.syncmatica.SyncmaticaReference;
@@ -68,6 +69,8 @@ public class SyncmaticaHandler implements IPluginServerPlayHandler
         {
             return;
         }
+        SyncmaticaDebug.log(SyncmaticaDebug.Cat.NETWORK, "[syncm] C2S 收到 syncmatica:main ← " + player.getName().getString()
+                + " bytes=" + data.readableBytes());
         // 解析 [逻辑通道 Identifier][body]（物理包体复合结构）
         final Identifier logicChannel;
         try
@@ -83,9 +86,11 @@ public class SyncmaticaHandler implements IPluginServerPlayHandler
         final PacketType type = PacketType.getType(logicChannel);
         if (type == null)
         {
+            SyncmaticaDebug.log(SyncmaticaDebug.Cat.PACKET, "[syncm] 未知 PacketType " + logicChannel + " ← " + player.getName().getString() + "（丢弃）");
             SyncmaticaLog.warn("SyncmaticaHandler: unknown PacketType {} from {}", logicChannel, player.getName().getString());
             return;
         }
+        SyncmaticaDebug.log(SyncmaticaDebug.Cat.PACKET, "[syncm] C2S PacketType=" + type + " ← " + player.getName().getString());
         // 剩余字节即 body
         final FriendlyByteBuf body = new FriendlyByteBuf(data.readBytes(data.readableBytes()));
 

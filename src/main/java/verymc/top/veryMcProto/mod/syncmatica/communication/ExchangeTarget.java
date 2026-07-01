@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.UUID;
 import org.bukkit.entity.Player;
 import net.minecraft.network.FriendlyByteBuf;
+import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaDebug;
 import verymc.top.veryMcProto.framework.network.ChannelManager;
 import verymc.top.veryMcProto.framework.network.FriendlyByteBufs;
 import verymc.top.veryMcProto.mod.syncmatica.SyncmaticaContext;
@@ -75,6 +76,9 @@ public class ExchangeTarget
         final byte[] bytes = FriendlyByteBufs.extractAndRelease(out);
 
         final boolean ok = ChannelManager.instance().send(SyncmaticaReference.NETWORK_ID, player, bytes);
+        final boolean listening = player.getListeningPluginChannels().contains(SyncmaticaReference.NETWORK_ID.toString());
+        SyncmaticaDebug.log(SyncmaticaDebug.Cat.NETWORK, "[syncm] sendPacket " + type + " → " + persistentName
+                + " bodyBytes=" + body.length + " ok=" + ok + " listening=" + listening);
         if (!ok)
         {
             // 防御性：发送失败（玩家离线 / 通道未注册 outgoing）记录，避免静默丢包

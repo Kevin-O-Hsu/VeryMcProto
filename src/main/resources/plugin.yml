@@ -13,7 +13,7 @@ commands:
     permission: servux.command
   syncmatica:
     description: Syncmatica 投影共享命令（从磁盘加载 .litematic 为服务端 placement）
-    usage: /syncmatica load [file]
+    usage: /syncmatica load [file] | debug [on|off|cat|status]
     permission: syncmatica.command
 permissions:
   servux.command:
@@ -28,3 +28,6 @@ permissions:
   syncmatica.command.load_each:
     description: 允许 /syncmatica load <file>
     default: true
+  syncmatica.command.debug:
+    description: 允许 /syncmatica debug（调试日志宏开关，与 /servux debug 共享全局状态）
+    default: op

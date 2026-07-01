@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import java.util.*;
 import net.minecraft.network.FriendlyByteBuf;
 import org.bukkit.entity.Player;
+import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaDebug;
 import verymc.top.veryMcProto.mod.syncmatica.Feature;
 import verymc.top.veryMcProto.mod.syncmatica.communication.exchange.Exchange;
 import verymc.top.veryMcProto.mod.syncmatica.communication.exchange.DownloadExchange;
@@ -75,13 +76,52 @@ public class ServerCommunicationManager extends CommunicationManager
     public void onPlayerJoin(final ExchangeTarget newPlayer)
     {
         targets.put(newPlayer.getPlayerId(), newPlayer);
-        final VersionHandshakeServer hi = new VersionHandshakeServer(newPlayer, context);
         context.getPlayerIdentifierProvider().updateName(newPlayer.getPlayerId(), newPlayer.getPlayer().getName());
+        SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] onPlayerJoin: 注册 target " + newPlayer.getPersistentName()
+                + "（握手延迟到 onPlayerRegisterChannel，不在此发起）");
+        // Paper 适配命门：此处【不】发起 VersionHandshakeServer。
+        // PlayerJoinEvent 触发时客户端尚未通过 MC|Register 声明 syncmatica:main（getListeningPluginChannels=[]），
+        // 此时 init() 推送的 REGISTER_VERSION 必然 listening=false 被 Fabric 客户端丢弃 → 握手永不完成，
+        // 且残留的 VersionHandshakeServer exchange 会卡住后续 tryStartHandshake 的幂等判断。
+        // 握手延迟到 onPlayerRegisterChannel(syncmatica:main) 由 tryStartHandshake 幂等发起（见 SyncmaticaModule）。
+        // 对应原版差异：Fabric 配置阶段已声明通道，故原版 onPlayerJoin 直推可行；Paper 不行。
+    }
+
+    /**
+     * 幂等发起版本握手（Paper 新增）。
+     *
+     * <p>由 {@code SyncmaticaModule} 在客户端声明 {@code syncmatica:main} 通道时调用
+     * （{@link org.bukkit.event.player.PlayerRegisterChannelEvent}）——此时通道已声明（listening=true），
+     * {@code REGISTER_VERSION} 可达客户端。幂等：已握手成功 / 已有进行中的握手则跳过。
+     */
+    public void tryStartHandshake(final ExchangeTarget target)
+    {
+        if (broadcastTargets.contains(target))
+        {
+            SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] tryStartHandshake: 跳过 " + target.getPersistentName()
+                    + "（已在 broadcastTargets，握手已完成）");
+            return; // 已握手成功（VersionHandshakeServer succeed 后加入 broadcastTargets）
+        }
+        for (final Exchange ex : target.getExchanges())
+        {
+            if (ex instanceof VersionHandshakeServer)
+            {
+                SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] tryStartHandshake: 跳过 " + target.getPersistentName()
+                        + "（已有进行中的 VersionHandshakeServer）");
+                return; // 已有进行中的握手，避免重复发起
+            }
+        }
+        SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] tryStartHandshake: 发起握手 → " + target.getPersistentName()
+                + "（客户端已声明 syncmatica:main）");
+        SyncmaticaLog.info("syncmatica 发起握手 → {}（客户端已声明 syncmatica:main）", target.getPersistentName());
+        final VersionHandshakeServer hi = new VersionHandshakeServer(target, context);
         startExchangeUnchecked(hi);
     }
 
     public void onPlayerLeave(final ExchangeTarget oldPlayer)
     {
+        SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] onPlayerLeave: " + oldPlayer.getPersistentName()
+                + "（关闭其 exchange 链 + 移出 targets/broadcastTargets）");
         final Collection<Exchange> potentialMessageTarget = oldPlayer.getExchanges();
         if (potentialMessageTarget != null)
         {
@@ -230,6 +270,13 @@ public class ServerCommunicationManager extends CommunicationManager
         if (exchange instanceof VersionHandshakeServer && exchange.isSuccessful())
         {
             broadcastTargets.add(exchange.getPartner());
+            SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] 握手成功 → " + exchange.getPartner().getPersistentName()
+                    + " 已加入 broadcastTargets（共 " + broadcastTargets.size() + " 个）");
+        }
+        else if (exchange instanceof VersionHandshakeServer)
+        {
+            SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] 握手失败 → " + exchange.getPartner().getPersistentName()
+                    + "（未加入 broadcastTargets；版本不兼容或 FeatureSet 交换未完成）");
         }
         if (exchange instanceof ModifyExchangeServer && exchange.isSuccessful())
         {

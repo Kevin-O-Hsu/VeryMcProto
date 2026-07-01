@@ -8,8 +8,10 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRegisterChannelEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaDebug;
 import verymc.top.veryMcProto.framework.network.ServerPlayHandler;
 import verymc.top.veryMcProto.mod.syncmatica.SyncmaticaContext;
 import verymc.top.veryMcProto.mod.syncmatica.SyncmaticaReference;
@@ -71,6 +73,8 @@ public class SyncmaticaModule
             {
                 try
                 {
+                    SyncmaticaDebug.log(SyncmaticaDebug.Cat.LIFECYCLE, "[syncm] PlayerJoinEvent: " + e.getPlayer().getName()
+                            + "（注册 target，握手待 onPlayerRegisterChannel）");
                     final ExchangeTarget target = fComMan.getOrCreateTarget(e.getPlayer());
                     fComMan.onPlayerJoin(target);
                 }
@@ -85,6 +89,7 @@ public class SyncmaticaModule
             {
                 try
                 {
+                    SyncmaticaDebug.log(SyncmaticaDebug.Cat.LIFECYCLE, "[syncm] PlayerQuitEvent: " + e.getPlayer().getName() + " → onPlayerLeave");
                     final UUID id = e.getPlayer().getUniqueId();
                     final ExchangeTarget target = fComMan.getTarget(id);
                     if (target != null)
@@ -95,6 +100,28 @@ public class SyncmaticaModule
                 catch (Exception ex)
                 {
                     SyncmaticaLog.error("syncmatica onPlayerLeave failed", ex);
+                }
+            }
+
+            @EventHandler
+            public void onRegisterChannel(final PlayerRegisterChannelEvent e)
+            {
+                // 只关心 syncmatica:main：客户端声明该通道 = 装了 syncmatica mod 的可靠信号（此时 listening=true）。
+                // 这是 Paper 下发起握手的正确时机（PlayerJoinEvent 时通道未声明，推早了必被 Fabric 丢弃）。
+                if (!SyncmaticaReference.NETWORK_ID.toString().equals(e.getChannel()))
+                {
+                    return;
+                }
+                try
+                {
+                    SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] onPlayerRegisterChannel: " + e.getPlayer().getName()
+                            + " 声明 syncmatica:main → tryStartHandshake");
+                    final ExchangeTarget target = fComMan.getOrCreateTarget(e.getPlayer());
+                    fComMan.tryStartHandshake(target);
+                }
+                catch (Exception ex)
+                {
+                    SyncmaticaLog.error("syncmatica onPlayerRegisterChannel failed for {}", ex, e.getPlayer().getName());
                 }
             }
         };
