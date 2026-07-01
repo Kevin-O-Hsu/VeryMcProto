@@ -97,10 +97,17 @@ public class EasyPlaceListener implements PacketListener
                 // （原版 MixinBlockItem 用 getStateForPlacement(ctx) 作基础，但 EasyPlace 语义是客户端已精确决定
                 //  所有属性，defaultBlockState + PlacementHandler 解码即可覆盖；canSurvive validator 兜底挡非法放置。）
                 BlockState baseState = blockItem.getBlock().defaultBlockState();
+                int protocolValue = (int) (hitVec.x - pos.getX()) - 2;
+                ServuxLog.debug("EasyPlace in: block=" + blockItem.getBlock()
+                        + " cursor=" + cursor.x + "," + cursor.y + "," + cursor.z
+                        + " hitVec.x=" + hitVec.x + " protocolValue=" + protocolValue
+                        + " face=" + face + " base=" + baseState);
                 PlacementHandler.UseContext ctx = new PlacementHandler.UseContext(
                         level, pos, face, hitVec, player, hand, null);
 
                 BlockState finalState = PlacementHandler.applyPlacementProtocolV3(baseState, ctx);
+                ServuxLog.debug("EasyPlace out: final=" + finalState
+                        + (finalState != null && finalState.equals(baseState) ? " [未修改]" : ""));
 
                 if (finalState != null && finalState.canSurvive(level, pos))
                 {
