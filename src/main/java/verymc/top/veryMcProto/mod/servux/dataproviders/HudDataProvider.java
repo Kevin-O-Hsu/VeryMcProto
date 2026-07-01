@@ -233,7 +233,7 @@ public class HudDataProvider extends DataProviderBase
                     overworld.isRaining(),
                     overworld.isThundering());
         }
-        catch (Exception ignored) { }
+        catch (Exception e) { ServuxDebug.log(ServuxDebug.Cat.TICK, "pollWeather 天气采集失败（NMS 字段漂移？）: " + e.getMessage()); }
     }
 
     private void setPlayerInvalid(ServerPlayer player)
@@ -543,7 +543,7 @@ public class HudDataProvider extends DataProviderBase
             BlockPos pos = new BlockPos(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
             this.setSpawnPos(new GlobalPos(ServerLevel.OVERWORLD, pos));
         }
-        catch (Exception ignored) { }
+        catch (Exception e) { ServuxDebug.log(ServuxDebug.Cat.TICK, "updateSpawnFromServer 出生点采集失败（NMS 字段漂移？）: " + e.getMessage()); }
     }
 
     public boolean shouldRefreshSpawnMetadata() { return this.refreshSpawnMetadata; }
@@ -635,7 +635,7 @@ public class HudDataProvider extends DataProviderBase
                 ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud onConfigLoaded: 同步出生点 → dim=" + sp.dimension().identifier() + " pos=" + sp.pos());
             }
         }
-        catch (Exception ignored) { }
+        catch (Exception e) { ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud onConfigLoaded 同步出生点异常: " + e.getMessage()); }
     }
 
     public static class BoolCallback implements IServuxSettingCallback<Boolean>
