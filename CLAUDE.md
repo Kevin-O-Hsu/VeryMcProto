@@ -4,9 +4,10 @@
 
 **VeryMcProto** 是一个把 **Fabric 端独特的 Mod Protocol（协议 Mod）** 以纯 Paper 插件形式重新实现的项目。所有实现基于 **Minecraft 1.21.11**，运行在标准 **Paper 1.21.11** 服务端，不依赖任何服务端 patch / Mixin / 私有 fork。
 
-每个被移植的 Mod 独占一个目录单元；原版 Fabric 实现统一存放在 `OriginImpl/` 下用于逐行对照。当前进行中的第一个移植目标：
+每个被移植的 Mod 独占一个目录单元；原版 Fabric 实现统一存放在 `OriginImpl/` 下用于逐行对照。已完成的移植目标：
 
-- **Servux**（`OriginImpl/servux-LTS-1.21.11/`）—— masa 开发的服务端协议 Mod，为 masa 的客户端 Mod（**MiniHUD / Litematica / Tweakeroo** 等）提供**服务端→客户端的数据投递与协议**，并通过自定义网络通道（`servux:*`）下发：世界元数据、出生点、天气、TPS/MobCap、结构边界框、Litematica 投影投递/粘贴、实体与方块实体 NBT 查询、EasyPlace 服务端放置协议等。
+- **Servux**（`OriginImpl/servux-LTS-1.21.11/`）—— masa 开发的服务端协议 Mod，为 masa 的客户端 Mod（**MiniHUD / Litematica / Tweakeroo** 等）提供**服务端→客户端的数据投递与协议**，并通过自定义网络通道（`servux:*`）下发：世界元数据、出生点、天气、TPS/MobCap、结构边界框、Litematica 投影投递/粘贴、实体与方块实体 NBT 查询、EasyPlace 服务端放置协议等。5 通道 + schematic + EasyPlace 全功能已实现并实测通过。
+- **JEI Recipe Bridge**（`OriginImpl/JEIRecipeBridge-1.21.11/`）—— 玩家进服时把服务端配方表同步给 JEI 客户端，按 client brand 走 `fabric:recipe_sync` / `neoforge:recipe_content` 两条原版 custom payload 通道（NMS `ClientboundCustomPayloadPacket` 直发，绕过 plugin messaging size 上限）。已实现（`mod/jeirecipebridge/`，5 文件，纯 S2C / 一次性 / 无配置 / 无 provider）。
 
 > **本项目的本质是"协议层移植"**：客户端仍是 masa 的 Fabric Mod；我们要在 Paper 服务端复刻它们期待的**网络协议 + 数据采集**，使"Fabric 客户端 + Paper 服务端"的组合能像"Fabric 客户端 + Servux 服务端"一样工作。
 
@@ -22,7 +23,7 @@
 | **构建** | Gradle（Kotlin DSL） + **paperweight `userdev`** + `run-paper` |
 | **NMS 映射** | 开发期用 `paperDevBundle("1.21.11-R0.1-SNAPSHOT")` 提供 Mojang 全反混淆的 `net.minecraft.*`；产物经 `reobfJar` 转 Spigot 运行时映射，标准 Paper 直接加载 |
 | **反射用 Mojang 名** | `reobf` 不转换反射字符串，Paper 运行时即 Mojang 映射 → 反射私有成员直接用 Mojang 名 |
-| **当前状态** | paperweight userdev 已就绪；servux 5 通道 + schematic（投影粘贴/投递）全功能已实现并实测通过。逐阶段记录见 [`docs/11-schematic-migration-plan.md`](docs/11-schematic-migration-plan.md) |
+| **当前状态** | paperweight userdev 已就绪；servux 5 通道 + schematic（投影粘贴/投递）+ EasyPlace 全功能已实现并实测通过；JEI Recipe Bridge（配方同步）已实现。逐阶段记录见 [`docs/11-schematic-migration-plan.md`](docs/11-schematic-migration-plan.md) |
 
 构建命令（迁移完成后）：
 ```bash

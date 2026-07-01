@@ -59,6 +59,17 @@ public final class VeryMcProto extends JavaPlugin
                 Reference.logger().severe("[" + Reference.PLUGIN_NAME + "] 注册 servux 模块失败: " + ex.getMessage());
             }
 
+            // 注册协议 mod 模块（第二个：JEI Recipe Bridge —— 玩家进服时把服务端配方表同步给 JEI 客户端）
+            try
+            {
+                new verymc.top.veryMcProto.mod.jeirecipebridge.app.JeiRecipeBridgeModule().onRegister(DataProviderManager.INSTANCE);
+                Reference.logger().info("[" + Reference.PLUGIN_NAME + "] 已注册协议 mod: jei_recipe_bridge");
+            }
+            catch (Exception ex)
+            {
+                Reference.logger().severe("[" + Reference.PLUGIN_NAME + "] 注册 jei_recipe_bridge 模块失败: " + ex.getMessage());
+            }
+
             // 注册 /servux 命令
             try
             {
