@@ -221,8 +221,8 @@ public abstract class CommunicationManager
     {
         final BlockPos pos = buf.readBlockPos();
         final String dimensionId = buf.readUtf(PACKET_MAX_STRING_SIZE);
-        final Rotation rot = rotOrdinals[buf.readInt()];
-        final Mirror mir = mirOrdinals[buf.readInt()];
+        final Rotation rot = safeRotation(buf.readInt());
+        final Mirror mir = safeMirror(buf.readInt());
         placement.move(dimensionId, pos, rot, mir);
 
         if (exchangeTarget.getFeatureSet().hasFeature(Feature.CORE_EX))
@@ -235,8 +235,8 @@ public abstract class CommunicationManager
                 subRegionData.modify(
                         buf.readUtf(PACKET_MAX_STRING_SIZE),
                         buf.readBlockPos(),
-                        rotOrdinals[buf.readInt()],
-                        mirOrdinals[buf.readInt()]
+                        safeRotation(buf.readInt()),
+                        safeMirror(buf.readInt())
                 );
             }
         }
@@ -299,5 +299,25 @@ public abstract class CommunicationManager
     {
         e.getPartner().getExchanges().remove(e);
         handleExchange(e);
+    }
+
+    /** 读 Rotation ordinal 并校验范围；恶意客户端越界值抛 IllegalArgumentException（被上游 ProtocolChannel 的 try 兜底，包丢弃——与原隐式 AIOOBE 表面行为一致，仅把数组越界显式化便于诊断）。 */
+    private static Rotation safeRotation(final int ordinal)
+    {
+        if (ordinal < 0 || ordinal >= rotOrdinals.length)
+        {
+            throw new IllegalArgumentException("Invalid Rotation ordinal: " + ordinal + " (valid 0.." + (rotOrdinals.length - 1) + ")");
+        }
+        return rotOrdinals[ordinal];
+    }
+
+    /** 读 Mirror ordinal 并校验范围；同 {@link #safeRotation}。 */
+    private static Mirror safeMirror(final int ordinal)
+    {
+        if (ordinal < 0 || ordinal >= mirOrdinals.length)
+        {
+            throw new IllegalArgumentException("Invalid Mirror ordinal: " + ordinal + " (valid 0.." + (mirOrdinals.length - 1) + ")");
+        }
+        return mirOrdinals[ordinal];
     }
 }
