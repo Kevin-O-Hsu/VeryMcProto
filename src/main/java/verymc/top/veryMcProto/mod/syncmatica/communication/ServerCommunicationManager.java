@@ -140,6 +140,23 @@ public class ServerCommunicationManager extends CommunicationManager
         targets.remove(oldPlayer.getPlayerId());
     }
 
+    /**
+     * 软禁用辅助（{@code /syncmatica disable} 用）：关闭所有已握手玩家的进行中 exchange
+     * （不通知对方、不触发 {@link #handleExchange} 副作用），清空 {@code broadcastTargets}。
+     * {@code targets} 保留——玩家仍在服，{@code resumeProtocol} 后复用并重新握手。
+     */
+    public void suspendAll()
+    {
+        for (final ExchangeTarget t : new ArrayList<>(broadcastTargets))
+        {
+            for (final Exchange ex : new ArrayList<>(t.getExchanges()))
+            {
+                try { ex.close(false); } catch (final Exception ignored) { }
+            }
+        }
+        broadcastTargets.clear();
+    }
+
     @Override
     protected void handle(final ExchangeTarget source, final PacketType type, final FriendlyByteBuf packetBuf)
     {

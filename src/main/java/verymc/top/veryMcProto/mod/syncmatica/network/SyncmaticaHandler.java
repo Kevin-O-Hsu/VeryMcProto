@@ -64,6 +64,11 @@ public class SyncmaticaHandler implements IPluginServerPlayHandler
     @Override
     public void receivePlayPayload(final FriendlyByteBuf data, final ServerPlayer player)
     {
+        // 软禁用：协议已 disable，吞包（通道仍注册避免 Paper 踢人，但不处理）
+        if (!context.isProtocolEnabled())
+        {
+            return;
+        }
         // 防御：空包丢弃
         if (data == null || data.readableBytes() <= 0)
         {

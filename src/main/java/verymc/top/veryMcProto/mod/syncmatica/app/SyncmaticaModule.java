@@ -95,6 +95,11 @@ public class SyncmaticaModule
                             {
                                 return; // 玩家在延迟窗口内离线，放弃（避免孤儿 exchange）
                             }
+                            if (!context.isProtocolEnabled())
+                            {
+                                SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] 跳过握手（协议已禁用）: " + bukkitPlayer.getName());
+                                return;
+                            }
                             try
                             {
                                 fComMan.tryStartHandshake(target);
@@ -142,6 +147,10 @@ public class SyncmaticaModule
                 {
                     return;
                 }
+                if (!context.isProtocolEnabled())
+                {
+                    return; // 协议已禁用，不握手
+                }
                 try
                 {
                     SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] onPlayerRegisterChannel: " + e.getPlayer().getName()
@@ -183,6 +192,37 @@ public class SyncmaticaModule
         catch (Exception e)
         {
             SyncmaticaLog.error("syncmatica unregister handler failed", e);
+        }
+    }
+
+    /**
+     * 恢复协议后对在线玩家重新发起握手（{@code /syncmatica enable} 用）。
+     *
+     * <p>对每个在线玩家延迟 40t 握手（等 codec 就绪，与 onJoin 主路径一致）。{@code tryStartHandshake} 幂等。
+     */
+    public void reconnectOnlinePlayers()
+    {
+        if (context == null) { return; }
+        final ServerCommunicationManager comMan = (ServerCommunicationManager) context.getCommunicationManager();
+        for (final org.bukkit.entity.Player player : context.getPlugin().getServer().getOnlinePlayers())
+        {
+            new BukkitRunnable()
+            {
+                @Override
+                public void run()
+                {
+                    if (!player.isOnline() || !context.isProtocolEnabled()) { return; }
+                    try
+                    {
+                        final ExchangeTarget target = comMan.getOrCreateTarget(player);
+                        comMan.tryStartHandshake(target);
+                    }
+                    catch (Exception ex)
+                    {
+                        SyncmaticaLog.error("syncmatica resumeProtocol 握手失败 for {}", ex, player.getName());
+                    }
+                }
+            }.runTaskLater(context.getPlugin(), 40L);
         }
     }
 }

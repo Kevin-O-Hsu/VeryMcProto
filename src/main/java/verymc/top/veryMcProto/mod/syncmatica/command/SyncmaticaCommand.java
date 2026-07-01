@@ -20,6 +20,7 @@ import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaDebug;
 import verymc.top.veryMcProto.mod.syncmatica.SyncmaticaContext;
+import verymc.top.veryMcProto.mod.syncmatica.app.SyncmaticaModule;
 import verymc.top.veryMcProto.mod.syncmatica.communication.ExchangeTarget;
 import verymc.top.veryMcProto.mod.syncmatica.communication.ServerCommunicationManager;
 import verymc.top.veryMcProto.mod.syncmatica.data.ServerPlacement;
@@ -43,7 +44,7 @@ import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaUtil;
  */
 public class SyncmaticaCommand implements CommandExecutor, TabCompleter
 {
-    private static final String USAGE = "§e/syncmatica §7load [file] | debug [on|off|cat|status|s2c]";
+    private static final String USAGE = "§e/syncmatica §7status|save|reload|enable|disable|load [file]|debug [on|off|cat|status|s2c]";
 
     private final SyncmaticaContext context;
     private final HashMap<Path, Pair<SchematicMetadata, SchematicSchema>> files = new HashMap<>();
@@ -101,8 +102,73 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
             return true;
         }
 
+        if (args[0].equalsIgnoreCase("status"))
+        {
+            if (requireAdmin(sender)) { handleStatus(sender); }
+            return true;
+        }
+        if (args[0].equalsIgnoreCase("save"))
+        {
+            if (requireAdmin(sender)) { context.saveConfiguration(); sender.sendMessage("§aSyncmatica 配置已保存。"); }
+            return true;
+        }
+        if (args[0].equalsIgnoreCase("reload"))
+        {
+            if (requireAdmin(sender)) { context.loadConfiguration(); sender.sendMessage("§aSyncmatica 配置已重载。"); }
+            return true;
+        }
+        if (args[0].equalsIgnoreCase("enable") || args[0].equalsIgnoreCase("disable"))
+        {
+            if (requireAdmin(sender)) { handleToggleProtocol(sender, args[0].equalsIgnoreCase("enable")); }
+            return true;
+        }
+
         sender.sendMessage(USAGE);
         return true;
+    }
+
+    /** 检查 admin 权限（save/reload/enable/disable/status），不足则提示并返回 false。 */
+    private boolean requireAdmin(final CommandSender sender)
+    {
+        if (!sender.hasPermission("syncmatica.command.admin"))
+        {
+            sender.sendMessage("§c权限不足。");
+            return false;
+        }
+        return true;
+    }
+
+    /** /syncmatica status —— 显示模块状态（协议启停 + 调试状态 + 配置文件）。 */
+    private void handleStatus(final CommandSender sender)
+    {
+        sender.sendMessage("§6Syncmatica 状态:");
+        sender.sendMessage(" §7协议: §f" + (context.isProtocolEnabled() ? "§a启用 (ON)" : "§c禁用 (OFF)"));
+        sender.sendMessage(" §7调试: §f" + SyncmaticaDebug.statusLine());
+        sender.sendMessage(" §7配置: §f" + context.getConfigFile().getFileName());
+    }
+
+    /** /syncmatica enable|disable —— 软禁用/启用整个协议（通道保留，不踢人）。 */
+    private void handleToggleProtocol(final CommandSender sender, final boolean enable)
+    {
+        final SyncmaticaModule module = SyncmaticaModule.getInstance();
+        if (module == null)
+        {
+            sender.sendMessage("§cSyncmatica 模块未加载。");
+            return;
+        }
+        if (enable)
+        {
+            if (context.isProtocolEnabled()) { sender.sendMessage("§eSyncmatica 协议已处于启用状态。"); return; }
+            context.resumeProtocol();
+            module.reconnectOnlinePlayers();
+            sender.sendMessage("§aSyncmatica 协议已启用 §7（在线玩家将重新握手）");
+        }
+        else
+        {
+            if (!context.isProtocolEnabled()) { sender.sendMessage("§eSyncmatica 协议已处于禁用状态。"); return; }
+            context.suspendProtocol();
+            sender.sendMessage("§eSyncmatica 协议已禁用 §7（软禁用：通道保留、玩家不会被踢；进行中的传输已中断）");
+        }
     }
 
     /**
@@ -182,13 +248,9 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
         final List<String> out = new ArrayList<>();
         if (args.length == 1)
         {
-            if ("load".startsWith(args[0].toLowerCase()))
+            for (final String s : List.of("status", "save", "reload", "enable", "disable", "load", "debug"))
             {
-                out.add("load");
-            }
-            if ("debug".startsWith(args[0].toLowerCase()))
-            {
-                out.add("debug");
+                if (s.startsWith(args[0].toLowerCase())) { out.add(s); }
             }
         }
         else if (args.length == 2 && args[0].equalsIgnoreCase("load"))

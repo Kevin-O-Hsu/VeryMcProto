@@ -14,6 +14,14 @@ public interface IService {
 
     void configure(IServiceConfiguration configuration);
 
+    /**
+     * 导出当前运行时配置值到给定 configuration（与 {@link #configure} 读方向对称的写方向）。
+     *
+     * <p>用于 {@code /syncmatica save}：把 service 运行时状态写回磁盘。
+     * {@link AbstractService} 提供空默认，子类（如 Quota/Debug）按需覆写。
+     */
+    void saveConfiguration(IServiceConfiguration configuration);
+
     void startup();
 
     void shutdown();

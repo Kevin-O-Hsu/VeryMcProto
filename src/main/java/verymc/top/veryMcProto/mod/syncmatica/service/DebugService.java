@@ -60,4 +60,10 @@ public class DebugService extends AbstractService
     {
         configuration.loadBoolean("doPacketLogging", b -> doPacketLogging = b);
     }
+
+    @Override
+    public void saveConfiguration(final IServiceConfiguration configuration)
+    {
+        configuration.saveBoolean("doPacketLogging", doPacketLogging);
+    }
 }

@@ -8,6 +8,7 @@ import org.bukkit.plugin.Plugin;
 
 import verymc.top.veryMcProto.mod.syncmatica.communication.CommunicationManager;
 import verymc.top.veryMcProto.mod.syncmatica.communication.FeatureSet;
+import verymc.top.veryMcProto.mod.syncmatica.communication.ServerCommunicationManager;
 import verymc.top.veryMcProto.mod.syncmatica.data.FileStorage;
 import verymc.top.veryMcProto.mod.syncmatica.data.IFileStorage;
 import verymc.top.veryMcProto.mod.syncmatica.data.SyncmaticManager;
@@ -50,6 +51,8 @@ public class SyncmaticaContext
     private final Path litematicFolder;
     private final Path configFolder;
     private boolean isStarted = false;
+    /** 协议软禁用标志（{@code /syncmatica enable|disable}）。true=正常处理包；false=handler 吞包、不握手。不持久化（重启恢复 true）。 */
+    private volatile boolean protocolEnabled = true;
 
     public SyncmaticaContext(final Plugin plugin,
                              final IFileStorage files,
@@ -125,6 +128,28 @@ public class SyncmaticaContext
     public boolean isIntegratedServer() { return false; }
 
     public boolean isStarted() { return isStarted; }
+
+    public boolean isProtocolEnabled() { return protocolEnabled; }
+
+    public void setProtocolEnabled(boolean enabled) { this.protocolEnabled = enabled; }
+
+    /** 软禁用：停止处理 incoming 包 + 关闭进行中 exchange + 清空已握手集合。通道仍注册（避免 Paper 踢人）。 */
+    public void suspendProtocol()
+    {
+        this.protocolEnabled = false;
+        if (comMan instanceof ServerCommunicationManager scm)
+        {
+            scm.suspendAll();
+        }
+        SyncmaticaLog.info("Syncmatica 协议已禁用（软禁用：通道保留、handler 吞包、玩家不会被踢）");
+    }
+
+    /** 恢复：重新接受 incoming 包。在线玩家的重新握手由 SyncmaticaModule.reconnectOnlinePlayers 负责。 */
+    public void resumeProtocol()
+    {
+        this.protocolEnabled = true;
+        SyncmaticaLog.info("Syncmatica 协议已启用");
+    }
 
     public Path getLitematicFolder() { return litematicFolder; }
 
@@ -245,6 +270,10 @@ public class SyncmaticaContext
         {
             configuration = new JsonObject();
         }
+        // 各 service 导出运行时配置到自己的子对象
+        saveConfigurationForService(quota, configuration);
+        saveConfigurationForService(debugService, configuration);
+        // SyncmaticaDebug 状态（master + 分类）
         configuration.add("debugLog", SyncmaticaDebug.SYS.snapshot());
         try (final Writer writer = new BufferedWriter(new FileWriter(getAndCreateConfigFile().toFile())))
         {
@@ -255,6 +284,17 @@ public class SyncmaticaContext
         {
             SyncmaticaLog.error("saveConfiguration(): Exception saving config file; {}", e.getLocalizedMessage());
         }
+    }
+
+    /**
+     * 把单个 service 的运行时配置导出到 root 的 configKey 子对象（与 {@link #loadConfigurationForService} 读方向对称）。
+     */
+    private void saveConfigurationForService(final IService service, final JsonObject root)
+    {
+        final String configKey = service.getConfigKey();
+        final JsonObject serviceJson = new JsonObject();
+        service.saveConfiguration(new JsonConfiguration(serviceJson));
+        root.add(configKey, serviceJson);
     }
 
     private Boolean loadConfigurationForService(final IService service, final JsonObject configuration, final boolean attemptToLoad)

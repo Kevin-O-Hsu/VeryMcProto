@@ -19,4 +19,10 @@ abstract class AbstractService implements IService {
     {
         // NOSONAR 默认空实现
     }
+
+    @Override
+    public void saveConfiguration(final IServiceConfiguration configuration)
+    {
+        // NOSONAR 默认空实现：子类（Quota/Debug）覆写以导出运行时配置
+    }
 }
