@@ -24,6 +24,11 @@ dependencies {
     // PacketEvents（EasyPlace 拦截原版 use_item_on）：compileOnly，运行时由服务器独立安装的 packetevents 插件提供。
     // 锁定 2.13.0（codemc 最新 release；对照源码 OriginImpl/packetevents-2.0 为 2.13.1 开发版，API 一致）。
     compileOnly("com.github.retrooper:packetevents-spigot:2.13.0")
+
+    // 单元测试（JUnit 5 / Jupiter）。test classpath 继承 main 的 paperDevBundle——NMS 类（FriendlyByteBuf 等）
+    // 在纯 JVM 可用，无需启动 MC 服务端（仅访问类，不触达需 Bootstrap 的方块/物品注册表运行时逻辑）。
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
 }
 
 java {
@@ -38,6 +43,10 @@ tasks.assemble {
 }
 
 tasks {
+    test {
+        useJUnitPlatform()
+    }
+
     runServer {
         // 仅供本地测试（M1/M2 验证）；与 paperweight 互补，不影响 build/reobf。
         minecraftVersion("1.21.11")
