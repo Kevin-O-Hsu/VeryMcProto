@@ -22,7 +22,7 @@
 | **构建** | Gradle（Kotlin DSL） + **paperweight `userdev`** + `run-paper` |
 | **NMS 映射** | 开发期用 `paperDevBundle("1.21.11-R0.1-SNAPSHOT")` 提供 Mojang 全反混淆的 `net.minecraft.*`；产物经 `reobfJar` 转 Spigot 运行时映射，标准 Paper 直接加载 |
 | **反射用 Mojang 名** | `reobf` 不转换反射字符串，Paper 运行时即 Mojang 映射 → 反射私有成员直接用 Mojang 名 |
-| **当前状态** | `build.gradle.kts` 仍是纯 `compileOnly("...paper-api")` 空壳；**迁移第一步即升级为 paperweight userdev**（见 [`docs/08-implementation-plan.md`](docs/08-implementation-plan.md) 阶段 0） |
+| **当前状态** | paperweight userdev 已就绪；servux 5 通道 + schematic（投影粘贴/投递）全功能已实现并实测通过。逐阶段记录见 [`docs/11-schematic-migration-plan.md`](docs/11-schematic-migration-plan.md) |
 
 构建命令（迁移完成后）：
 ```bash
@@ -103,7 +103,7 @@ Servux 共 **26 个 Mixin + 2 个 AccessWidener 字段**。Paper 无 Mixin 运�
 
 - **EasyPlace**（Tweakeroo 服务端配合）：Servux 通过 Mixin `BlockItem.getPlacementState` 注入 `PlacementHandler.applyPlacementProtocolV3` + Mixin `ServerGamePacketListenerImpl.handleUseItemOn` 去掉命中位置校验。Paper 无 Mixin，**需降级**：用 PacketEvents 拦截 `ServerboundUseItemOnPacket` 自行放置，或直接省略（最务实）。详见 [`docs/07-migration-architecture.md`](docs/07-migration-architecture.md) §降级矩阵。
 - **UpdateSuppression**：依赖 Mixin 给 `Level`/`LevelChunk` 加接口 + 改 `setBlockState` 副作用。**Paper 上省略**（可选后续用 Paper 的 `World#refreshChunk`/计划 tick 工具部分模拟）。
-- **镜像修复**（箱子/铁轨/楼梯 180° 镜像）：仅 Litematica 投影粘贴时用。可在**投影粘贴代码**（`SchematicPlacingUtils`）里内联等价修正，不走 Mixin。
+- **镜像修复**（箱子/铁轨/楼梯 180° 镜像）：仅 Litematica 投影粘贴时用，**已实现**（见 §6）：箱子镜像修复在 `SchematicPlacingUtils` 内联照抄（`fixChestMirror` setting）；铁轨/楼梯原版靠 Mixin，Paper 降级为 `BlockState.mirror()/rotate()` 自身行为（可能不完美）。
 
 ### 4. 1.21.11 关键 NMS 约束（与 VeryMcBot 一致，移植时注意）
 
@@ -117,6 +117,19 @@ Servux 共 **26 个 Mixin + 2 个 AccessWidener 字段**。Paper 无 Mixin 运�
 - Servux 用 `me.lucko:fabric-permissions-api`，`Permissions.check(player, node, defaultLevel)`。
 - **Paper 迁移**：`player.hasPermission(node)`，默认等级映射到 Bukkit 权限（`permission-level: 4` = OP，0 = 全员）；或对接 LuckPerms/Vault。权限节点保持 `servux.provider.hud_data` / `.weather` / `.seed` / `.logger` / `.paste` 等原样命名。
 
+### 6. 投影粘贴 / 文件投递 —— 已实现，照抄原版的实战经验
+
+Litematica 投影子系统（`mod/servux/schematic/`，约 8000 行）已移植完成并实测通过：**粘贴**（C2S 上传 + 服务端放置方块/方块实体/实体）与**文件投递**（S2C，`/servux litematic transmit <file> [player]`）。逐阶段记录见 [`docs/11-schematic-migration-plan.md`](docs/11-schematic-migration-plan.md)。
+
+**移植方法**：照抄原版纯算法（BitArray/Palette/Container/几何/transmit）+ NMS 直连（`BlockState`/`CompoundTag`/`NbtIo`/`ServerLevel`）；仅 3 类强制降级——`SchematicConversionMaps`（DataFixer，`readFromNBT(enableFixers=false)` 守卫下零影响）、`IMixinWorldTickScheduler`（保存投影读 tick，粘贴不需要）、`WorldUtils`（Mixin → no-op，靠 `setBlock` 的 flags 控制邻居更新）。`LitematicaSchematic` 因 `selection↔placement↔schematic↔PositionUtils` 四元循环依赖，用**桩版**（移除引用未移植类的方法 + `// TODO Pn` 标注）分阶段引入、逐步回填。
+
+**实战教训（维护必读）**：
+
+1. **协议字段语义必须对照客户端源码确认，不能只看服务端瞎猜客户端行为。** 例：`sendTransmitFile` 的 `Slice` 字段 servux 原版写 `totalSlices`（总片数），但 litematica `SchematicBuffer.receiveSlice`（`OriginImpl/litematica-LTS-.../schematic/transmit/SchematicBuffer.java:60`）要求 `number ∈ [0, totalSlices)`——写 `totalSlices` 必然越界被丢弃，客户端永远 `Received:0`。读了 litematica 源码才定位；之前凭服务端代码猜「PacketSplitter 连续流串台」完全是错方向。
+2. **servux 里未被调用的公开 API 可能是含 bug 的死代码。** `sendTransmitFile` 在原版无任何调用点（公开 API 供外部用），其 `Slice=totalSlices` bug 从未触发；照抄会原样继承。凡照抄「原版无调用点的方法」，务必回头对照客户端验证字段语义。
+3. **PacketSplitter 连续流不会串台**（源码 + 实测确认）：malilib `PacketSplitter.receive` 收齐即 `READING_SESSIONS.remove(key)`（`malilib-LTS-.../network/PacketSplitter.java:148`），litematica `ServuxLitematicaHandler` 的 `readingSessionKey` 每流新生成、收齐重置 `-1`（行 96-108）——连续多个独立分包流（TransmitStart/Data/End）各自独立重组，**不需要**分 tick / 延迟发送这类 workaround。
+4. **SLF4J → JUL logger 适配**：原版 `Servux.LOGGER.warn/error/info("...{}...", args)`（SLF4J 占位符）→ Paper `Reference.logger()`（JUL 不支持 `{}` 多参重载），用 `mod/servux/util/Log.java` shim 承接，机械替换 `Servux.LOGGER → Log`，避免逐处手动拼接。
+
 ---
 
 ## 维护与升级要点
@@ -124,7 +137,11 @@ Servux 共 **26 个 Mixin + 2 个 AccessWidener 字段**。Paper 无 Mixin 运�
 - **新增一个 Provider**：在 `dataproviders/` 加类（`extends` 自 Paper 版 `DataProviderBase`），在 `network/` 加对应通道编解码（`ServuxXxxCodec` + `Payload`/字节布局），在 `network/` 通道管理注册，最后在 `DataProviderManager` 登记。详见 [`docs/03-dataproviders-detail.md`](docs/03-dataproviders-detail.md)。
 - **升级 Minecraft 版本**：先重跑 paperweight 对齐新 dev bundle；再按 [`docs/04-mixin-analysis.md`](docs/04-mixin-analysis.md) 的反射点逐一核对 NMS 字段/方法签名漂移（尤其 `FriendlyByteBuf`、`CustomPacketPayload`、`CompoundTag` Optional 化、`StructureStart.createTag` 签名）。
 - **新增 masa 客户端 Mod 的协议支持**：参考 [`docs/02-network-protocol.md`](docs/02-network-protocol.md) 的"通道 = 原版 custom payload"模型，按 client mod 期望的字节布局实现即可（字节格式就是 `FriendlyByteBuf`）。
-- **参考源码**：`OriginImpl/servux-LTS-1.21.11/src/main/java/fi/dy/masa/servux/` 是逐行对照的权威实现；遇到分歧以真实源码为准。
+- **参考源码**（`OriginImpl/` 下，逐行对照的权威实现；**遇到分歧以真实源码为准**）：
+  - **servux**（移植目标）：`OriginImpl/servux-LTS-1.21.11/`——服务端协议实现。
+  - **litematica / malilib**（masa 客户端，**协议的接收端**）：`OriginImpl/litematica-LTS-1.21.11/`、`OriginImpl/malilib-LTS-1.21.11/`。任何协议字段语义、分包重组、Task 分派都要回来对照客户端源码确认，**不要凭服务端代码猜客户端行为**（见核心约束 §6 教训 1）。
+  - **syncmatica**（投影共享协议参考）：`OriginImpl/syncmatica-LTS-1.21.11/`；**JEIRecipeBridge**（JEI 配方同步参考）：`OriginImpl/JEIRecipeBridge-1.21.11/`。
+  - ⚠️ servux 里**未被调用的公开 API**（如 `LitematicaSchematic.sendTransmitFile`）可能是**未经验证的死代码**、含字段语义 bug——照抄后必须对照客户端源码验证（见 §6 教训 2）。
 
 ---
 
@@ -142,6 +159,7 @@ Servux 共 **26 个 Mixin + 2 个 AccessWidener 字段**。Paper 无 Mixin 运�
 | [`docs/07-migration-architecture.md`](docs/07-migration-architecture.md) ⭐ | **完整迁移技术方案**：架构设计、网络层/数据采集/降级矩阵、可行性验证（含网络文档） | (c) 迁移方案 |
 | [`docs/08-implementation-plan.md`](docs/08-implementation-plan.md) | 实施步骤：阶段划分 + 大任务拆小任务 + 依赖与里程碑 | (d) 实施规划 |
 | [`docs/10-testing-guide.md`](docs/10-testing-guide.md) | **客户端兼容测试**：5 通道↔3 mod 映射、Litematica/Tweakeroo 测试步骤、排错流程、降级清单 | 实测验证 |
+| [`docs/11-schematic-migration-plan.md`](docs/11-schematic-migration-plan.md) | schematic 子系统（投影投递+粘贴）移植的**逐阶段作战手册**：P0-P9 文件清单/降级点/编译门/状态表 | 实施蓝图 |
 | [`docs/references.md`](docs/references.md) | 参考资源链接（Paper/Fabric/Protocol Wiki/Servux 源码） | 参考 |
 
 ---
@@ -154,7 +172,7 @@ Servux 共 **26 个 Mixin + 2 个 AccessWidener 字段**。Paper 无 Mixin 运�
 - Minecraft Protocol Wiki：https://wiki.vg/Protocol （`Custom Payload` 包结构）
 - Fabric 网络文档：https://docs.fabricmc.net/develop/networking
 - FabricMC Discussion #4430（Spigot/Paper ↔ Fabric 自定义通道实证）：https://github.com/orgs/FabricMC/discussions/4430
-- Servux 原版源码（本仓库对照）：`OriginImpl/servux-LTS-1.21.11/`
+- masa 全家桶源码（本仓库对照）：servux/litematica/malilib/syncmatica/JEIRecipeBridge 均在 `OriginImpl/` 下
 - 姊妹项目 VeryMcBot（paperweight userdev + NMS 反射范式参考）：`I:\Programming\VeryMcBot`
 
 **开发环境**：IntelliJ IDEA + Minecraft Dev SDK + Gradle + PaperWeight。
