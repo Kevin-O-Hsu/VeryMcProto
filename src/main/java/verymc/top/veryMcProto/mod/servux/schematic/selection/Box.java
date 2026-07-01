@@ -2,7 +2,7 @@ package verymc.top.veryMcProto.mod.servux.schematic.selection;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
-import verymc.top.veryMcProto.mod.servux.util.JsonUtils;
+import verymc.top.veryMcProto.framework.util.JsonUtils;
 import verymc.top.veryMcProto.mod.servux.util.position.PositionUtils;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;

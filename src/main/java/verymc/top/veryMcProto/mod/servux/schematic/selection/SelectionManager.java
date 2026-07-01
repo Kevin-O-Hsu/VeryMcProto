@@ -6,7 +6,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import com.google.gson.JsonElement;
 
-import verymc.top.veryMcProto.mod.servux.util.JsonUtils;
+import verymc.top.veryMcProto.framework.util.JsonUtils;
 
 public class SelectionManager
 {

@@ -3,7 +3,7 @@ package verymc.top.veryMcProto.mod.servux.schematic.selection;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import verymc.top.veryMcProto.mod.servux.util.JsonUtils;
+import verymc.top.veryMcProto.framework.util.JsonUtils;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 
