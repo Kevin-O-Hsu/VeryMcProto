@@ -26,8 +26,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
 import verymc.top.veryMcProto.Reference;
+import verymc.top.veryMcProto.framework.debug.Debug;
 import verymc.top.veryMcProto.framework.nms.Nms;
-import verymc.top.veryMcProto.mod.servux.ServuxLog;
 import verymc.top.veryMcProto.mod.servux.dataproviders.ConfigProvider;
 import verymc.top.veryMcProto.mod.servux.util.PlacementHandler;
 
@@ -65,6 +65,10 @@ import verymc.top.veryMcProto.mod.servux.util.PlacementHandler;
  *
  * <p><b>权限</b>：仅当玩家通过 {@code servux.main.easy_place}（{@link ConfigProvider#hasPermission_EasyPlace}）
  * 时才进入接管判定；否则放行原版包走默认放置。物品非 BlockItem 时也放行（EasyPlace 只精确放置方块）。
+ *
+ * <p><b>调试日志</b>：本类所有日志走 {@link Debug#log(Debug.Cat, String)} + {@link Debug.Cat#EASYPLACE} 分类，
+ * 受 {@code /servux debug cat easyplace} 控制（与总开关正交）。切勿用无分类的 {@code ServuxLog.debug}——
+ * 那样 {@code cat none} 后只要 master 开着仍会刷屏。
  *
  * <p><b>ack 命门</b>：1.19+ 的 {@code use_item_on} 带 sequence，原版处理后回 {@code block_changed_ack}。
  * 取消包后原版不回 ack，故接管路径<b>必须</b>手动 {@code send(ClientboundBlockChangedAckPacket)}，否则客户端
@@ -131,9 +135,9 @@ public class EasyPlaceListener implements PacketListener
                         level, pos, face, hitVec, player, hand, null);
 
                 BlockState finalState = PlacementHandler.applyPlacementProtocolV3(baseState, ctx);
-                ServuxLog.debug("EasyPlace pv=" + protocolValue + " cursor=" + cursor.x + "," + cursor.y + "," + cursor.z
+                Debug.log(Debug.Cat.EASYPLACE, "in pv=" + protocolValue + " cursor=" + cursor.x + "," + cursor.y + "," + cursor.z
                         + " face=" + face + " pos=" + pos + " base=" + baseState);
-                ServuxLog.debug("EasyPlace out: final=" + finalState);
+                Debug.log(Debug.Cat.EASYPLACE, "out final=" + finalState);
 
                 // 放置目标必须可替换（原版 BlockItem.place 的 canPlace 语义；Tweakeroo 已选定可放置位置，正常为空气）。
                 boolean replaceOk = level.getBlockState(pos).canBeReplaced();
@@ -147,18 +151,18 @@ public class EasyPlaceListener implements PacketListener
                     playPlaceSound(level, pos, finalState);
                     // 物品消耗（非创造）
                     if (!player.getAbilities().instabuild) { stack.shrink(1); }
-                    ServuxLog.debug("EasyPlace 放置 " + finalState + " @ " + pos);
+                    Debug.log(Debug.Cat.EASYPLACE, "放置 " + finalState + " @ " + pos);
                 }
                 else
                 {
-                    ServuxLog.debug("EasyPlace 拒绝放置 @ " + pos
+                    Debug.log(Debug.Cat.EASYPLACE, "拒绝放置 @ " + pos
                             + " (" + (finalState == null ? "validator=null"
                                       : !replaceOk ? "target-not-replaceable" : "canSurvive-fail") + ")");
                 }
             }
             catch (Exception ex)
             {
-                ServuxLog.debug("EasyPlace 异常 @ " + pos + ": " + ex.getMessage());
+                Debug.log(Debug.Cat.EASYPLACE, "异常 @ " + pos + ": " + ex.getMessage());
             }
             finally
             {

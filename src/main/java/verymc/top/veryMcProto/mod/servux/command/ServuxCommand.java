@@ -201,7 +201,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
             sender.sendMessage("§6调试状态: §f" + Debug.statusLine());
             sender.sendMessage("§7用法: §f/servux debug <on|off|status>§7 —— master 总开关 / 状态");
             sender.sendMessage("§7用法: §f/servux debug cat <all|none|分类名>§7 —— 分类（master 与分类正交，两者皆开才输出）");
-            sender.sendMessage("§7分类: §flifecycle handshake network packet tick permission provider config");
+            sender.sendMessage("§7分类: §flifecycle handshake network packet tick permission provider config easyplace");
             return;
         }
 

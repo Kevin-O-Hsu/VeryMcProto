@@ -61,7 +61,9 @@ public final class Debug
         /** Provider 状态机：enabled / registered / setProviderEnabled / updatePacketHandlerRegistration。 */
         PROVIDER,
         /** 配置：readFromConfig / writeToConfig / setting 变更。 */
-        CONFIG
+        CONFIG,
+        /** EasyPlace：use_item_on 包拦截 / protocolValue 编码判定 / 解码 / 放置 / ack。 */
+        EASYPLACE
     }
 
     /** 总开关（运行时可热切换）。初值取编译期 DEV_DEBUG 兜底，由 onServerLoad 用配置覆盖、命令即时切换。 */
