@@ -34,5 +34,19 @@ public class ServuxModule implements ModModule
         manager.registerDataProvider(TweaksDataProvider.INSTANCE);
         manager.registerDataProvider(StructureDataProvider.INSTANCE);
         manager.registerDataProvider(LitematicsDataProvider.INSTANCE);
+
+        // EasyPlace（Tweakeroo 服务端配合）：拦截原版 use_item_on，用 masa 协议 v3 解码精确放置状态。
+        // 运行时依赖 PacketEvents 插件（plugin.yml: softdepend），未安装则跳过（不影响其余 5 通道功能）。
+        try
+        {
+            com.github.retrooper.packetevents.PacketEvents.getAPI().getEventManager()
+                    .registerListener(new verymc.top.veryMcProto.mod.servux.easyplace.EasyPlaceListener(),
+                            com.github.retrooper.packetevents.event.PacketListenerPriority.NORMAL);
+            verymc.top.veryMcProto.Reference.logger().info("[VeryMcProto] EasyPlace 已启用（依赖 PacketEvents）。");
+        }
+        catch (NoClassDefFoundError | Exception ex)
+        {
+            verymc.top.veryMcProto.Reference.logger().warning("[VeryMcProto] PacketEvents 未安装，EasyPlace（精确放置）不可用。其余功能不受影响。");
+        }
     }
 }

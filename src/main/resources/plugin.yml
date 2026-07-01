@@ -3,6 +3,7 @@ version: '${version}'
 main: verymc.top.veryMcProto.VeryMcProto
 api-version: '1.21'
 load: POSTWORLD
+softdepend: [packetevents]
 author: VeryMc
 description: Fabric 协议 Mod 的 Paper 插件移植框架（含 Servux 协议移植）。
 commands:

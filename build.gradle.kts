@@ -10,6 +10,9 @@ version = "1.0.0"
 repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
+    // PacketEvents（EasyPlace 拦截原版 use_item_on 包）；运行时由独立插件提供，compileOnly 引用
+    maven("https://repo.codemc.io/repository/maven-releases/")
+    maven("https://repo.codemc.io/repository/maven-snapshots/")
 }
 
 dependencies {
@@ -17,6 +20,10 @@ dependencies {
     // 锁定：paperweight 2.0.0-beta.21 + Paper 1.21.11 dev bundle（旧格式 1.21.11-R0.1-SNAPSHOT）。
     // 与姊妹项目 VeryMcBot 一致，已在该环境验证通过。
     paperweight.paperDevBundle("1.21.11-R0.1-SNAPSHOT")
+
+    // PacketEvents（EasyPlace 拦截原版 use_item_on）：compileOnly，运行时由服务器独立安装的 packetevents 插件提供。
+    // 锁定 2.13.0（codemc 最新 release；对照源码 OriginImpl/packetevents-2.0 为 2.13.1 开发版，API 一致）。
+    compileOnly("com.github.retrooper:packetevents-spigot:2.13.0")
 }
 
 java {
