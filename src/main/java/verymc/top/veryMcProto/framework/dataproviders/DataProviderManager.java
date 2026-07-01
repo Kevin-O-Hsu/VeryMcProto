@@ -17,7 +17,7 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.server.MinecraftServer;
 
 import verymc.top.veryMcProto.Reference;
-import verymc.top.veryMcProto.mod.servux.ServuxDebug;
+import verymc.top.veryMcProto.framework.debug.FrameworkDebug;
 import verymc.top.veryMcProto.framework.settings.IServuxSetting;
 import verymc.top.veryMcProto.framework.util.JsonUtils;
 
@@ -84,9 +84,9 @@ public class DataProviderManager
             this.providers.put(name, provider);
             this.providersImmutable = List.copyOf(this.providers.values());
 
-            if (ServuxDebug.isOn(ServuxDebug.Cat.PROVIDER))
+            if (FrameworkDebug.isOn("provider"))
             {
-                ServuxDebug.log(ServuxDebug.Cat.PROVIDER, "registerDataProvider: " + provider.getName()
+                FrameworkDebug.log("provider", "registerDataProvider: " + provider.getName()
                         + " channel=" + provider.getNetworkChannel() + " protoVer=" + provider.getProtocolVersion());
             }
 
@@ -106,9 +106,9 @@ public class DataProviderManager
     {
         boolean wasEnabled = provider.isEnabled();
 
-        if (ServuxDebug.isOn(ServuxDebug.Cat.PROVIDER))
+        if (FrameworkDebug.isOn("provider"))
         {
-            ServuxDebug.log(ServuxDebug.Cat.PROVIDER, "setProviderEnabled: " + provider.getName()
+            FrameworkDebug.log("provider", "setProviderEnabled: " + provider.getName()
                     + " was=" + wasEnabled + " → now=" + enabled);
         }
 
@@ -120,7 +120,7 @@ public class DataProviderManager
             if (enabled && provider.shouldTick() && this.providersTicking.contains(provider) == false)
             {
                 this.providersTicking.add(provider);
-                ServuxDebug.log(ServuxDebug.Cat.PROVIDER, "  → 加入 ticking 列表，interval=" + provider.getTickInterval());
+                FrameworkDebug.log("provider", "  → 加入 ticking 列表，interval=" + provider.getTickInterval());
             }
             else
             {
@@ -141,7 +141,7 @@ public class DataProviderManager
             {
                 if ((tickCounter % provider.getTickInterval()) == 0)
                 {
-                    ServuxDebug.log(ServuxDebug.Cat.TICK, "tick[" + provider.getName() + "] @tick=" + tickCounter
+                    FrameworkDebug.log("tick", "tick[" + provider.getName() + "] @tick=" + tickCounter
                             + " interval=" + provider.getTickInterval());
                     try
                     {
@@ -168,12 +168,12 @@ public class DataProviderManager
     {
         if (provider.isEnabled())
         {
-            ServuxDebug.log(ServuxDebug.Cat.PROVIDER, "updatePacketHandlerRegistration: " + provider.getName() + " → registerHandler()");
+            FrameworkDebug.log("provider", "updatePacketHandlerRegistration: " + provider.getName() + " → registerHandler()");
             provider.registerHandler();
         }
         else
         {
-            ServuxDebug.log(ServuxDebug.Cat.PROVIDER, "updatePacketHandlerRegistration: " + provider.getName() + " → unregisterHandler() + setRegistered(false)");
+            FrameworkDebug.log("provider", "updatePacketHandlerRegistration: " + provider.getName() + " → unregisterHandler() + setRegistered(false)");
             provider.unregisterHandler();
             provider.setRegistered(false); // 与 registerHandler 内 setRegistered(true) 对称，消除 provider 级标志撒谎
         }
@@ -258,7 +258,7 @@ public class DataProviderManager
         JsonElement el = JsonUtils.parseJsonFileAsPath(this.getConfigFile());
         JsonObject obj = null;
 
-        ServuxDebug.log(ServuxDebug.Cat.CONFIG, "DataProviderManager#readFromConfig() file=" + this.getConfigFile());
+        FrameworkDebug.log("config", "DataProviderManager#readFromConfig() file=" + this.getConfigFile());
 
         if (el != null && el.isJsonObject())
         {
@@ -300,7 +300,7 @@ public class DataProviderManager
         }
         else
         {
-            ServuxDebug.log(ServuxDebug.Cat.CONFIG, "readFromConfig: 配置文件不存在，首次启动默认全启用");
+            FrameworkDebug.log("config", "readFromConfig: 配置文件不存在，首次启动默认全启用");
             // 首次无 config：全启用（除 debug_data，本版无）
             for (IDataProvider provider : this.providersImmutable)
             {
@@ -316,7 +316,7 @@ public class DataProviderManager
         }
 
         // 汇总各 provider 启停结果（一次打印，便于核对 enabled/registered/tick 三态）
-        if (ServuxDebug.isOn(ServuxDebug.Cat.CONFIG))
+        if (FrameworkDebug.isOn("config"))
         {
             StringBuilder sb = new StringBuilder("readFromConfig 完成 → providers:");
             for (IDataProvider provider : this.providersImmutable)
@@ -327,7 +327,7 @@ public class DataProviderManager
                   .append(" shouldTick=").append(provider.shouldTick())
                   .append(" ch=").append(provider.getNetworkChannel());
             }
-            ServuxDebug.log(ServuxDebug.Cat.CONFIG, sb.toString());
+            FrameworkDebug.log("config", sb.toString());
         }
     }
 
@@ -336,7 +336,7 @@ public class DataProviderManager
         JsonObject root = new JsonObject();
         JsonObject objToggles = new JsonObject();
 
-        ServuxDebug.log(ServuxDebug.Cat.CONFIG, "DataProviderManager#writeToConfig() → " + this.getConfigFile());
+        FrameworkDebug.log("config", "DataProviderManager#writeToConfig() → " + this.getConfigFile());
 
         for (IDataProvider provider : this.providersImmutable)
         {

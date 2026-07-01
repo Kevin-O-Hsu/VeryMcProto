@@ -9,7 +9,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
 import verymc.top.veryMcProto.Reference;
-import verymc.top.veryMcProto.mod.servux.ServuxDebug;
+import verymc.top.veryMcProto.framework.debug.FrameworkDebug;
 
 /**
  * 「一条通道的收发逻辑」抽象（框架层）。移植自原版 {@code fi.dy.masa.servux.network.IPluginServerPlayHandler}，
@@ -99,7 +99,7 @@ public interface IPluginServerPlayHandler
         Objects.requireNonNull(player, "player");
         byte[] bytes = FriendlyByteBufs.encodePayload(data);
         boolean ok = ChannelManager.INSTANCE.send(ch, player.getBukkitEntity(), bytes);
-        ServuxDebug.log(ServuxDebug.Cat.PACKET, "sendPlayPayload(pluginMsg) " + ch + " → " + player.getName().getString()
+        FrameworkDebug.log("packet", "sendPlayPayload(pluginMsg) " + ch + " → " + player.getName().getString()
                 + " pktType=" + data.getPacketType() + " bytes=" + bytes.length + " ok=" + ok);
         return ok;
     }

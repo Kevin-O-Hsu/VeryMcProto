@@ -4,7 +4,7 @@ import org.bukkit.entity.Player;
 
 import net.minecraft.server.level.ServerPlayer;
 
-import verymc.top.veryMcProto.mod.servux.ServuxDebug;
+import verymc.top.veryMcProto.framework.debug.FrameworkDebug;
 
 /**
  * 权限工具（框架层）。替代原版 {@code me.lucko.fabric.api.permissions.v0.Permissions}。
@@ -62,7 +62,7 @@ public final class Perms
             result = level <= 0;
             reason = "exception:" + e.getClass().getSimpleName();
         }
-        ServuxDebug.log(ServuxDebug.Cat.PERMISSION, "check " + player.getName().getString()
+        FrameworkDebug.log("permission", "check " + player.getName().getString()
                 + " node=" + node + " level=" + level + " → " + result + " (" + reason + ")");
         return result;
     }

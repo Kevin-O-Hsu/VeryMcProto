@@ -108,6 +108,29 @@ public final class DebugSystem<C extends Enum<C>>
         }
     }
 
+    // ───── 按分类名字符串重载（供 framework 等不持有具体 Cat 类型的调用方使用） ─────
+
+    /** 按分类名字符串输出（不区分大小写；未知名忽略，不输出）。 */
+    public void log(String catName, String msg)
+    {
+        C c = parseCat(catName);
+        if (c != null) { log(c, msg); }
+    }
+
+    /** 按分类名字符串输出（含异常栈；不区分大小写；未知名忽略）。 */
+    public void log(String catName, String msg, Throwable t)
+    {
+        C c = parseCat(catName);
+        if (c != null) { log(c, msg, t); }
+    }
+
+    /** 按分类名字符串判断是否启用（未知名返回 false）。 */
+    public boolean isOn(String catName)
+    {
+        C c = parseCat(catName);
+        return c != null && isOn(c);
+    }
+
     // ───── 命令辅助 ─────
     /** 解析分类名（不区分大小写），找不到返回 null。 */
     public C parseCat(String name)

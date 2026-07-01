@@ -2,6 +2,8 @@ package verymc.top.veryMcProto.mod.servux.app;
 
 import verymc.top.veryMcProto.framework.ModModule;
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderManager;
+import verymc.top.veryMcProto.framework.debug.FrameworkDebug;
+import verymc.top.veryMcProto.mod.servux.ServuxDebug;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
 import verymc.top.veryMcProto.mod.servux.dataproviders.ConfigProvider;
 import verymc.top.veryMcProto.mod.servux.dataproviders.EntitiesDataProvider;
@@ -27,6 +29,11 @@ public class ServuxModule implements ModModule
     @Override
     public void onRegister(DataProviderManager manager)
     {
+        // framework 层调试日志注入（F001 解耦）：framework/ 不再硬绑 ServuxDebug，改为由首个采用
+        // 框架的 mod 在此注入自己的 DebugSystem 实例。运行时 framework 网络层等日志仍走
+        // ServuxDebug.SYS，受 /servux debug 控制——行为与解耦前完全一致。
+        FrameworkDebug.bind(ServuxDebug.SYS);
+
         // 顺序：ConfigProvider 先注册（servux_main，永不可禁用，承载全局配置）
         manager.registerDataProvider(ConfigProvider.INSTANCE);
         manager.registerDataProvider(HudDataProvider.INSTANCE);

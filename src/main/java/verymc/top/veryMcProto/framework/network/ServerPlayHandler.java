@@ -5,7 +5,7 @@ import java.util.Map;
 
 import net.minecraft.resources.Identifier;
 
-import verymc.top.veryMcProto.mod.servux.ServuxDebug;
+import verymc.top.veryMcProto.framework.debug.FrameworkDebug;
 
 /**
  * Handler 注册表（框架层）。移植自原版 {@code fi.dy.masa.servux.network.ServerPlayHandler}，简化为
@@ -42,7 +42,7 @@ public final class ServerPlayHandler
         // （实测 BUG：5 条 servux:* 通道全部 sendPlayPayload 失败）。对应原版 registerPlayPayload
         // 成功后由 fabric 回调触发的 setPlayRegistered。
         handler.setPlayRegistered(channel);
-        ServuxDebug.log(ServuxDebug.Cat.NETWORK, "registerServerPlayHandler: " + channel
+        FrameworkDebug.log("network", "registerServerPlayHandler: " + channel
                 + (existed ? " (handler 已存在，putIfAbsent 未覆盖)" : "")
                 + " → ChannelManager.register + setPlayRegistered(true)");
     }
@@ -58,12 +58,12 @@ public final class ServerPlayHandler
             handler.reset(channel);
             handler.clearPlayRegistered(channel);
             ChannelManager.INSTANCE.unregister(channel);
-            ServuxDebug.log(ServuxDebug.Cat.NETWORK, "unregisterServerPlayHandler: " + channel
+            FrameworkDebug.log("network", "unregisterServerPlayHandler: " + channel
                     + " → ChannelManager.unregister + clearPlayRegistered(false)");
         }
         else
         {
-            ServuxDebug.log(ServuxDebug.Cat.NETWORK, "unregisterServerPlayHandler: " + channel + " 跳过（existing!=handler 或未注册）");
+            FrameworkDebug.log("network", "unregisterServerPlayHandler: " + channel + " 跳过（existing!=handler 或未注册）");
         }
     }
 
