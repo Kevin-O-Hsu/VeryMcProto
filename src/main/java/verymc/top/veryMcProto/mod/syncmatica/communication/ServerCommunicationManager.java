@@ -160,99 +160,107 @@ public class ServerCommunicationManager extends CommunicationManager
     @Override
     protected void handle(final ExchangeTarget source, final PacketType type, final FriendlyByteBuf packetBuf)
     {
-        if (type.equals(PacketType.REQUEST_LITEMATIC))
+        switch (type)
         {
-            final UUID syncmaticaId = packetBuf.readUUID();
-            final ServerPlacement placement = context.getSyncmaticManager().getPlacement(syncmaticaId);
-            if (placement == null)
+            case REQUEST_LITEMATIC:
             {
-                return;
-            }
-            final Path toUpload = context.getFileStorage().getLocalLitematic(placement);
-            UploadExchange upload;
-            try
-            {
-                upload = new UploadExchange(placement, toUpload, source, context);
-            }
-            catch (final FileNotFoundException e)
-            {
-                // should be fine
-                SyncmaticaLog.warn("ServerCommunicationManager#handle(REQUEST_LITEMATIC): file not found for placement {}; {}",
-                        placement.getId(), e.getLocalizedMessage());
-                return;
-            }
-            startExchange(upload);
-            return;
-        }
-        if (type.equals(PacketType.REGISTER_METADATA))
-        {
-            final ServerPlacement placement = receiveMetaData(packetBuf, source);
-            if (context.getSyncmaticManager().getPlacement(placement.getId()) != null)
-            {
-                cancelShare(source, placement);
-
-                return;
-            }
-
-            // Paper：原版 playerMap.get(source).getGameProfile() → 从 ExchangeTarget 取 uuid + name
-            final PlayerIdentifier playerIdentifier = context.getPlayerIdentifierProvider().createOrGet(
-                    source.getPlayerId(), source.getPlayer().getName());
-            if (!placement.getOwner().equals(playerIdentifier))
-            {
-                placement.setOwner(playerIdentifier);
-                placement.setLastModifiedBy(playerIdentifier);
-            }
-
-            if (!context.getFileStorage().getLocalState(placement).isLocalFileReady())
-            {
-                // special edge case because files are transmitted by placement rather than file names/hashes
-                if (context.getFileStorage().getLocalState(placement) == LocalLitematicState.DOWNLOADING_LITEMATIC)
+                final UUID syncmaticaId = packetBuf.readUUID();
+                final ServerPlacement placement = context.getSyncmaticManager().getPlacement(syncmaticaId);
+                if (placement == null)
                 {
-                    downloadingFile.computeIfAbsent(placement.getHash(), key -> new ArrayList<>()).add(placement);
                     return;
                 }
+                final Path toUpload = context.getFileStorage().getLocalLitematic(placement);
+                UploadExchange upload;
                 try
                 {
-                    download(placement, source);
+                    upload = new UploadExchange(placement, toUpload, source, context);
                 }
-                catch (final Exception e)
+                catch (final FileNotFoundException e)
                 {
-                    SyncmaticaLog.error("ServerCommunicationManager#handle(REGISTER_METADATA): download failed", e);
+                    // should be fine
+                    SyncmaticaLog.warn("ServerCommunicationManager#handle(REQUEST_LITEMATIC): file not found for placement {}; {}",
+                            placement.getId(), e.getLocalizedMessage());
+                    return;
                 }
+                startExchange(upload);
+                return;
+            }
+            case REGISTER_METADATA:
+            {
+                final ServerPlacement placement = receiveMetaData(packetBuf, source);
+                if (context.getSyncmaticManager().getPlacement(placement.getId()) != null)
+                {
+                    cancelShare(source, placement);
+
+                    return;
+                }
+
+                // Paper：原版 playerMap.get(source).getGameProfile() -> 从 ExchangeTarget 取 uuid + name
+                final PlayerIdentifier playerIdentifier = context.getPlayerIdentifierProvider().createOrGet(
+                        source.getPlayerId(), source.getPlayer().getName());
+                if (!placement.getOwner().equals(playerIdentifier))
+                {
+                    placement.setOwner(playerIdentifier);
+                    placement.setLastModifiedBy(playerIdentifier);
+                }
+
+                if (!context.getFileStorage().getLocalState(placement).isLocalFileReady())
+                {
+                    // special edge case because files are transmitted by placement rather than file names/hashes
+                    if (context.getFileStorage().getLocalState(placement) == LocalLitematicState.DOWNLOADING_LITEMATIC)
+                    {
+                        downloadingFile.computeIfAbsent(placement.getHash(), key -> new ArrayList<>()).add(placement);
+                        return;
+                    }
+                    try
+                    {
+                        download(placement, source);
+                    }
+                    catch (final Exception e)
+                    {
+                        SyncmaticaLog.error("ServerCommunicationManager#handle(REGISTER_METADATA): download failed", e);
+                    }
+
+                    return;
+                }
+
+                addPlacement(source, placement);
 
                 return;
             }
-
-            addPlacement(source, placement);
-
-            return;
-        }
-        if (type.equals(PacketType.REMOVE_SYNCMATIC))
-        {
-            final UUID placementId = packetBuf.readUUID();
-            final ServerPlacement placement = context.getSyncmaticManager().getPlacement(placementId);
-            if (placement != null)
+            case REMOVE_SYNCMATIC:
             {
-                final Exchange modifier = getModifier(placement);
-                if (modifier != null)
+                final UUID placementId = packetBuf.readUUID();
+                final ServerPlacement placement = context.getSyncmaticManager().getPlacement(placementId);
+                if (placement != null)
                 {
-                    modifier.close(true);
-                    notifyClose(modifier);
+                    final Exchange modifier = getModifier(placement);
+                    if (modifier != null)
+                    {
+                        modifier.close(true);
+                        notifyClose(modifier);
+                    }
+                    context.getSyncmaticManager().removePlacement(placement);
+                    for (final ExchangeTarget client : broadcastTargets)
+                    {
+                        final FriendlyByteBuf newPacketBuf = new FriendlyByteBuf(Unpooled.buffer());
+                        newPacketBuf.writeUUID(placement.getId());
+                        client.sendPacket(PacketType.REMOVE_SYNCMATIC, newPacketBuf, context);
+                    }
                 }
-                context.getSyncmaticManager().removePlacement(placement);
-                for (final ExchangeTarget client : broadcastTargets)
-                {
-                    final FriendlyByteBuf newPacketBuf = new FriendlyByteBuf(Unpooled.buffer());
-                    newPacketBuf.writeUUID(placement.getId());
-                    client.sendPacket(PacketType.REMOVE_SYNCMATIC, newPacketBuf, context);
-                }
+                return;
             }
-        }
-        if (type.equals(PacketType.MODIFY_REQUEST))
-        {
-            final UUID placementId = packetBuf.readUUID();
-            final ModifyExchangeServer modifier = new ModifyExchangeServer(placementId, source, context);
-            startExchange(modifier);
+            case MODIFY_REQUEST:
+            {
+                final UUID placementId = packetBuf.readUUID();
+                final ModifyExchangeServer modifier = new ModifyExchangeServer(placementId, source, context);
+                startExchange(modifier);
+                return;
+            }
+            default:
+                // 其他 PacketType（exchange 数据包等）已由 CommunicationManager.onPacket 路由到对应 exchange，不在此处理
+                break;
         }
     }
 
