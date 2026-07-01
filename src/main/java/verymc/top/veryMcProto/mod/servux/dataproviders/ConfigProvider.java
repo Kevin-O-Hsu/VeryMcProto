@@ -9,7 +9,7 @@ import net.minecraft.server.level.ServerPlayer;
 
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderBase;
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderManager;
-import verymc.top.veryMcProto.framework.debug.Debug;
+import verymc.top.veryMcProto.mod.servux.ServuxDebug;
 import verymc.top.veryMcProto.framework.permission.Perms;
 import verymc.top.veryMcProto.framework.settings.IServuxSetting;
 import verymc.top.veryMcProto.framework.settings.IServuxSettingCallback;
@@ -83,20 +83,20 @@ public class ConfigProvider extends DataProviderBase
     }
 
     /**
-     * 把 {@code servux_main:debug_log} 同步到框架 {@link Debug} 宏开关。
+     * 把 {@code servux_main:debug_log} 同步到 {@link ServuxDebug} 宏开关。
      *
-     * <p>开启时自动 {@link Debug#enableAll()}（全分类），方便排障；关闭则静默。
+     * <p>开启时自动 {@link ServuxDebug#enableAll()}（全分类），方便排障；关闭则静默。
      * 由 {@link DebugLogCallback}（命令 {@code /servux set} 触发）与 {@link #onConfigLoaded}（配置文件读取）双入口调用，
      * 保证「命令即时切换」与「改 servux.json 重启/reload」两条路径都生效。
      */
     public void syncDebugToFramework(boolean debugLogValue)
     {
         boolean on = debugLogValue || ServuxReference.DEV_DEBUG;
-        Debug.setMaster(on);
+        ServuxDebug.setMaster(on);
         if (on)
         {
-            Debug.enableAll();
-            Debug.debug("调试宏开关已启用（servux_main:debug_log=" + debugLogValue
+            ServuxDebug.enableAll();
+            ServuxDebug.log(ServuxDebug.Cat.CONFIG, "调试宏开关已启用（servux_main:debug_log=" + debugLogValue
                     + ", DEV_DEBUG=" + ServuxReference.DEV_DEBUG + "），已开启全分类。");
         }
     }

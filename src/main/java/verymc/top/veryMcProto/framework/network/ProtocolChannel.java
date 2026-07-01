@@ -12,7 +12,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
 import verymc.top.veryMcProto.Reference;
-import verymc.top.veryMcProto.framework.debug.Debug;
+import verymc.top.veryMcProto.mod.servux.ServuxDebug;
 
 /**
  * 单条 plugin messaging 通道封装（框架层）。
@@ -53,7 +53,7 @@ public final class ProtocolChannel
             {
                 return;
             }
-            Debug.log(Debug.Cat.NETWORK, "C2S 收到 " + channelId + " ← " + player.getName() + " bytes=" + message.length);
+            ServuxDebug.log(ServuxDebug.Cat.NETWORK, "C2S 收到 " + channelId + " ← " + player.getName() + " bytes=" + message.length);
             try
             {
                 FriendlyByteBuf buf = FriendlyByteBufs.wrap(message);
@@ -93,7 +93,7 @@ public final class ProtocolChannel
         }
         plugin.getServer().getMessenger().registerIncomingPluginChannel(plugin, name(), listener);
         incoming = true;
-        Debug.log(Debug.Cat.NETWORK, "registerIncoming OK " + channelId);
+        ServuxDebug.log(ServuxDebug.Cat.NETWORK, "registerIncoming OK " + channelId);
     }
 
     public synchronized void registerOutgoing()
@@ -104,7 +104,7 @@ public final class ProtocolChannel
         }
         plugin.getServer().getMessenger().registerOutgoingPluginChannel(plugin, name());
         outgoing = true;
-        Debug.log(Debug.Cat.NETWORK, "registerOutgoing OK " + channelId);
+        ServuxDebug.log(ServuxDebug.Cat.NETWORK, "registerOutgoing OK " + channelId);
     }
 
     public synchronized void unregister()
@@ -151,13 +151,13 @@ public final class ProtocolChannel
     {
         if (!outgoing)
         {
-            Debug.log(Debug.Cat.NETWORK, "send FAIL " + channelId + " bytes=" + bytes.length
+            ServuxDebug.log(ServuxDebug.Cat.NETWORK, "send FAIL " + channelId + " bytes=" + bytes.length
                     + " : outgoing 未注册（provider 未 registerHandler / 通道已注销）");
             return false;
         }
         if (player == null || !player.isOnline())
         {
-            Debug.log(Debug.Cat.NETWORK, "send FAIL " + channelId + " bytes=" + bytes.length + " : player 离线/null");
+            ServuxDebug.log(ServuxDebug.Cat.NETWORK, "send FAIL " + channelId + " bytes=" + bytes.length + " : player 离线/null");
             return false;
         }
         // ★ 命门修复：不再用 getListeningPluginChannels 门控丢弃。
@@ -176,7 +176,7 @@ public final class ProtocolChannel
         try
         {
             player.sendPluginMessage(plugin, name(), bytes);
-            Debug.log(Debug.Cat.NETWORK, "send OK " + channelId + " → " + player.getName()
+            ServuxDebug.log(ServuxDebug.Cat.NETWORK, "send OK " + channelId + " → " + player.getName()
                     + " bytes=" + bytes.length + " listening=" + listening);
             return true;
         }

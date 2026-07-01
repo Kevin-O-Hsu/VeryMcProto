@@ -11,6 +11,7 @@ import java.util.function.Consumer;
 
 import verymc.top.veryMcProto.mod.syncmatica.SyncmaticaContext;
 import verymc.top.veryMcProto.mod.syncmatica.SyncmaticaReference;
+import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaDebug;
 import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaLog;
 import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaUtil;
 import com.google.gson.*;
@@ -143,7 +144,7 @@ public class SyncmaticManager
         final Path incoming = context.getConfigFolder().resolve(SyncmaticaReference.PLACEMENTS_FILE_NAME + ".new");
         final Path current = context.getConfigFolder().resolve(SyncmaticaReference.PLACEMENTS_FILE_NAME);
 
-        SyncmaticaLog.debug("saveServer(): placements path: '{}'", current.toAbsolutePath());
+        SyncmaticaDebug.log(SyncmaticaDebug.Cat.DATA, "saveServer(): placements path: '" + current.toAbsolutePath() + "'");
 
         // We still use FileWriter, etc for porting/compatibility -- for now.
         try (final FileWriter writer = new FileWriter(incoming.toFile()))
@@ -164,7 +165,7 @@ public class SyncmaticManager
     {
         final Path f = context.getConfigFolder().resolve(SyncmaticaReference.PLACEMENTS_FILE_NAME);
 
-        SyncmaticaLog.debug("loadServer(): placements path: [{}]", f.toAbsolutePath());
+        SyncmaticaDebug.log(SyncmaticaDebug.Cat.DATA, "loadServer(): placements path: [" + f.toAbsolutePath() + "]");
 
         if (Files.exists(f) && Files.isReadable(f))
         {

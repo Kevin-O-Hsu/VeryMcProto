@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import verymc.top.veryMcProto.mod.servux.util.Log;
+import verymc.top.veryMcProto.mod.servux.ServuxDebug;
 import verymc.top.veryMcProto.mod.servux.util.data.FileType;
 
 public class SchematicBuffer
@@ -87,7 +88,7 @@ public class SchematicBuffer
             try
             {
                 Files.createDirectory(dir);
-                Log.debugLog("LitematicBuffer#writeFile(): Created directory '{}' successfully", dir.toAbsolutePath().toString());
+                ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "LitematicBuffer#writeFile(): Created directory '" + dir.toAbsolutePath() + "' successfully");
             }
             catch (IOException err)
             {
@@ -103,7 +104,7 @@ public class SchematicBuffer
             try
             {
                 Files.delete(file);
-                Log.debugLog("LitematicBuffer#writeFile(): Deleted file '{}' successfully", file.toAbsolutePath().toString());
+                ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "LitematicBuffer#writeFile(): Deleted file '" + file.toAbsolutePath() + "' successfully");
             }
             catch (IOException err)
             {
@@ -144,7 +145,7 @@ public class SchematicBuffer
             return null;
         }
 
-        Log.debugLog("SchematicBuffer#writeFile(): Saved file '{}' successfully", file.toAbsolutePath().toString());
+        ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "SchematicBuffer#writeFile(): Saved file '" + file.toAbsolutePath() + "' successfully");
         this.buffer = null;
         return file;
     }

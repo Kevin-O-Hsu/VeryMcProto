@@ -26,7 +26,7 @@ import net.minecraft.world.level.storage.ServerLevelData;
 
 import verymc.top.veryMcProto.Reference;
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderBase;
-import verymc.top.veryMcProto.framework.debug.Debug;
+import verymc.top.veryMcProto.mod.servux.ServuxDebug;
 import verymc.top.veryMcProto.framework.network.IPluginServerPlayHandler;
 import verymc.top.veryMcProto.framework.network.ServerPlayHandler;
 import verymc.top.veryMcProto.framework.nms.Nms;
@@ -37,7 +37,6 @@ import verymc.top.veryMcProto.framework.settings.ServuxBoolSetting;
 import verymc.top.veryMcProto.framework.settings.ServuxIntSetting;
 import verymc.top.veryMcProto.framework.settings.ServuxStringListSetting;
 import verymc.top.veryMcProto.framework.util.StringUtils;
-import verymc.top.veryMcProto.mod.servux.ServuxLog;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
 import verymc.top.veryMcProto.mod.servux.loggers.DataLogger;
 import verymc.top.veryMcProto.mod.servux.loggers.DataLoggerBase;
@@ -354,12 +353,12 @@ public class HudDataProvider extends DataProviderBase
     {
         if (!this.isEnabled())
         {
-            Debug.log(Debug.Cat.HANDSHAKE, "hud sendMetadata 跳过: provider disabled");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud sendMetadata 跳过: provider disabled");
             return;
         }
         if (!this.hasPermission(player))
         {
-            Debug.log(Debug.Cat.HANDSHAKE, "hud sendMetadata 拒绝 " + player.getName().getString() + " (权限不足)");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud sendMetadata 拒绝 " + player.getName().getString() + " (权限不足)");
             return;
         }
 
@@ -372,7 +371,7 @@ public class HudDataProvider extends DataProviderBase
 
         // 方案 A：走 plugin messaging（原版走 NMS networkHandler 首发保真，Paper 用握手重试替代）
         boolean ok = HANDLER.sendPlayPayload(player, ServuxHudPacket.MetadataResponse(nbt));
-        Debug.log(Debug.Cat.HANDSHAKE, "hud sendMetadata → " + player.getName().getString()
+        ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud sendMetadata → " + player.getName().getString()
                 + " ok=" + ok + " servux=" + nbt.getStringOr("servux", "?")
                 + " ver=" + nbt.getIntOr("version", -1)
                 + " keys=" + nbt.keySet()
@@ -485,7 +484,7 @@ public class HudDataProvider extends DataProviderBase
 
         if (data != null)
         {
-            ServuxLog.debug("hudDataChannel: 收到 RecipeManager 请求 from " + player.getName().getString()
+            ServuxDebug.log(ServuxDebug.Cat.PACKET, "hudDataChannel: 收到 RecipeManager 请求 from " + player.getName().getString()
                     + ", client version=" + data.getStringOr("version", "?"));
         }
 
@@ -600,7 +599,7 @@ public class HudDataProvider extends DataProviderBase
                 public void run() { HudDataProvider.this.sendMetadata(player); }
             }.runTaskLater(Reference.plugin(), 40L); // 2s
         }
-        catch (Exception e) { ServuxLog.debug("onPlayerJoin 延迟 sendMetadata 失败: " + e.getMessage()); }
+        catch (Exception e) { ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "onPlayerJoin 延迟 sendMetadata 失败: " + e.getMessage()); }
     }
 
     @Override
@@ -633,7 +632,7 @@ public class HudDataProvider extends DataProviderBase
             {
                 this.updateSpawnFromServer(server);
                 GlobalPos sp = this.getSpawnPos();
-                Debug.log(Debug.Cat.HANDSHAKE, "hud onConfigLoaded: 同步出生点 → dim=" + sp.dimension().identifier() + " pos=" + sp.pos());
+                ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud onConfigLoaded: 同步出生点 → dim=" + sp.dimension().identifier() + " pos=" + sp.pos());
             }
         }
         catch (Exception ignored) { }

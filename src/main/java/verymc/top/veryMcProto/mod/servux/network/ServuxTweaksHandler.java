@@ -9,7 +9,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
 import verymc.top.veryMcProto.Reference;
-import verymc.top.veryMcProto.framework.debug.Debug;
+import verymc.top.veryMcProto.mod.servux.ServuxDebug;
 import verymc.top.veryMcProto.framework.network.IPluginServerPlayHandler;
 import verymc.top.veryMcProto.framework.network.IServerPayloadData;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
@@ -61,7 +61,7 @@ public class ServuxTweaksHandler implements IPluginServerPlayHandler
     {
         ServuxTweaksPacket packet = ServuxTweaksPacket.fromPacket(data);
         if (packet == null) { return; }
-        Debug.log(Debug.Cat.PACKET, "C2S tweaks ← " + player.getName().getString() + " type=" + packet.getType());
+        ServuxDebug.log(ServuxDebug.Cat.PACKET, "C2S tweaks ← " + player.getName().getString() + " type=" + packet.getType());
         this.decodeServerData(CHANNEL_ID, player, packet);
     }
 
@@ -99,7 +99,7 @@ public class ServuxTweaksHandler implements IPluginServerPlayHandler
         // Send Response Data via Packet Splitter
         if (packet.getType().equals(ServuxTweaksPacket.Type.PACKET_S2C_NBT_RESPONSE_START))
         {
-            Debug.log(Debug.Cat.PACKET, "encodeServerData tweaks → " + player.getName().getString()
+            ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData tweaks → " + player.getName().getString()
                     + " type=" + packet.getType() + " → PacketSplitter 分包");
             // 大包：VarInt transactionId + NBT，走 PacketSplitter
             FriendlyByteBuf buffer = new FriendlyByteBuf(io.netty.buffer.Unpooled.buffer());
@@ -116,7 +116,7 @@ public class ServuxTweaksHandler implements IPluginServerPlayHandler
             if (count >= MAX_FAILURES)
             {
                 this.failures.remove(id);
-                Debug.log(Debug.Cat.PACKET, "encodeServerData tweaks → " + player.getName().getString()
+                ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData tweaks → " + player.getName().getString()
                         + " 连续 " + MAX_FAILURES + " 次发送失败，触发 onPacketFailure（可能未装 Tweakeroo）");
                 TweaksDataProvider.INSTANCE.onPacketFailure(player);
             }

@@ -16,14 +16,13 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderBase;
-import verymc.top.veryMcProto.framework.debug.Debug;
+import verymc.top.veryMcProto.mod.servux.ServuxDebug;
 import verymc.top.veryMcProto.framework.network.IPluginServerPlayHandler;
 import verymc.top.veryMcProto.framework.network.ServerPlayHandler;
 import verymc.top.veryMcProto.framework.permission.Perms;
 import verymc.top.veryMcProto.framework.settings.IServuxSetting;
 import verymc.top.veryMcProto.framework.settings.IServuxSettingCallback;
 import verymc.top.veryMcProto.framework.settings.ServuxIntSetting;
-import verymc.top.veryMcProto.mod.servux.ServuxLog;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
 import verymc.top.veryMcProto.mod.servux.network.ServuxTweaksHandler;
 import verymc.top.veryMcProto.mod.servux.network.ServuxTweaksPacket;
@@ -118,7 +117,7 @@ public class TweaksDataProvider extends DataProviderBase
 
     public void updateAllTweaks(MinecraftServer server)
     {
-        ServuxLog.debug("tweaksData: Invoke updateAllTweaks()");
+        ServuxDebug.log(ServuxDebug.Cat.PROVIDER, "tweaksData: Invoke updateAllTweaks()");
         List<ServerPlayer> players = server.getPlayerList().getPlayers();
 
         for (ServerPlayer player : players)
@@ -131,17 +130,17 @@ public class TweaksDataProvider extends DataProviderBase
     {
         if (!this.isEnabled())
         {
-            Debug.log(Debug.Cat.HANDSHAKE, "tweaks sendMetadata 跳过: provider disabled");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "tweaks sendMetadata 跳过: provider disabled");
             return;
         }
         if (!this.hasPermission(player))
         {
-            Debug.log(Debug.Cat.HANDSHAKE, "tweaks sendMetadata 拒绝 " + player.getName().getString() + " (权限不足)");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "tweaks sendMetadata 拒绝 " + player.getName().getString() + " (权限不足)");
             return;
         }
 
         boolean ok = HANDLER.sendPlayPayload(player, ServuxTweaksPacket.MetadataResponse(this.metadata));
-        Debug.log(Debug.Cat.HANDSHAKE, "tweaks sendMetadata → " + player.getName().getString()
+        ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "tweaks sendMetadata → " + player.getName().getString()
                 + " ok=" + ok + " servux=" + this.metadata.getStringOr("servux", "?")
                 + " ver=" + this.metadata.getIntOr("version", -1)
                 + " keys=" + this.metadata.keySet());
@@ -203,7 +202,7 @@ public class TweaksDataProvider extends DataProviderBase
         }
         catch (Exception e)
         {
-            ServuxLog.debug("onEntityRequest 失败 entityId=" + entityId + ": " + e.getMessage());
+            ServuxDebug.log(ServuxDebug.Cat.PACKET, "onEntityRequest 失败 entityId=" + entityId + ": " + e.getMessage());
         }
     }
 
@@ -218,7 +217,7 @@ public class TweaksDataProvider extends DataProviderBase
         // 客户端声明 servux:tweaks（= 装了 Tweakeroo 等）时立即重发。sendMetadata 幂等。
         if (this.getNetworkChannel().toString().equals(channel))
         {
-            Debug.log(Debug.Cat.HANDSHAKE, "tweaks onPlayerRegisterChannel: 客户端声明 " + channel + " → 重发 metadata");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "tweaks onPlayerRegisterChannel: 客户端声明 " + channel + " → 重发 metadata");
             this.sendMetadata(player);
         }
     }
@@ -234,7 +233,7 @@ public class TweaksDataProvider extends DataProviderBase
         @Override
         public void onValueChanged(IServuxSetting<Integer> setting, Integer oldValue, Integer value)
         {
-            ServuxLog.debug("Config Change detected; " + setting.dataProvider().getName() + ":" + setting.name());
+            ServuxDebug.log(ServuxDebug.Cat.CONFIG, "Config Change detected; " + setting.dataProvider().getName() + ":" + setting.name());
             TweaksDataProvider.INSTANCE.configDirty = true;
         }
     }

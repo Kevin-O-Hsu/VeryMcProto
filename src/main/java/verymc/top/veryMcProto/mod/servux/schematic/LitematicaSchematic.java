@@ -44,6 +44,7 @@ import net.minecraft.world.ticks.ScheduledTick;
 import net.minecraft.world.ticks.TickPriority;
 
 import verymc.top.veryMcProto.mod.servux.util.Log;
+import verymc.top.veryMcProto.mod.servux.ServuxDebug;
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderManager;
 import verymc.top.veryMcProto.mod.servux.dataproviders.LitematicsDataProvider;
 import verymc.top.veryMcProto.mod.servux.network.ServuxLitematicaHandler;
@@ -681,7 +682,7 @@ public class LitematicaSchematic
                     return null;
                 }
 
-                Log.debugLog("receiveFileTransmit: Received file {}, [tS: {}, tB: {}]", schematic.getFile().toAbsolutePath().toString(), totalSlices, totalSize);
+                ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "receiveFileTransmit: Received file " + schematic.getFile().toAbsolutePath() + ", [tS: " + totalSlices + ", tB: " + totalSize + "]");
                 return Pair.of(schematic, optional);
             }
             default ->

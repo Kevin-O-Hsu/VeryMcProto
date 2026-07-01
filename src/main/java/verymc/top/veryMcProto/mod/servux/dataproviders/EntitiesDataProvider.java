@@ -14,14 +14,13 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderBase;
-import verymc.top.veryMcProto.framework.debug.Debug;
+import verymc.top.veryMcProto.mod.servux.ServuxDebug;
 import verymc.top.veryMcProto.framework.network.IPluginServerPlayHandler;
 import verymc.top.veryMcProto.framework.network.ServerPlayHandler;
 import verymc.top.veryMcProto.framework.permission.Perms;
 import verymc.top.veryMcProto.framework.settings.IServuxSetting;
 import verymc.top.veryMcProto.framework.settings.ServuxBoolSetting;
 import verymc.top.veryMcProto.framework.settings.ServuxIntSetting;
-import verymc.top.veryMcProto.mod.servux.ServuxLog;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
 import verymc.top.veryMcProto.mod.servux.network.ServuxEntitiesHandler;
 import verymc.top.veryMcProto.mod.servux.network.ServuxEntitiesPacket;
@@ -94,16 +93,16 @@ public class EntitiesDataProvider extends DataProviderBase
     {
         if (!this.isEnabled())
         {
-            Debug.log(Debug.Cat.HANDSHAKE, "entity sendMetadata 跳过: provider disabled");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "entity sendMetadata 跳过: provider disabled");
             return;
         }
         if (!this.hasPermission(player))
         {
-            Debug.log(Debug.Cat.HANDSHAKE, "entity sendMetadata 拒绝 " + player.getName().getString() + " (权限不足)");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "entity sendMetadata 拒绝 " + player.getName().getString() + " (权限不足)");
             return;
         }
         boolean ok = HANDLER.sendPlayPayload(player, ServuxEntitiesPacket.MetadataResponse(this.metadata));
-        Debug.log(Debug.Cat.HANDSHAKE, "entity sendMetadata → " + player.getName().getString()
+        ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "entity sendMetadata → " + player.getName().getString()
                 + " ok=" + ok + " servux=" + this.metadata.getStringOr("servux", "?")
                 + " ver=" + this.metadata.getIntOr("version", -1));
     }
@@ -154,7 +153,7 @@ public class EntitiesDataProvider extends DataProviderBase
         }
         catch (Exception e)
         {
-            ServuxLog.debug("onEntityRequest 失败 entityId=" + entityId + ": " + e.getMessage());
+            ServuxDebug.log(ServuxDebug.Cat.PACKET, "onEntityRequest 失败 entityId=" + entityId + ": " + e.getMessage());
         }
     }
 
@@ -210,7 +209,7 @@ public class EntitiesDataProvider extends DataProviderBase
         // 客户端声明该通道（= 装了实体查询 mod）时立即重发，确保 metadata 可达。sendMetadata 幂等，重复无害。
         if (this.getNetworkChannel().toString().equals(channel))
         {
-            Debug.log(Debug.Cat.HANDSHAKE, "entity onPlayerRegisterChannel: 客户端声明 " + channel + " → 重发 metadata");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "entity onPlayerRegisterChannel: 客户端声明 " + channel + " → 重发 metadata");
             this.sendMetadata(player);
         }
     }

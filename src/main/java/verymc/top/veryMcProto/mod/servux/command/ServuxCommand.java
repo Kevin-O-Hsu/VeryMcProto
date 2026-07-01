@@ -11,7 +11,7 @@ import org.bukkit.command.TabCompleter;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderManager;
-import verymc.top.veryMcProto.framework.debug.Debug;
+import verymc.top.veryMcProto.mod.servux.ServuxDebug;
 import verymc.top.veryMcProto.framework.settings.IServuxSetting;
 import verymc.top.veryMcProto.mod.servux.dataproviders.ConfigProvider;
 import verymc.top.veryMcProto.mod.servux.dataproviders.LitematicsDataProvider;
@@ -198,7 +198,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
     {
         if (args.length < 2)
         {
-            sender.sendMessage("§6调试状态: §f" + Debug.statusLine());
+            sender.sendMessage("§6调试状态: §f" + ServuxDebug.statusLine());
             sender.sendMessage("§7用法: §f/servux debug <on|off|status>§7 —— master 总开关 / 状态");
             sender.sendMessage("§7用法: §f/servux debug cat <all|none|分类名>§7 —— 分类（master 与分类正交，两者皆开才输出）");
             sender.sendMessage("§7分类: §flifecycle handshake network packet tick permission provider config easyplace");
@@ -211,24 +211,24 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
             // master 总开关维度：on/off 只管 master 死活，绝不越权动分类（分类是正交的另一维度）。
             case "on" ->
             {
-                Debug.setMaster(true);
-                String tip = Debug.active().isEmpty() ? " §7(分类为空，用 §f/servux debug cat all§7 开全分类)" : "";
-                sender.sendMessage("§a调试总开关已开启 §7(仅 master): §f" + Debug.statusLine() + tip);
+                ServuxDebug.setMaster(true);
+                String tip = ServuxDebug.active().isEmpty() ? " §7(分类为空，用 §f/servux debug cat all§7 开全分类)" : "";
+                sender.sendMessage("§a调试总开关已开启 §7(仅 master): §f" + ServuxDebug.statusLine() + tip);
             }
-            case "off" -> { Debug.setMaster(false); sender.sendMessage("§e调试总开关已关闭 §7(仅 master): §f" + Debug.statusLine()); }
-            case "status" -> sender.sendMessage("§6调试状态: §f" + Debug.statusLine());
+            case "off" -> { ServuxDebug.setMaster(false); sender.sendMessage("§e调试总开关已关闭 §7(仅 master): §f" + ServuxDebug.statusLine()); }
+            case "status" -> sender.sendMessage("§6调试状态: §f" + ServuxDebug.statusLine());
             // 分类维度：全部归到 cat 下。all/none 是 cat 的特殊值（set 语义，全开/清空）；单个 name 走 toggle。
             case "cat" ->
             {
                 if (args.length < 3) { sender.sendMessage("§e/servux debug cat <all|none|分类名>"); return; }
                 String catName = args[2].toLowerCase();
-                if (catName.equals("all")) { Debug.enableAll(); sender.sendMessage("§a已开启全分类: §f" + Debug.statusLine()); return; }
-                if (catName.equals("none")) { Debug.clearCats(); sender.sendMessage("§e已清空全分类: §f" + Debug.statusLine()); return; }
-                Debug.Cat cat = Debug.parseCat(args[2]);
+                if (catName.equals("all")) { ServuxDebug.enableAll(); sender.sendMessage("§a已开启全分类: §f" + ServuxDebug.statusLine()); return; }
+                if (catName.equals("none")) { ServuxDebug.clearCats(); sender.sendMessage("§e已清空全分类: §f" + ServuxDebug.statusLine()); return; }
+                ServuxDebug.Cat cat = ServuxDebug.parseCat(args[2]);
                 if (cat == null) { sender.sendMessage("§c未知分类: " + args[2] + " §7(all|none|分类名)"); return; }
-                boolean now = Debug.toggle(cat);
+                boolean now = ServuxDebug.toggle(cat);
                 sender.sendMessage("§a分类 " + cat.name().toLowerCase() + " → " + (now ? "§aON" : "§cOFF"));
-                sender.sendMessage("§7当前: §f" + Debug.statusLine());
+                sender.sendMessage("§7当前: §f" + ServuxDebug.statusLine());
             }
             default -> sender.sendMessage("§c未知子命令: " + sub + " §7(on/off/cat/status)");
         }
@@ -299,7 +299,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
             {
                 if (s.startsWith(typed)) { out.add(s); }
             }
-            for (Debug.Cat c : Debug.Cat.values())
+            for (ServuxDebug.Cat c : ServuxDebug.Cat.values())
             {
                 String n = c.name().toLowerCase();
                 if (n.startsWith(typed)) { out.add(n); }

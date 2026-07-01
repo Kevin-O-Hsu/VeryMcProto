@@ -12,6 +12,7 @@ import verymc.top.veryMcProto.mod.syncmatica.extended_core.PlayerIdentifierProvi
 import verymc.top.veryMcProto.mod.syncmatica.extended_core.SubRegionData;
 import verymc.top.veryMcProto.mod.syncmatica.data.litematica.SchematicMetadata;
 import verymc.top.veryMcProto.mod.syncmatica.data.litematica.SchematicSchema;
+import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaDebug;
 import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaLog;
 import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaUtil;
 import com.google.gson.JsonObject;
@@ -242,8 +243,7 @@ public class ServerPlacement
             fileName = SyncmaticaUtil.sanitizeUnicodeFileName(badFileName);
         }
 
-        SyncmaticaLog.debug("normalizeFileName(): Normalizing placement filename '{}' to: '{}'",
-                         badFileName, fileName);
+        SyncmaticaDebug.log(SyncmaticaDebug.Cat.DATA, "normalizeFileName(): Normalizing placement filename '" + badFileName + "' to: '" + fileName + "'");
 
         return fileName;
     }
@@ -364,7 +364,7 @@ public class ServerPlacement
             {
                 // Check for Absolute Paths being used, and fix
                 displayName = normalizeFileName(badFileName);
-                SyncmaticaLog.debug("ServerPlacement#fromJson(): displayName NORMALIZE [{}] --> Dirty", displayName);
+                SyncmaticaDebug.log(SyncmaticaDebug.Cat.DATA, "ServerPlacement#fromJson(): displayName NORMALIZE [" + displayName + "] --> Dirty");
                 dirty = true;
             }
 
@@ -383,7 +383,7 @@ public class ServerPlacement
             if (!badFileName.endsWith(".litematic"))
             {
                 fileName = SyncmaticaUtil.sanitizeUnicodeFileName(badFileName) + ".litematic";
-                SyncmaticaLog.debug("ServerPlacement#fromJson(): no Extension [{}] -> [{}] --> Dirty", badFileName, fileName);
+                SyncmaticaDebug.log(SyncmaticaDebug.Cat.DATA, "ServerPlacement#fromJson(): no Extension [" + badFileName + "] -> [" + fileName + "] --> Dirty");
                 dirty = true;
             }
 
@@ -408,7 +408,7 @@ public class ServerPlacement
             {
                 if (!newPlacement.lastModifiedBy.getName().equals(owner.getName()))
                 {
-                    SyncmaticaLog.debug("ServerPlacement#fromJson(): Update owner: [{}] -> [{}] --> Dirty", newPlacement.lastModifiedBy.getName(), owner.getName());
+                    SyncmaticaDebug.log(SyncmaticaDebug.Cat.DATA, "ServerPlacement#fromJson(): Update owner: [" + newPlacement.lastModifiedBy.getName() + "] -> [" + owner.getName() + "] --> Dirty");
                     dirty = true;
                 }
 
@@ -454,7 +454,7 @@ public class ServerPlacement
             this.displayName = pair.getLeft().getName();
             this.litematicVersion = pair.getRight().litematicVersion();
             this.dataVersion = pair.getRight().minecraftDataVersion();
-            SyncmaticaLog.debug("ServerPlacement#correctMetadataFromPeek(): Fix Metadata Name: [{}] --> Dirty", displayName);
+            SyncmaticaDebug.log(SyncmaticaDebug.Cat.DATA, "ServerPlacement#correctMetadataFromPeek(): Fix Metadata Name: [" + displayName + "] --> Dirty");
             return true;
         }
         return false;

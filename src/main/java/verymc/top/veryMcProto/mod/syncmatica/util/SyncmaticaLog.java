@@ -4,22 +4,21 @@ import java.util.logging.Level;
 import verymc.top.veryMcProto.Reference;
 
 /**
- * Syncmatica 日志门面（替代原版 {@code ch.endte.syncmatica.Syncmatica.LOGGER}）。
+ * Syncmatica 业务日志 shim（替代原版 {@code ch.endte.syncmatica.Syncmatica.LOGGER}）—— <b>仅业务日志</b>。
  *
  * <p>原版用 log4j（支持 {@code {}} 占位符多参重载）；Paper 用 JUL（{@code java.util.logging}，不支持 {@code {}} 多参）。
  * 本 shim 承接 SLF4J 风格的 {@code {}} 占位，转发到项目主 logger {@link Reference#logger()}。
  *
  * <p>用法对应：{@code Syncmatica.LOGGER.warn("...{}...", arg)} → {@code SyncmaticaLog.warn("...{}...", arg)}。
- * 同 servux 的 {@code mod/servux/util/Log.java} 设计。
+ *
+ * <p><b>职责边界</b>：本类只承载 <b>业务日志</b>（warn / error / info）。<b>调试日志</b>（受分类开关控制）请走
+ * {@link SyncmaticaDebug}：{@code SyncmaticaDebug.log(SyncmaticaDebug.Cat.XXX, "...")}。原 {@code debug} 方法已删除
+ * （曾是无分类后门——走 JUL {@code fine}，{@code /syncmatica debug cat none} 后仍输出，违背分类管控）；
+ * 数据/文件相关的调试日志已迁至 {@code SyncmaticaDebug.log(Cat.DATA, ...)}。
  */
 public final class SyncmaticaLog
 {
     private SyncmaticaLog() { }
-
-    public static void debug(String msg, Object... args)
-    {
-        Reference.logger().fine(format(msg, args));
-    }
 
     public static void info(String msg, Object... args)
     {
