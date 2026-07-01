@@ -1,6 +1,6 @@
 package verymc.top.veryMcProto.mod.syncmatica.communication;
 
-import java.util.ArrayList;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -41,7 +41,7 @@ public class ExchangeTarget
     private final String persistentName;
 
     private FeatureSet features;
-    private final List<Exchange> ongoingExchanges = new ArrayList<>(); // implicitly relies on priority
+    private final List<Exchange> ongoingExchanges = new CopyOnWriteArrayList<>(); // implicitly relies on priority; CopyOnWriteArrayList 迭代快照——onPacket 迭代与 startExchangeUnchecked#add 跨线程不 CME
 
     public ExchangeTarget(final Player player)
     {

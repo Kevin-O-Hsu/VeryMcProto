@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.block.Mirror;
@@ -51,9 +53,11 @@ public abstract class CommunicationManager
 
     protected CommunicationManager()
     {
-        broadcastTargets = new ArrayList<>();
-        downloadState = new HashMap<>();
-        modifyState = new HashMap<>();
+        // 并发集合：C2S 包回调（ProtocolChannel→PluginMessageListener，可能非主线程）与握手/命令（主线程）并发访问——
+        // CopyOnWriteArrayList/ConcurrentHashMap 消除竞态；单线程下行为与 ArrayList/HashMap 等价（迭代保持插入顺序）。
+        broadcastTargets = new CopyOnWriteArrayList<>();
+        downloadState = new ConcurrentHashMap<>();
+        modifyState = new ConcurrentHashMap<>();
     }
 
     public boolean handlePacket(final PacketType type) { return PacketType.containsType(type); }

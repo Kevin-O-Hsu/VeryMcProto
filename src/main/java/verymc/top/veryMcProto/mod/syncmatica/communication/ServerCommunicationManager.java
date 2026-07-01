@@ -3,6 +3,7 @@ package verymc.top.veryMcProto.mod.syncmatica.communication;
 import java.io.FileNotFoundException;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.network.FriendlyByteBuf;
 import org.bukkit.entity.Player;
 import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaDebug;
@@ -35,10 +36,10 @@ import io.netty.buffer.Unpooled;
  */
 public class ServerCommunicationManager extends CommunicationManager
 {
-    private final Map<UUID, List<ServerPlacement>> downloadingFile = new HashMap<>();
+    private final Map<UUID, List<ServerPlacement>> downloadingFile = new ConcurrentHashMap<>();
     // Paper：ExchangeTarget 已持 Player，不再需要原版 Map<ExchangeTarget, ServerPlayer> playerMap；
     // 改用 uuid→target 索引以便按玩家查找（替代原版 MixinServerPlayNetworkHandler 的懒加载）。
-    private final Map<UUID, ExchangeTarget> targets = new HashMap<>();
+    private final Map<UUID, ExchangeTarget> targets = new ConcurrentHashMap<>();
 
     public ServerCommunicationManager() { super(); }
 
