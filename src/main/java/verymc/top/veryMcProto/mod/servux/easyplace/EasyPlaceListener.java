@@ -8,6 +8,7 @@ import com.github.retrooper.packetevents.util.Vector3f;
 import com.github.retrooper.packetevents.util.Vector3i;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerBlockPlacement;
 
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import net.minecraft.core.BlockPos;
@@ -24,6 +25,7 @@ import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
+import verymc.top.veryMcProto.Reference;
 import verymc.top.veryMcProto.framework.nms.Nms;
 import verymc.top.veryMcProto.mod.servux.ServuxLog;
 import verymc.top.veryMcProto.mod.servux.dataproviders.ConfigProvider;
@@ -82,44 +84,51 @@ public class EasyPlaceListener implements PacketListener
         Direction face = Direction.from3DDataValue(pkt.getFace().getFaceValue());
         Vector3f cursor = pkt.getCursorPosition();
         Vec3 hitVec = new Vec3(pos.getX() + cursor.x, pos.getY() + cursor.y, pos.getZ() + cursor.z);
+        final int sequence = pkt.getSequence();
 
-        try
+        // ⚠ setBlock / setPlacedBy / playSound / shrink / ack 必须在世界 tick 线程（主线程）。
+        // PacketEvents 的 onPacketReceive 在 Netty IO 线程触发，直接调 level.setBlock 会被 Paper
+        // AsyncCatcher 拦截（"block onPlace" 主线程检查）。取消包后调度到下一 tick 主线程执行放置。
+        Bukkit.getScheduler().runTask(Reference.plugin(), () ->
         {
-            // 基础状态用 defaultBlockState：PlacementHandler 会用 protocolValue 修正 facing + 全部白名单属性。
-            // （原版 MixinBlockItem 用 getStateForPlacement(ctx) 作基础，但 EasyPlace 语义是客户端已精确决定
-            //  所有属性，defaultBlockState + PlacementHandler 解码即可覆盖；canSurvive validator 兜底挡非法放置。）
-            BlockState baseState = blockItem.getBlock().defaultBlockState();
-            PlacementHandler.UseContext ctx = new PlacementHandler.UseContext(
-                    level, pos, face, hitVec, player, hand, null);
-
-            BlockState finalState = PlacementHandler.applyPlacementProtocolV3(baseState, ctx);
-
-            if (finalState != null && finalState.canSurvive(level, pos))
+            try
             {
-                level.setBlock(pos, finalState, Block.UPDATE_ALL);
-                // setPlacedBy：初始化方块实体（箱子内容/告示牌文本/信标等）；无 BE 的方块为 no-op。
-                try { blockItem.getBlock().setPlacedBy(level, pos, finalState, player, stack); }
-                catch (Exception ignored) { }
-                playPlaceSound(level, pos, finalState);
-                // 物品消耗（非创造）
-                if (!player.getAbilities().instabuild) { stack.shrink(1); }
-                ServuxLog.debug("EasyPlace 放置 " + finalState + " @ " + pos);
+                // 基础状态用 defaultBlockState：PlacementHandler 会用 protocolValue 修正 facing + 全部白名单属性。
+                // （原版 MixinBlockItem 用 getStateForPlacement(ctx) 作基础，但 EasyPlace 语义是客户端已精确决定
+                //  所有属性，defaultBlockState + PlacementHandler 解码即可覆盖；canSurvive validator 兜底挡非法放置。）
+                BlockState baseState = blockItem.getBlock().defaultBlockState();
+                PlacementHandler.UseContext ctx = new PlacementHandler.UseContext(
+                        level, pos, face, hitVec, player, hand, null);
+
+                BlockState finalState = PlacementHandler.applyPlacementProtocolV3(baseState, ctx);
+
+                if (finalState != null && finalState.canSurvive(level, pos))
+                {
+                    level.setBlock(pos, finalState, Block.UPDATE_ALL);
+                    // setPlacedBy：初始化方块实体（箱子内容/告示牌文本/信标等）；无 BE 的方块为 no-op。
+                    try { blockItem.getBlock().setPlacedBy(level, pos, finalState, player, stack); }
+                    catch (Exception ignored) { }
+                    playPlaceSound(level, pos, finalState);
+                    // 物品消耗（非创造）
+                    if (!player.getAbilities().instabuild) { stack.shrink(1); }
+                    ServuxLog.debug("EasyPlace 放置 " + finalState + " @ " + pos);
+                }
+                else
+                {
+                    ServuxLog.debug("EasyPlace 拒绝放置 @ " + pos
+                            + " (" + (finalState == null ? "validator=null" : "canSurvive-fail") + ")");
+                }
             }
-            else
+            catch (Exception ex)
             {
-                ServuxLog.debug("EasyPlace 拒绝放置 @ " + pos
-                        + " (" + (finalState == null ? "validator=null" : "canSurvive-fail") + ")");
+                ServuxLog.debug("EasyPlace 异常 @ " + pos + ": " + ex.getMessage());
             }
-        }
-        catch (Exception ex)
-        {
-            ServuxLog.debug("EasyPlace 异常 @ " + pos + ": " + ex.getMessage());
-        }
-        finally
-        {
-            // 无论放置成败，都回 ack（原版成功/失败都回；不回会卡客户端块变更预测）
-            ack(player, pkt.getSequence());
-        }
+            finally
+            {
+                // 无论放置成败，都回 ack（原版成功/失败都回；不回会卡客户端块变更预测）
+                ack(player, sequence);
+            }
+        });
     }
 
     private static void ack(ServerPlayer player, int sequence)
