@@ -78,21 +78,26 @@ public class ServerCommunicationManager extends CommunicationManager
         targets.put(newPlayer.getPlayerId(), newPlayer);
         context.getPlayerIdentifierProvider().updateName(newPlayer.getPlayerId(), newPlayer.getPlayer().getName());
         SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] onPlayerJoin: 注册 target " + newPlayer.getPersistentName()
-                + "（握手延迟到 onPlayerRegisterChannel，不在此发起）");
-        // Paper 适配命门：此处【不】发起 VersionHandshakeServer。
-        // PlayerJoinEvent 触发时客户端尚未通过 MC|Register 声明 syncmatica:main（getListeningPluginChannels=[]），
-        // 此时 init() 推送的 REGISTER_VERSION 必然 listening=false 被 Fabric 客户端丢弃 → 握手永不完成，
-        // 且残留的 VersionHandshakeServer exchange 会卡住后续 tryStartHandshake 的幂等判断。
-        // 握手延迟到 onPlayerRegisterChannel(syncmatica:main) 由 tryStartHandshake 幂等发起（见 SyncmaticaModule）。
-        // 对应原版差异：Fabric 配置阶段已声明通道，故原版 onPlayerJoin 直推可行；Paper 不行。
+                + "（仅登记；握手由 SyncmaticaModule.onJoin 延迟 40t 发起，见 tryStartHandshake）");
+        // 此处【不】立即发起 VersionHandshakeServer——原版可行是因为 Fabric 配置阶段已完成通道声明；
+        // Paper 下 PlayerJoinEvent 时客户端 codec 尚未就绪，立即推 REGISTER_VERSION 会握手失败并残留 exchange。
+        // 握手发起策略（双保险，见 SyncmaticaModule.onJoin）：
+        //   ① 主路径：onJoin → runTaskLater(40t) → tryStartHandshake（等 configuration phase 完成、codec 就绪）；
+        //   ② 兜底：onPlayerRegisterChannel(syncmatica:main) → tryStartHandshake（旧式 MC|Register，1.21 通常不触发）。
+        // tryStartHandshake 幂等（已在 broadcastTargets / 有进行中的 VersionHandshakeServer 则跳过）。
     }
 
     /**
      * 幂等发起版本握手（Paper 新增）。
      *
-     * <p>由 {@code SyncmaticaModule} 在客户端声明 {@code syncmatica:main} 通道时调用
-     * （{@link org.bukkit.event.player.PlayerRegisterChannelEvent}）——此时通道已声明（listening=true），
-     * {@code REGISTER_VERSION} 可达客户端。幂等：已握手成功 / 已有进行中的握手则跳过。
+     * <p>由 {@code SyncmaticaModule} 双路径调用：
+     * <ul>
+     *   <li>主路径——{@code onJoin}（{@link org.bukkit.event.player.PlayerJoinEvent}）延迟 40t 后调用
+     *       （等 configuration phase 完成、客户端 codec 就绪）；</li>
+     *   <li>兜底——{@code onPlayerRegisterChannel}（{@link org.bukkit.event.player.PlayerRegisterChannelEvent}，
+     *       客户端经旧式 MC|Register 声明 {@code syncmatica:main} 时；1.21 Fabric 客户端通常不触发）。</li>
+     * </ul>
+     * 幂等：已握手成功（在 {@code broadcastTargets}）/ 已有进行中的 VersionHandshakeServer 则跳过。
      */
     public void tryStartHandshake(final ExchangeTarget target)
     {

@@ -10,6 +10,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRegisterChannelEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaDebug;
 import verymc.top.veryMcProto.framework.network.ServerPlayHandler;
@@ -74,9 +75,36 @@ public class SyncmaticaModule
                 try
                 {
                     SyncmaticaDebug.log(SyncmaticaDebug.Cat.LIFECYCLE, "[syncm] PlayerJoinEvent: " + e.getPlayer().getName()
-                            + "（注册 target，握手待 onPlayerRegisterChannel）");
+                            + "（注册 target；握手双保险：onJoin 延迟 40t 主路径 + onPlayerRegisterChannel 兜底）");
                     final ExchangeTarget target = fComMan.getOrCreateTarget(e.getPlayer());
                     fComMan.onPlayerJoin(target);
+
+                    // ★ 命门修复：把握手从「仅依赖 onPlayerRegisterChannel」改为双保险（与 servux HudDataProvider 一致）。
+                    // 1.21.x Fabric 客户端（syncmatica 经 PayloadTypeRegistry.playS2C() 声明通道）不通过 Bukkit
+                    // 旧式 MC|Register 机制声明 → PlayerRegisterChannelEvent 不触发 → 单路径下 tryStartHandshake
+                    // 永不调用 → syncmatica 完全不可用（实测：玩家进服后无任何 HANDSHAKE 日志）。
+                    // 主路径改为 onPlayerJoin 延迟 40t（2s，等 configuration phase 完成、客户端 codec 就绪），
+                    // onPlayerRegisterChannel 保留为加速/兜底（若事件触发则立即握手，tryStartHandshake 幂等）。
+                    final org.bukkit.entity.Player bukkitPlayer = e.getPlayer();
+                    new BukkitRunnable()
+                    {
+                        @Override
+                        public void run()
+                        {
+                            if (!bukkitPlayer.isOnline())
+                            {
+                                return; // 玩家在延迟窗口内离线，放弃（避免孤儿 exchange）
+                            }
+                            try
+                            {
+                                fComMan.tryStartHandshake(target);
+                            }
+                            catch (Exception ex)
+                            {
+                                SyncmaticaLog.error("syncmatica 延迟握手失败 for {}", ex, bukkitPlayer.getName());
+                            }
+                        }
+                    }.runTaskLater(context.getPlugin(), 40L);
                 }
                 catch (Exception ex)
                 {
@@ -106,8 +134,10 @@ public class SyncmaticaModule
             @EventHandler
             public void onRegisterChannel(final PlayerRegisterChannelEvent e)
             {
-                // 只关心 syncmatica:main：客户端声明该通道 = 装了 syncmatica mod 的可靠信号（此时 listening=true）。
-                // 这是 Paper 下发起握手的正确时机（PlayerJoinEvent 时通道未声明，推早了必被 Fabric 丢弃）。
+                // 兜底/加速路径：若客户端通过 MC|Register 声明了 syncmatica:main（旧式协商），立即握手。
+                // 注意：1.21.x Fabric 客户端（PayloadTypeRegistry.playS2C() 新式协商）通常【不】触发本事件，
+                // 故握手的主路径在 onJoin 的 40t 延迟（见上），此处仅作加速/兜底。tryStartHandshake 幂等，
+                // 两路径安全共存。
                 if (!SyncmaticaReference.NETWORK_ID.toString().equals(e.getChannel()))
                 {
                     return;

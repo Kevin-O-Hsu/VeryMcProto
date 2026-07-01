@@ -43,7 +43,7 @@ import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaUtil;
  */
 public class SyncmaticaCommand implements CommandExecutor, TabCompleter
 {
-    private static final String USAGE = "§e/syncmatica §7load [file] | debug [on|off|cat|status]";
+    private static final String USAGE = "§e/syncmatica §7load [file] | debug [on|off|cat|status|s2c]";
 
     private final SyncmaticaContext context;
     private final HashMap<Path, Pair<SchematicMetadata, SchematicSchema>> files = new HashMap<>();
@@ -126,6 +126,7 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
             sender.sendMessage("§6调试状态: §f" + SyncmaticaDebug.statusLine());
             sender.sendMessage("§7用法: §f/syncmatica debug <on|off|status>§7 —— master 总开关 / 状态");
             sender.sendMessage("§7用法: §f/syncmatica debug cat <all|none|分类名>§7 —— 分类（master 与分类正交，两者皆开才输出）");
+            sender.sendMessage("§7用法: §f/syncmatica debug s2c <nms|msg>§7 —— S2C 路径（NMS 直发 / plugin messaging）");
             sender.sendMessage("§7分类: §flifecycle handshake network packet exchange");
             return;
         }
@@ -141,6 +142,22 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
             }
             case "off" -> { SyncmaticaDebug.setMaster(false); sender.sendMessage("§e调试总开关已关闭 §7(仅 master): §f" + SyncmaticaDebug.statusLine()); }
             case "status" -> sender.sendMessage("§6调试状态: §f" + SyncmaticaDebug.statusLine());
+            case "s2c" ->
+            {
+                // S2C 发送路径切换（诊断 plugin messaging vs NMS DiscardedPayload 直发哪条客户端能响应）。
+                final boolean now = ExchangeTarget.S2C_VIA_NMS;
+                if (args.length < 3)
+                {
+                    sender.sendMessage("§6S2C 路径: §f" + (now ? "NMS-DiscardedPayload" : "plugin-messaging"));
+                    sender.sendMessage("§7用法: §f/syncmatica debug s2c <nms|msg>");
+                    return;
+                }
+                final String mode = args[2].toLowerCase();
+                if (mode.equals("nms")) { ExchangeTarget.S2C_VIA_NMS = true; }
+                else if (mode.equals("msg")) { ExchangeTarget.S2C_VIA_NMS = false; }
+                else { sender.sendMessage("§c未知: " + mode + " §7(nms|msg)"); return; }
+                sender.sendMessage("§aS2C 路径 → §f" + (ExchangeTarget.S2C_VIA_NMS ? "NMS-DiscardedPayload" : "plugin-messaging"));
+            }
             case "cat" ->
             {
                 if (args.length < 3) { sender.sendMessage("§e/syncmatica debug cat <all|none|分类名>"); return; }
@@ -189,9 +206,16 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
         }
         else if (args.length == 2 && args[0].equalsIgnoreCase("debug"))
         {
-            for (final String s : List.of("on", "off", "cat", "status"))
+            for (final String s : List.of("on", "off", "cat", "status", "s2c"))
             {
                 if (s.startsWith(args[1].toLowerCase())) { out.add(s); }
+            }
+        }
+        else if (args.length == 3 && args[0].equalsIgnoreCase("debug") && args[1].equalsIgnoreCase("s2c"))
+        {
+            for (final String s : List.of("nms", "msg"))
+            {
+                if (s.startsWith(args[2].toLowerCase())) { out.add(s); }
             }
         }
         else if (args.length == 3 && args[0].equalsIgnoreCase("debug") && args[1].equalsIgnoreCase("cat"))
