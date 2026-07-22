@@ -62,6 +62,10 @@ $RECYCLE.BIN/
 .env
 .env.*
 
+# -------- 原版对照源码存档（本地参考，不入库） --------
+# OriginImpl/ 是 masa/endte 等 Fabric mod 的原版源码对照存档（3400+ 文件），
+# 属本地参考、非本项目代码，整体忽略：本地保留，不推送远程。
+OriginImpl/
+
 # -------- 说明：以下【不忽略】，须保留 --------
 #   - gradle/wrapper/gradle-wrapper.jar  （gradlew 依赖，必须入库）
-#   - OriginImpl/**/LICENSE.txt、README.md、.github/  （合规与上游元信息）
