@@ -13,22 +13,22 @@ Servux ✅  ·  JEI Recipe Bridge ✅  ·  Syncmatica ✅   (all three targets f
 ## Table of Contents
 
 - [1. What It Is](#1-what-it-is)
-- [2. The Three Protocol Mods at a Glance](#2-the-three-protocol-mods-at-a-glance)
+- [2. Protocol Mods](#2-protocol-mods)
 - [3. Requirements](#3-requirements)
-- [4. Quick Install](#4-quick-install)
-- [5. Architecture Overview](#5-architecture-overview)
-- [6. Command Reference (Complete)](#6-command-reference-complete)
-- [7. Permission Nodes (Complete Reference)](#7-permission-nodes-complete-reference)
-- [8. Configuration Files (Complete Reference)](#8-configuration-files-complete-reference)
-- [9. Data Directory Layout](#9-data-directory-layout)
-- [10. Feature & Fallback Matrix](#10-feature--fallback-matrix)
-- [11. Network Protocol Essentials](#11-network-protocol-essentials)
-- [12. Debugging & Troubleshooting](#12-debugging--troubleshooting)
-- [13. Client Compatibility Testing](#13-client-compatibility-testing)
-- [14. Developer Guide](#14-developer-guide)
-- [15. Documentation Index](#15-documentation-index)
-- [16. FAQ / Known Limitations](#16-faq--known-limitations)
-- [17. Credits & References](#17-credits--references)
+- [4. Installation](#4-installation)
+- [5. Architecture](#5-architecture)
+- [6. Commands](#6-commands)
+- [7. Permissions](#7-permissions)
+- [8. Configuration](#8-configuration)
+- [9. Data Layout](#9-data-layout)
+- [10. Feature Matrix](#10-feature-matrix)
+- [11. Network Protocol](#11-network-protocol)
+- [12. Debugging](#12-debugging)
+- [13. Compatibility Testing](#13-compatibility-testing)
+- [14. Developers](#14-developers)
+- [15. Docs Index](#15-docs-index)
+- [16. FAQ](#16-faq)
+- [17. Credits](#17-credits)
 
 ---
 
@@ -48,15 +48,15 @@ This project uses **paperweight `userdev`** to reference fully-deobfuscated Moja
 
 ---
 
-## 2. The Three Protocol Mods at a Glance
+## 2. Protocol Mods
 
-| Mod | Client Mod | Nature | Status |
-|---|---|---|---|
-| **Servux** | masa's **MiniHUD / Litematica / Tweakeroo** | Server→client **one-way broadcast** (6 providers) | ✅ Full |
-| **JEI Recipe Bridge** | **JEI** + **JEIRecipeBridge** | **One-shot S2C** recipe sync on player join | ✅ Full |
-| **Syncmatica** | **endte syncmatica** | **Bidirectional, stateful, multi-player shared** schematic repository | ✅ Full |
+|  Mod                    |  Client Mod                                   |  Nature                                                                 |  Status  |
+| ----------------------- | --------------------------------------------- | ----------------------------------------------------------------------- | -------- |
+|  **Servux**             |  masa's **MiniHUD / Litematica / Tweakeroo**  |  Server→client **one-way broadcast** (6 providers)                      |  ✅ Full  |
+|  **JEI Recipe Bridge**  |  **JEI** + **JEIRecipeBridge**                |  **One-shot S2C** recipe sync on player join                            |  ✅ Full  |
+|  **Syncmatica**         |  **endte syncmatica**                         |  **Bidirectional, stateful, multi-player shared** schematic repository  |  ✅ Full  |
 
-### 1. Servux — Server Data Delivery & Protocol (masa)
+### 1. Servux
 
 A server-side protocol mod that delivers data to masa's client mods (MiniHUD / Litematica / Tweakeroo) via `servux:*` custom channels:
 
@@ -68,18 +68,18 @@ A server-side protocol mod that delivers data to masa's client mods (MiniHUD / L
 
 **6 channels** (the network channel name ≠ the provider logical name; source-verified in `ServuxReference.java`):
 
-| Channel (network name) | Provider (logical name) | Protocol version | Purpose |
-|---|---|---|---|
-| `servux:main` | `servux_main` | — | **Config main channel** (ConfigProvider; **permanently enabled**; **sends no network packets**; only carries global settings) |
-| `servux:hud_metadata` | `hud_data` | 2 | HUD: world metadata / spawn point / weather / TPS / MobCap / recipes |
-| `servux:entity_data` | `entity_data` | 1 | Entities: block-entity / entity NBT query |
-| `servux:tweaks` | `tweaks_data` | 1 | Tweaks: entity / block-entity NBT (same pattern as Entities) |
-| `servux:structures` | `structure_bounding_boxes` | 2 | Structures: structure bounding boxes (periodic chunk scan) |
-| `servux:litematics` | `litematic_data` | 1 | Litematics: schematic transmit / paste / bulk entities |
+|  Channel (network name)  |  Provider (logical name)     |  Protocol version  |  Purpose                                                                                                                        |
+| ------------------------ | ---------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+|  `servux:main`           |  `servux_main`               |  —                 |  **Config main channel** (ConfigProvider; **permanently enabled**; **sends no network packets**; only carries global settings)  |
+|  `servux:hud_metadata`   |  `hud_data`                  |  2                 |  HUD: world metadata / spawn point / weather / TPS / MobCap / recipes                                                           |
+|  `servux:entity_data`    |  `entity_data`               |  1                 |  Entities: block-entity / entity NBT query                                                                                      |
+|  `servux:tweaks`         |  `tweaks_data`               |  1                 |  Tweaks: entity / block-entity NBT (same pattern as Entities)                                                                   |
+|  `servux:structures`     |  `structure_bounding_boxes`  |  2                 |  Structures: structure bounding boxes (periodic chunk scan)                                                                     |
+|  `servux:litematics`     |  `litematic_data`            |  1                 |  Litematics: schematic transmit / paste / bulk entities                                                                         |
 
 > Handshake field `MOD_STRING = servux-paper-1.21.11-1.0.0` (keeps the `servux-` prefix so masa's client recognizes that the server runs the Servux protocol; concrete version negotiation goes through each channel's protocol version).
 
-### 2. JEI Recipe Bridge — Recipe Sync on Join
+### 2. JEI Recipe Bridge
 
 On player join, syncs the **server's complete recipe table** to the JEI client, routed by client brand over two vanilla custom payload channels:
 
@@ -88,7 +88,7 @@ On player join, syncs the **server's complete recipe table** to the JEI client, 
 
 Sent directly via NMS `ClientboundCustomPayloadPacket` (bypasses the plugin messaging size limit — recipe packs routinely exceed 32KiB). **Pure S2C / one-shot / a single `enabled` config option.** Handshake field `jei-recipe-bridge-paper-1.21.11-1.0.0`.
 
-### 3. Syncmatica — Shared Schematic Central Repository (endte)
+### 3. Syncmatica
 
 Fundamentally different from Servux (one-way broadcast):
 
@@ -105,27 +105,27 @@ Fundamentally different from Servux (one-way broadcast):
 
 ### Server
 
-| Item | Requirement |
-|---|---|
-| Server | **Paper 1.21.11** (`api-version: 1.21`; standard Paper, no patch / fork needed) |
-| Java | **21** |
-| Optional | **PacketEvents 2.13.0** (only for EasyPlace; if absent, EasyPlace is gracefully skipped — other features are unaffected) |
+|  Item      |  Requirement                                                                                                               |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------- |
+|  Server    |  **Paper 1.21.11** (`api-version: 1.21`; standard Paper, no patch / fork needed)                                           |
+|  Java      |  **21**                                                                                                                    |
+|  Optional  |  **PacketEvents 2.13.0** (only for EasyPlace; if absent, EasyPlace is gracefully skipped — other features are unaffected)  |
 
-### Client (players install the corresponding Fabric mods themselves)
+### Client
 
-| Feature family | Client must install |
-|---|---|
-| All of Servux (HUD / structures / NBT query / schematic paste / EasyPlace) | **MiniHUD** + **Litematica** + **Tweakeroo** (the masa suite, 1.21.11 LTS) |
-| JEI recipe sync | **JEI** + **JEIRecipeBridge** |
-| Schematic sharing | **Syncmatica** (endte client, 1.21.11 LTS) |
+|  Feature family                                                              |  Client must install                                                         |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+|  All of Servux (HUD / structures / NBT query / schematic paste / EasyPlace)  |  **MiniHUD** + **Litematica** + **Tweakeroo** (the masa suite, 1.21.11 LTS)  |
+|  JEI recipe sync                                                             |  **JEI** + **JEIRecipeBridge**                                               |
+|  Schematic sharing                                                           |  **Syncmatica** (endte client, 1.21.11 LTS)                                  |
 
 > The client version must match the server's **MC 1.21.11**. The client is the "receiving end" of these features; every protocol field semantic and packet-reassembly behavior is verified against the client source (see `OriginImpl/` for litematica / malilib / syncmatica).
 
 ---
 
-## 4. Quick Install
+## 4. Installation
 
-1. Download `VeryMcProto-1.0.0.jar` from [Releases](../../releases) (the reobf artifact; loads directly on standard Paper).
+1. Get `VeryMcProto-1.0.0.jar` from the project Releases page, or build it with `./gradlew build` (the reobf artifact loads directly on standard Paper).
 2. Drop it into the server's `plugins/` directory.
 3. **(Optional, only for EasyPlace)** Install the PacketEvents plugin.
 4. With PacketEvents installed, EasyPlace is enabled automatically; without it, it is skipped automatically.
@@ -147,7 +147,7 @@ On startup the console shows:
 
 ---
 
-## 5. Architecture Overview
+## 5. Architecture
 
 Package root `verymc.top.veryMcProto`, split into a **framework layer** and a **protocol-mod layer**:
 
@@ -184,9 +184,9 @@ verymc.top.veryMcProto
 
 ---
 
-## 6. Command Reference (Complete)
+## 6. Commands
 
-### `/servux` — Servux protocol config & diagnostics
+### `/servux`
 
 **Permission**: `servux.command` (default: op)
 
@@ -205,7 +205,7 @@ verymc.top.veryMcProto
 ```
 
 - A **setting's qualified name** is `<provider-logical-name>:<setting-name>`, e.g. `hud_data:share_seed`, `servux_main:permission_level`; the provider prefix can be omitted when unambiguous.
-- Provider logical names are in the [channel table in §2](#1-servux--server-data-delivery--protocol-masa): `servux_main` / `hud_data` / `entity_data` / `tweaks_data` / `structure_bounding_boxes` / `litematic_data`.
+- Provider logical names are in the [channel table in §2](#1-servux): `servux_main` / `hud_data` / `entity_data` / `tweaks_data` / `structure_bounding_boxes` / `litematic_data`.
 - `servux_main` (the config main channel) **can never be disabled**; the other 5 can be `enable`d/`disable`d.
 
 **`/servux debug`** — debug logging hot-toggle (runtime-immediate, persisted to `servux.json` immediately):
@@ -231,7 +231,7 @@ verymc.top.veryMcProto
 
 ---
 
-### `/syncmatica` — Schematic-sharing config & protocol management
+### `/syncmatica`
 
 **Permission**: `syncmatica.command` (default: **true** — all players can use the base command)
 
@@ -265,7 +265,7 @@ verymc.top.veryMcProto
 
 ---
 
-### `/jei` — JEI recipe sync on/off
+### `/jei`
 
 **Permission**: `jei.command` (default: op)
 
@@ -275,158 +275,164 @@ verymc.top.veryMcProto
 /jei disable        Stop join-time push (channel kept, no kicks; already-online players are unaffected)
 ```
 
-> **Scope of effect**: only affects players who join **afterwards**. Recipe sync is a one-shot join push with no persistent connection to tear down (unlike syncmatica's "interrupt in-progress transfers").
+> **Scope of effect**: only affects players who join **afterward**. Recipe sync is a one-shot join push with no persistent connection to tear down (unlike syncmatica's "interrupt in-progress transfers").
 
 ---
 
-## 7. Permission Nodes (Complete Reference)
+## 7. Permissions
 
-### 7.1 Command-level permissions registered in plugin.yml (standard Bukkit permissions)
+### 7.1 Command Permissions
 
-| Permission node | default | Purpose |
-|---|---|---|
-| `servux.command` | op | All `/servux` subcommands |
-| `jei.command` | op | `/jei enable\|disable` |
-| `syncmatica.command` | **true** | Base `/syncmatica` command (incl. `load`) |
-| `syncmatica.command.admin` | op | `/syncmatica save\|reload\|enable\|disable\|status` |
-| `syncmatica.command.load` | **true** | `/syncmatica load` (bulk load) |
-| `syncmatica.command.load_each` | **true** | `/syncmatica load <file>` (single load) |
-| `syncmatica.command.debug` | op | `/syncmatica debug` |
+|  Permission node                 |  default   |  Purpose                                              |
+| -------------------------------- | ---------- | ----------------------------------------------------- |
+|  `servux.command`                |  op        |  All `/servux` subcommands                            |
+|  `jei.command`                   |  op        |  `/jei enable\|disable`                               |
+|  `syncmatica.command`            |  **true**  |  Base `/syncmatica` command (incl. `load`)            |
+|  `syncmatica.command.admin`      |  op        |  `/syncmatica save\|reload\|enable\|disable\|status`  |
+|  `syncmatica.command.load`       |  **true**  |  `/syncmatica load` (bulk load)                       |
+|  `syncmatica.command.load_each`  |  **true**  |  `/syncmatica load <file>` (single load)              |
+|  `syncmatica.command.debug`      |  op        |  `/syncmatica debug`                                  |
 
-### 7.2 Servux provider runtime permissions (op-level gating; **not in plugin.yml**)
+### 7.2 Provider Permissions (Runtime)
 
 Servux provider permissions do not use the Bukkit permission `default`; instead they are decided at runtime by `framework.permission.Perms` based on the **`permission_level` setting + op level**. **`Perms.check(player, node, level)` semantics**:
 
 1. If the player is **explicitly granted / denied** the Bukkit permission node (`isPermissionSet`, e.g. set by LuckPerms / a permission attachment), **that result wins**;
-2. Otherwise `level <= 0` → **allow everyone**;
-3. Otherwise it falls back to the **op binary** (`isOp()` true passes, satisfying all `level >= 1` management-class settings).
+2. Otherwise, `level <= 0` → **allow everyone**;
+3. Otherwise, it falls back to the **op binary** (`isOp()` true passes, satisfying all `level >= 1` management-class settings).
 
 > So `permission_level` effectively only distinguishes "0 = everyone / ≥1 = op only". **To differentiate levels (e.g. grant level 2 but not level 3), use LuckPerms to explicitly grant the corresponding permission node.**
 
 **Base nodes** look like `servux.provider.<provider-logical-name>`; refined nodes append a suffix to the base:
 
-| Permission node | Governing setting (level source) | Controls |
-|---|---|---|
-| `servux.main.admin` | `servux_main:permission_level_admin` (default 3) | ConfigProvider admin operations |
-| `servux.main.easy_place` | `servux_main:permission_level_easy_place` (default 0) | EasyPlace placement |
-| `servux.provider.hud_data` | `hud_data:permission_level` (default 0) | HUD metadata delivery |
-| `servux.provider.hud_data.weather` | `hud_data:weather_permission_level` (default 0) | Weather data |
-| `servux.provider.hud_data.seed` | `hud_data:seed_permission_level` (default 2) | Seed data |
-| `servux.provider.hud_data.logger` | `hud_data:logger_permission_level` (default 0) | Loggers master toggle |
-| `servux.provider.hud_data.logger.tps` | `hud_data:logger_permission_level` | TPS logger |
-| `servux.provider.hud_data.logger.mob_caps` | `hud_data:logger_permission_level` | MobCap logger |
-| `servux.provider.entity_data` | `entity_data:permission_level` (default 0) | Entities base |
-| `servux.provider.entity_data.nbt_query_override` | `entity_data:nbt_query_permission_level` (default 2) | NBT query override permission |
-| `servux.provider.entity_data.nbt_allow_player_inventory` | `entity_data:player_inventory_permission_level` (default 2) | Query a player's inventory |
-| `servux.provider.entity_data.nbt_allow_player_ender_items` | `entity_data:player_ender_items_permission_level` (default 2) | Query a player's ender chest |
-| `servux.provider.tweaks_data` | `tweaks_data:permission_level` (default 0) | Tweaks base |
-| `servux.provider.structure_bounding_boxes` | `structure_bounding_boxes:permission_level` (default 0) | Structures base |
-| `servux.provider.litematic_data` | `litematic_data:permission_level` (default 0) | Litematics base (transmit/receive) |
-| `servux.provider.litematic_data.paste` | `litematic_data:permission_level_paste` (default 0) | **Paste** a schematic into the world (requires creative mode) |
+|  Permission node                                             |  Governing setting (level source)                               |  Controls                                                       |
+| ------------------------------------------------------------ | --------------------------------------------------------------- | --------------------------------------------------------------- |
+|  `servux.main.admin`                                         |  `servux_main:permission_level_admin` (default 3)               |  ConfigProvider admin operations                                |
+|  `servux.main.easy_place`                                    |  `servux_main:permission_level_easy_place` (default 0)          |  EasyPlace placement                                            |
+|  `servux.provider.hud_data`                                  |  `hud_data:permission_level` (default 0)                        |  HUD metadata delivery                                          |
+|  `servux.provider.hud_data.weather`                          |  `hud_data:weather_permission_level` (default 0)                |  Weather data                                                   |
+|  `servux.provider.hud_data.seed`                             |  `hud_data:seed_permission_level` (default 2)                   |  Seed data                                                      |
+|  `servux.provider.hud_data.logger`                           |  `hud_data:logger_permission_level` (default 0)                 |  Loggers master toggle                                          |
+|  `servux.provider.hud_data.logger.tps`                       |  `hud_data:logger_permission_level`                             |  TPS logger                                                     |
+|  `servux.provider.hud_data.logger.mob_caps`                  |  `hud_data:logger_permission_level`                             |  MobCap logger                                                  |
+|  `servux.provider.entity_data`                               |  `entity_data:permission_level` (default 0)                     |  Entities base                                                  |
+|  `servux.provider.entity_data.nbt_query_override`            |  `entity_data:nbt_query_permission_level` (default 2)           |  NBT query override permission                                  |
+|  `servux.provider.entity_data.nbt_allow_player_inventory`    |  `entity_data:player_inventory_permission_level` (default 2)    |  Query a player's inventory                                     |
+|  `servux.provider.entity_data.nbt_allow_player_ender_items`  |  `entity_data:player_ender_items_permission_level` (default 2)  |  Query a player's ender chest                                   |
+|  `servux.provider.tweaks_data`                               |  `tweaks_data:permission_level` (default 0)                     |  Tweaks base                                                    |
+|  `servux.provider.structure_bounding_boxes`                  |  `structure_bounding_boxes:permission_level` (default 0)        |  Structures base                                                |
+|  `servux.provider.litematic_data`                            |  `litematic_data:permission_level` (default 0)                  |  Litematics base (transmit/receive)                             |
+|  `servux.provider.litematic_data.paste`                      |  `litematic_data:permission_level_paste` (default 0)            |  **Paste** a schematic into the world (requires creative mode)  |
 
 > When `nbt_query_override` is off, the Entities NBT query **falls back to the vanilla permission `minecraft.command.data`** (level 2), aligning with the vanilla `/data` command permission.
 
-### 7.3 Permission config examples (LuckPerms)
+### 7.3 LuckPerms Examples
+
+Grant seed access (default is op-only):
 
 ```yaml
-# Let a player see the seed (hud_data:seed_permission_level=2, op-only by default)
 commands:
   - "lp user <player> permission set servux.provider.hud_data.seed true"
+```
 
-# Let a non-op paste schematics (either set litematic_data:permission_level_paste > 0, or grant explicitly)
+Grant paste access to a non-op:
+
+```yaml
 commands:
   - "lp user <player> permission set servux.provider.litematic_data.paste true"
 ```
 
 ---
 
-## 8. Configuration Files (Complete Reference)
+## 8. Configuration
 
 All config is **JSON** (Gson pretty + atomic tmp/move write), located under `plugins/VeryMcProto/`.
 
-### 8.1 `servux.json` — Servux global config
+### 8.1 `servux.json`
 
 Segmented by provider; each segment holds that provider's settings. **Every key can also be changed via `/servux set <provider:key> <value>`** (no need to hand-edit). Type notation: `int` ranges are written `[min..max] default`.
 
-#### `servux_main` (config main channel; permanently enabled; sends no network packets)
+#### `servux_main` (`servux:main`)
 
-| key | type | default | description |
-|---|---|---|---|
-| `permission_level` | int [0..4] | 0 | Base permission level (0 = everyone) |
-| `permission_level_admin` | int [0..4] | 3 | Admin-operation permission level |
-| `permission_level_easy_place` | int [0..4] | 0 | EasyPlace permission level |
-| `easy_place_validator_enabled` | bool | true | EasyPlace placement validator |
-| `default_language` | string | `en_us` | Default language |
-| `debug_log` | bool | false | Debug master switch |
-| `debug_categories` | string[] | `[]` | Enabled debug categories (orthogonal to `debug_log`) |
+The config main channel — permanently enabled, and sends no network packets (only carries global settings).
 
-#### `hud_data` (channel `servux:hud_metadata`)
+|  key                             |  type        |  default  |  description                                           |
+| -------------------------------- | ------------ | --------- | ------------------------------------------------------ |
+|  `permission_level`              |  int [0..4]  |  0        |  Base permission level (0 = everyone)                  |
+|  `permission_level_admin`        |  int [0..4]  |  3        |  Admin-operation permission level                      |
+|  `permission_level_easy_place`   |  int [0..4]  |  0        |  EasyPlace permission level                            |
+|  `easy_place_validator_enabled`  |  bool        |  true     |  EasyPlace placement validator                         |
+|  `default_language`              |  string      |  `en_us`  |  Default language                                      |
+|  `debug_log`                     |  bool        |  false    |  Debug master switch                                   |
+|  `debug_categories`              |  string[]    |  `[]`     |  Enabled debug categories (orthogonal to `debug_log`)  |
 
-| key | type | default | description |
-|---|---|---|---|
-| `permission_level` | int [0..4] | 0 | HUD base permission |
-| `update_interval` | int [20..300] | 40 | HUD push interval (ticks) |
-| `share_weather_status` | bool | false | Whether to deliver weather |
-| `weather_permission_level` | int [0..4] | 0 | Weather-data permission |
-| `share_seed` | bool | false | Whether to deliver the world seed |
-| `seed_permission_level` | int [0..4] | 2 | Seed-data permission |
-| `loggers_enabled` | bool | false | Whether loggers are enabled (TPS/MobCap periodic data) |
-| `loggers_enable_list` | string[] | `["tps","mob_caps"]` | Enabled logger types |
-| `logger_permission_level` | int [0..4] | 0 | Loggers-data permission |
+#### `hud_data` (`servux:hud_metadata`)
 
-#### `entity_data` (channel `servux:entity_data`)
+|  key                         |  type           |  default               |  description                                             |
+| ---------------------------- | --------------- | ---------------------- | -------------------------------------------------------- |
+|  `permission_level`          |  int [0..4]     |  0                     |  HUD base permission                                     |
+|  `update_interval`           |  int [20..300]  |  40                    |  HUD push interval (ticks)                               |
+|  `share_weather_status`      |  bool           |  false                 |  Whether to deliver weather                              |
+|  `weather_permission_level`  |  int [0..4]     |  0                     |  Weather-data permission                                 |
+|  `share_seed`                |  bool           |  false                 |  Whether to deliver the world seed                       |
+|  `seed_permission_level`     |  int [0..4]     |  2                     |  Seed-data permission                                    |
+|  `loggers_enabled`           |  bool           |  false                 |  Whether loggers are enabled (TPS/MobCap periodic data)  |
+|  `loggers_enable_list`       |  string[]       |  `["tps","mob_caps"]`  |  Enabled logger types                                    |
+|  `logger_permission_level`   |  int [0..4]     |  0                     |  Loggers-data permission                                 |
 
-| key | type | default | description |
-|---|---|---|---|
-| `permission_level` | int [0..4] | 0 | Base permission |
-| `nbt_query_override` | bool | false | Enable standalone NBT-query permission (otherwise falls back to `minecraft.command.data`) |
-| `nbt_query_permission_level` | int [0..4] | 2 | NBT-query permission |
-| `fix_allay_gathering` | bool | true | Fix Allay gathering NBT |
-| `nbt_allow_player_inventory` | bool | true | Allow querying a player's inventory |
-| `nbt_allow_player_ender_items` | bool | true | Allow querying a player's ender chest |
-| `player_inventory_permission_level` | int [0..4] | 2 | Inventory-query permission |
-| `player_ender_items_permission_level` | int [0..4] | 2 | Ender-chest-query permission |
+#### `entity_data` (`servux:entity_data`)
 
-#### `tweaks_data` (channel `servux:tweaks`)
+|  key                                    |  type        |  default  |  description                                                                                |
+| --------------------------------------- | ------------ | --------- | ------------------------------------------------------------------------------------------- |
+|  `permission_level`                     |  int [0..4]  |  0        |  Base permission                                                                            |
+|  `nbt_query_override`                   |  bool        |  false    |  Enable standalone NBT-query permission (otherwise falls back to `minecraft.command.data`)  |
+|  `nbt_query_permission_level`           |  int [0..4]  |  2        |  NBT-query permission                                                                       |
+|  `fix_allay_gathering`                  |  bool        |  true     |  Fix Allay gathering NBT                                                                    |
+|  `nbt_allow_player_inventory`           |  bool        |  true     |  Allow querying a player's inventory                                                        |
+|  `nbt_allow_player_ender_items`         |  bool        |  true     |  Allow querying a player's ender chest                                                      |
+|  `player_inventory_permission_level`    |  int [0..4]  |  2        |  Inventory-query permission                                                                 |
+|  `player_ender_items_permission_level`  |  int [0..4]  |  2        |  Ender-chest-query permission                                                               |
 
-| key | type | default | description |
-|---|---|---|---|
-| `permission_level` | int [0..4] | 0 | Base permission |
-| `update_interval` | int [40..1200] | 120 | Push interval (ticks) |
+#### `tweaks_data` (`servux:tweaks`)
 
-> ⛔ The original `stackable_shulkers` / `stackable_shulkers_count` / `stackable_shulkers_fix` **have been removed** — shulker-box stacking is impossible without Mixin on Paper (see the [fallback matrix](#10-feature--fallback-matrix)); keeping it would make the client's Tweakeroo enable stacking rendering while the server doesn't cooperate → inconsistency.
+|  key                 |  type            |  default  |  description            |
+| -------------------- | ---------------- | --------- | ----------------------- |
+|  `permission_level`  |  int [0..4]      |  0        |  Base permission        |
+|  `update_interval`   |  int [40..1200]  |  120      |  Push interval (ticks)  |
 
-#### `structure_bounding_boxes` (channel `servux:structures`)
+> ⛔ The original `stackable_shulkers` / `stackable_shulkers_count` / `stackable_shulkers_fix` **have been removed** — shulker-box stacking is impossible without Mixin on Paper (see the [fallback matrix](#10-feature-matrix)); keeping it would make the client's Tweakeroo enable stacking rendering while the server doesn't cooperate → inconsistency.
 
-| key | type | default | description |
-|---|---|---|---|
-| `permission_level` | int [0..4] | 0 | Base permission |
-| `structures_blacklist_enabled` | bool | false | Enable structure blacklist |
-| `structures_whitelist_enabled` | bool | false | Enable structure whitelist |
-| `structures_blacklist` | string[] | `["minecraft:buried_treasure"]` | Blacklisted structure IDs |
-| `structures_whitelist` | string[] | `[]` | Whitelisted structure IDs |
-| `update_interval` | int [1..1200] | 40 | Scan interval (ticks) |
-| `timeout` | int [40..1200] | 600 | Structure-scan timeout (ticks) |
+#### `structure_bounding_boxes` (`servux:structures`)
 
-#### `litematic_data` (channel `servux:litematics`)
+|  key                             |  type            |  default                          |  description                     |
+| -------------------------------- | ---------------- | --------------------------------- | -------------------------------- |
+|  `permission_level`              |  int [0..4]      |  0                                |  Base permission                 |
+|  `structures_blacklist_enabled`  |  bool            |  false                            |  Enable structure blacklist      |
+|  `structures_whitelist_enabled`  |  bool            |  false                            |  Enable structure whitelist      |
+|  `structures_blacklist`          |  string[]        |  `["minecraft:buried_treasure"]`  |  Blacklisted structure IDs       |
+|  `structures_whitelist`          |  string[]        |  `[]`                             |  Whitelisted structure IDs       |
+|  `update_interval`               |  int [1..1200]   |  40                               |  Scan interval (ticks)           |
+|  `timeout`                       |  int [40..1200]  |  600                              |  Structure-scan timeout (ticks)  |
 
-| key | type | default | description |
-|---|---|---|---|
-| `permission_level` | int [0..4] | 0 | Base permission (transmit/receive) |
-| `permission_level_paste` | int [0..4] | 0 | Paste-into-world permission |
-| `fix_rail_rotations` | bool | true | Fix rail orientation on paste |
-| `fix_stairs_mirror` | bool | true | Fix stairs mirroring on paste |
-| `fix_chest_mirror` | bool | true | Fix chest mirroring on paste |
+#### `litematic_data` (`servux:litematics`)
 
-### 8.2 `jei-recipe-bridge.json` — JEI config
+|  key                       |  type        |  default  |  description                         |
+| -------------------------- | ------------ | --------- | ------------------------------------ |
+|  `permission_level`        |  int [0..4]  |  0        |  Base permission (transmit/receive)  |
+|  `permission_level_paste`  |  int [0..4]  |  0        |  Paste-into-world permission         |
+|  `fix_rail_rotations`      |  bool        |  true     |  Fix rail orientation on paste       |
+|  `fix_stairs_mirror`       |  bool        |  true     |  Fix stairs mirroring on paste       |
+|  `fix_chest_mirror`        |  bool        |  true     |  Fix chest mirroring on paste        |
 
-| key | type | default | description |
-|---|---|---|---|
-| `enabled` | bool | true | Whether to sync recipes to joining players (toggled by `/jei enable\|disable`) |
+### 8.2 `jei-recipe-bridge.json`
+
+|  key        |  type  |  default  |  description                                                                     |
+| ----------- | ------ | --------- | -------------------------------------------------------------------------------- |
+|  `enabled`  |  bool  |  true     |  Whether to sync recipes to joining players (toggled by `/jei enable\|disable`)  |
 
 A missing / corrupt file is rebuilt from defaults and persisted.
 
-### 8.3 `syncmatica-config.json` — Syncmatica config
+### 8.3 `syncmatica-config.json`
 
 Segmented by service (each service is a sub-object); **prefer managing via `/syncmatica` commands** over hand-editing:
 
@@ -450,7 +456,7 @@ Segmented by service (each service is a sub-object); **prefer managing via `/syn
 
 ---
 
-## 9. Data Directory Layout
+## 9. Data Layout
 
 ```
 plugins/VeryMcProto/
@@ -468,21 +474,21 @@ plugins/VeryMcProto/
 
 ---
 
-## 10. Feature & Fallback Matrix
+## 10. Feature Matrix
 
 The original Servux has **26 Mixins + 2 AccessWideners**; Syncmatica has **5 server-side Mixins**. Paper has no Mixin runtime, so each is handled per the table below:
 
-| Feature | Original impl | This project's handling | Status |
-|---|---|---|---|
-| Protocol data collection (reading private fields) | Mixin `@Accessor` / AccessWidener | **Reflection / direct NMS access** | ✅ |
-| Collection triggers / lifecycle | Mixin `@Inject` hooks | **Bukkit events + tick scheduling** | ✅ |
-| **EasyPlace** (Tweakeroo server cooperation) | Mixin altering placement logic | **PacketEvents intercepts `PLAYER_BLOCK_PLACEMENT` + manually replays `BlockItem.place` side effects** | ✅ needs PacketEvents |
-| **Mirror fixes** (chest/rail/stairs) | Mixin | **Inlined fixes on paste** (`fix_chest_mirror` / `fix_rail_rotations` / `fix_stairs_mirror`) | ✅ (rail/stairs may be less perfect than Mixin) |
-| **UpdateSuppression** | Mixin adding interface to `Level`/`LevelChunk` | ⛔ **Omitted** (no Paper equivalent) | ❌ |
-| **Shulker-box stacking** | Mixin altering a global NMS method | ⛔ **Impossible + all code removed** | ❌ |
-| Debug (`SharedConstants.IS_RUNNING_IN_IDE`) | Mixin | Omitted | — |
+|  Feature                                            |  Original impl                                   |  This project's handling                                                                                 |  Status                                          |
+| --------------------------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+|  Protocol data collection (reading private fields)  |  Mixin `@Accessor` / AccessWidener               |  **Reflection / direct NMS access**                                                                      |  ✅                                               |
+|  Collection triggers / lifecycle                    |  Mixin `@Inject` hooks                           |  **Bukkit events + tick scheduling**                                                                     |  ✅                                               |
+|  **EasyPlace** (Tweakeroo server cooperation)       |  Mixin altering placement logic                  |  **PacketEvents intercepts `PLAYER_BLOCK_PLACEMENT` + manually replays `BlockItem.place` side effects**  |  ✅ needs PacketEvents                            |
+|  **Mirror fixes** (chest/rail/stairs)               |  Mixin                                           |  **Inlined fixes on paste** (`fix_chest_mirror` / `fix_rail_rotations` / `fix_stairs_mirror`)            |  ✅ (rail/stairs may be less perfect than Mixin)  |
+|  **UpdateSuppression**                              |  Mixin adding interface to `Level`/`LevelChunk`  |  ⛔ **Omitted** (no Paper equivalent)                                                                     |  ❌                                               |
+|  **Shulker-box stacking**                           |  Mixin altering a global NMS method              |  ⛔ **Impossible + all code removed**                                                                     |  ❌                                               |
+|  Debug (`SharedConstants.IS_RUNNING_IN_IDE`)        |  Mixin                                           |  Omitted                                                                                                 |  —                                               |
 
-### EasyPlace in detail (the only feature needing an optional dependency)
+### EasyPlace Details
 
 `EasyPlaceListener` intercepts the vanilla `PLAYER_BLOCK_PLACEMENT`, cancels the packet, then calls `PlacementHandler.applyPlacementProtocolV3` to decode the precise state and manually replays `BlockItem.place` side effects (`setBlock` / `setPlacedBy` / placement sound / item shrink / ack). **PacketEvents class references are isolated in `EasyPlaceBootstrap`** (reflective load + `catch(Throwable)` fallback) — without the packetevents plugin installed, EasyPlace is gracefully skipped and the other channels are completely unaffected.
 
@@ -490,33 +496,33 @@ The original Servux has **26 Mixins + 2 AccessWideners**; Syncmatica has **5 ser
 
 ---
 
-## 11. Network Protocol Essentials
+## 11. Network Protocol
 
 > This is the cornerstone of the entire port. See [`docs/02-network-protocol.md`](docs/02-network-protocol.md) and [`docs/09-DELIVERY.md`](docs/09-DELIVERY.md) for details.
 
-### The three S2C paths
+### S2C Paths
 
-| Mod | S2C path | Notes |
-|---|---|---|
-| **Servux** | plugin messaging (`ProtocolChannel.send` → `player.sendPluginMessage`) | Large packets split by `PacketSplitter` |
-| **JEI Recipe Bridge** | **NMS `ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes))` direct send** | Recipe packs routinely exceed 32KiB; plugin messaging would reject them |
-| **Syncmatica** | defaults to **NMS `DiscardedPayload` direct send** (`S2C_VIA_NMS=true`; builds a `[Identifier][body]` compound body) | `/syncmatica debug s2c msg` switches to plugin messaging for comparison |
+|  Mod                    |  S2C path                                                                                                              |  Notes                                                                    |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+|  **Servux**             |  plugin messaging (`ProtocolChannel.send` → `player.sendPluginMessage`)                                                |  Large packets split by `PacketSplitter`                                  |
+|  **JEI Recipe Bridge**  |  **NMS `ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes))` direct send**                                 |  Recipe packs routinely exceed 32KiB; plugin messaging would reject them  |
+|  **Syncmatica**         |  defaults to **NMS `DiscardedPayload` direct send** (`S2C_VIA_NMS=true`; builds a `[Identifier][body]` compound body)  |  `/syncmatica debug s2c msg` switches to plugin messaging for comparison  |
 
-### Byte-limit essentials
+### Byte Limits
 
 - Bukkit `Messenger.MAX_MESSAGE_SIZE` = 1,048,576 (~1MiB) — the plugin-messaging API no longer rejects at 32KiB (old docs claiming 32768 are outdated).
 - **The real S2C bottleneck is the vanilla client's 32,767-byte decode limit on `ClientboundCustomPayload`** — exceeding it disconnects the client.
 - `PacketSplitter` split constants: **S2C `MAX_PAYLOAD_PER_PACKET_S2C = 31,995`** (leaves headroom for the VarInt header, defending the client's 32,767 limit); receive cap `DEFAULT_MAX_RECEIVE_SIZE_S2C = 64MB`.
 - Large packets (Recipe / Litematic schematics / Structures / bulk entities) must be split by `PacketSplitter`. **Syncmatica file-splitting does not reuse `PacketSplitter`**; it implements its own stop-and-wait (`BUFFER_SIZE=16384`, per-chunk ack).
 
-### C2S reception & handshake essentials
+### C2S & Handshake
 
 - The vanilla Paper server **kicks the player** on an unregistered custom payload ("Invalid payload"). This plugin receives C2S via `Messenger.registerIncomingPluginChannel` — registered channels are routed by Paper internally and do not kick.
 - **Handshake pitfall**: during the configuration phase, `sendPluginMessage` is silently dropped. The framework uses **`PlayerRegisterChannelEvent`** (the client declaring a channel = it has the corresponding mod = configuration phase complete) as a reliable signal to resend metadata / initiate the handshake in `IDataProvider.onPlayerRegisterChannel` / syncmatica `onPlayerRegisterChannel`.
 
 ---
 
-## 12. Debugging & Troubleshooting
+## 12. Debugging
 
 Each mod has an **independent debug engine** (master switch + orthogonal categories; both must be on for output); toggles persist immediately and fully survive restart.
 
@@ -544,34 +550,34 @@ S2C-path troubleshooting: `/syncmatica debug s2c` (inspect) → `/syncmatica deb
 
 JEI has no independent debug engine; check state via `/jei` and watch server logs for join-time sync.
 
-### Quick symptom lookup
+### Symptom Lookup
 
-| Symptom | Where to look |
-|---|---|
-| Client connects but receives nothing | Check provider enabled (`/servux list`); check `permission_level`; enable the `handshake` category to see whether handshake succeeded |
-| Large schematic transmit / paste fails | Check for the client 32,767 disconnect; enable `network`/`packet` to inspect splitting |
-| EasyPlace does nothing | Confirm PacketEvents plugin is installed (`softdepend`); enable the `easyplace` category |
-| Syncmatica client can't connect | Defaults to NMS direct send; confirm with `/syncmatica debug s2c`; enable `handshake` to inspect the chain |
-| JEI recipes don't sync | Confirm `enabled` via `/jei`; note it only affects players joining **afterwards** |
+|  Symptom                                 |  Where to look                                                                                                                          |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+|  Client connects but receives nothing    |  Check provider enabled (`/servux list`); check `permission_level`; enable the `handshake` category to see whether handshake succeeded  |
+|  Large schematic transmit / paste fails  |  Check for the client 32,767 disconnect; enable `network`/`packet` to inspect splitting                                                 |
+|  EasyPlace does nothing                  |  Confirm PacketEvents plugin is installed (`softdepend`); enable the `easyplace` category                                               |
+|  Syncmatica client can't connect         |  Defaults to NMS direct send; confirm with `/syncmatica debug s2c`; enable `handshake` to inspect the chain                             |
+|  JEI recipes don't sync                  |  Confirm `enabled` via `/jei`; note it only affects players joining **afterward**                                                       |
 
 ---
 
-## 13. Client Compatibility Testing
+## 13. Compatibility Testing
 
 See [`docs/10-testing-guide.md`](docs/10-testing-guide.md) (Servux) and [`docs/24-syncmatica-testing-guide.md`](docs/24-syncmatica-testing-guide.md) (Syncmatica).
 
-### Servux: 5 channels ↔ 3 mods mapping
+### Channel–Mod Mapping
 
-| Channel | MiniHUD | Litematica | Tweakeroo |
-|---|---|---|---|
-| `servux:hud_metadata` | ✅ HUD info | — | — |
-| `servux:structures` | ✅ Structure bounding boxes | — | — |
-| `servux:entity_data` | ✅ NBT query | — | — |
-| `servux:tweaks` | — | — | ✅ NBT query |
-| `servux:litematics` | — | ✅ Schematic transmit/paste | — |
-| EasyPlace | — | ✅ Precise placement | ✅ Triggers placement protocol |
+|  Channel                |  MiniHUD                     |  Litematica                  |  Tweakeroo                      |
+| ----------------------- | ---------------------------- | ---------------------------- | ------------------------------- |
+|  `servux:hud_metadata`  |  ✅ HUD info                  |  —                           |  —                              |
+|  `servux:structures`    |  ✅ Structure bounding boxes  |  —                           |  —                              |
+|  `servux:entity_data`   |  ✅ NBT query                 |  —                           |  —                              |
+|  `servux:tweaks`        |  —                           |  —                           |  ✅ NBT query                    |
+|  `servux:litematics`    |  —                           |  ✅ Schematic transmit/paste  |  —                              |
+|  EasyPlace              |  —                           |  ✅ Precise placement         |  ✅ Triggers placement protocol  |
 
-### Test points
+### Test Points
 
 1. Install the matching masa mods on the client; after joining, enable their debug (e.g. MiniHUD's `debugMessages`) and observe the handshake.
 2. HUD: check whether world info/TPS/MobCap refresh and whether structure bounding boxes render.
@@ -581,7 +587,7 @@ See [`docs/10-testing-guide.md`](docs/10-testing-guide.md) (Servux) and [`docs/2
 
 ---
 
-## 14. Developer Guide
+## 14. Developers
 
 ### Build
 
@@ -595,7 +601,7 @@ See [`docs/10-testing-guide.md`](docs/10-testing-guide.md) (Servux) and [`docs/2
 
 **Optional dependency**: PacketEvents `compileOnly("com.github.retrooper:packetevents-spigot:2.13.0")` + `plugin.yml: softdepend: [packetevents]` (class references isolated in `EasyPlaceBootstrap`).
 
-### Key 1.21.11 NMS constraints
+### NMS Constraints
 
 - **`CompoundTag`**: `getBoolean/getInt/...` return `Optional`/`OptionalInt`; use `getBooleanOr/getIntOr` or `.orElse()`; `putXxx` returns `void` (not chainable).
 - **`FriendlyByteBuf`**: the core of protocol-body encoding (`writeVarInt`/`writeNbt`/`readNbt`).
@@ -603,7 +609,7 @@ See [`docs/10-testing-guide.md`](docs/10-testing-guide.md) (Servux) and [`docs/2
 - **`Identifier`**: `Identifier.fromNamespaceAndPath("servux","hud_metadata")` (= Mojang `ResourceLocation`).
 - **`DiscardedPayload`**: the NMS direct-send custom-payload carrier (`new DiscardedPayload(Identifier, byte[])`).
 
-### Extending: add a Servux provider
+### Add a Servux Provider
 
 1. Add a class under `mod/servux/dataproviders/` (`extends DataProviderBase`), declaring its settings.
 2. Add the corresponding Handler + Packet under `mod/servux/network/` (channel codec + byte layout).
@@ -611,39 +617,39 @@ See [`docs/10-testing-guide.md`](docs/10-testing-guide.md) (Servux) and [`docs/2
 4. Register it in `ServuxModule.onRegister`.
 5. See [`docs/03-dataproviders-detail.md`](docs/03-dataproviders-detail.md).
 
-### Extending: add a protocol mod
+### Add a Protocol Mod
 
 1. Implement `ModModule` under `mod/<newmod>/` (or self-managed assembly like syncmatica).
 2. Register it in `VeryMcProto.onEnable`.
 3. Add commands / permissions in `plugin.yml`.
 
-### Maintenance: upgrade the Minecraft version
+### Upgrade Minecraft
 
 1. Re-run paperweight to align with the new dev bundle.
-2. Re-verify every reflection point in [`docs/04-mixin-analysis.md`](docs/04-mixin-analysis.md) against NMS field / method-signature drift (especially `FriendlyByteBuf`, `CustomPacketPayload`, the `CompoundTag` Optional-ization, the `StructureStart.createTag` signature, and the `DiscardedPayload` constructor).
+2. Re-verify every reflection point in [`docs/04-mixin-analysis.md`](docs/04-mixin-analysis.md) against NMS field / method-signature drift (especially `FriendlyByteBuf`, `CustomPacketPayload`, the `CompoundTag` Optional migration, the `StructureStart.createTag` signature, and the `DiscardedPayload` constructor).
 
 ---
 
-## 15. Documentation Index
+## 15. Docs Index
 
 **Strongly recommended to start with [`docs/00-INDEX.md`](docs/00-INDEX.md)** for the full doc map and suggested reading order.
 
-| Doc | Content |
-|---|---|
-| [`docs/01-servux-architecture.md`](docs/01-servux-architecture.md) | Original architecture overview: startup flow, `DataProviderManager`, lifecycle, config system |
-| [`docs/02-network-protocol.md`](docs/02-network-protocol.md) ⭐ | **Core network protocol**: `CustomPacketPayload`, `PacketSplitter` splitting, 6 channels, byte layout |
-| [`docs/03-dataproviders-detail.md`](docs/03-dataproviders-detail.md) | The 6 providers' data contents + collection (TPS/MobCap) + permission nodes |
-| [`docs/04-mixin-analysis.md`](docs/04-mixin-analysis.md) | Itemized list of 26 Mixins + 2 AccessWideners and their migration destinations |
-| [`docs/05-schematic-system.md`](docs/05-schematic-system.md) ⭐ | Litematica schematic system: BitArray/Palette/Selection/Placement/Transmit |
-| [`docs/06-fabric-vs-paper.md`](docs/06-fabric-vs-paper.md) | Fabric ↔ Paper framework-diff comparison table |
-| [`docs/07-migration-architecture.md`](docs/07-migration-architecture.md) ⭐ | **Complete migration plan**: architecture / network layer / data collection / fallback matrix |
-| [`docs/09-DELIVERY.md`](docs/09-DELIVERY.md) | Delivery / byte-limit deep dive (with the client 32767 limit evidence) |
-| [`docs/10-testing-guide.md`](docs/10-testing-guide.md) | Servux client compatibility testing |
-| `docs/20–24` | Complete Syncmatica implementation notes (architecture / protocol / Mixin migration / plan / testing) |
+|  Doc                                                                         |  Content                                                                                                |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+|  [`docs/01-servux-architecture.md`](docs/01-servux-architecture.md)          |  Original architecture overview: startup flow, `DataProviderManager`, lifecycle, config system          |
+|  [`docs/02-network-protocol.md`](docs/02-network-protocol.md) ⭐              |  **Core network protocol**: `CustomPacketPayload`, `PacketSplitter` splitting, 6 channels, byte layout  |
+|  [`docs/03-dataproviders-detail.md`](docs/03-dataproviders-detail.md)        |  The 6 providers' data contents + collection (TPS/MobCap) + permission nodes                            |
+|  [`docs/04-mixin-analysis.md`](docs/04-mixin-analysis.md)                    |  Itemized list of 26 Mixins + 2 AccessWideners and their migration destinations                         |
+|  [`docs/05-schematic-system.md`](docs/05-schematic-system.md) ⭐              |  Litematica schematic system: BitArray/Palette/Selection/Placement/Transmit                             |
+|  [`docs/06-fabric-vs-paper.md`](docs/06-fabric-vs-paper.md)                  |  Fabric ↔ Paper framework-diff comparison table                                                         |
+|  [`docs/07-migration-architecture.md`](docs/07-migration-architecture.md) ⭐  |  **Complete migration plan**: architecture / network layer / data collection / fallback matrix          |
+|  [`docs/09-DELIVERY.md`](docs/09-DELIVERY.md)                                |  Delivery / byte-limit deep dive (with the client 32767 limit evidence)                                 |
+|  [`docs/10-testing-guide.md`](docs/10-testing-guide.md)                      |  Servux client compatibility testing                                                                    |
+|  `docs/20–24`                                                                |  Complete Syncmatica implementation notes (architecture / protocol / Mixin migration / plan / testing)  |
 
 ---
 
-## 16. FAQ / Known Limitations
+## 16. FAQ
 
 **Q: Why must we use paperweight / NMS instead of the pure Paper API?**
 A: Data collection depends heavily on NMS internals (`NaturalSpawner.SpawnState`, `ServerTickRateManager`, `ChunkAccess.getAllReferences()`, `StructureStart.createTag()`, `Recipe.CODEC` + `NbtOps`, `BlockEntity.saveWithFullMetadata()`); the network layer reuses vanilla `FriendlyByteBuf` / `CompoundTag`; and JEI/Syncmatica large-packet S2C relies on NMS `ClientboundCustomPayloadPacket`. The pure Paper API cannot reach these.
@@ -658,14 +664,14 @@ A: ⛔ No. The former alters a global NMS method (no Mixin / no equivalent on Pa
 A: EasyPlace is skipped automatically (`EasyPlaceBootstrap` reflective load + `catch(Throwable)` fallback); all other Servux channels, JEI, and Syncmatica are completely unaffected.
 
 **Q: What's the difference between `permission_level` 2 and 3?**
-A: Under pure Bukkit op there is **no difference** (both go through the `isOp()` binary). To differentiate levels, use LuckPerms to explicitly grant the corresponding permission node (see [§7.2](#72-servux-provider-runtime-permissions-op-level-gating-not-in-pluginyml)).
+A: Under pure Bukkit op there is **no difference** (both go through the `isOp()` binary). To differentiate levels, use LuckPerms to explicitly grant the corresponding permission node (see [§7.2](#72-provider-permissions-runtime)).
 
 **Q: What does pasting a schematic require?**
 A: The player needs creative mode + the `servux.provider.litematic_data.paste` permission (governed by `litematic_data:permission_level_paste`, default 0 = everyone).
 
 ---
 
-## 17. Credits & References
+## 17. Credits
 
 This project is a Paper protocol-layer port of the following Fabric protocol mods — full credit to the original authors and the maintainers who keep them alive:
 
@@ -688,7 +694,6 @@ This project is a Paper protocol-layer port of the following Fabric protocol mod
 
 ---
 
-<p align="center">
-  <sub>Built for <b>Paper 1.21.11</b> · Java 21 · No Mixin / No patch / No private fork</sub><br>
-  <sub>A protocol-layer port: client uses the original Fabric mods; server uses standard Paper + this plugin.</sub>
-</p>
+<sub>Built for **Paper 1.21.11** · Java 21 · No Mixin / No patch / No private fork</sub>
+
+<sub>A protocol-layer port: client uses the original Fabric mods; server uses standard Paper + this plugin.</sub>
