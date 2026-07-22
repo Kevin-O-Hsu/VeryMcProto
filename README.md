@@ -694,6 +694,14 @@ This project is a Paper protocol-layer port of the following Fabric protocol mod
 
 ---
 
+## License
+
+This project is licensed under the **GNU Lesser General Public License v3.0 only** — SPDX identifier [`LGPL-3.0-only`](https://spdx.org/licenses/LGPL-3.0-only.html). See the [LICENSE](LICENSE) file.
+
+> The reference archives under `OriginImpl/` belong to their respective authors and licenses: `servux` / `litematica` / `malilib` / `minihud` / `tweakeroo` / `itemscroller` (masa → sakura-ryoko) are LGPL-3.0; `syncmatica` (endte → sakura-ryoko) is CC0. VeryMcProto is an independent Paper re-implementation (a protocol-layer port), not a derivative of their source.
+
+---
+
 <sub>Built for **Paper 1.21.11** · Java 21 · No Mixin / No patch / No private fork</sub>
 
 <sub>A protocol-layer port: client uses the original Fabric mods; server uses standard Paper + this plugin.</sub>
