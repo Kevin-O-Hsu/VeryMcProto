@@ -629,15 +629,16 @@ Plugin version = **`<MC version>-b<build number>`** — currently `1.21.11-b1`; 
 
 | Branch | Purpose |
 | --- | --- |
-| `ver/<MC version>` (e.g. `ver/1.21.11`) | One long-lived branch per upstream MC/Paper target. **In-version updates** — bug fixes, tweaks — land here as plain commits; bump `buildNumber` in `gradle.properties` whenever a release build is cut. |
-| `ver/<new MC version>` | **Following upstream**: branch off the newest existing `ver/*` when a new MC/Paper version drops, then bump `mcVersion`, swap the paperweight dev bundle, and re-verify reflection points. |
-| `main` | Tracks the current stable line; merge the active `ver/*` branch into it when a build is released. |
+| `dev` | **Daily development line** — features / in-version fixes land here first as plain commits; always carries the newest work for the current MC target. |
+| `ver/<MC version>` (e.g. `ver/1.21.11`) | **Release / maintenance line**, one per upstream MC/Paper target. Changes graduate from `dev` by merge; bump `buildNumber` in `gradle.properties` whenever a release build is cut. |
+| `ver/<new MC version>` | **Following upstream**: cut the new branch off `dev` when a new MC/Paper version drops (or off the newest `ver/*` if `dev` holds unstable experiments), then bump `mcVersion`, swap the paperweight dev bundle, and re-verify reflection points. |
+| `main` | Tracks the latest stable release; merge the active `ver/*` branch into it when a build is released. |
 
-In-version release flow: bump `buildNumber` → `./gradlew build` → commit → (optionally tag `v<version>`, e.g. `v1.21.11-b1`) → merge into `main`.
+Daily flow: commit on `dev` → when a build is ready: bump `buildNumber` on `dev` → merge `dev` into `ver/1.21.11` → `./gradlew build` → (optionally tag `v<version>`, e.g. `v1.21.11-b1`) → merge `ver/1.21.11` into `main`.
 
 ### Upgrade Minecraft
 
-1. Create the new upstream branch: `git checkout -b ver/<new MC version>` off the newest `ver/*` branch.
+1. Create the new upstream branch: `git checkout -b ver/<new MC version>` off `dev` (or off the newest `ver/*` branch if `dev` holds unstable experiments).
 2. Bump `mcVersion` in `gradle.properties` and align the paperweight dev bundle (`paperweight.paperDevBundle("<new>-R0.1-SNAPSHOT")`).
 3. Re-run `./gradlew build` so paperweight re-applies the new bundle.
 4. Re-verify every reflection point in [`docs/04-mixin-analysis.md`](docs/04-mixin-analysis.md) against NMS field / method-signature drift (especially `FriendlyByteBuf`, `CustomPacketPayload`, the `CompoundTag` Optional migration, the `StructureStart.createTag` signature, and the `DiscardedPayload` constructor).
