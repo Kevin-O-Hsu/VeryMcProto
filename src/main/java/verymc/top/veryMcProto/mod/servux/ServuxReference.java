@@ -1,12 +1,14 @@
 package verymc.top.veryMcProto.mod.servux;
 
 import net.minecraft.resources.Identifier;
+import verymc.top.veryMcProto.Reference;
 
 /**
  * Servux mod 专用常量（mod 层）。
  *
- * <p>协议握手字段 {@link #MOD_STRING} = {@code servux-paper-1.21.11-1.0.0}（保持 {@code servux-} 前缀，
- * masa 客户端据此识别服务端装载了 Servux 协议；具体版本协商走各通道的 protocol version）。
+ * <p>协议握手字段 {@link #MOD_STRING} = {@code servux-paper-1.21.11-b1}（保持 {@code servux-} 前缀，
+ * masa 客户端据此识别服务端装载了 Servux 协议——客户端仅做前缀识别与展示，不分段解析；
+ * 具体版本协商走各通道的 protocol version）。
  *
  * <p><b>通道网络名</b>（{@link Identifier}）：严格取自原版各 Handler 的 {@code CHANNEL_ID} 字段（源码实证，
  * 非文档表格）。注意 provider 逻辑名（hud_data / tweaks_data / ...）≠ 通道网络名：
@@ -24,11 +26,13 @@ public final class ServuxReference
 
     public static final String MOD_ID = "servux";
     public static final String MOD_NAME = "Servux";
-    public static final String MC_VERSION = "1.21.11";
-    public static final String MOD_VERSION = "1.0.0";
+    /** Minecraft 目标版本（源自框架 Reference 的版本单一来源，勿手写）。 */
+    public static final String MC_VERSION = Reference.MC_VERSION;
+    /** 插件版本（= MC 版本-b构建号，源自框架 Reference，勿手写）。 */
+    public static final String MOD_VERSION = Reference.PLUGIN_VERSION;
     public static final String MOD_TYPE = "paper";
-    /** 协议握手字段（metadata 的 "servux" 字段值）。 */
-    public static final String MOD_STRING = MOD_ID + "-" + MOD_TYPE + "-" + MC_VERSION + "-" + MOD_VERSION;
+    /** 协议握手字段（metadata 的 "servux" 字段值）；PLUGIN_VERSION 自带 MC 版本，故为三段式。 */
+    public static final String MOD_STRING = MOD_ID + "-" + MOD_TYPE + "-" + Reference.PLUGIN_VERSION;
     public static final boolean DEV_DEBUG = false;
 
     // ───── 5 条通道网络名（源码 CHANNEL_ID 实证）─────

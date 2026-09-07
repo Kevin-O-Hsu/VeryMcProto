@@ -28,7 +28,7 @@ public class JeiRecipeBridgeModule implements ModModule
     public String getModId() { return JeiRecipeBridgeReference.MOD_ID; }
 
     @Override
-    public String getModString() { return "jei-recipe-bridge-paper-1.21.11-1.0.0"; }
+    public String getModString() { return "jei-recipe-bridge-" + Reference.PLATFORM + "-" + Reference.PLUGIN_VERSION; }
 
     @Override
     public void onRegister(DataProviderManager manager)

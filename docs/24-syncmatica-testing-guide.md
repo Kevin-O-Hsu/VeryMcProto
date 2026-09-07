@@ -138,16 +138,16 @@ syncmatica 有**两套独立**调试日志系统，互不替代，需配合开�
 **验证**（服务端日志，`SyncmaticaDebug` HANDSHAKE 分类）：
 
 ```
-[DBG/syncmatica/handshake] VersionHandshakeServer.init: 推 REGISTER_VERSION[服务端版本=1.0.0] → <玩家>
+[DBG/syncmatica/handshake] VersionHandshakeServer.init: 推 REGISTER_VERSION[服务端版本=1.21.11-b1] → <玩家>
 [DBG/syncmatica/handshake] VersionHandshakeServer: 收到客户端 REGISTER_VERSION[版本=<客户端版本>] ← <玩家>
-（服务端 MOD_VERSION="1.0.0" 命中"非 0.1.x"分支 → FeatureSet.fromVersionString 返回 null → 触发 FEATURE 交换，双方用全集 FeatureSet）
+（服务端 MOD_VERSION="1.21.11-b1" 带 `-b` 后缀，不命中版本正则 → FeatureSet.fromVersionString 返回 null → 触发 FEATURE 交换，双方用全集 FeatureSet）
 [DBG/syncmatica/handshake] VersionHandshakeServer: fromVersionString 返回 null → requestFeatureSet（FEATURE 交换）
 （FEATURE 交换完成后）
 [DBG/syncmatica/handshake] VersionHandshakeServer.onFeatureSetReceive: 推 CONFIRM_USER[placementCount=N] → <玩家>
 <玩家> 已加入 broadcastTargets（共 N+1 个）
 ```
 
-同时 INFO 级日志：`Syncmatica client joining with local version 1.0.0 and client version <客户端版本>`。
+同时 INFO 级日志：`Syncmatica client joining with local version 1.21.11-b1 and client version <客户端版本>`。
 
 **客户端侧**：进服无报错；Litematica 主菜单的「服务端投影」入口可见（即使列表为空）。
 
@@ -157,7 +157,7 @@ syncmatica 有**两套独立**调试日志系统，互不替代，需配合开�
 - 客户端进服即踢 / 无握手包 → 检查 `syncmatica:main` 通道 outgoing 注册；`SyncmaticaHandler.receivePlayPayload` 的 `[Identifier][body]` 解析（[21](21-syncmatica-protocol.md) §1.2）；`/syncmatica debug s2c msg`（切 plugin messaging）后重测。
 - 收到 REGISTER_VERSION 但 `Denying syncmatica join due to outdated client` → `VersionHandshakeServer.handle` 的 `checkPartnerVersion` 拒绝（仅应拒 `"0.0.1"`，其它放行）；确认服务端 `MOD_VERSION` 与客户端版本兼容。
 - 收到 REGISTER_VERSION 但无 FEATURE/CONFIRM_USER → `FeatureSet.fromVersionString` / `requestFeatureSet` 链路；FeatureExchange 是否 `succeed`。
-- 客户端报「不兼容版本」→ 服务端 `MOD_VERSION="1.0.0"` 触发 FEATURE 交换应使用全集 FeatureSet；确认 `getFeatureSet()` 声明完整（MODIFY/DISPLAY_NAME/CORE_EX/VERSION 全开）。
+- 客户端报「不兼容版本」→ 服务端 `MOD_VERSION`（插件版本，`-b` 后缀）触发 FEATURE 交换应使用全集 FeatureSet；确认 `getFeatureSet()` 声明完整（MODIFY/DISPLAY_NAME/CORE_EX/VERSION 全开）。
 
 ---
 

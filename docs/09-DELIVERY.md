@@ -177,7 +177,7 @@ verymc.top.veryMcProto/
 
 ### 8.1 构建
 ```bash
-./gradlew build      # 产出 reobf jar（build/libs/VeryMcProto-1.0.0.jar，标准 Paper 可加载）
+./gradlew build      # 产出 reobf jar（build/libs/VeryMcProto-1.21.11-b1.jar，标准 Paper 可加载）
 ./gradlew runServer  # 本地起 1.21.11 测试服（2G 堆）
 ```
 
@@ -198,7 +198,7 @@ verymc.top.veryMcProto/
 
 - **Litematics（M2）**：投影系统（schematic/）代码量最大（~9000 行），阶段6 完成度见实际进度。
 - **通道名纠偏**：CLAUDE.md / docs 表格的通道名（`tweaks_data`/`structure_bounding_boxes`/`litematic_data`）是 **provider 逻辑名**，真实网络名（源码 CHANNEL_ID 实证）是 `servux:tweaks`/`servux:structures`/`servux:litematics`。本移植用真实网络名。
-- **MOD_STRING**：`servux-paper-1.21.11-1.0.0`（保持 `servux-` 前缀供客户端识别；版本协商走各通道 protocol version，不变）。
+- **MOD_STRING**：`servux-paper-1.21.11-b1`（= MOD_ID-平台-插件版本，插件版本自带 MC 版本；保持 `servux-` 前缀供客户端识别，客户端仅前缀识别不做分段解析；版本协商走各通道 protocol version，不变）。
 - **方案 B（NMS 发包）预留**：当前方案 A（plugin messaging，S2C 分片 32000）。Payload record 保留，后续大包（Recipe/Litematic）可升级方案 B（NMS `ClientboundCustomPayloadPacket` 保 1MiB 分片）。
 - ** Structures 性能**：周期扫描玩家 view distance 区块，玩家多时 CPU 占用；默认 update_interval=100t（5s）+ 只扫 view distance 内 + 去重。
 

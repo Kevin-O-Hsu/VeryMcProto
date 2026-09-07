@@ -2,14 +2,18 @@ package verymc.top.veryMcProto.mod.syncmatica;
 
 import java.util.UUID;
 import net.minecraft.resources.Identifier;
+import verymc.top.veryMcProto.Reference;
 
 /**
  * Syncmatica 常量（合并自原版 {@code Reference} + {@code Syncmatica} 的常量部分）。
  *
  * <p><b>Paper 适配</b>：
  * <ul>
- *   <li>{@link #MOD_VERSION} = {@code "1.0.0"}（非 {@code "0.1.x"}），使 {@code FeatureSet.fromVersionString}
- *       返回 null → 触发 FEATURE 交换 → 双方用全集 FeatureSet（MODIFY/DISPLAY_NAME/CORE_EX/VERSION 全开）；</li>
+ *   <li>{@link #MOD_VERSION} = 插件版本（如 {@code "1.21.11-b1"}，源自框架 Reference 版本单一来源），
+ *       使 {@code FeatureSet.fromVersionString} 返回 null → 触发 FEATURE 交换 → 双方用全集
+ *       FeatureSet（MODIFY/DISPLAY_NAME/CORE_EX/VERSION 全开）。{@code -b} 构建号后缀使其永远
+ *       不命中 {@code ^\d+(\.\d+){2,4}$} 版本正则（连 "0.1.x" 兼容分支都不可能误入），行为比裸
+ *       数字版本号更稳固；</li>
  *   <li>去掉原版 {@code Reference.isClient()/isIntegratedServer()/isOpenToLan()}（Paper 恒 dedicated server）；</li>
  *   <li>去掉 {@code StringTools.getModVersion}（Fabric Loader 依赖），版本用常量。</li>
  * </ul>
@@ -18,8 +22,8 @@ public final class SyncmaticaReference
 {
     public static final String MOD_ID = "syncmatica";
     public static final String MOD_NAME = "Syncmatica";
-    /** Paper 移植版；非 "0.1.x" 以触发 FEATURE 交换，使双方用全集 FeatureSet。 */
-    public static final String MOD_VERSION = "1.0.0";
+    /** 插件版本（= MC 版本-b构建号，源自框架 Reference，勿手写）；带 -b 后缀恒触发 FEATURE 交换，使双方用全集 FeatureSet。 */
+    public static final String MOD_VERSION = Reference.PLUGIN_VERSION;
 
     /** 单物理通道（C2S/S2C 共用），内部第一字段是逻辑 PacketType Identifier。 */
     public static final Identifier NETWORK_ID = Identifier.fromNamespaceAndPath(MOD_ID, "main");

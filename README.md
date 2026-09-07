@@ -4,7 +4,7 @@
 > The client still uses the original Fabric mods; the server swaps from "Fabric server + server-side mod" to "standard Paper server + this plugin", with identical protocol behavior.
 
 ```
-Paper 1.21.11 · Java 21 · paperweight userdev · Version 1.0.0
+Paper 1.21.11 · Java 21 · paperweight userdev · Version 1.21.11-b1
 Servux ✅  ·  JEI Recipe Bridge ✅  ·  Syncmatica ✅   (all three targets fully implemented and tested)
 ```
 
@@ -77,7 +77,7 @@ A server-side protocol mod that delivers data to masa's client mods (MiniHUD / L
 |  `servux:structures`     |  `structure_bounding_boxes`  |  2                 |  Structures: structure bounding boxes (periodic chunk scan)                                                                     |
 |  `servux:litematics`     |  `litematic_data`            |  1                 |  Litematics: schematic transmit / paste / bulk entities                                                                         |
 
-> Handshake field `MOD_STRING = servux-paper-1.21.11-1.0.0` (keeps the `servux-` prefix so masa's client recognizes that the server runs the Servux protocol; concrete version negotiation goes through each channel's protocol version).
+> Handshake field `MOD_STRING = servux-paper-1.21.11-b1` (keeps the `servux-` prefix so masa's client recognizes that the server runs the Servux protocol; concrete version negotiation goes through each channel's protocol version).
 
 ### 2. JEI Recipe Bridge
 
@@ -86,7 +86,7 @@ On player join, syncs the **server's complete recipe table** to the JEI client, 
 - Fabric client → `fabric:recipe_sync`
 - NeoForge client → `neoforge:recipe_content`
 
-Sent directly via NMS `ClientboundCustomPayloadPacket` (bypasses the plugin messaging size limit — recipe packs routinely exceed 32KiB). **Pure S2C / one-shot / a single `enabled` config option.** Handshake field `jei-recipe-bridge-paper-1.21.11-1.0.0`.
+Sent directly via NMS `ClientboundCustomPayloadPacket` (bypasses the plugin messaging size limit — recipe packs routinely exceed 32KiB). **Pure S2C / one-shot / a single `enabled` config option.** Handshake field `jei-recipe-bridge-paper-1.21.11-b1`.
 
 ### 3. Syncmatica
 
@@ -97,7 +97,7 @@ Fundamentally different from Servux (one-way broadcast):
 - File storage + JSON persistence + **upload quota / debug** services.
 - On handshake, both sides exchange a **FeatureSet** to negotiate the optional-field encoding of metadata / position packets.
 
-**Feature enum** (negotiated on handshake): `CORE` `FEATURE` `MODIFY` `MESSAGE` `QUOTA` `DEBUG` `CORE_EX` `VERSION` `DISPLAY_NAME`. This server advertises the **full FeatureSet** (combined with `MOD_VERSION=1.0.0` to trigger FEATURE exchange so both sides encode with the full set).
+**Feature enum** (negotiated on handshake): `CORE` `FEATURE` `MODIFY` `MESSAGE` `QUOTA` `DEBUG` `CORE_EX` `VERSION` `DISPLAY_NAME`. This server advertises the **full FeatureSet** (combined with `MOD_VERSION=1.21.11-b1` — the `-b` build suffix never matches the legacy version regex — to trigger FEATURE exchange so both sides encode with the full set).
 
 ---
 
@@ -125,7 +125,7 @@ Fundamentally different from Servux (one-way broadcast):
 
 ## 4. Installation
 
-1. Get `VeryMcProto-1.0.0.jar` from the project Releases page, or build it with `./gradlew build` (the reobf artifact loads directly on standard Paper).
+1. Get `VeryMcProto-1.21.11-b1.jar` from the project Releases page, or build it with `./gradlew build` (the reobf artifact loads directly on standard Paper).
 2. Drop it into the server's `plugins/` directory.
 3. **(Optional, only for EasyPlace)** Install the PacketEvents plugin.
 4. With PacketEvents installed, EasyPlace is enabled automatically; without it, it is skipped automatically.
@@ -623,10 +623,24 @@ See [`docs/10-testing-guide.md`](docs/10-testing-guide.md) (Servux) and [`docs/2
 2. Register it in `VeryMcProto.onEnable`.
 3. Add commands / permissions in `plugin.yml`.
 
+### Versioning & Branch Model
+
+Plugin version = **`<MC version>-b<build number>`** — currently `1.21.11-b1`; when Mojang shifts to date-style names (e.g. `26.1`) it naturally becomes `26.1-b1`. The **single source of truth** is `gradle.properties` (`mcVersion` / `buildNumber`): Gradle derives `version` from it, injects it into `plugin.yml` / the jar name / `version.properties`, and `Reference.MC_VERSION` / `Reference.PLUGIN_VERSION` (hence every protocol handshake string such as `servux-paper-1.21.11-b1`) read it back from `version.properties`. Never hardcode a version anywhere else.
+
+| Branch | Purpose |
+| --- | --- |
+| `ver/<MC version>` (e.g. `ver/1.21.11`) | One long-lived branch per upstream MC/Paper target. **In-version updates** — bug fixes, tweaks — land here as plain commits; bump `buildNumber` in `gradle.properties` whenever a release build is cut. |
+| `ver/<new MC version>` | **Following upstream**: branch off the newest existing `ver/*` when a new MC/Paper version drops, then bump `mcVersion`, swap the paperweight dev bundle, and re-verify reflection points. |
+| `main` | Tracks the current stable line; merge the active `ver/*` branch into it when a build is released. |
+
+In-version release flow: bump `buildNumber` → `./gradlew build` → commit → (optionally tag `v<version>`, e.g. `v1.21.11-b1`) → merge into `main`.
+
 ### Upgrade Minecraft
 
-1. Re-run paperweight to align with the new dev bundle.
-2. Re-verify every reflection point in [`docs/04-mixin-analysis.md`](docs/04-mixin-analysis.md) against NMS field / method-signature drift (especially `FriendlyByteBuf`, `CustomPacketPayload`, the `CompoundTag` Optional migration, the `StructureStart.createTag` signature, and the `DiscardedPayload` constructor).
+1. Create the new upstream branch: `git checkout -b ver/<new MC version>` off the newest `ver/*` branch.
+2. Bump `mcVersion` in `gradle.properties` and align the paperweight dev bundle (`paperweight.paperDevBundle("<new>-R0.1-SNAPSHOT")`).
+3. Re-run `./gradlew build` so paperweight re-applies the new bundle.
+4. Re-verify every reflection point in [`docs/04-mixin-analysis.md`](docs/04-mixin-analysis.md) against NMS field / method-signature drift (especially `FriendlyByteBuf`, `CustomPacketPayload`, the `CompoundTag` Optional migration, the `StructureStart.createTag` signature, and the `DiscardedPayload` constructor).
 
 ---
 

@@ -155,7 +155,7 @@ public class SyncmaticaContext
 
     private void generateFeatureSet()
     {
-        // 声明全集 FeatureSet（配合 MOD_VERSION="1.0.0" 触发 FEATURE 交换，使双方用全集编码）
+        // 声明全集 FeatureSet（配合 MOD_VERSION=插件版本（1.21.11-b1 式，永不命中版本正则）触发 FEATURE 交换，使双方用全集编码）
         fs = new FeatureSet(Arrays.asList(Feature.values()));
     }
 

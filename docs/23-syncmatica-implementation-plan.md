@@ -80,7 +80,7 @@ mod/syncmatica/
 | S2C 路径 | 默认 **NMS `DiscardedPayload` 直发**（`S2C_VIA_NMS=true`，plugin messaging wire 对纯 Fabric 客户端不可达）；`/syncmatica debug s2c msg` 可切回对比 | [21](21-syncmatica-protocol.md) §1 |
 | 文件分片 | 自写 stop-and-wait（`BUFFER_SIZE=16384`，每片确认），**不复用 PacketSplitter** | [21](21-syncmatica-protocol.md) §6 |
 | hash 算法 | MD5 → `UUID.nameUUIDFromBytes`（type-3 UUID），内容寻址键 + 去重 | [21](21-syncmatica-protocol.md) §7 |
-| Feature 协商 | MOD_VERSION=`1.0.0`（非 0.1.x）触发 FEATURE 交换；`FeatureSet` 序列化为 `\n` 分隔名 | [21](21-syncmatica-protocol.md) §3 |
+| Feature 协商 | MOD_VERSION=插件版本（`-b` 后缀永不命中版本正则）触发 FEATURE 交换；`FeatureSet` 序列化为 `\n` 分隔名 | [21](21-syncmatica-protocol.md) §3 |
 | 持久化路径 | `plugins/VeryMcProto/syncmatics/<hash>.litematic` + `placements.json` + `syncmatica-config.json`，原子写 | [22](22-syncmatica-mixin-migration.md) §5 |
 | 权限 | 5 个真实节点（`plugin.yml`，default true/op 分级） | [22](22-syncmatica-mixin-migration.md) §6 |
 | 命令 | `/syncmatica status\|save\|reload\|enable\|disable\|load [file]\|debug [...]` | [22](22-syncmatica-mixin-migration.md) §7 |

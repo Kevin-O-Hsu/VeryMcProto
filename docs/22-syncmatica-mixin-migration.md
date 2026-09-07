@@ -352,7 +352,7 @@ Gson 回调式配置实现。读时 try/catch 任何异常并设 `wasError=true`
 | **`RedirectFileStorage`** | ⛔ **不移植** | 客户端装饰器（外部文件重定向免拷贝）；服务端纯 `FileStorage` 即可 |
 | **`extended_core/`（CORE_EX）** | ✅ **照抄** | owner / lastModifiedBy / subregion 共享，是协议字段（影响 metadata 编码），必须实现 |
 | **`litematica/schematic/`（peek）** | ✅ **照抄**（落地为 `data/litematica/`） | `SchematicMetadata`/`SchematicSchema`/`Schema`/`FileType` 是 syncmatica 自带的轻量 litematic 解析（不依赖 litematica mod），命令 `load` 需要 |
-| **版本协商（VERSION feature）** | ✅ **照抄** | `litematicVersion` / `dataVersion` 字段；`MOD_VERSION="1.0.0"` 触发 FEATURE 交换使双方用全集 FeatureSet |
+| **版本协商（VERSION feature）** | ✅ **照抄** | `litematicVersion` / `dataVersion` 字段；`MOD_VERSION`=插件版本（`-b` 后缀永不命中版本正则）触发 FEATURE 交换使双方用全集 FeatureSet |
 | **客户端 exchange（3 个）** | ⛔ **不实现类，但服务端 `handle` 须回应其包** | `ModifyExchangeClient` / `ShareLitematicExchange` / `VersionHandshakeClient` 不移植；服务端 `ServerCommunicationManager.handle/handleExchange` 照常处理其对应 PacketType（见 [21](21-syncmatica-protocol.md) §5.5） |
 | **`Reference.isClient/isIntegratedServer/isOpenToLan` 分支** | ⚠️ **简化删除** | Paper 恒 dedicated server（`SyncmaticaContext.isServer()=true`，其余 false） |
 | **`/syncmatica load` 以外的原版命令** | — | 原版本就没有；Paper 扩展了 `status/save/reload/enable/disable/debug`（运维用） |
@@ -369,7 +369,7 @@ Gson 回调式配置实现。读时 try/catch 任何异常并设 `wasError=true`
 verymc.top.veryMcProto.mod.syncmatica/
 ├── Feature.java                            ← 9 枚举（照抄）
 ├── SyncmaticaContext.java                  ← Context 容器（去客户端分支；protocolEnabled 软禁用）
-├── SyncmaticaReference.java                ← 常量（MOD_VERSION="1.0.0" / NETWORK_ID / 文件名常量）
+├── SyncmaticaReference.java                ← 常量（MOD_VERSION=插件版本 / NETWORK_ID / 文件名常量）
 ├── app/
 │   └── SyncmaticaModule.java               ← 启停入口（主类 onEnable/onDisable 调用；Bukkit 事件 listener）
 ├── command/

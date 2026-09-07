@@ -5,7 +5,12 @@ plugins {
 }
 
 group = "verymc.top"
-version = "1.0.0"
+
+// 版本唯一来源：gradle.properties 的 mcVersion / buildNumber → "<MC版本>-b<构建号>"（如 1.21.11-b1）。
+// MC 上游改命名风格（如日期式 26.1）时直接改 mcVersion 即可，格式不变。分支命名对应 ver/<mcVersion>。
+val mcVersion = providers.gradleProperty("mcVersion").get()
+val buildNumber = providers.gradleProperty("buildNumber").get()
+version = "$mcVersion-b$buildNumber"
 
 repositories {
     mavenCentral()
@@ -49,14 +54,17 @@ tasks {
 
     runServer {
         // 仅供本地测试（M1/M2 验证）；与 paperweight 互补，不影响 build/reobf。
-        minecraftVersion("1.21.11")
+        // MC 版本跟随 gradle.properties 的 mcVersion（版本唯一来源）。
+        // 注意：task 内用自身的 providers 取值，不捕获脚本顶层 val（配置缓存要求）。
+        minecraftVersion(providers.gradleProperty("mcVersion").get())
         jvmArgs("-Xms2G", "-Xmx2G")
     }
 
     processResources {
         val projectVersion = project.version
-        filesMatching(listOf("plugin.yml", "paper-plugin.yml")) {
-            expand(mapOf("version" to projectVersion))
+        val mcVersionProp = providers.gradleProperty("mcVersion").get()
+        filesMatching(listOf("plugin.yml", "paper-plugin.yml", "version.properties")) {
+            expand(mapOf("version" to projectVersion, "mcVersion" to mcVersionProp))
         }
     }
 }
