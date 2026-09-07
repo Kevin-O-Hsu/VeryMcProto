@@ -4,7 +4,7 @@
 
 ## 给 AI 助手的工作约定（动代码前先读）
 
-- **分支**：日常开发一律在 `dev` 分支提交。`ver/<MC版本>` 是发布/维护线（dev 验证后合入、出包）；`main` 只跟进稳定发布。详见下文「分支模型与版本系统」。
+- **分支**：当前 MC 版本的开发一律在 `dev` 分支提交，完成后合入 `main`（= 最新 MC 稳定发布线）。旧 MC 版本冻结为 `ver/<X>` + `ver/<X>-dev` 维护对：修 Bug 在 `ver/<X>-dev`，验证后合入 `ver/<X>`。详见下文「分支模型与版本系统」。
 - **版本**：插件版本 = `<mcVersion>-b<buildNumber>`（当前 `1.21.11-b1`）。**唯一来源是 `gradle.properties`**——发版只需在 dev 上 `buildNumber` +1，**任何源码、plugin.yml、文档中都不得手写版本号**（注入链路见下文）。
 - **语言与风格**：注释、日志、文档用中文；与现有代码一致（中文 javadoc、常量类 + 源码实证注释）。
 - **协议字段语义**改动前必须对照 `OriginImpl/` 下的客户端源码（litematica / malilib / syncmatica 是协议接收端），**不要凭服务端代码猜客户端行为**。
@@ -30,16 +30,25 @@
 
 ## 分支模型与版本系统
 
-### 分支模型（顺应上游 vs 版本内更新）
+### 分支模型（最新版本开发 vs 旧版本维护）
 
 | 分支 | 职责 |
 |---|---|
-| `dev` | **日常开发线**——功能与版本内修 Bug 都先提交在这里；永远携带当前 MC 目标的最新工作 |
-| `ver/<MC版本>`（如 `ver/1.21.11`） | **发布/维护线**，每个上游 MC/Paper 目标一条——dev 上验证通过的改动合入这里出包 |
-| `ver/<新MC版本>` | **顺应上游**：新 MC/Paper 版本发布时从 `dev` 切新分支（若 dev 有未稳定实验，可从最新 `ver/*` 切），改 `mcVersion` + dev bundle 后适配 |
-| `main` | 跟随最新稳定发布；发版后从 `ver/*` 合入 |
+| `dev` | **最新 MC 版本的日常开发线**——功能与修 Bug 都提交在这里 |
+| `main` | **最新 MC 版本的稳定发布线**（只接受来自 `dev` 的合并，不直接提交） |
+| `ver/<X>-dev`（如 `ver/1.21.11-dev`） | **旧 MC 版本 X 的维护开发线**——版本内修 Bug 在这里提交 |
+| `ver/<X>` | **旧 MC 版本 X 的稳定发布线**（只接受来自 `ver/<X>-dev` 的合并） |
 
-日常流程：`dev` 提交 → 出包时在 dev 上 `buildNumber`+1 → 合入 `ver/1.21.11` → `./gradlew build` → （可选 tag `v<版本>`，如 `v1.21.11-b1`）→ 合入 `main`。
+**生命周期**（例：main 处于 MC 26.2，上游出现 26.3）：
+
+1. **冻结**：从 `main`（= 26.2 最后一个发布，干净冻结点）切出 `ver/26.2` + `ver/26.2-dev` 一对分支。不要从 `dev` 切——dev 即将携带 26.3 的改动。
+2. **跟进上游**：回到 `dev`，改 `gradle.properties` 的 `mcVersion=26.3` + dev bundle，适配 NMS 漂移；此后 `dev → main` 承载 26.3 的全部开发。
+3. **旧版本维护**：26.2 的 Bug 修在 `ver/26.2-dev`，验证后合入 `ver/26.2`，在该分支 `buildNumber` +1 出包（26.2 线的构建号独立递增）。
+4. **修复回流**：旧版本修的 Bug 若新版本同样存在，cherry-pick / 移植回 `dev`（NMS 漂移大则手工移植）。
+
+**当前版本**（尚未冻结）的 Bug 直接走 `dev → main`，不为它开 `ver/*` 分支——避免同一件事存在多个改动入口。`ver/*` 对只在上游出现新版本的那一刻创建。
+
+**发版**（版本内更新）：所在开发线（`dev` 或 `ver/<X>-dev`）`buildNumber` +1 并提交 → 合入对应发布线（`main` 或 `ver/<X>`）→ `./gradlew build` → tag `v<版本>`（如 `v1.21.11-b1`）。
 
 ### 版本系统（单一来源注入链路）
 
@@ -235,8 +244,9 @@ Litematica 投影子系统（`mod/servux/schematic/`，约 8000 行）已移植�
 
 - **新增一个 Provider**（servux）：在 `dataproviders/` 加类（`extends DataProviderBase`），在 `network/` 加对应 Handler+Packet（通道编解码 + 字节布局），在 `ServuxReference` 加通道常量，在 `ServuxModule.onRegister` 登记。详见 [`docs/03-dataproviders-detail.md`](docs/03-dataproviders-detail.md)。
 - **新增一个协议 mod**：在 `mod/<newmod>/` 实现 `ModModule`（或自管装配如 syncmatica），在 `VeryMcProto.onEnable` 注册，在 `plugin.yml` 加命令/权限。
-- **发版**（版本内更新）：在 `dev` 上 `gradle.properties` 的 `buildNumber` +1 → 提交 → 合入 `ver/1.21.11` → `./gradlew build` → tag `v<版本>` → 合入 `main`。
-- **升级 Minecraft 版本**（顺应上游）：从 `dev` 切 `ver/<新MC版本>` 分支 → 改 `gradle.properties` 的 `mcVersion` + `build.gradle.kts` 的 dev bundle → 重跑 paperweight → 按 [`docs/04-mixin-analysis.md`](docs/04-mixin-analysis.md) 的反射点逐一核对 NMS 字段/方法签名漂移（尤其 `FriendlyByteBuf`、`CustomPacketPayload`、`CompoundTag` Optional 化、`StructureStart.createTag` 签名、`DiscardedPayload` 构造）。
+- **发版**（版本内更新）：在所在开发线（`dev` 或 `ver/<X>-dev`）`gradle.properties` 的 `buildNumber` +1 → 提交 → 合入对应发布线（`main` 或 `ver/<X>`）→ `./gradlew build` → tag `v<版本>`。
+- **升级 Minecraft 版本**（顺应上游）：先从 `main` 冻结旧版本（切 `ver/<旧版本>` + `ver/<旧版本>-dev` 对）→ 再在 `dev` 上改 `gradle.properties` 的 `mcVersion` + `build.gradle.kts` 的 dev bundle → 重跑 paperweight → 按 [`docs/04-mixin-analysis.md`](docs/04-mixin-analysis.md) 的反射点逐一核对 NMS 字段/方法签名漂移（尤其 `FriendlyByteBuf`、`CustomPacketPayload`、`CompoundTag` Optional 化、`StructureStart.createTag` 签名、`DiscardedPayload` 构造）。
+- **旧版本修 Bug**：在 `ver/<X>-dev` 提交 → 合入 `ver/<X>` 出包；若 `dev`（新版本）同样存在该 Bug，cherry-pick 回 `dev`。
 - **参考源码**（`OriginImpl/` 下，逐行对照的权威实现；**遇到分歧以真实源码为准**；本地目录已 gitignore，不入库）：
   - **servux**：`OriginImpl/servux-LTS-1.21.11/`——服务端协议实现。
   - **litematica / malilib**（masa 客户端，**协议的接收端**）：`OriginImpl/litematica-LTS-1.21.11/`、`OriginImpl/malilib-LTS-1.21.11/`。任何协议字段语义、分包重组、Task 分派都要回来对照客户端源码确认，**不要凭服务端代码猜客户端行为**（见 §6 教训 1）。

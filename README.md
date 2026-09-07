@@ -631,17 +631,26 @@ Plugin version = **`<MC version>-b<build number>`** — currently `1.21.11-b1`; 
 
 | Branch | Purpose |
 | --- | --- |
-| `dev` | **Daily development line** — features / in-version fixes land here first as plain commits; always carries the newest work for the current MC target. |
-| `ver/<MC version>` (e.g. `ver/1.21.11`) | **Release / maintenance line**, one per upstream MC/Paper target. Changes graduate from `dev` by merge; bump `buildNumber` in `gradle.properties` whenever a release build is cut. |
-| `ver/<new MC version>` | **Following upstream**: cut the new branch off `dev` when a new MC/Paper version drops (or off the newest `ver/*` if `dev` holds unstable experiments), then bump `mcVersion`, swap the paperweight dev bundle, and re-verify reflection points. |
-| `main` | Tracks the latest stable release; merge the active `ver/*` branch into it when a build is released. |
+| `dev` | **Daily development line for the latest MC version** — features and in-version fixes land here as plain commits. |
+| `main` | **Stable release line for the latest MC version** — receives merges from `dev` only, no direct commits. |
+| `ver/<X>-dev` (e.g. `ver/1.21.11-dev`) | **Maintenance dev line for an old MC version X** — bug fixes for the frozen version land here. |
+| `ver/<X>` | **Stable release line for an old MC version X** — receives merges from `ver/<X>-dev` only. |
 
-Daily flow: commit on `dev` → when a build is ready: bump `buildNumber` on `dev` → merge `dev` into `ver/1.21.11` → `./gradlew build` → (optionally tag `v<version>`, e.g. `v1.21.11-b1`) → merge `ver/1.21.11` into `main`.
+Lifecycle (example: `main` is on MC 26.2, upstream drops 26.3):
+
+1. **Freeze**: cut `ver/26.2` + `ver/26.2-dev` from `main` (== the last 26.2 release — a clean freeze point; never cut from `dev`, which is about to carry 26.3 work).
+2. **Follow upstream**: on `dev`, bump `mcVersion=26.3` + the dev bundle and adapt to NMS drift; from then on `dev → main` carries all 26.3 development.
+3. **Maintain the old line**: fix 26.2 bugs on `ver/26.2-dev`, merge into `ver/26.2`, bump `buildNumber` **on that branch** (its build counter increments independently).
+4. **Forward-port**: a bug fixed on an old line that also exists in the new version gets cherry-picked / ported back to `dev`.
+
+While a version is current (not yet frozen), its fixes go straight through `dev → main` — no `ver/*` pair exists for the current version; the pair is created only at the moment a newer MC version arrives.
+
+Release flow (in-version): on the active dev line (`dev` or `ver/<X>-dev`), bump `buildNumber` → commit → merge into the matching release line (`main` or `ver/<X>`) → `./gradlew build` → tag `v<version>` (e.g. `v1.21.11-b1`).
 
 ### Upgrade Minecraft
 
-1. Create the new upstream branch: `git checkout -b ver/<new MC version>` off `dev` (or off the newest `ver/*` branch if `dev` holds unstable experiments).
-2. Bump `mcVersion` in `gradle.properties` and align the paperweight dev bundle (`paperweight.paperDevBundle("<new>-R0.1-SNAPSHOT")`).
+1. Freeze the old version first: cut the `ver/<old MC version>` + `ver/<old MC version>-dev` pair from `main` (the last release of the old version).
+2. On `dev`, bump `mcVersion` in `gradle.properties` and align the paperweight dev bundle (`paperweight.paperDevBundle("<new>-R0.1-SNAPSHOT")`).
 3. Re-run `./gradlew build` so paperweight re-applies the new bundle.
 4. Re-verify every reflection point in [`docs/04-mixin-analysis.md`](docs/04-mixin-analysis.md) against NMS field / method-signature drift (especially `FriendlyByteBuf`, `CustomPacketPayload`, the `CompoundTag` Optional migration, the `StructureStart.createTag` signature, and the `DiscardedPayload` constructor).
 
