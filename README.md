@@ -601,6 +601,8 @@ See [`docs/10-testing-guide.md`](docs/10-testing-guide.md) (Servux) and [`docs/2
 
 **Optional dependency**: PacketEvents `compileOnly("com.github.retrooper:packetevents-spigot:2.13.0")` + `plugin.yml: softdepend: [packetevents]` (class references isolated in `EasyPlaceBootstrap`).
 
+> Working on this repo with an AI assistant (or onboarding as a maintainer)? Read **[`AGENTS.md`](AGENTS.md)** first — it is the canonical guide covering the architecture, branch/version model, core design constraints, and working conventions.
+
 ### NMS Constraints
 
 - **`CompoundTag`**: `getBoolean/getInt/...` return `Optional`/`OptionalInt`; use `getBooleanOr/getIntOr` or `.orElse()`; `putXxx` returns `void` (not chainable).
