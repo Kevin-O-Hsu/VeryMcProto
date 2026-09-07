@@ -4,6 +4,12 @@
 
 ## 给 AI 助手的工作约定（动代码前先读）
 
+- **开发前必查上游版本**：每次开始开发前，先请求 Mojang 官方版本清单
+  `https://launchermeta.mojang.com/mc/game/version_manifest_v2.json`，
+  读 `latest.release` / `latest.snapshot` 确认最新版本，再对齐动作：
+  - 上游最新 release == 本开发线 `gradle.properties` 的 `mcVersion` → 正常开发；
+  - 上游已越过本线版本 → 该版本属旧线：当前版本的活走 `ver/<X>-dev`，同时提醒用户启动 `dev` 的升级适配（见分支模型「生命周期」）。
+  （Paper 侧版本可用 https://api.papermc.io/v2/projects/paper 交叉核对。）
 - **分支**：当前 MC 版本的开发一律在 `dev` 分支提交，完成后合入 `main`（= 最新 MC 稳定发布线）。旧 MC 版本冻结为 `ver/<X>` + `ver/<X>-dev` 维护对：修 Bug 在 `ver/<X>-dev`，验证后合入 `ver/<X>`。详见下文「分支模型与版本系统」。
 - **版本**：插件版本 = `<mcVersion>-b<buildNumber>`（当前 `1.21.11-b1`）。**唯一来源是 `gradle.properties`**——发版只需在 dev 上 `buildNumber` +1，**任何源码、plugin.yml、文档中都不得手写版本号**（注入链路见下文）。
 - **语言与风格**：注释、日志、文档用中文；与现有代码一致（中文 javadoc、常量类 + 源码实证注释）。
@@ -47,6 +53,11 @@
 4. **修复回流**：旧版本修的 Bug 若新版本同样存在，cherry-pick / 移植回 `dev`（NMS 漂移大则手工移植）。
 
 **当前版本**（尚未冻结）的 Bug 直接走 `dev → main`，不为它开 `ver/*` 分支——避免同一件事存在多个改动入口。`ver/*` 对只在上游出现新版本的那一刻创建。
+
+**当前状态**（2026-09，以上游版本清单为准）：
+- 上游最新 release **26.2**，snapshot **26.3-pre-2**（26.3 将近）。
+- **1.21.11 已是旧版本**：`ver/1.21.11` + `ver/1.21.11-dev` 维护对已从 `main`（tag `v1.21.11-b1`）冻结切出；本仓库全部代码基于 1.21.11 NMS。
+- `dev → main` 是最新版本开发线，**尚未适配 26.x**（`mcVersion` 仍为 1.21.11）；适配 26.2 属于后续工作（改 `mcVersion` + dev bundle + NMS 漂移核对，见「升级 Minecraft 版本」）。
 
 **发版**（版本内更新）：所在开发线（`dev` 或 `ver/<X>-dev`）`buildNumber` +1 并提交 → 合入对应发布线（`main` 或 `ver/<X>`）→ `./gradlew build` → tag `v<版本>`（如 `v1.21.11-b1`）。
 

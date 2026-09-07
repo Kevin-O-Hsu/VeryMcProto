@@ -645,6 +645,10 @@ Lifecycle (example: `main` is on MC 26.2, upstream drops 26.3):
 
 While a version is current (not yet frozen), its fixes go straight through `dev → main` — no `ver/*` pair exists for the current version; the pair is created only at the moment a newer MC version arrives.
 
+**Before any development session**, query the Mojang version manifest — `https://launchermeta.mojang.com/mc/game/version_manifest_v2.json` (read `latest.release` / `latest.snapshot`; cross-check Paper at `https://api.papermc.io/v2/projects/paper`) — to see where upstream is. If upstream has moved past the line you are on, that line is old: its work belongs on `ver/<X>-dev`, and `dev` is due for an upgrade pass.
+
+**Current status** (2026-09): upstream latest release is **26.2** (snapshot `26.3-pre-2`). `ver/1.21.11` + `ver/1.21.11-dev` are the frozen maintenance pair, cut from `main` at tag `v1.21.11-b1` (all code is on 1.21.11 NMS); `dev → main` has not yet been adapted to 26.x.
+
 Release flow (in-version): on the active dev line (`dev` or `ver/<X>-dev`), bump `buildNumber` → commit → merge into the matching release line (`main` or `ver/<X>`) → `./gradlew build` → tag `v<version>` (e.g. `v1.21.11-b1`).
 
 ### Upgrade Minecraft
