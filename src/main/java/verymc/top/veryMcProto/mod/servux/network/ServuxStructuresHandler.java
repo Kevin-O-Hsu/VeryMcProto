@@ -16,8 +16,8 @@ import verymc.top.veryMcProto.framework.network.IPluginServerPlayHandler;
 import verymc.top.veryMcProto.framework.network.IServerPayloadData;
 import verymc.top.veryMcProto.framework.network.PacketSplitter;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
-import verymc.top.veryMcProto.mod.servux.dataproviders.HudDataProvider;
 import verymc.top.veryMcProto.mod.servux.dataproviders.StructureDataProvider;
+import verymc.top.veryMcProto.mod.servux.util.nbt.DataTagIo;
 
 /**
  * Structures 通道收发 Handler（mod 层）。移植自原版 {@code ServuxStructuresHandler}（去 Fabric + networkHandler 形参）。
@@ -111,13 +111,12 @@ public class ServuxStructuresHandler implements IPluginServerPlayHandler
                 StructureDataProvider.INSTANCE.unregister(player);
                 StructureDataProvider.INSTANCE.register(player);
             }
-            // 保留 handler，转发给 HudDataProvider（spawn/天气元数据由其生成）
-            case PACKET_C2S_REQUEST_SPAWN_METADATA -> HudDataProvider.INSTANCE.refreshSpawnMetadata(player, packet.getCompound());
             case PACKET_C2S_STRUCTURES_UNREGISTER ->
             {
                 ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeStructuresPacket(): 收到 Structures Un-Register from " + player.getName().getString());
                 StructureDataProvider.INSTANCE.unregister(player);
             }
+            // 26.1：type 10/11/12（spawn/weather）已从本通道删除——spawn/天气元数据完全收敛到 HUD 通道
             default -> Reference.logger().warning("decodeStructuresPacket(): 无效 packetType " + packet.getPacketType()
                     + " from " + player.getName().getString() + ", size=" + packet.getTotalSize());
         }
@@ -141,9 +140,9 @@ public class ServuxStructuresHandler implements IPluginServerPlayHandler
         {
             ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData structures → " + player.getName().getString()
                     + " type=" + packet.getType() + " → PacketSplitter 分包");
-            // 大包：NBT，走 PacketSplitter 分片
+            // 大包（26.1：重组整体为 DataTag 帧——本通道仅此一处 DataTag，包帧本身仍 vanilla/裸字节）
             FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
-            buffer.writeNbt(packet.getCompound());
+            DataTagIo.writeTag(buffer, packet.getCompound());
             PacketSplitter.send(this, buffer, player);
         }
         else if (!this.sendPlayPayload(player, packet))

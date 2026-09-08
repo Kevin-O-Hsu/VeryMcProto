@@ -22,7 +22,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.storage.ServerLevelData;
+import net.minecraft.world.level.saveddata.WeatherData;
 
 import verymc.top.veryMcProto.Reference;
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderBase;
@@ -225,13 +225,14 @@ public class HudDataProvider extends DataProviderBase
         if (overworld == null) { return; }
         try
         {
-            ServerLevelData levelData = (ServerLevelData) overworld.getLevelData();
+            // 26.1：天气状态自 ServerLevelData 迁入 ServerLevel.getWeatherData()（WeatherData，SavedData）
+            WeatherData weather = overworld.getWeatherData();
             this.tickWeather(
-                    levelData.getClearWeatherTime(),
-                    levelData.getRainTime(),
-                    levelData.getThunderTime(),
-                    overworld.isRaining(),
-                    overworld.isThundering());
+                    weather.getClearWeatherTime(),
+                    weather.getRainTime(),
+                    weather.getThunderTime(),
+                    weather.isRaining(),
+                    weather.isThundering());
         }
         catch (Exception e) { ServuxDebug.log(ServuxDebug.Cat.TICK, "pollWeather 天气采集失败（NMS 字段漂移？）: " + e.getMessage()); }
     }

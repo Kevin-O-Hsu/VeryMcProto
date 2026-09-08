@@ -276,3 +276,57 @@ verymc.top.veryMcProto/
 2. `entity onPlayerRegisterChannel: ... → 重发 metadata` + `entity sendMetadata → ... ok=true`（确认 metadata 可达）；
 3. `send OK servux:entity_data → <玩家> bytes=...`（确认字节实际投递）。
 若 `ok=false`，日志会打印 `ProtocolChannel` 的具体失败原因（outgoing 未注册 / 客户端未声明监听 / 超限等）。
+
+---
+
+## §26.1 线迁移实录（1.21.11 → 26.1.2，2026-09）
+
+> 本节是 26.1 迁移的权威记录：构建面变化、协议面 wire 差异（全部对照 `OriginImpl/*-LTS-26.1` 客户端源码逐字实证）、NMS 漂移实测清单。升级到下一版本（26.2+）时按此方法论重做。
+
+### 26.1.1 构建面
+
+| 项 | 1.21.11 | 26.1.2 | 备注 |
+|---|---|---|---|
+| Java | 21 | **25** | 上游 `servux-LTS-26.1/build.gradle` 明文 "Minecraft 26.1+ uses Java 25"；piston-meta `majorVersion=25` |
+| dev bundle | `1.21.11-R0.1-SNAPSHOT` | `26.1.2.build.74-stable` | 26.1 起格式 `<mc>.build.<N>-stable` |
+| paperweight | 2.0.0-beta.21 | **2.0.0-beta.23** | 新 bundle 格式跟随 |
+| run-paper | 3.0.2 | **3.1.0** | `api.papermc.io/v2` 已下线（sunset），3.1.0 走 Fill v3；且 run-task 3.1.0 要求 Gradle ≥9.7 |
+| Gradle wrapper | 9.6.1 | **9.7.1** | run-paper 3.1.0 的插件 API 版本要求 |
+| **reobfJar** | 装配进 assemble | **删除** | paperweight 官方文档：26.1 起 Paper 不再支持 Spigot 重映射（Mojang 移除服务端混淆），reobf 插件无法加载；产物 = Mojang 映射 jar |
+| api-version | '1.21' | **保留 '1.21'** | 旧值前向兼容（Bukkit 语义：高于服务器才拒载）；实机 26.1.2 起服加载正常 |
+| mcVersion | 1.21.11 | **26.1.2** | 必须精确补丁号：客户端 MOD_STRING 门禁 + Fill/dev-bundle/runServer 三处都无裸 "26.1" |
+
+### 26.1.2 协议面 wire 差异（静默失败重灾区，编译器不可见）
+
+1. **协议版本全表**（客户端 `!=` 严格相等，错一个即整通道退网 + UnregisterReply）：
+   HUD `ServuxHudPacket.PROTOCOL_VERSION` 2→**3**、Entities 1→**2**、Tweaks 1→**2**、Structures 2→**3**、Litematics 1→**2**。
+2. **MOD_STRING 硬门禁**：26.1 客户端四处（minihud HudDataManager:595 / minihud DataStorage:851 / litematica EntityDataManager:544 / tweakeroo EntityDataManager:435）校验 `servux.startsWith("servux-" + MOD_TYPE + "-" + MC_VERSION)`，`MOD_TYPE="fabric"`、`MC_VERSION` = Fabric loader 精确上游 id（26.1.2）。→ `ServuxReference.MOD_TYPE` "paper"→"fabric"（伪装），版本段由 `mcVersion=26.1.2` 注入。1.21.11 客户端只比对版本号不比对前缀，"paper" 才能蒙混——26.1 堵死了。
+3. **DataTag 线格式载体**（本轮最大工作量）：业务包 NBT 从 vanilla `writeNbt` 切换为 malilib DataTag：`[int32 大端 压缩后长度][GZIP(具名根 NBT 流)]`，流内 = `[tagType=10][writeUTF("")][条目+TAG_END]`，与 NMS `NbtIo.write(tag, os)` 输出**逐字节兼容**（单测黄金向量实证）→ 实现为 `mod/servux/util/nbt/DataTagIo.java`（~150 行 + 6 项单测），不移植 malilib 18 个 DataTag 类。
+   - **分界规则（逐 Type，不是逐通道）**：全通道 metadata 1/2 恒 vanilla NBT；分片 10-13 恒裸字节；其余业务 Type 走 DataTag；**START 大包经 PacketSplitter 的重组整体**也是 DataTag（客户端 `DataByteBufUtils.fromByteBuf` 解析，含 recipe/structures bulk）。
+   - 边界：写端恒发 tagType=10 根（上游 EmptyData 的 0x00 单字节根会被 malilib 读端 `readFromNbtStream` 返回 null → 整包丢弃）；读端对 0x00 根容错为空 compound；GZIP 失败（ZipException）回落裸读；长度前缀是**压缩后**字节数、非 VarInt；64MB 上限（SizeTracker.NETWORK_MAX_BYTES）。
+   - 幸存者：**Structures 通道包帧全程 vanilla/裸字节**（metadata writeNbt、STRUCTURE_DATA raw）——仅 START 重组整体为 DataTag。
+4. **C2S 变化**：
+   - `transactionId` 前置 VarInt **整体删除**（请求直读 BlockPos / VarInt entityId / ChunkPos；收端残留吞读会把首字节吃掉 → 全部错位）。
+   - 批量重组体（投影上传）无 type VarInt 前缀，改按 NBT `"Task"` 字符串路由（`LitematicaPaste` / `Litematic-Transmit*`）。
+   - 新增 `UNREGISTER_REPLY`：HUD=9、Entities=7、Tweaks=7、Litematics=8——服务端 decode→unregister（我方映射为 provider.removePlayer）。
+   - METADATA_REQUEST 语义变为「先 unregister 再 register」（再注册）。
+5. **枚举增删全表**：HUD +`UNREGISTER_REPLY(9)`；Entities/Tweaks 各 +(7)；Litematica +(8) +task 组 `TASK_REQUEST(14)/TASK_RESPONSE(15)/TASK_STATUS_SYNC(16)/TASK_CANCEL(17)`；**Structures 删 10/11/12**（S2C_SPAWN_METADATA / C2S_REQUEST_SPAWN_METADATA / S2C_WEATHER_DATA——spawn/weather 完全收敛到 HUD 通道，我方 HUD provider 本就承载，仅删 Structures 侧残留分支）。
+6. **客户端重组上限 128MB → 16MB**（malilib `PacketSplitter.DEFAULT_MAX_RECEIVE_SIZE`）→ 我方 transmit 入口加 16MB 门禁（`LitematicaSchematic.MAX_TRANSMIT_FILE_SIZE`，超限 TransmitCancel + error + 玩家提示，不截断不静默）。
+7. **Litematica task 组（14-17）未实现（声明限制）**：26.1 客户端在检测到 servux 服务端后 Fill/Delete 选区**强制**走 `PACKET_C2S_TASK_REQUEST`（无超时回退、无能力探测机制、type 15 的客户端处理本身被上游 TODO 注释）。服务端不实现 = 该功能静默不执行（InfoHudSync 渲染空列表、链式 completionListener 不回调；无崩溃无断连）。属上游新功能，超出"迁移"锚点；收到 task 包时明确日志后忽略。后续若要支持：对照 `litematica-LTS-26.1 ToolUtils` + `servux-LTS-26.1 LitematicsDataProvider` 的 task 状态机。
+8. **隐私裁剪**（26.1 上游新增，我方 1.21.11 线已内置，无需改动）：查询**他人**玩家实体时按 `nbt_allow_player_inventory` / `player_inventory_permission_level`（ender 同理）清空 `Inventory` / `EnderItems`。
+9. **零变化**：JEI payload（`fabric:recipe_sync` / `neoforge:recipe_content`）、syncmatica 全协议（18 PacketType + Exchange + FeatureSet）、PacketSplitter 分片帧（`[VarInt 总长][分片…]`、常量逐字一致）、HUD v3 数据字段（两侧 20 字段名 comm 比对零增删改——差异全在包封层）。
+
+### 26.1.3 NMS 漂移实测清单（编译驱动，全库 632 import 仅 39 处断裂）
+
+- **`ChunkPos` 变 record**：`pos.x/pos.z` → `pos.x()/pos.z()`；`new ChunkPos(long)` → `ChunkPos.unpack(long)`；`asLong(x,z)`/`toLong()` → `pack(x,z)`/`pack()`；（`new ChunkPos(BlockPos)` → `containing`，本轮未命中）。
+- **天气搬家**：`ServerLevelData.getClearWeatherTime/getRainTime/getThunderTime/isRaining/isThundering` → `ServerLevel.getWeatherData()`（`world/level/saveddata/WeatherData`，同名方法保留）。
+- **`displayClientMessage(Component, boolean)`** → **`sendSystemMessage(Component)`**（无 overlay 位）。
+- 未漂移（1.21.11 结论仍成立）：`Identifier`、`CompoundTag` Optional 语义、`FriendlyByteBuf`、`DiscardedPayload`、`CustomPacketPayload` 模型；3 处反射串（`remainingSprintTicks` / TagValueInput `"input"` / TagValueOutput `"output"`）经上游 26.1 AccessWidener 实证存活。
+- 测试环境注意：`Reference.logger()` 回退从 `Bukkit.getLogger()` 改为 JUL——纯 JVM 单测无 Bukkit 类，旧回退在告警路径会 NPE。
+
+### 26.1.4 实机验证记录（Paper 26.1.2 + Java 25，2026-09-08）
+
+- `./gradlew build`：23/23 单测全绿（PacketSplitter 3 + FeatureSet 4 + LitematicaBitArray 10 + **DataTagIo 6**），产物 `VeryMcProto-26.1.2-b1.jar`（Mojang 映射，无 reobf）。
+- `./gradlew runServer`（`JAVA_HOME=F:\jdk` zulu25.0.4.1）：`Starting minecraft server version 26.1.2` → 插件 `v26.1.2-b1` 加载+启用（api-version '1.21' 接受）→ servux / jei_recipe_bridge / syncmatica 三模块注册 → `框架就绪` → `Done (12.334s)`，无 ERROR/SEVERE；PacketEvents 缺席时 EasyPlace 优雅降级日志正常。
+- 旧 1.21.11 测试世界保护：`run/server.properties` `level-name=world26` 隔离（旧 world/ 未被触碰），6 个共享配置 `.pre261.bak` 备份，packetevents jar 移出 plugins。
+- **客户端互通冒烟（26.1 Fabric 客户端，用户侧最终验收）**：服务端侧已全部验证；协议常量/载体均经客户端源码逐字钉死，但最终裁决需要真实 26.1.2 客户端连服冒烟（HUD 握手 + litematics 握手，docs/10 流程）——无头环境无法运行模组客户端。

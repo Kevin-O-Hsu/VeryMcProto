@@ -14,6 +14,7 @@ import verymc.top.veryMcProto.framework.network.IPluginServerPlayHandler;
 import verymc.top.veryMcProto.framework.network.IServerPayloadData;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
 import verymc.top.veryMcProto.mod.servux.dataproviders.TweaksDataProvider;
+import verymc.top.veryMcProto.mod.servux.util.nbt.DataTagIo;
 
 /**
  * Tweaks 通道收发 Handler（mod 层）。移植自原版 {@code ServuxTweaksHandler}（去 Fabric + networkHandler 形参 +
@@ -74,6 +75,7 @@ public class ServuxTweaksHandler implements IPluginServerPlayHandler
         switch (packet.getType())
         {
             case PACKET_C2S_METADATA_REQUEST -> TweaksDataProvider.INSTANCE.sendMetadata(player);
+            case PACKET_C2S_UNREGISTER_REPLY -> TweaksDataProvider.INSTANCE.removePlayer(player);
             case PACKET_C2S_BLOCK_ENTITY_REQUEST -> TweaksDataProvider.INSTANCE.onBlockEntityRequest(player, packet.getPos());
             case PACKET_C2S_ENTITY_REQUEST -> TweaksDataProvider.INSTANCE.onEntityRequest(player, packet.getEntityId());
             // PACKET_C2S_NBT_RESPONSE_DATA（C2S 分片接收）原版注释禁用，保持注释省略
@@ -101,10 +103,9 @@ public class ServuxTweaksHandler implements IPluginServerPlayHandler
         {
             ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData tweaks → " + player.getName().getString()
                     + " type=" + packet.getType() + " → PacketSplitter 分包");
-            // 大包：VarInt transactionId + NBT，走 PacketSplitter
+            // 大包（26.1：重组整体为 DataTag 帧，无 transactionId 前缀）
             FriendlyByteBuf buffer = new FriendlyByteBuf(io.netty.buffer.Unpooled.buffer());
-            buffer.writeVarInt(packet.getTransactionId());
-            buffer.writeNbt(packet.getCompound());
+            DataTagIo.writeTag(buffer, packet.getCompound());
             verymc.top.veryMcProto.framework.network.PacketSplitter.send(this, buffer, player);
         }
         else if (!this.sendPlayPayload(player, packet))

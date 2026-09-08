@@ -1,7 +1,7 @@
 plugins {
     `java-library`
-    id("io.papermc.paperweight.userdev") version "2.0.0-beta.21"
-    id("xyz.jpenilla.run-paper") version "3.0.2"
+    id("io.papermc.paperweight.userdev") version "2.0.0-beta.23"
+    id("xyz.jpenilla.run-paper") version "3.1.0"
 }
 
 group = "verymc.top"
@@ -22,9 +22,9 @@ repositories {
 
 dependencies {
     // paperDevBundle 提供 Mojang 官方映射（全 deobfuscated）的 NMS（net.minecraft.*），开发时直接用 Mojang 名访问。
-    // 锁定：paperweight 2.0.0-beta.21 + Paper 1.21.11 dev bundle（旧格式 1.21.11-R0.1-SNAPSHOT）。
-    // 与姊妹项目 VeryMcBot 一致，已在该环境验证通过。
-    paperweight.paperDevBundle("1.21.11-R0.1-SNAPSHOT")
+    // MC 26.1 起 dev bundle 改为 <mcVersion>.build.<N>-stable 新命名（旧格式 X-R0.1-SNAPSHOT 止于 1.21.x），
+    // 26.1.2.build.74-stable 为 26.1 线当前最高 stable（repo.papermc.io metadata 实测）。
+    paperweight.paperDevBundle("26.1.2.build.74-stable")
 
     // PacketEvents（EasyPlace 拦截原版 use_item_on）：compileOnly，运行时由服务器独立安装的 packetevents 插件提供。
     // 锁定 2.13.0（codemc 最新 release；对照源码 OriginImpl/packetevents-2.0 为 2.13.1 开发版，API 一致）。
@@ -37,15 +37,12 @@ dependencies {
 }
 
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
 }
 
-// 1.21.11 支持 reobf：reobfJar 产出 Spigot 运行时映射 jar，标准 Paper 服务器可直接加载。
-// 经典 plugin.yml 按 Paper 默认假设为 Spigot-mapped，加载时自动 deobfuscate 回 Mojang 运行时映射——与此产出匹配。
-// 反射（Reflect）用 Mojang 名访问私有成员：reobf 不转换反射字符串，而 Paper 运行时即 Mojang 映射，故反射 Mojang 名天然正确。
-tasks.assemble {
-    dependsOn(tasks.reobfJar)
-}
+// MC 26.1 起 Paper 不再支持把插件重映射到 Spigot 映射（Mojang 已移除服务端混淆；paperweight 官方文档明示
+// "reobfuscated plugins will not work from Paper 26.1 onwards"）——不再装配 reobfJar，build 产物即 Mojang 映射 jar，
+// 标准 Paper 26.1+ 直接加载。反射（Reflect）用 Mojang 名访问私有成员的约定在此形态下依旧天然正确。
 
 tasks {
     test {

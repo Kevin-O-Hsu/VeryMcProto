@@ -329,14 +329,15 @@ public class StructureDataProvider extends DataProviderBase
 
             while (iter.hasNext())
             {
-                ChunkPos pos = new ChunkPos(iter.nextLong());
+                // 26.1：ChunkPos 转 record，new ChunkPos(long) → unpack(long)
+                ChunkPos pos = ChunkPos.unpack(iter.nextLong());
 
-                if (!world.hasChunk(pos.x, pos.z))
+                if (!world.hasChunk(pos.x(), pos.z()))
                 {
                     continue;
                 }
 
-                ChunkAccess chunk = world.getChunk(pos.x, pos.z, ChunkStatus.STRUCTURE_REFERENCES, false);
+                ChunkAccess chunk = world.getChunk(pos.x(), pos.z(), ChunkStatus.STRUCTURE_REFERENCES, false);
 
                 if (chunk == null)
                 {
@@ -360,9 +361,9 @@ public class StructureDataProvider extends DataProviderBase
     {
         Map<Structure, LongSet> references = new HashMap<>();
 
-        for (int cx = center.x - chunkRadius; cx <= center.x + chunkRadius; ++cx)
+        for (int cx = center.x() - chunkRadius; cx <= center.x() + chunkRadius; ++cx)
         {
-            for (int cz = center.z - chunkRadius; cz <= center.z + chunkRadius; ++cz)
+            for (int cz = center.z() - chunkRadius; cz <= center.z() + chunkRadius; ++cz)
             {
                 this.getStructureReferencesFromChunk(cx, cz, world, references);
             }

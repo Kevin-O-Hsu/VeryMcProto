@@ -5,7 +5,6 @@ import java.util.Map;
 import java.util.UUID;
 
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -20,6 +19,7 @@ import verymc.top.veryMcProto.framework.network.PacketSplitter;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
 import verymc.top.veryMcProto.mod.servux.dataproviders.LitematicsDataProvider;
 import verymc.top.veryMcProto.mod.servux.schematic.LitematicaSchematic;
+import verymc.top.veryMcProto.mod.servux.util.nbt.DataTagIo;
 import org.apache.commons.lang3.tuple.Pair;
 
 /**
@@ -76,9 +76,17 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
         switch (packet.getType())
         {
             case PACKET_C2S_METADATA_REQUEST -> LitematicsDataProvider.INSTANCE.sendMetadata(player);
+            case PACKET_C2S_UNREGISTER_REPLY -> LitematicsDataProvider.INSTANCE.removePlayer(player);
             case PACKET_C2S_BLOCK_ENTITY_REQUEST -> LitematicsDataProvider.INSTANCE.onBlockEntityRequest(player, packet.getPos());
             case PACKET_C2S_ENTITY_REQUEST -> LitematicsDataProvider.INSTANCE.onEntityRequest(player, packet.getEntityId());
             case PACKET_C2S_BULK_ENTITY_NBT_REQUEST -> LitematicsDataProvider.INSTANCE.onBulkEntityRequest(player, packet.getChunkPos(), packet.getCompound());
+            case PACKET_C2S_TASK_REQUEST, PACKET_S2C_TASK_RESPONSE, PACKET_S2C_TASK_STATUS_SYNC, PACKET_C2S_TASK_CANCEL ->
+            {
+                // 26.1 task 组占位：服务端 Fill/Delete 任务执行未实现（上游新功能，超出迁移范围），
+                // 明确日志声明后忽略（客户端无能力探测机制——见 docs/09 限制条款）
+                Reference.logger().info("ServuxLitematicaHandler#decodeServerData: 收到未实现的 task 包 type="
+                        + packet.getPacketType() + " from " + player.getName().getString() + "（Fill/Delete 经 servux 的服务端执行未实现，已忽略）");
+            }
             case PACKET_C2S_NBT_RESPONSE_DATA ->
             {
                 UUID uuid = player.getUUID();
@@ -104,7 +112,13 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
                     try
                     {
                         this.readingSessionKeys.remove(uuid);
-                        this.handleBulkData(player, fullPacket.readVarInt(), (CompoundTag) fullPacket.readNbt(NbtAccounter.unlimitedHeap()));
+                        // 26.1：重组整体为 DataTag 帧，且无 type VarInt 前缀——按 NBT "Task" 字符串路由
+                        CompoundTag nbt = DataTagIo.readTag(fullPacket);
+
+                        if (nbt != null)
+                        {
+                            this.handleBulkData(player, nbt);
+                        }
                     }
                     catch (Exception e)
                     {
@@ -118,12 +132,12 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
     }
 
     /**
-     * 客户端上传的投影 NBT 重组完成后的分流。
+     * 客户端上传的投影 NBT 重组完成后的分流（26.1：无 transactionId，按 "Task" 字符串路由）。
      *
      * <p>TransmitStart/Data/End/Cancel 走 LitematicaSchematic.receiveFileTransmit（落盘到 schematics/ + 粘贴）；
      * 普通 LitematicaPaste 走 LitematicsDataProvider.handleClientPasteRequest（加载 + pasteTo 粘贴）。
      */
-    private void handleBulkData(ServerPlayer player, final int type, CompoundTag nbt)
+    private void handleBulkData(ServerPlayer player, CompoundTag nbt)
     {
         String task = nbt != null ? nbt.getStringOr("Task", "LitematicaPaste") : "LitematicaPaste";
 
@@ -137,10 +151,10 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
                 if (schemPair != null && schemPair.getLeft().getFile() != null)
                 {
                     ServuxDebug.log(ServuxDebug.Cat.PACKET, "handleBulkData(): 收到 litematic " + schemPair.getLeft().getFile().toAbsolutePath().toString() + " from " + player.getName().getString());
-                    LitematicsDataProvider.INSTANCE.handleClientPasteRequestPair(player, type, schemPair);
+                    LitematicsDataProvider.INSTANCE.handleClientPasteRequestPair(player, schemPair);
                 }
             }
-            default -> LitematicsDataProvider.INSTANCE.handleClientPasteRequest(player, type, nbt);
+            default -> LitematicsDataProvider.INSTANCE.handleClientPasteRequest(player, nbt);
         }
     }
 
@@ -161,10 +175,9 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
         {
             ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData litematics → " + player.getName().getString()
                     + " type=" + packet.getType() + " → PacketSplitter 分包");
-            // 大包：VarInt transactionId + NBT，走 PacketSplitter
+            // 大包（26.1：重组整体为 DataTag 帧，无 transactionId 前缀）
             var buf = new FriendlyByteBuf(io.netty.buffer.Unpooled.buffer());
-            buf.writeVarInt(packet.getTransactionId());
-            buf.writeNbt(packet.getCompound());
+            DataTagIo.writeTag(buf, packet.getCompound());
             PacketSplitter.send(this, buf, player);
         }
         else if (!this.sendPlayPayload(player, packet))

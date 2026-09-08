@@ -15,20 +15,20 @@ import verymc.top.veryMcProto.framework.network.IServerPayloadData;
 /**
  * Structures 通道协议帧（mod 层）。照抄原版 {@code ServuxStructuresPacket}（去 Fabric 注解 + jul logger）。
  *
- * <p>协议版本 {@value #PROTOCOL_VERSION}，通道 servux:structures。字节布局：
- * {@code VarInt(packetType) + NBT（CompoundTag）/ raw bytes（buffer slice）}。
- * {@code PACKET_S2C_STRUCTURE_DATA} 携带分包单片（raw bytes，由 {@link ServuxStructuresHandler#encodeWithSplitter} 包装）；
- * 其余携带 NBT。
+ * <p>协议版本 {@value #PROTOCOL_VERSION}（26.1：3，并<b>删除 type 10/11/12</b>——spawn/weather 元数据在 26.1
+ * 完全收敛到 HUD 通道，Structures 只剩结构边界框本身）。本通道是 26.1 载体切换的唯一幸存者：
+ * <b>全程 vanilla NBT / 裸 bytes</b>，无 DataTag；唯一例外是 START 大包经 PacketSplitter 分片后的
+ * <b>重组整体内容</b>为 DataTag 帧（由 Handler 的 encodeServerData 包装，本类不感知）。
  *
  * <p>{@link Payload} record 保留（与原版一致），用于协议帧定义与未来方案 B（NMS 发包）；
- * 方案 A（plugin messaging）收发走 byte[]，由 {@link ServuxStructuresHandler#sendPlayPayload} 完成。
+ * 方案 A（plugin messaging）收发走 byte[]，由 {@code ServuxStructuresHandler.sendPlayPayload} 完成。
  */
 public class ServuxStructuresPacket implements IServerPayloadData
 {
     private Type packetType;
     private CompoundTag nbt;
     private FriendlyByteBuf buffer;
-    public static final int PROTOCOL_VERSION = 2;
+    public static final int PROTOCOL_VERSION = 3;
 
     public ServuxStructuresPacket(Type type, @Nullable CompoundTag nbt)
     {
@@ -186,10 +186,7 @@ public class ServuxStructuresPacket implements IServerPayloadData
         PACKET_S2C_STRUCTURE_DATA(2),
         PACKET_C2S_STRUCTURES_REGISTER(3),
         PACKET_C2S_STRUCTURES_UNREGISTER(4),
-        PACKET_S2C_STRUCTURE_DATA_START(5),
-        PACKET_S2C_SPAWN_METADATA(10),
-        PACKET_C2S_REQUEST_SPAWN_METADATA(11),
-        PACKET_S2C_WEATHER_DATA(12);
+        PACKET_S2C_STRUCTURE_DATA_START(5);
 
         private final int type;
 

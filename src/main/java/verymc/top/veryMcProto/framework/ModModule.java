@@ -17,7 +17,7 @@ public interface ModModule
     /** mod 标识（如 "servux"）。 */
     String getModId();
 
-    /** 协议握手字段（如 {@code servux-paper-1.21.11-b1}，版本号源自 Reference 版本单一来源）。 */
+    /** 协议握手字段（如 {@code servux-fabric-26.1.2-b1}，版本号源自 Reference 版本单一来源）。 */
     String getModString();
 
     /** 注册本 mod 的所有 Provider 到框架。 */

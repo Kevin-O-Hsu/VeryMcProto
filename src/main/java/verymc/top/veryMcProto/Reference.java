@@ -16,16 +16,16 @@ import java.util.logging.Logger;
  * <p><b>版本单一来源</b>：{@link #MC_VERSION} / {@link #PLUGIN_VERSION} 在类加载时从
  * {@code version.properties} 读取（构建时由 Gradle 依据 {@code gradle.properties} 的
  * {@code mcVersion} / {@code buildNumber} 展开）。插件版本 = {@code <MC版本>-b<构建号>}
- * （如 {@code 1.21.11-b1}），禁止在任何源码 / plugin.yml 手写版本号。
+ * （如 {@code 26.1.2-b1}），禁止在任何源码 / plugin.yml 手写版本号。
  */
 public final class Reference
 {
     private Reference() { }
 
     public static final String PLUGIN_NAME = "VeryMcProto";
-    /** Minecraft 目标版本（= gradle.properties 的 mcVersion，如 "1.21.11"）。 */
+    /** Minecraft 目标版本（= gradle.properties 的 mcVersion，如 "26.1.2"）。 */
     public static final String MC_VERSION = loadVersionProperty("mcVersion");
-    /** 插件版本（= mcVersion-b构建号，如 "1.21.11-b1"；与 plugin.yml / jar 文件名一致）。 */
+    /** 插件版本（= mcVersion-b构建号，如 "26.1.2-b1"；与 plugin.yml / jar 文件名一致）。 */
     public static final String PLUGIN_VERSION = loadVersionProperty("version");
     /** 运行平台标识（用于协议握手字段）。 */
     public static final String PLATFORM = "paper";
@@ -68,9 +68,9 @@ public final class Reference
         return plugin;
     }
 
-    /** 插件 Logger；plugin 尚未初始化时回退到全局 Bukkit Logger。 */
+    /** 插件 Logger；plugin 尚未初始化时回退到同名 JUL Logger（纯 JVM 单测环境无 Bukkit，不可用 Bukkit.getLogger()）。 */
     public static Logger logger()
     {
-        return plugin != null ? plugin.getLogger() : Bukkit.getLogger();
+        return plugin != null ? plugin.getLogger() : Logger.getLogger(PLUGIN_NAME);
     }
 }

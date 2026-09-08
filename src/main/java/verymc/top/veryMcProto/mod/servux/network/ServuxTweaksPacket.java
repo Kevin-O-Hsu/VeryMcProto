@@ -4,7 +4,6 @@ import javax.annotation.Nullable;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -12,28 +11,27 @@ import io.netty.buffer.Unpooled;
 
 import verymc.top.veryMcProto.Reference;
 import verymc.top.veryMcProto.framework.network.IServerPayloadData;
+import verymc.top.veryMcProto.mod.servux.util.nbt.DataTagIo;
 
 /**
  * Tweaks 通道协议帧（mod 层）。照抄原版 {@code ServuxTweaksPacket}（去注解 + jul logger）。
- * 协议版本 {@value #PROTOCOL_VERSION}，通道 servux:tweaks。
- *
- * <p>字节布局严格照抄原版：VarInt(packetType) 前缀 + 按 Type 分支（VarInt + BlockPos / VarInt entityId /
- * NBT / buffer slice）。{@code ResponseC2SData} 修正原版 L120/121 重复赋值 bug（统一单次 copy）。
+ * 协议版本 {@value #PROTOCOL_VERSION}（26.1：2，删除 transactionId 前置 VarInt）。载体分组：
+ * Type 1/2 vanilla NBT；Type 5/6（simple 响应）与 Type 7（UNREGISTER_REPLY）DataTag 线格式；
+ * Type 10-13 分片恒裸 bytes（重组后整体为 DataTag 帧）。
+ * {@code ResponseC2SData} 保留对原版重复赋值 bug 的修正（统一单次 copy）。
  */
 public class ServuxTweaksPacket implements IServerPayloadData
 {
     private Type packetType;
-    private int transactionId;
     private int entityId;
     private BlockPos pos;
     private CompoundTag nbt;
     private FriendlyByteBuf buffer;
-    public static final int PROTOCOL_VERSION = 1;
+    public static final int PROTOCOL_VERSION = 2;
 
     private ServuxTweaksPacket(Type type)
     {
         this.packetType = type;
-        this.transactionId = -1;
         this.entityId = -1;
         this.pos = BlockPos.ZERO;
         this.nbt = new CompoundTag();
@@ -50,6 +48,13 @@ public class ServuxTweaksPacket implements IServerPayloadData
     public static ServuxTweaksPacket MetadataResponse(@Nullable CompoundTag nbt)
     {
         var packet = new ServuxTweaksPacket(Type.PACKET_S2C_METADATA);
+        if (nbt != null) { packet.nbt.merge(nbt); }
+        return packet;
+    }
+
+    public static ServuxTweaksPacket UnregisterReply(@Nullable CompoundTag nbt)
+    {
+        var packet = new ServuxTweaksPacket(Type.PACKET_C2S_UNREGISTER_REPLY);
         if (nbt != null) { packet.nbt.merge(nbt); }
         return packet;
     }
@@ -138,8 +143,6 @@ public class ServuxTweaksPacket implements IServerPayloadData
     }
 
     public Type getType() { return this.packetType; }
-    public void setTransactionId(int id) { this.transactionId = id; }
-    public int getTransactionId() { return this.transactionId; }
     public int getEntityId() { return this.entityId; }
     public BlockPos getPos() { return this.pos; }
     public CompoundTag getCompound() { return this.nbt; }
@@ -157,22 +160,22 @@ public class ServuxTweaksPacket implements IServerPayloadData
         {
             case PACKET_C2S_BLOCK_ENTITY_REQUEST ->
             {
-                try { output.writeVarInt(this.transactionId); output.writeBlockPos(this.pos); }
+                try { output.writeBlockPos(this.pos); }
                 catch (Exception e) { Reference.logger().warning("ServuxTweaksPacket#toPacket BlockEntityRequest: " + e.getMessage()); }
             }
             case PACKET_C2S_ENTITY_REQUEST ->
             {
-                try { output.writeVarInt(this.transactionId); output.writeVarInt(this.entityId); }
+                try { output.writeVarInt(this.entityId); }
                 catch (Exception e) { Reference.logger().warning("ServuxTweaksPacket#toPacket EntityRequest: " + e.getMessage()); }
             }
             case PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE ->
             {
-                try { output.writeBlockPos(this.pos); output.writeNbt(this.nbt); }
+                try { output.writeBlockPos(this.pos); DataTagIo.writeTag(output, this.nbt); }
                 catch (Exception e) { Reference.logger().warning("ServuxTweaksPacket#toPacket BlockResponse: " + e.getMessage()); }
             }
             case PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE ->
             {
-                try { output.writeVarInt(this.entityId); output.writeNbt(this.nbt); }
+                try { output.writeVarInt(this.entityId); DataTagIo.writeTag(output, this.nbt); }
                 catch (Exception e) { Reference.logger().warning("ServuxTweaksPacket#toPacket EntityResponse: " + e.getMessage()); }
             }
             case PACKET_S2C_NBT_RESPONSE_DATA, PACKET_C2S_NBT_RESPONSE_DATA ->
@@ -186,6 +189,11 @@ public class ServuxTweaksPacket implements IServerPayloadData
                 // Write NBT
                 try { output.writeNbt(this.nbt); }
                 catch (Exception e) { Reference.logger().warning("ServuxTweaksPacket#toPacket NBT: " + e.getMessage()); }
+            }
+            case PACKET_C2S_UNREGISTER_REPLY ->
+            {
+                try { DataTagIo.writeTag(output, this.nbt); }
+                catch (Exception e) { Reference.logger().warning("ServuxTweaksPacket#toPacket Unregister: " + e.getMessage()); }
             }
             default -> Reference.logger().warning("ServuxTweaksPacket#toPacket: 未知 packet type!");
         }
@@ -207,14 +215,15 @@ public class ServuxTweaksPacket implements IServerPayloadData
         {
             switch (type)
             {
-                case PACKET_C2S_BLOCK_ENTITY_REQUEST -> { input.readVarInt(); return ServuxTweaksPacket.BlockEntityRequest(input.readBlockPos()); }
-                case PACKET_C2S_ENTITY_REQUEST -> { input.readVarInt(); return ServuxTweaksPacket.EntityRequest(input.readVarInt()); }
-                case PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE -> { return ServuxTweaksPacket.SimpleBlockResponse(input.readBlockPos(), (CompoundTag) input.readNbt(NbtAccounter.unlimitedHeap())); }
-                case PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE -> { return ServuxTweaksPacket.SimpleEntityResponse(input.readVarInt(), (CompoundTag) input.readNbt(NbtAccounter.unlimitedHeap())); }
+                case PACKET_C2S_BLOCK_ENTITY_REQUEST -> { return ServuxTweaksPacket.BlockEntityRequest(input.readBlockPos()); }
+                case PACKET_C2S_ENTITY_REQUEST -> { return ServuxTweaksPacket.EntityRequest(input.readVarInt()); }
+                case PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE -> { return ServuxTweaksPacket.SimpleBlockResponse(input.readBlockPos(), DataTagIo.readTag(input)); }
+                case PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE -> { return ServuxTweaksPacket.SimpleEntityResponse(input.readVarInt(), DataTagIo.readTag(input)); }
                 case PACKET_S2C_NBT_RESPONSE_DATA -> { return ServuxTweaksPacket.ResponseS2CData(new FriendlyByteBuf(input.readBytes(input.readableBytes()))); }
                 case PACKET_C2S_NBT_RESPONSE_DATA -> { return ServuxTweaksPacket.ResponseC2SData(new FriendlyByteBuf(input.readBytes(input.readableBytes()))); }
                 case PACKET_C2S_METADATA_REQUEST -> { return ServuxTweaksPacket.MetadataRequest(input.readNbt()); }
                 case PACKET_S2C_METADATA -> { return ServuxTweaksPacket.MetadataResponse(input.readNbt()); }
+                case PACKET_C2S_UNREGISTER_REPLY -> { return ServuxTweaksPacket.UnregisterReply(DataTagIo.readTag(input)); }
                 default -> Reference.logger().warning("ServuxTweaksPacket#fromPacket: 未知 packet type!");
             }
         }
@@ -231,7 +240,6 @@ public class ServuxTweaksPacket implements IServerPayloadData
     {
         if (this.nbt != null && !this.nbt.isEmpty()) { this.nbt = new CompoundTag(); }
         this.clearPacket();
-        this.transactionId = -1;
         this.entityId = -1;
         this.pos = BlockPos.ZERO;
         this.packetType = null;
@@ -255,6 +263,7 @@ public class ServuxTweaksPacket implements IServerPayloadData
         PACKET_C2S_ENTITY_REQUEST(4),
         PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE(5),
         PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE(6),
+        PACKET_C2S_UNREGISTER_REPLY(7),
         // For Packet Splitter (Oversize Packets, S2C)
         PACKET_S2C_NBT_RESPONSE_START(10),
         PACKET_S2C_NBT_RESPONSE_DATA(11),

@@ -73,6 +73,8 @@ public class LitematicaSchematic
     // This is basically a "sub-version" for the schematic version,
     // intended to help with possible data fix needs that are discovered.
     public static final int SCHEMATIC_VERSION_SUB = 1; // Bump to one after the sleeping entity position fix
+    /** 26.1 客户端 malilib PacketSplitter 重组上限（DEFAULT_MAX_RECEIVE_SIZE = 16MB）：S2C 文件投递大小门禁。 */
+    public static final long MAX_TRANSMIT_FILE_SIZE = 16L * 1024L * 1024L;
 
     public final Map<String, LitematicaBlockStateContainer> blockContainers = new HashMap<>();
     public final Map<String, Map<BlockPos, CompoundTag>> tileEntities = new HashMap<>();
@@ -562,6 +564,20 @@ public class LitematicaSchematic
         catch (java.io.IOException e)
         {
             Log.error("sendTransmitFile: Unable to read file size; {}", e.getLocalizedMessage());
+            return;
+        }
+
+        if (totalBytes > MAX_TRANSMIT_FILE_SIZE)
+        {
+            // 26.1 客户端 malilib PacketSplitter 重组上限 16MB（DEFAULT_MAX_RECEIVE_SIZE），超限会被静默丢弃——
+            // 服务端前置门禁：发 TransmitCancel + 明确提示，不截断、不静默
+            CompoundTag cancel = new CompoundTag();
+            cancel.putLong("SliceKey", sessionKey);
+            cancel.putString("Task", "Litematic-TransmitCancel");
+            ServuxLitematicaHandler.getInstance().encodeServerData(player, ServuxLitematicaPacket.ResponseC2SStart(cancel));
+            Log.error("sendTransmitFile: file '{}' is {} bytes, exceeds the 26.1 client reassembly limit of {} bytes; refusing",
+                    file.getFileName().toString(), totalBytes, MAX_TRANSMIT_FILE_SIZE);
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§cLitematic transmit: file exceeds the 16MB client limit."));
             return;
         }
 

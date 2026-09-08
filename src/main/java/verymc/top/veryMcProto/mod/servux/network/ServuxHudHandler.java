@@ -17,6 +17,7 @@ import verymc.top.veryMcProto.framework.network.IServerPayloadData;
 import verymc.top.veryMcProto.framework.network.PacketSplitter;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
 import verymc.top.veryMcProto.mod.servux.dataproviders.HudDataProvider;
+import verymc.top.veryMcProto.mod.servux.util.nbt.DataTagIo;
 
 /**
  * HUD 通道收发 Handler（mod 层）。移植自原版 {@code ServuxHudHandler}（去 Fabric + networkHandler 形参）。
@@ -103,6 +104,7 @@ public class ServuxHudHandler implements IPluginServerPlayHandler
         switch (packet.getType())
         {
             case PACKET_C2S_METADATA_REQUEST -> HudDataProvider.INSTANCE.sendMetadata(player);
+            case PACKET_C2S_UNREGISTER_REPLY -> HudDataProvider.INSTANCE.removePlayer(player);
             case PACKET_C2S_SPAWN_DATA_REQUEST -> HudDataProvider.INSTANCE.refreshSpawnMetadata(player, packet.getCompound());
             case PACKET_C2S_RECIPE_MANAGER_REQUEST -> HudDataProvider.INSTANCE.refreshRecipeManager(player, packet.getCompound());
             case PACKET_C2S_DATA_LOGGER_REQUEST -> HudDataProvider.INSTANCE.refreshLoggers(player, packet.getCompound());
@@ -125,13 +127,13 @@ public class ServuxHudHandler implements IPluginServerPlayHandler
 
         ServuxHudPacket packet = (ServuxHudPacket) data;
 
-        // 大包 → PacketSplitter 分片
+        // 大包 → PacketSplitter 分片（26.1：重组整体内容为 DataTag 帧，客户端按 DataByteBufUtils 解析）
         if (packet.getType().equals(ServuxHudPacket.Type.PACKET_S2C_NBT_RESPONSE_START))
         {
             ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData hud → " + player.getName().getString()
                     + " type=" + packet.getType() + " → PacketSplitter 分包");
             FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
-            buffer.writeNbt(packet.getCompound());
+            DataTagIo.writeTag(buffer, packet.getCompound());
             PacketSplitter.send(this, buffer, player);
         }
         else if (!this.sendPlayPayload(player, packet))

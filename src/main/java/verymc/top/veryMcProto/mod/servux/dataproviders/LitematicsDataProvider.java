@@ -222,7 +222,7 @@ public class LitematicsDataProvider extends DataProviderBase
         if (req == null || req.isEmpty()) { return; }
 
         ServerLevel world = (ServerLevel) player.level();
-        LevelChunk chunk = world.getChunkSource().getChunkNow(chunkPos.x, chunkPos.z);
+        LevelChunk chunk = world.getChunkSource().getChunkNow(chunkPos.x(), chunkPos.z());
 
         if (chunk == null)
         {
@@ -291,8 +291,8 @@ public class LitematicsDataProvider extends DataProviderBase
             output.putString("Task", "BulkEntityReply");
             output.put("TileEntities", tileList);
             output.put("Entities", entityList);
-            output.putInt("chunkX", chunkPos.x);
-            output.putInt("chunkZ", chunkPos.z);
+            output.putInt("chunkX", chunkPos.x());
+            output.putInt("chunkZ", chunkPos.z());
             long timeElapsed = System.currentTimeMillis() - timeStart;
 
             HANDLER.encodeServerData(player, ServuxLitematicaPacket.ResponseS2CStart(output));
@@ -308,7 +308,7 @@ public class LitematicsDataProvider extends DataProviderBase
      * 粘贴请求：从客户端上传的 NBT 加载 SchematicPlacement，按 ReplaceMode / PasteLayerBehavior /
      * LayerRange 调 SchematicPlacement.pasteTo 放置到玩家所在世界。需创造模式 + paste 权限。
      */
-    public void handleClientPasteRequest(ServerPlayer player, int transactionId, CompoundTag tags)
+    public void handleClientPasteRequest(ServerPlayer player, CompoundTag tags)
     {
         if (!this.isEnabled()) { return; }
 
@@ -335,12 +335,12 @@ public class LitematicsDataProvider extends DataProviderBase
             LayerRange layerRange = tags.read("RenderLayerRange", LayerRange.CODEC).orElse(null);
             placement.pasteTo(player.level(), replaceMode, layerBehavior, layerRange);
             long timeElapsed = System.currentTimeMillis() - timeStart;
-            player.displayClientMessage(net.minecraft.network.chat.Component.literal(
-                    "§aPasted §b" + placement.getName() + "§r to §d" + player.level().dimension().identifier().toString() + "§r in §a" + timeElapsed + "§rms."), false);
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                    "§aPasted §b" + placement.getName() + "§r to §d" + player.level().dimension().identifier().toString() + "§r in §a" + timeElapsed + "§rms."));
         }
     }
 
-    public void handleClientPasteRequestPair(ServerPlayer player, int transactionId, Pair<LitematicaSchematic, CompoundTag> schemPair)
+    public void handleClientPasteRequestPair(ServerPlayer player, Pair<LitematicaSchematic, CompoundTag> schemPair)
     {
         if (!this.isEnabled()) { return; }
 
@@ -366,8 +366,8 @@ public class LitematicsDataProvider extends DataProviderBase
             LayerRange layerRange = tags.read("RenderLayerRange", LayerRange.CODEC).orElse(null);
             placement.pasteTo(player.level(), replaceMode, layerBehavior, layerRange);
             long timeElapsed = System.currentTimeMillis() - timeStart;
-            player.displayClientMessage(net.minecraft.network.chat.Component.literal(
-                    "§aPasted §b" + placement.getName() + "§r to §d" + player.level().dimension().identifier().toString() + "§r in §a" + timeElapsed + "§rms."), false);
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                    "§aPasted §b" + placement.getName() + "§r to §d" + player.level().dimension().identifier().toString() + "§r in §a" + timeElapsed + "§rms."));
         }
     }
 

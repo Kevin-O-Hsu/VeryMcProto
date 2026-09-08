@@ -4,8 +4,8 @@
 > The client still uses the original Fabric mods; the server swaps from "Fabric server + server-side mod" to "standard Paper server + this plugin", with identical protocol behavior.
 
 ```
-Paper 1.21.11 · Java 21 · paperweight userdev · Version 1.21.11-b1
-Servux ✅  ·  JEI Recipe Bridge ✅  ·  Syncmatica ✅   (all three targets fully implemented and tested)
+Paper 26.1.2 · Java 25 · paperweight userdev · Version 26.1.2-b1
+Servux ✅  ·  JEI Recipe Bridge ✅  ·  Syncmatica ✅   (all three targets fully implemented; server-side verified on 26.1.2)
 ```
 
 ---
@@ -34,7 +34,7 @@ Servux ✅  ·  JEI Recipe Bridge ✅  ·  Syncmatica ✅   (all three targets f
 
 ## 1. What It Is
 
-**VeryMcProto** is a **Paper plugin** that **re-implements the network protocols and data collection expected by several Fabric protocol mods** on a standard Paper 1.21.11 server, so that a "Fabric client + Paper server" combination behaves exactly like a "Fabric client + vanilla Fabric server mod" combination.
+**VeryMcProto** is a **Paper plugin** that **re-implements the network protocols and data collection expected by several Fabric protocol mods** on a standard Paper 26.1.2 server, so that a "Fabric client + Paper server" combination behaves exactly like a "Fabric client + vanilla Fabric server mod" combination.
 
 > **It is a *protocol-layer port*, not a port of the Fabric mods themselves.** The client keeps using masa's / endte's / JEI's own Fabric mods; our job is to implement on the Paper server the **custom network channels + server→client data delivery + server-side behavior cooperation** they expect.
 
@@ -44,7 +44,7 @@ Why this is necessary:
 - They use **Mojang's vanilla `CustomPacketPayload`** mechanism (Fabric's `ServerPlayNetworking` is merely a registration wrapper around this vanilla mechanism). Paper's plugin messaging channels map directly to vanilla custom payload channels, and S2C large packets can be sent via NMS `ClientboundCustomPayloadPacket` to bypass plugin messaging size limits.
 - Server-side cooperative features (e.g. EasyPlace) use Mixin in the original; Paper has no Mixin runtime, so an equivalent is implemented via **PacketEvents**.
 
-This project uses **paperweight `userdev`** to reference fully-deobfuscated Mojang NMS at dev time; the artifact is converted by `reobfJar` into a jar that standard Paper loads directly. **It depends on no server patch / Mixin / private fork.**
+This project uses **paperweight `userdev`** to reference fully-deobfuscated Mojang NMS at dev time. **Since MC 26.1 Paper no longer supports remapping plugins to Spigot mappings** (Mojang removed server obfuscation), the build artifact is the **Mojang-mapped jar itself** — standard Paper 26.1+ loads it directly. **It depends on no server patch / Mixin / private fork.**
 
 ---
 
@@ -71,13 +71,13 @@ A server-side protocol mod that delivers data to masa's client mods (MiniHUD / L
 |  Channel (network name)  |  Provider (logical name)     |  Protocol version  |  Purpose                                                                                                                        |
 | ------------------------ | ---------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
 |  `servux:main`           |  `servux_main`               |  —                 |  **Config main channel** (ConfigProvider; **permanently enabled**; **sends no network packets**; only carries global settings)  |
-|  `servux:hud_metadata`   |  `hud_data`                  |  2                 |  HUD: world metadata / spawn point / weather / TPS / MobCap / recipes                                                           |
-|  `servux:entity_data`    |  `entity_data`               |  1                 |  Entities: block-entity / entity NBT query                                                                                      |
-|  `servux:tweaks`         |  `tweaks_data`               |  1                 |  Tweaks: entity / block-entity NBT (same pattern as Entities)                                                                   |
-|  `servux:structures`     |  `structure_bounding_boxes`  |  2                 |  Structures: structure bounding boxes (periodic chunk scan)                                                                     |
-|  `servux:litematics`     |  `litematic_data`            |  1                 |  Litematics: schematic transmit / paste / bulk entities                                                                         |
+|  `servux:hud_metadata`   |  `hud_data`                  |  3                 |  HUD: world metadata / spawn point / weather / TPS / MobCap / recipes                                                           |
+|  `servux:entity_data`    |  `entity_data`               |  2                 |  Entities: block-entity / entity NBT query                                                                                      |
+|  `servux:tweaks`         |  `tweaks_data`               |  2                 |  Tweaks: entity / block-entity NBT (same pattern as Entities)                                                                   |
+|  `servux:structures`     |  `structure_bounding_boxes`  |  3                 |  Structures: structure bounding boxes (periodic chunk scan)                                                                     |
+|  `servux:litematics`     |  `litematic_data`            |  2                 |  Litematics: schematic transmit / paste / bulk entities                                                                         |
 
-> Handshake field `MOD_STRING = servux-paper-1.21.11-b1` (keeps the `servux-` prefix so masa's client recognizes that the server runs the Servux protocol; concrete version negotiation goes through each channel's protocol version).
+> **26.1 wire changes** (vs 1.21.11, all verified against the LTS/26.1 client sources): protocol versions bumped as above; the `servux` handshake field is now a **hard gate** on the client — it must start with `servux-fabric-<exact upstream MC id>` (e.g. `servux-fabric-26.1.2-b1`), so the server impersonates `fabric`; most business packets switched their NBT carrier from vanilla `writeNbt` to the **malilib DataTag wire format** (`[int32 BE compressed length][GZIP'd named-root NBT stream]`, see `DataTagIo`); the C2S `transactionId` VarInt prefix was removed; Structures dropped types 10/11/12 (spawn/weather now HUD-only); new `UNREGISTER_REPLY` types (HUD=9 / Entities=7 / Tweaks=7 / Litematics=8); the malilib client reassembly cap dropped **128MB → 16MB** (server-side transmit guard added). The Litematica **task group (types 14-17, Fill/Delete via servux) is a new upstream feature whose server-side execution is NOT implemented here** — the client silently gets no task response (see docs/09).
 
 ### 2. JEI Recipe Bridge
 
@@ -86,7 +86,7 @@ On player join, syncs the **server's complete recipe table** to the JEI client, 
 - Fabric client → `fabric:recipe_sync`
 - NeoForge client → `neoforge:recipe_content`
 
-Sent directly via NMS `ClientboundCustomPayloadPacket` (bypasses the plugin messaging size limit — recipe packs routinely exceed 32KiB). **Pure S2C / one-shot / a single `enabled` config option.** Handshake field `jei-recipe-bridge-paper-1.21.11-b1`.
+Sent directly via NMS `ClientboundCustomPayloadPacket` (bypasses the plugin messaging size limit — recipe packs routinely exceed 32KiB). **Pure S2C / one-shot / a single `enabled` config option.** Handshake field `jei-recipe-bridge-paper-26.1.2-b1`.
 
 ### 3. Syncmatica
 
@@ -97,7 +97,7 @@ Fundamentally different from Servux (one-way broadcast):
 - File storage + JSON persistence + **upload quota / debug** services.
 - On handshake, both sides exchange a **FeatureSet** to negotiate the optional-field encoding of metadata / position packets.
 
-**Feature enum** (negotiated on handshake): `CORE` `FEATURE` `MODIFY` `MESSAGE` `QUOTA` `DEBUG` `CORE_EX` `VERSION` `DISPLAY_NAME`. This server advertises the **full FeatureSet** (combined with `MOD_VERSION=1.21.11-b1` — the `-b` build suffix never matches the legacy version regex — to trigger FEATURE exchange so both sides encode with the full set).
+**Feature enum** (negotiated on handshake): `CORE` `FEATURE` `MODIFY` `MESSAGE` `QUOTA` `DEBUG` `CORE_EX` `VERSION` `DISPLAY_NAME`. This server advertises the **full FeatureSet** (combined with `MOD_VERSION=26.1.2-b1` — the `-b` build suffix never matches the legacy version regex — to trigger FEATURE exchange so both sides encode with the full set).
 
 ---
 
@@ -107,25 +107,25 @@ Fundamentally different from Servux (one-way broadcast):
 
 |  Item      |  Requirement                                                                                                               |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------- |
-|  Server    |  **Paper 1.21.11** (`api-version: 1.21`; standard Paper, no patch / fork needed)                                           |
-|  Java      |  **21**                                                                                                                    |
+|  Server    |  **Paper 26.1.2** (`api-version: 1.21`; standard Paper, no patch / fork needed)                                            |
+|  Java      |  **25**                                                                                                                    |
 |  Optional  |  **PacketEvents 2.13.0** (only for EasyPlace; if absent, EasyPlace is gracefully skipped — other features are unaffected)  |
 
 ### Client
 
 |  Feature family                                                              |  Client must install                                                         |
 | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-|  All of Servux (HUD / structures / NBT query / schematic paste / EasyPlace)  |  **MiniHUD** + **Litematica** + **Tweakeroo** (the masa suite, 1.21.11 LTS)  |
+|  All of Servux (HUD / structures / NBT query / schematic paste / EasyPlace)  |  **MiniHUD** + **Litematica** + **Tweakeroo** (the masa suite, 26.1 LTS)     |
 |  JEI recipe sync                                                             |  **JEI** + **JEIRecipeBridge**                                               |
-|  Schematic sharing                                                           |  **Syncmatica** (endte client, 1.21.11 LTS)                                  |
+|  Schematic sharing                                                           |  **Syncmatica** (endte client, 26.1 LTS)                                     |
 
-> The client version must match the server's **MC 1.21.11**. The client is the "receiving end" of these features; every protocol field semantic and packet-reassembly behavior is verified against the client source (see `OriginImpl/` for litematica / malilib / syncmatica).
+> The client version must match the server's **MC 26.1 line (26.1.2)**. The client is the "receiving end" of these features; every protocol field semantic and packet-reassembly behavior is verified against the client source (see `OriginImpl/` for litematica / malilib / syncmatica).
 
 ---
 
 ## 4. Installation
 
-1. Get `VeryMcProto-1.21.11-b1.jar` from the project Releases page, or build it with `./gradlew build` (the reobf artifact loads directly on standard Paper).
+1. Get `VeryMcProto-26.1.2-b1.jar` from the project Releases page, or build it with `./gradlew build` (the Mojang-mapped artifact loads directly on standard Paper 26.1+ — no reobf step exists anymore).
 2. Drop it into the server's `plugins/` directory.
 3. **(Optional, only for EasyPlace)** Install the PacketEvents plugin.
 4. With PacketEvents installed, EasyPlace is enabled automatically; without it, it is skipped automatically.
@@ -135,7 +135,7 @@ Fundamentally different from Servux (one-way broadcast):
 On startup the console shows:
 
 ```
-[VeryMcProto] 启动中 (MC 1.21.11, paper)...
+[VeryMcProto] 启动中 (MC 26.1.2, paper)...
 [VeryMcProto] 已注册协议 mod: servux
 [VeryMcProto] 已注册协议 mod: jei_recipe_bridge
 [VeryMcProto] 已注册协议 mod: syncmatica
@@ -486,6 +486,7 @@ The original Servux has **26 Mixins + 2 AccessWideners**; Syncmatica has **5 ser
 |  **Mirror fixes** (chest/rail/stairs)               |  Mixin                                           |  **Inlined fixes on paste** (`fix_chest_mirror` / `fix_rail_rotations` / `fix_stairs_mirror`)            |  ✅ (rail/stairs may be less perfect than Mixin)  |
 |  **UpdateSuppression**                              |  Mixin adding interface to `Level`/`LevelChunk`  |  ⛔ **Omitted** (no Paper equivalent)                                                                     |  ❌                                               |
 |  **Shulker-box stacking**                           |  Mixin altering a global NMS method              |  ⛔ **Impossible + all code removed**                                                                     |  ❌                                               |
+|  **Fill/Delete via servux tasks** (26.1 new)        |  `PACKET_C2S_TASK_REQUEST` group (types 14-17)   |  ⛔ **Not implemented** (new upstream feature beyond the migration scope; client gets no task response — see docs/09) |  ❌ (26.1+) |
 |  Debug (`SharedConstants.IS_RUNNING_IN_IDE`)        |  Mixin                                           |  Omitted                                                                                                 |  —                                               |
 
 ### EasyPlace Details
@@ -512,7 +513,8 @@ The original Servux has **26 Mixins + 2 AccessWideners**; Syncmatica has **5 ser
 
 - Bukkit `Messenger.MAX_MESSAGE_SIZE` = 1,048,576 (~1MiB) — the plugin-messaging API no longer rejects at 32KiB (old docs claiming 32768 are outdated).
 - **The real S2C bottleneck is the vanilla client's 32,767-byte decode limit on `ClientboundCustomPayload`** — exceeding it disconnects the client.
-- `PacketSplitter` split constants: **S2C `MAX_PAYLOAD_PER_PACKET_S2C = 31,995`** (leaves headroom for the VarInt header, defending the client's 32,767 limit); receive cap `DEFAULT_MAX_RECEIVE_SIZE_S2C = 64MB`.
+- `PacketSplitter` split constants: **S2C `MAX_PAYLOAD_PER_PACKET_S2C = 31,995`** (leaves headroom for the VarInt header, defending the client's 32,767 limit); server receive cap `DEFAULT_MAX_RECEIVE_SIZE_S2C = 64MB`. **Since 26.1 the malilib client's reassembly cap is 16MB** (was 128MB) — the transmit path enforces a server-side 16MB guard.
+- **Since 26.1, servux business packets carry their NBT in the malilib DataTag wire format** (`[int32 BE compressed length][GZIP'd named-root NBT stream]` — implemented byte-compatibly via NMS `NbtIo` in `DataTagIo`); metadata (types 1/2) stays vanilla NBT, splitter slices stay raw bytes.
 - Large packets (Recipe / Litematic schematics / Structures / bulk entities) must be split by `PacketSplitter`. **Syncmatica file-splitting does not reuse `PacketSplitter`**; it implements its own stop-and-wait (`BUFFER_SIZE=16384`, per-chunk ack).
 
 ### C2S & Handshake
@@ -592,12 +594,14 @@ See [`docs/10-testing-guide.md`](docs/10-testing-guide.md) (Servux) and [`docs/2
 ### Build
 
 ```bash
-./gradlew build        # Produce the reobf jar (loads directly on standard Paper)
-./gradlew runServer    # Start a local 1.21.11 test server (2G heap)
-./gradlew test         # Pure-function unit tests (PacketSplitter/FeatureSet/LitematicaBitArray, etc.)
+./gradlew build        # Produce the Mojang-mapped jar (loads directly on standard Paper 26.1+)
+./gradlew runServer    # Start a local 26.1.2 test server (2G heap)
+./gradlew test         # Pure-function unit tests (PacketSplitter/FeatureSet/LitematicaBitArray/DataTagIo)
 ```
 
-**Build chain**: paperweight `userdev` 2.0.0-beta.21 + `paperDevBundle("1.21.11-R0.1-SNAPSHOT")` (fully-deobfuscated Mojang NMS at dev time) → `reobfJar` converts to Spigot runtime mappings. Reflection uses **Mojang names** (reobf does not transform reflection strings, and Paper's runtime is the Mojang mapping → reflecting on Mojang names is naturally correct).
+> **JDK note**: MC 26.1+ requires **Java 25**. The Gradle toolchain is set to 25; run builds with `JAVA_HOME` pointing at a JDK 25 (e.g. `F:\jdks\zulu25.36.205-ca-jdk25.0.4.1-win_x64`). Gradle wrapper is 9.7.1.
+
+**Build chain**: paperweight `userdev` 2.0.0-beta.23 + `paperDevBundle("26.1.2.build.74-stable")` (new `<mc>.build.<N>-stable` naming since 26.1; fully-deobfuscated Mojang NMS at dev time — Mojang removed server obfuscation, so **there is no reobf step anymore**: the artifact is the Mojmap jar and Paper 26.1+ loads it directly). Reflection uses **Mojang names** (unchanged convention).
 
 **Optional dependency**: PacketEvents `compileOnly("com.github.retrooper:packetevents-spigot:2.13.0")` + `plugin.yml: softdepend: [packetevents]` (class references isolated in `EasyPlaceBootstrap`).
 
@@ -627,7 +631,7 @@ See [`docs/10-testing-guide.md`](docs/10-testing-guide.md) (Servux) and [`docs/2
 
 ### Versioning & Branch Model
 
-Plugin version = **`<MC version>-b<build number>`** — currently `1.21.11-b1`; when Mojang shifts to date-style names (e.g. `26.1`) it naturally becomes `26.1-b1`. The **single source of truth** is `gradle.properties` (`mcVersion` / `buildNumber`): Gradle derives `version` from it, injects it into `plugin.yml` / the jar name / `version.properties`, and `Reference.MC_VERSION` / `Reference.PLUGIN_VERSION` (hence every protocol handshake string such as `servux-paper-1.21.11-b1`) read it back from `version.properties`. Never hardcode a version anywhere else.
+Plugin version = **`<MC version>-b<build number>`** — currently `26.1.2-b1` (the 26.1 line's exact upstream patch id; required by the 26.1 client MOD_STRING hard gate). The **single source of truth** is `gradle.properties` (`mcVersion` / `buildNumber`): Gradle derives `version` from it, injects it into `plugin.yml` / the jar name / `version.properties`, and `Reference.MC_VERSION` / `Reference.PLUGIN_VERSION` (hence every protocol handshake string such as `servux-fabric-26.1.2-b1`) read it back from `version.properties`. Never hardcode a version anywhere else.
 
 | Branch | Purpose |
 | --- | --- |
@@ -647,16 +651,16 @@ While a version is current (not yet frozen), its fixes go straight through `dev 
 
 **Before any development session**, query the Mojang version manifest — `https://launchermeta.mojang.com/mc/game/version_manifest_v2.json` (read `latest.release` / `latest.snapshot`; cross-check Paper at `https://api.papermc.io/v2/projects/paper`) — to see where upstream is. If upstream has moved past the line you are on, that line is old: its work belongs on `ver/<X>-dev`, and `dev` is due for an upgrade pass.
 
-**Current status** (2026-09): upstream latest release is **26.2** (snapshot `26.3-pre-2`). `ver/1.21.11` + `ver/1.21.11-dev` are the frozen maintenance pair, cut from `main` at tag `v1.21.11-b1` (all code is on 1.21.11 NMS); `dev → main` has not yet been adapted to 26.x.
+**Current status** (2026-09): upstream latest release is **26.2** (snapshot `26.3-pre-2`). `dev → main` carries the **26.1 line (26.1.2)** — the full 26.1 migration landed (build/toolchain, DataTag wire format, protocol v3/v2 bumps, NMS drift). `ver/1.21.11` + `ver/1.21.11-dev` are the frozen 1.21.11 maintenance pair, cut from `main` at tag `v1.21.11-b1`.
 
 Release flow (in-version): on the active dev line (`dev` or `ver/<X>-dev`), bump `buildNumber` → commit → merge into the matching release line (`main` or `ver/<X>`) → `./gradlew build` → tag `v<version>` (e.g. `v1.21.11-b1`).
 
 ### Upgrade Minecraft
 
 1. Freeze the old version first: cut the `ver/<old MC version>` + `ver/<old MC version>-dev` pair from `main` (the last release of the old version).
-2. On `dev`, bump `mcVersion` in `gradle.properties` and align the paperweight dev bundle (`paperweight.paperDevBundle("<new>-R0.1-SNAPSHOT")`).
-3. Re-run `./gradlew build` so paperweight re-applies the new bundle.
-4. Re-verify every reflection point in [`docs/04-mixin-analysis.md`](docs/04-mixin-analysis.md) against NMS field / method-signature drift (especially `FriendlyByteBuf`, `CustomPacketPayload`, the `CompoundTag` Optional migration, the `StructureStart.createTag` signature, and the `DiscardedPayload` constructor).
+2. On `dev`, bump `mcVersion` in `gradle.properties` and align the paperweight dev bundle (26.1+ format: `paperweight.paperDevBundle("<mc>.build.<N>-stable")`), plus the Java toolchain, the paperweight / run-paper plugin versions and (if needed) the Gradle wrapper.
+3. Re-run `./gradlew build` so paperweight re-applies the new bundle; fix the compile-driven NMS drift (26.1 measured: `ChunkPos` became a record — `x()/z()/pack()/unpack()/containing()`; weather moved to `ServerLevel.getWeatherData()`; `displayClientMessage` → `sendSystemMessage`).
+4. Re-verify every reflection point in [`docs/04-mixin-analysis.md`](docs/04-mixin-analysis.md) against NMS field / method-signature drift, and re-check the **client-side protocol gates** (protocol versions, MOD_STRING prefix, carrier format — see docs/09 §26.1) against the new `OriginImpl/<mods>-LTS/<new version>` sources.
 
 ---
 
@@ -732,6 +736,6 @@ This project is licensed under the **GNU Lesser General Public License v3.0 only
 
 ---
 
-<sub>Built for **Paper 1.21.11** · Java 21 · No Mixin / No patch / No private fork</sub>
+<sub>Built for **Paper 26.1.2** · Java 25 · No Mixin / No patch / No private fork</sub>
 
 <sub>A protocol-layer port: client uses the original Fabric mods; server uses standard Paper + this plugin.</sub>
