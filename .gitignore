@@ -67,5 +67,8 @@ $RECYCLE.BIN/
 # 属本地参考、非本项目代码，整体忽略：本地保留，不推送远程。
 OriginImpl/
 
+# -------- AI 编码助手（本地会话/配置，不入库） --------
+.zcode/
+
 # -------- 说明：以下【不忽略】，须保留 --------
 #   - gradle/wrapper/gradle-wrapper.jar  （gradlew 依赖，必须入库）
