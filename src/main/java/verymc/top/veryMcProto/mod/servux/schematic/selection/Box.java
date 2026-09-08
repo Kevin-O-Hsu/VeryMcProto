@@ -6,7 +6,6 @@ import verymc.top.veryMcProto.framework.util.JsonUtils;
 import verymc.top.veryMcProto.mod.servux.util.position.PositionUtils;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.levelgen.structure.BoundingBox;
 
 public class Box
 {
@@ -202,22 +201,5 @@ public class Box
         obj.add("name", new JsonPrimitive(this.name));
 
         return this.pos1 != null || this.pos2 != null ? obj : null;
-    }
-
-    public net.minecraft.world.level.levelgen.structure.BoundingBox toVanilla()
-    {
-		if (this.pos1 == null)
-		{
-			this.pos1 = BlockPos.ZERO;
-		}
-
-	    return new BoundingBox(
-			    Math.min(this.pos1.getX(), this.pos2.getX()),
-			    Math.min(this.pos1.getY(), this.pos2.getY()),
-			    Math.min(this.pos1.getZ(), this.pos2.getZ()),
-			    Math.max(this.pos1.getX(), this.pos2.getX()),
-			    Math.max(this.pos1.getY(), this.pos2.getY()),
-			    Math.max(this.pos1.getZ(), this.pos2.getZ())
-	    );
     }
 }

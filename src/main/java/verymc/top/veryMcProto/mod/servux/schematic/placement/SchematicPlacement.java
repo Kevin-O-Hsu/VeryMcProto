@@ -11,11 +11,9 @@ import verymc.top.veryMcProto.mod.servux.schematic.selection.Box;
 import verymc.top.veryMcProto.mod.servux.util.*;
 import verymc.top.veryMcProto.mod.servux.util.nbt.NbtUtils;
 import verymc.top.veryMcProto.mod.servux.util.position.PositionUtils;
-import verymc.top.veryMcProto.mod.servux.util.SchematicPlacingUtils;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
@@ -544,56 +542,6 @@ public class SchematicPlacement
     {
         if (USED_COLORS.isEmpty())
         {
-        }
-    }
-
-    private Box getEnclosingBox()
-    {
-        ImmutableMap<@NotNull String, @NotNull Box> boxes = this.getSubRegionBoxes(RequiredEnabled.ANY);
-        BlockPos pos1 = null;
-        BlockPos pos2 = null;
-
-        for (Box box : boxes.values())
-        {
-            BlockPos tmp;
-            tmp = PositionUtils.getMinCorner(box.getPos1(), box.getPos2());
-
-            if (pos1 == null)
-            {
-                pos1 = tmp;
-            } else if (tmp.getX() < pos1.getX() || tmp.getY() < pos1.getY() || tmp.getZ() < pos1.getZ())
-            {
-                pos1 = PositionUtils.getMinCorner(tmp, pos1);
-            }
-
-            tmp = PositionUtils.getMaxCorner(box.getPos1(), box.getPos2());
-
-            if (pos2 == null)
-            {
-                pos2 = tmp;
-            } else if (tmp.getX() > pos2.getX() || tmp.getY() > pos2.getY() || tmp.getZ() > pos2.getZ())
-            {
-                pos2 = PositionUtils.getMaxCorner(tmp, pos2);
-            }
-        }
-
-        if (pos1 != null && pos2 != null)
-        {
-            return new Box(pos1, pos2, "Enclosing Box (Servux)");
-        }
-
-        return null;
-    }
-
-    public void pasteTo(ServerLevel serverWorld, ReplaceBehavior replaceBehavior, PasteLayerBehavior layerBehavior, @Nullable LayerRange layerRange)
-    {
-        Box bb = this.getEnclosingBox();
-
-        if (bb != null)
-        {
-            bb.toVanilla().intersectingChunks().forEach(chunkPos ->
-                SchematicPlacingUtils.placeToWorldWithinChunk(serverWorld, chunkPos, this, replaceBehavior, layerBehavior, layerRange, false)
-            );
         }
     }
 }

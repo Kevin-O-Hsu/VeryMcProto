@@ -201,7 +201,7 @@ public class LitematicaSchematic
 
     public boolean placeToWorld(Level world, SchematicPlacement schematicPlacement, boolean notifyNeighbors, boolean ignoreEntities)
     {
-        // 未使用：本移植粘贴走 SchematicPlacement.pasteTo → SchematicPlacingUtils.placeToWorldWithinChunk（util/SchematicPlacingUtils.java），不经此 placeToWorld 路径。保留签名返回 false。原版 ORIGIN/schematic/LitematicaSchematic.java
+        // 未使用：本移植粘贴走任务化路径（PasteTask → SchematicPlacingUtils.placeToWorldWithinChunk，util/SchematicPlacingUtils.java），不经此 placeToWorld 路径。保留签名返回 false。原版 ORIGIN/schematic/LitematicaSchematic.java
         return false;
     }
 

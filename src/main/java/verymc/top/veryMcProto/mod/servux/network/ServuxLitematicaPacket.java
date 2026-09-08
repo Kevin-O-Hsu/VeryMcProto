@@ -23,8 +23,10 @@ import verymc.top.veryMcProto.mod.servux.util.nbt.DataTagIo;
  * task 组）DataTag 线格式；Type 10-13 分片恒裸 bytes——<b>C2S 投影上传的重组整体亦为 DataTag 帧，且不再有
  * type VarInt 前缀，改按 NBT 内 "Task" 字符串路由</b>（26.1 客户端 encodeClientData 直接 DataTag 编码）。
  *
- * <p>Type 14-17（task 组）仅注册枚举占位：服务端 Fill/Delete 任务执行未实现（26.1 上游新功能，超出迁移范围），
- * 收到时由 Handler 明确日志后忽略——客户端无能力探测机制，Fill/Delete 经 servux 将不执行（详见 docs/09）。
+ * <p>Type 14-17（task 组，已实现——见 docs/09 §26.1.5）：type 14（C2S TASK_REQUEST）受理 Fill/Delete 选区任务；
+ * type 16（S2C TASK_STATUS_SYNC）下行任务进度/完成帧（Fill/Delete/Paste 三类任务共用，Paste 粘贴自任务化后
+ * 同走此帧清除客户端 InfoHud renderer）；type 15（S2C TASK_RESPONSE）客户端接收端 TODO 故服务端永不发送；
+ * type 17（C2S TASK_CANCEL）上游双向 TODO 死路，同源忽略。
  */
 public class ServuxLitematicaPacket implements IServerPayloadData
 {
@@ -256,7 +258,7 @@ public class ServuxLitematicaPacket implements IServerPayloadData
                 case PACKET_C2S_METADATA_REQUEST -> { return ServuxLitematicaPacket.MetadataRequest(input.readNbt()); }
                 case PACKET_S2C_METADATA -> { return ServuxLitematicaPacket.MetadataResponse(input.readNbt()); }
                 case PACKET_C2S_UNREGISTER_REPLY -> { return ServuxLitematicaPacket.UnregisterReply(DataTagIo.readTag(input)); }
-                // task 组（14-17）：服务端执行未实现（26.1 上游新功能），解析后由 Handler 日志声明
+                // task 组（14-17）：type 14 已实现受理（Fill/Delete/Paste），type 16 为任务帧唯一 S2C 出口；15/17 上游同源不发送/忽略
                 case PACKET_C2S_TASK_REQUEST, PACKET_S2C_TASK_RESPONSE, PACKET_S2C_TASK_STATUS_SYNC, PACKET_C2S_TASK_CANCEL ->
                 {
                     CompoundTag taskNbt = DataTagIo.readTag(input);

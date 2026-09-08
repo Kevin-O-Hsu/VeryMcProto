@@ -142,7 +142,7 @@ verymc.top.veryMcProto/
 ### 5.5 Litematics（servux:litematics，协议版本 1）—— ✅ 全功能（含投影粘贴 / 投递）
 - **元数据握手 / 方块实体 NBT 查询 / 实体 NBT 查询 / 批量实体查询（onBulkEntityRequest）**：✅ 实现（复用 Entities 的 `NbtView` + `be.saveWithFullMetadata` / `entity.saveWithoutId` + 玩家背包/末影箱权限过滤；批量查询拼 ListTag 走 PacketSplitter 分包）。
 - **协议帧（toPacket/fromPacket）**：✅ 照抄原版（含四阶段 TransmitStart/Data/End/Cancel + SliceKey + CHANNEL_ID=servux:litematics + 协议版本 1）。
-- **投影文件投递（客户端上传 .litematic）+ 粘贴（pasteTo）**：✅ **已实现**（schematic 子系统 `mod/servux/schematic/` 全套移植，详见 [05](05-schematic-system.md)）。客户端上传分片经 `ServuxLitematicaHandler` 重组 → `handleBulkData` 分流：`Litematic-Transmit*` 走 `LitematicaSchematic.receiveFileTransmit` 落盘到 `schematics/` + 粘贴；`LitematicaPaste` 走 `LitematicsDataProvider.handleClientPasteRequest` 加载 `SchematicPlacement` + `pasteTo` 放置（含 ReplaceMode / PasteLayerBehavior / LayerRange，需创造模式 + paste 权限）。
+- **投影文件投递（客户端上传 .litematic）+ 粘贴（任务化）**：✅ **已实现**（schematic 子系统 `mod/servux/schematic/` 全套移植，详见 [05](05-schematic-system.md)）。客户端上传分片经 `ServuxLitematicaHandler` 重组 → `handleBulkData` 分流：`Litematic-Transmit*` 走 `LitematicaSchematic.receiveFileTransmit` 落盘到 `schematics/` + 粘贴；`LitematicaPaste` 走 `LitematicsDataProvider.handleClientPasteRequest` 加载 `SchematicPlacement` 后创建 `PasteTask`（上游 TaskPasteSchematicPerChunkDirect 形态）登记 TaskScheduler 分 tick 粘贴（含 ReplaceMode / PasteLayerBehavior / LayerRange / Interval / 三个忽略布尔，type 16 进度/完成帧随任务下发，需创造模式 + paste 权限）——同步 `pasteTo` 直放已随上游注释停用删除（2026-09-08，见 §26.1.6）。
 - **S2C 文件投递命令**：✅ `/servux litematic transmit <file> [player]` 加载服务端 `schematics/*.litematic` 投递给客户端。
 - **降级点**（schematic 边缘能力，不影响粘贴主链路）：从世界选区创建/采集投影（保存侧）、Sponge/Vanilla structure 格式导入、DataFixer 旧版转换——servux 服务端只消费现成 .litematic，这些原版保存/转换 API 保留签名返回默认值。迁移笔记见 [`research/01-schematic-algo.md`](research/01-schematic-algo.md) 与 [`02-schematic-world.md`](research/02-schematic-world.md)。
 
@@ -346,4 +346,21 @@ verymc.top.veryMcProto/
 
 **验证**：TaskGroupTest 4 项黄金样本（Box IntArrayTag 形状 + REMAINING_CHUNKS 字面量 + 完成帧缺键 + 10 行上限；纯 JVM 测试需 `SharedConstants.tryDetectVersion()+Bootstrap.bootStrap()` 前置——26.1 ChunkPos <clinit> 链到注册表）；build 27/27 全绿；runServer 26.1.2 干净起服（调度器 tick 接线空转无异常）。**真实 Fill/Delete 端到端**：26.1 litematica 客户端创造模式选区 Fill/Delete（ToolUtils 强制走 servux 路径）→ 观察 InfoHud 剩余区块 HUD 与完成消息——用户侧最终验收。
 
-**残留工单（非 task 组锚点）**：26.1 客户端 paste 前会置 InfoHudSync 而我方 paste 为同步直放 → 客户端 HUD renderer 滞留（type 12/13 路径）；如需对齐可后续把粘贴迁移到 scheduler 的 TaskPasteSchematicPerChunkDirect 形态。
+**残留工单（非 task 组锚点）**：~~26.1 客户端 paste 前会置 InfoHudSync 而我方 paste 为同步直放 → 客户端 HUD renderer 滞留（type 12/13 路径）；如需对齐可后续把粘贴迁移到 scheduler 的 TaskPasteSchematicPerChunkDirect 形态~~ **✅ 已收口（2026-09-08，见 §26.1.6）**。
+
+### 26.1.6 paste 任务化——TaskPasteSchematicPerChunkDirect 形态（2026-09-08 追加）
+
+> §26.1.5 残留工单的落地：三轮对抗（R1 六修正 → CF 路径熔断 → R2/R3 收敛）产物。scheduler 由三类扩为**五类**：
+> `TaskScheduler` / `LitematicaTask`（新，抽象基类）/ `FillDeleteTask` / `PasteTask`（新）/ `InfoHudTaskSync`。
+
+**架构**：基类 `LitematicaTask` 单点承载共享面（timer、pendingChunks 队列、`updateInfoHudLines` 推帧、`stop()` 完成链、UUID 解析发送）——CF 熔断了 v2 的 ITask 接口形态（完成链会写成两份）。`FillDeleteTask`（25ms 固定预算 / radius 0 / 进度变化门控推帧）与 `PasteTask`（**vanillaTickTime+60ms 动态预算** Direct:63-76 / **radius 1** 周边加载判定 / **每 tick 无条件推帧** Direct:98）只在执行体分叉；`TaskScheduler` 三处类型宽化即接入，`runTasks` 逐字节不变。
+
+**PasteTask 行为真值**（对照上游 Direct:51-138 逐项）：构造期建队（touchedChunks×getBoxesWithinChunk → LayerRange+世界高度双钳制 count>0 入队，盒子用后即弃）；`ignoreBlocks&&ignoreEntities` 早退返回 true **不置 finished**（→ stop 走 paste.failed 文案，上游同源怪癖）；逐 chunk 调 `SchematicPlacingUtils.placeToWorldWithinChunk`（失败留队下 tick 重试）；受理层补 `isPlayerRegistered`+空门 + 解析 `Interval/ChangedBlocksOnly/IgnoreBlocks/IgnoreEntities`（上游 :674-678；三布尔存而不用，上游 Direct:107 同源 TODO）+ 删除受理处即时完成消息（上游 :686-690 注释停用，反馈走 stop 链）。
+
+**Fill/Delete 同步变化（有意，B/R2 轮裁定）**：中断终行文案由恒 `has completed` 修正为 finished 条件（aborted 行，上游 TaskFeedbackListener:75 + en_us:154 逐字）——Fill/Delete 的中断仅在插件停用 `clearTasks` 路径可达，用户可见面极窄；feedbackBuffer 仪式随基类化消除（上游 listener 同栈写读）。
+
+**上游同源 liveness 特性（勿误判为我方 Bug）**：① region 数据损坏的 chunk 无限重试+每 tick 推帧（`placeToWorldWithinChunk` 返回 false 留队）；② 预算取**上一**原版 tick 耗时（服务端持续 >60ms 时 paste 零进展）；③ 单 chunk 内无时间预算（巨型区块单次调用可击穿 60ms）。
+
+**有意偏差（相对上游）**：单 placement 字段（上游两调用点恒 singletonList，按"上游零调用点的泛化即裁"先例裁 multimap）；同步 `SchematicPlacement.pasteTo`/`getEnclosingBox`/`Box.toVanilla` 死代码删除（上游 pasteTo 已 @Deprecated "Use Task Scheduler"）。
+
+**验证**：`./gradlew build` 编译门（`getTickTimesNanos`/`getTickCount` NMS 符号实编验证）+ 全量 40/40 单测绿（新增 `TaskSchedulerTest` 7 用例：timer 首启/interval 钳制反射断言/周期复位/完成移除/同 tick 双任务索引回退/未完成保留+clearTasks）。**真实 paste 端到端**（用户侧最终验收）：26.1 litematica 客户端粘贴大投影 → 观察 InfoHud 剩余区块进度帧分 tick 收敛 + 完成帧清除 HUD renderer（同步直放时代的滞留缺陷就此闭合）。

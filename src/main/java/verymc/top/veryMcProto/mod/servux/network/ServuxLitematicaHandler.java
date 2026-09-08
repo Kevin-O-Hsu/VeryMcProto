@@ -30,7 +30,7 @@ import org.apache.commons.lang3.tuple.Pair;
  *
  * <p><b>投影上传 / 粘贴</b>：客户端上传的投影 NBT（{@code PACKET_C2S_NBT_RESPONSE_DATA} 分片）走 PacketSplitter.receive 重组，
  * 组装完成后由 {@link #handleBulkData} 分流——Transmit* 走 LitematicaSchematic.receiveFileTransmit 落盘 + 粘贴，
- * 普通 LitematicaPaste 走 LitematicsDataProvider.handleClientPasteRequest 直接粘贴。
+ * 普通 LitematicaPaste 走 LitematicsDataProvider.handleClientPasteRequest 任务化受理（PasteTask 分 tick 粘贴）。
  */
 public class ServuxLitematicaHandler implements IPluginServerPlayHandler
 {
@@ -164,7 +164,7 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
      * 客户端上传的投影 NBT 重组完成后的分流（26.1：无 transactionId，按 "Task" 字符串路由）。
      *
      * <p>TransmitStart/Data/End/Cancel 走 LitematicaSchematic.receiveFileTransmit（落盘到 schematics/ + 粘贴）；
-     * 普通 LitematicaPaste 走 LitematicsDataProvider.handleClientPasteRequest（加载 + pasteTo 粘贴）。
+     * 普通 LitematicaPaste 走 LitematicsDataProvider.handleClientPasteRequest（加载 + PasteTask 任务化分 tick 粘贴）。
      */
     private void handleBulkData(ServerPlayer player, CompoundTag nbt)
     {

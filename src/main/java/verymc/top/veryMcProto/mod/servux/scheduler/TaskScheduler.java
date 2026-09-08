@@ -8,6 +8,8 @@ import java.util.List;
  *
  * <p>对照上游 {@code OriginImpl/servux-LTS-26.1 scheduler/TaskScheduler.java:17-74}（scheduler 20 类的
  * v3 极简合并形态——见 docs/09 §26.1.5）：单列表 + 每 tick {@link #runTasks()} 驱动。
+ * 任务面 = {@link LitematicaTask} 基类（Fill/Delete 与 Paste 共居；上游 {@code List<ITask>} 的对应物，
+ * 预算模型任务自带——Fill/Delete 固定 25ms、Paste 为 vanillaTickTime+60ms 动态预算，调度器零预算知识）。
  *
  * <p><b>有意偏差（相对上游，B 轮终审裁定）</b>：
  * <ul>
@@ -25,7 +27,7 @@ public class TaskScheduler
 
     public static TaskScheduler getInstance() { return INSTANCE; }
 
-    private final List<FillDeleteTask> tasks = new ArrayList<>();
+    private final List<LitematicaTask> tasks = new ArrayList<>();
 
     private TaskScheduler() { }
 
@@ -33,7 +35,7 @@ public class TaskScheduler
      * 登记任务（interval = 重复执行周期，来自客户端 "Interval" 字段——26.1 客户端恒发 1，
      * 但协议字段存在即须生效）。任务首启延迟 1 tick（timer 初值 0，下一次 runTasks 触发）。
      */
-    public void scheduleTask(FillDeleteTask task, int interval)
+    public void scheduleTask(LitematicaTask task, int interval)
     {
         task.setRepeatInterval(Math.max(1, interval));
         this.tasks.add(task);
@@ -46,7 +48,7 @@ public class TaskScheduler
         {
             for (int i = 0; i < this.tasks.size(); ++i)
             {
-                FillDeleteTask task = this.tasks.get(i);
+                LitematicaTask task = this.tasks.get(i);
 
                 if (task.isTimerTriggered())
                 {

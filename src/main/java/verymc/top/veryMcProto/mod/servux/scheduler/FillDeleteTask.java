@@ -1,15 +1,12 @@
 package verymc.top.veryMcProto.mod.servux.scheduler;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import javax.annotation.Nullable;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -22,7 +19,6 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
-import verymc.top.veryMcProto.mod.servux.dataproviders.LitematicsDataProvider;
 import verymc.top.veryMcProto.mod.servux.schematic.selection.Box;
 import verymc.top.veryMcProto.mod.servux.util.EntityUtils;
 import verymc.top.veryMcProto.mod.servux.util.IntBoundingBox;
@@ -30,33 +26,32 @@ import verymc.top.veryMcProto.mod.servux.util.WorldUtils;
 import verymc.top.veryMcProto.mod.servux.util.position.PositionUtils;
 
 /**
- * Litematica Fill/Delete 选区任务（26.1 移植，v3 合并形态）。
+ * Litematica Fill/Delete 选区任务（26.1 移植，v3 合并形态；timer / 队列 / 推帧 / 完成链共享面已上提
+ * {@link LitematicaTask}——paste 任务化时基类化，B/CF 轮终审裁定）。
  *
  * <p>合并上游五个类：{@code TaskBase + TaskProcessChunkBase + TaskProcessChunkMultiPhase + TaskFillArea +
  * TaskDeleteArea}（Delete = fillState=AIR 的 Fill，上游 TaskDeleteArea.java:11-16 同构）。行为真值逐项对照：
  * <ul>
- *   <li>盒子 → 分区块队列：{@link PositionUtils#getPerChunkBoxes} + 世界高度钳制 + 最近优先排序
- *       （参考点 = <b>构造时捕获的原 ServerPlayer 引用</b>——上游 TaskBase:38/156 的冻结语义：在线时活位置、
- *       重生/退出后冻结；仅发送路径改 UUID 解析）；每轮 fetch 前 re-sort（MultiPhase:187）；</li>
- *   <li>每 tick 25ms 纳秒预算 + 无进展即退出 + currentChunkPos 预检短路（MultiPhase:78-96 照抄，
- *       <b>不得</b>写成裸 while(&lt;25ms)）；</li>
- *   <li>{@link #directFillBox} 逐行照抄 TaskFillArea:74-114：z 外 / x 中 / <b>y 内层降序</b>、三态替换条件、
+ *   <li>盒子 → 分区块队列：{@link PositionUtils#getPerChunkBoxes} + 世界高度钳制 + 最近优先排序；每轮 fetch 前
+ *       re-sort（MultiPhase:187）；</li>
+ *   <li>每 tick <b>25ms 纳秒固定预算</b>（MultiPhase:93）+ 无进展即退出 + currentChunkPos 预检短路
+ *       （MultiPhase:78-96 照抄，<b>不得</b>写成裸 while(&lt;25ms)）——与 PasteTask 的 vanillaTickTime+60ms
+ *       动态预算（Direct 路径）刻意不同源，勿"顺手统一"；</li>
+ *   <li>{@link #execute()} 逐行照抄 TaskFillArea:74-114：z 外 / x 中 / <b>y 内层降序</b>、三态替换条件、
  *       容器先 clearContent + barrier(0x32)、setBlock flags 0x32（无 UPDATE_NEIGHBORS，上游 Mixin 更新抑制的
  *       等效载体）、RemoveEntities 走 AABB 非玩家 discard；</li>
  *   <li>进度推送：仅进度变化（processedChunksThisTick&gt;0）或首推（initialInfoSync）才发 type 16，
- *       且 pendingChunks 为空时全程零进度帧（TaskBase:151 守卫）；FINISHED 提前 return 不推末帧（MultiPhase:116-120）；</li>
- *   <li>完成链顺序（TaskFillArea.onStop → TaskProcessChunkBase.onStop → notifyListener）：
- *       ①完成/中断消息入缓冲 → ②<b>Complete 帧（type 16, InfoHudComplete=true）</b> → ③冲刷缓冲 +
- *       completed/aborted 行——<b>帧先于聊天</b>（客户端先移除 HUD renderer 再见消息）；completed 行独立于
- *       缓冲有无，feedback 门控读<b>活值</b>（LitematicsDataProvider.shouldSendPlayerTaskFeedback()）。</li>
+ *       且 pendingChunks 为空时全程零进度帧（TaskBase:151 守卫）；FINISHED 提前 return 不推末帧
+ *       （MultiPhase:116-120）——与 PasteTask 的每 tick 无条件推帧（Direct:98）刻意不同源；</li>
+ *   <li>完成链顺序（帧先于聊天、feedback 门控读活值）见基类 {@link LitematicaTask#stop()}。</li>
  * </ul>
  *
  * <p><b>有意偏差（相对上游，B 轮终审裁定）</b>：裁掉 sendCommand 死机制与 SEND_COMMAND_FEEDBACK gamerule
- * 翻转（对不发命令的任务零可观测效果，MultiPhase:259 零调用点）；玩家句柄发送路径用 UUID 解析（respawn 安全；
- * 退出后解析为 null 即跳过发送 = 上游"发死连接静默丢弃"等效）；玩家退出<b>不取消</b>任务（上游跑完语义，
- * 保证世界方块结果一致性）。
+ * 翻转（对不发命令的任务零可观测效果，MultiPhase:259 零调用点）；玩家退出<b>不取消</b>任务（上游跑完语义，
+ * 保证世界方块结果一致性）；中断终行文案随基类化由恒 completed 修正为 finished 条件（对齐上游
+ * TaskFeedbackListener:75 aborted 行——Fill/Delete 的中断仅插件停用 clearTasks 路径可达，见 docs/09 §26.1.5）。
  */
-public class FillDeleteTask
+public class FillDeleteTask extends LitematicaTask
 {
     // ───── 上游 TaskFeedbackListener 的消息文案（servux en_us.json 原文）─────
     static final String MSG_FILL_SUCCESSFUL = "§aServux Task: Area filled§r";
@@ -64,30 +59,15 @@ public class FillDeleteTask
     static final String MSG_DELETE_SUCCESSFUL = "§aServux Task: Area deleted§r";
     static final String MSG_DELETE_INTERRUPTED = "§cServux Task: Area deletion aborted or interrupted§r";
 
-    private final MinecraftServer server;
-    private final ServerLevel level;
-    private final UUID playerId;
-    /** 构造时捕获的原始玩家引用：仅作区块排序参考点（上游冻结语义）；网络发送一律走 UUID 解析。 */
-    private final ServerPlayer playerRef;
-    private final String name;
-    private final long startTime;
-
     private final BlockState fillState;
     @Nullable private final BlockState replaceState;
     private final boolean removeEntities;
 
     private final Map<ChunkPos, List<IntBoundingBox>> boxesInChunks = new HashMap<>();
-    private final List<ChunkPos> pendingChunks = new ArrayList<>();
-    private final PositionUtils.ChunkPosComparator chunkPosComparator = new PositionUtils.ChunkPosComparator();
-    private final List<Component> feedbackBuffer = new ArrayList<>();
 
     private boolean initialInfoSync = true;
-    private boolean finished;
     @Nullable private ChunkPos currentChunkPos;
 
-    /** 重复执行周期（客户端 "Interval" 字段，26.1 恒 1）；初值 0 = 下一次 runTasks 即首启。 */
-    private int tickCounter = 0;
-    private int repeatInterval = 1;
     private int processedChunksThisTick;
     private long taskStartTimeForCurrentTick;
 
@@ -100,39 +80,18 @@ public class FillDeleteTask
                           @Nullable BlockState replaceState,
                           boolean removeEntities)
     {
-        this.name = name;
-        this.server = server;
-        this.level = level;
-        this.playerId = player.getUUID();
-        this.playerRef = player;
-        this.startTime = System.currentTimeMillis();
+        super(name, server, level, player, System.currentTimeMillis());
+
         this.fillState = fillState;
         this.replaceState = replaceState;
         this.removeEntities = removeEntities;
 
-        this.chunkPosComparator.setReferencePosition(player.blockPosition());
-        this.chunkPosComparator.setClosestFirst(true);
         this.addPerChunkBoxes(boxes);
-    }
-
-    public String getName() { return this.name; }
-    public boolean isFinished() { return this.finished; }
-
-    void setRepeatInterval(int interval) { this.repeatInterval = interval; }
-
-    /** 定时器：--counter ≤ 0 触发并按重复周期复位（上游 TaskTimer + setNextDelay(0) 等价承载）。 */
-    boolean isTimerTriggered()
-    {
-        if (--this.tickCounter <= 0)
-        {
-            this.tickCounter = this.repeatInterval;
-            return true;
-        }
-        return false;
     }
 
     // ───── 执行主循环（上游 MultiPhase.executeMultiPhase 照抄，裁 sendCommand 维度）─────
 
+    @Override
     boolean execute()
     {
         this.taskStartTimeForCurrentTick = System.nanoTime();
@@ -198,7 +157,7 @@ public class FillDeleteTask
 
         if (clamped != null)
         {
-            this.boxesInChunks.computeIfAbsent(pos, k -> new ArrayList<>()).add(clamped);
+            this.boxesInChunks.computeIfAbsent(pos, k -> new java.util.ArrayList<>()).add(clamped);
         }
     }
 
@@ -238,14 +197,6 @@ public class FillDeleteTask
         this.pendingChunks.remove(pos);
         this.currentChunkPos = null;
         ++this.processedChunksThisTick;
-    }
-
-    private void sortChunkList()
-    {
-        if (this.pendingChunks.size() > 0)
-        {
-            this.pendingChunks.sort(this.chunkPosComparator);
-        }
     }
 
     private boolean canProcessChunk(ChunkPos pos)
@@ -310,82 +261,15 @@ public class FillDeleteTask
         }
     }
 
-    // ───── 状态推送（TaskBase.updateInfoHudLinesPendingChunks :149-178 + InfoHudSync 组帧）─────
-
-    private void updateInfoHudLines()
-    {
-        // TaskBase:151 守卫：无待处理区块则不发任何进度帧（全盒被钳出世界 → 直接走完成帧）
-        if (this.pendingChunks.isEmpty())
-        {
-            return;
-        }
-
-        List<ChunkPos> list = new ArrayList<>(this.pendingChunks);
-
-        // 参考点 = 构造时捕获的原引用的活位置（在线跟随、离线冻结——上游冻结语义）
-        this.chunkPosComparator.setReferencePosition(BlockPos.containing(this.playerRef.position()));
-        this.chunkPosComparator.setClosestFirst(true);
-        list.sort(this.chunkPosComparator);
-
-        ServerPlayer target = this.resolvePlayer();
-
-        if (target != null)
-        {
-            LitematicsDataProvider.INSTANCE.onTaskStatusSync(target, InfoHudTaskSync.progressFrame(this.name, list));
-        }
-    }
-
-    // ───── 完成链（TaskFillArea.onStop → TaskProcessChunkBase.onStop → notifyListener 顺序照抄）─────
-
-    void stop()
-    {
-        // ① 完成/中断消息入缓冲（TaskFillArea.printCompletionMessage）
-        this.feedbackBuffer.add(Component.literal(this.finished ? this.successMessage() : this.interruptedMessage()));
-
-        ServerPlayer target = this.resolvePlayer();
-
-        if (target == null)
-        {
-            // 玩家已退出（或 respawn 后 UUID 不可达）：上游"发死连接静默丢弃"等效——跳过帧与消息
-            return;
-        }
-
-        // ② Complete 帧（InfoHudSync.onStop → onTaskCompleteInternal）：客户端移除 HUD renderer 的唯一信号
-        LitematicsDataProvider.INSTANCE.onTaskStatusSync(target, InfoHudTaskSync.completeFrame());
-
-        // ③ 冲刷缓冲 + completed/aborted 行（TaskFeedbackListener.onTaskCompleted/Aborted）——帧先于聊天
-        boolean feedbackEnabled = LitematicsDataProvider.INSTANCE.shouldSendPlayerTaskFeedback();
-
-        if (feedbackEnabled)
-        {
-            for (Component line : this.feedbackBuffer)
-            {
-                target.sendSystemMessage(line);
-            }
-        }
-        this.feedbackBuffer.clear();
-
-        if (feedbackEnabled)
-        {
-            target.sendSystemMessage(Component.literal("§aServux Task: §f'§d" + this.name + "§f' §ahas completed in: §b"
-                    + (System.currentTimeMillis() - this.startTime) + " §fms§r"));
-        }
-    }
-
-    private String successMessage()
+    @Override
+    String successMessage()
     {
         return "Fill".equals(this.name) ? MSG_FILL_SUCCESSFUL : MSG_DELETE_SUCCESSFUL;
     }
 
-    private String interruptedMessage()
+    @Override
+    String interruptedMessage()
     {
         return "Fill".equals(this.name) ? MSG_FILL_INTERRUPTED : MSG_DELETE_INTERRUPTED;
-    }
-
-    /** 发送路径玩家解析（respawn 安全；退出后 null → 跳过）。 */
-    @Nullable
-    private ServerPlayer resolvePlayer()
-    {
-        return this.server.getPlayerList().getPlayer(this.playerId);
     }
 }

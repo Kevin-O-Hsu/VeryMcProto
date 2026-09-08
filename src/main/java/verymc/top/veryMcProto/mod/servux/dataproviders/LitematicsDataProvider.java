@@ -32,6 +32,7 @@ import verymc.top.veryMcProto.mod.servux.ServuxReference;
 import verymc.top.veryMcProto.mod.servux.network.ServuxLitematicaHandler;
 import verymc.top.veryMcProto.mod.servux.network.ServuxLitematicaPacket;
 import verymc.top.veryMcProto.mod.servux.scheduler.FillDeleteTask;
+import verymc.top.veryMcProto.mod.servux.scheduler.PasteTask;
 import verymc.top.veryMcProto.mod.servux.scheduler.TaskScheduler;
 import verymc.top.veryMcProto.mod.servux.schematic.LitematicaSchematic;
 import verymc.top.veryMcProto.mod.servux.schematic.placement.SchematicPlacement;
@@ -60,9 +61,10 @@ import verymc.top.veryMcProto.mod.servux.util.nbt.NbtView;
  * </ul>
  *
  * <p><b>投影粘贴 / 投递</b>：客户端上传的 .litematic 经 ServuxLitematicaHandler 重组后，由
- * {@link #handleClientPasteRequest} / {@link #handleClientPasteRequestPair} 加载为 SchematicPlacement
- * 并 pasteTo 放置到世界（含 ReplaceMode / PasteLayerBehavior / LayerRange）；文件投递（Transmit*）走
- * LitematicaSchematic.receiveFileTransmit 落盘到 schematics/。详见 schematic 子系统。
+ * {@link #handleClientPasteRequest} / {@link #handleClientPasteRequestPair} 加载为 SchematicPlacement 并创建
+ * {@link PasteTask}（上游 TaskPasteSchematicPerChunkDirect 形态）登记 TaskScheduler 分 tick 粘贴到世界
+ * （含 ReplaceMode / PasteLayerBehavior / LayerRange / Interval / 三个忽略布尔，type 16 进度/完成帧随任务下发）；
+ * 文件投递（Transmit*）走 LitematicaSchematic.receiveFileTransmit 落盘到 schematics/。详见 schematic 子系统。
  */
 public class LitematicsDataProvider extends DataProviderBase
 {
@@ -316,12 +318,19 @@ public class LitematicsDataProvider extends DataProviderBase
     }
 
     /**
-     * 粘贴请求：从客户端上传的 NBT 加载 SchematicPlacement，按 ReplaceMode / PasteLayerBehavior /
-     * LayerRange 调 SchematicPlacement.pasteTo 放置到玩家所在世界。需创造模式 + paste 权限。
+     * 粘贴请求受理（26.1 任务化，对齐上游 LitematicsDataProvider.handleClientPasteRequest:646-692）：
+     * 从客户端上传的 NBT 加载 SchematicPlacement，创建 {@link PasteTask}（上游 TaskPasteSchematicPerChunkDirect
+     * 形态）登记 TaskScheduler 分 tick 粘贴到玩家所在世界——同步 pasteTo 直放已被上游注释停用（:684），
+     * 受理处即时完成消息上游 :686-690 亦注释停用（完成反馈走任务 stop 链，受 player_task_feedback 门控）。
+     * 需创造模式 + paste 权限。四行为字段（ChangedBlocksOnly/IgnoreBlocks/IgnoreEntities/Interval）随任务透传
+     * （上游 :674-678 同解析；三布尔在任务内存而不用，上游 Direct:107 同源 TODO）。
      */
     public void handleClientPasteRequest(ServerPlayer player, CompoundTag tags)
     {
-        if (!this.isEnabled()) { return; }
+        if (!this.isPlayerRegistered(player) || !this.isEnabled() || tags == null || tags.isEmpty())
+        {
+            return;
+        }
 
         if (!this.hasPermission(player) || !this.hasPermissionsForPaste(player))
         {
@@ -336,34 +345,54 @@ public class LitematicsDataProvider extends DataProviderBase
             return;
         }
 
-        if (tags != null && tags.getStringOr("Task", "").equals("LitematicaPaste"))
+        if (tags.getStringOr("Task", "").equals("LitematicaPaste"))
         {
             ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "litematic paste 受理 ← " + player.getName().getString()
                     + " keys=" + tags.keySet()
                     + " ReplaceMode=" + tags.getStringOr("ReplaceMode", "?")
                     + " PasteLayerBehavior=" + tags.getStringOr("PasteLayerBehavior", "?"));
-            long timeStart = System.currentTimeMillis();
+            final long timeStart = System.currentTimeMillis();
             SchematicPlacement placement = SchematicPlacement.createFromNbt(tags);
             ReplaceBehavior replaceMode = ReplaceBehavior.fromStringStatic(tags.getStringOr("ReplaceMode", ReplaceBehavior.NONE.name()));
             PasteLayerBehavior layerBehavior = PasteLayerBehavior.fromStringStatic(tags.getStringOr("PasteLayerBehavior", PasteLayerBehavior.ALL.name()));
             LayerRange layerRange = tags.read("RenderLayerRange", LayerRange.CODEC).orElse(null);
-            ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "litematic paste 执行: placement=" + placement.getName()
-                    + " origin=" + placement.getOrigin() + " dim=" + player.level().dimension().identifier());
-            placement.pasteTo(player.level(), replaceMode, layerBehavior, layerRange);
-            long timeElapsed = System.currentTimeMillis() - timeStart;
-            ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "litematic paste 完成: " + timeElapsed + "ms");
-            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
-                    "§aPasted §b" + placement.getName() + "§r to §d" + player.level().dimension().identifier().toString() + "§r in §a" + timeElapsed + "§rms."));
+            final boolean changedBlocksOnly = tags.getBooleanOr("ChangedBlocksOnly", false);
+            final boolean ignoreBlocks = tags.getBooleanOr("IgnoreBlocks", false);
+            final boolean ignoreEntities = tags.getBooleanOr("IgnoreEntities", false);
+            final int interval = tags.getIntOr("Interval", 1);
+            ServerLevel level = player.level();
+
+            ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "litematic paste 任务受理: placement=" + placement.getName()
+                    + " origin=" + placement.getOrigin() + " dim=" + level.dimension().identifier()
+                    + " interval=" + interval + " changedOnly=" + changedBlocksOnly
+                    + " ignoreBlocks=" + ignoreBlocks + " ignoreEntities=" + ignoreEntities);
+
+            // 上游 :681-683 同构：PasteTask（Direct 形态）入 TaskScheduler 分 tick 执行；
+            // startTime = 解析前捕获（上游 TaskContext 同序：timeStart 先于 createFromNbt）
+            PasteTask task = new PasteTask(level.getServer(), level, player, placement, timeStart, layerRange,
+                    replaceMode, layerBehavior, changedBlocksOnly, ignoreBlocks, ignoreEntities);
+            TaskScheduler.getInstance().scheduleTask(task, interval);
         }
-        else if (tags != null)
+        else
         {
             ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "litematic paste 忽略: Task=" + tags.getStringOr("Task", "(无)") + "（非 LitematicaPaste）");
         }
     }
 
+    /**
+     * Transmit 文件上传路径的粘贴受理（26.1 任务化，对齐上游 handleClientPasteRequestPair:694-754）。
+     *
+     * <p><b>活/死错位声明</b>：26.1 客户端的 Transmit 上传分支整块注释（客户端 SchematicPlacementManager:1178-1183），
+     * 本入口当前实际不可达；但上游保留了同名 Pair 受理（其调用点同为死代码），我方按协议面完整同改保留
+     * ——勿据"上游死代码"裁此分支，亦勿据"不可达"跳过对齐。
+     */
     public void handleClientPasteRequestPair(ServerPlayer player, Pair<LitematicaSchematic, CompoundTag> schemPair)
     {
-        if (!this.isEnabled()) { return; }
+        if (!this.isPlayerRegistered(player) || !this.isEnabled() ||
+            schemPair == null || schemPair.getLeft() == null || schemPair.getRight() == null || schemPair.getRight().isEmpty())
+        {
+            return;
+        }
 
         if (!this.hasPermission(player) || !this.hasPermissionsForPaste(player))
         {
@@ -376,20 +405,22 @@ public class LitematicsDataProvider extends DataProviderBase
             return;
         }
 
-        if (schemPair.getLeft() != null)
-        {
-            ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "litematic_data: 执行粘贴(Pair) from " + player.getName().getString());
-            long timeStart = System.currentTimeMillis();
-            CompoundTag tags = schemPair.getRight();
-            SchematicPlacement placement = SchematicPlacement.createFromNbt(schemPair.getLeft(), tags);
-            ReplaceBehavior replaceMode = ReplaceBehavior.fromStringStatic(tags.getStringOr("ReplaceMode", ReplaceBehavior.NONE.name()));
-            PasteLayerBehavior layerBehavior = PasteLayerBehavior.fromStringStatic(tags.getStringOr("PasteLayerBehavior", PasteLayerBehavior.ALL.name()));
-            LayerRange layerRange = tags.read("RenderLayerRange", LayerRange.CODEC).orElse(null);
-            placement.pasteTo(player.level(), replaceMode, layerBehavior, layerRange);
-            long timeElapsed = System.currentTimeMillis() - timeStart;
-            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
-                    "§aPasted §b" + placement.getName() + "§r to §d" + player.level().dimension().identifier().toString() + "§r in §a" + timeElapsed + "§rms."));
-        }
+        ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "litematic_data: 执行粘贴(Pair) from " + player.getName().getString());
+        final long timeStart = System.currentTimeMillis();
+        CompoundTag tags = schemPair.getRight();
+        SchematicPlacement placement = SchematicPlacement.createFromNbt(schemPair.getLeft(), tags);
+        ReplaceBehavior replaceMode = ReplaceBehavior.fromStringStatic(tags.getStringOr("ReplaceMode", ReplaceBehavior.NONE.name()));
+        PasteLayerBehavior layerBehavior = PasteLayerBehavior.fromStringStatic(tags.getStringOr("PasteLayerBehavior", PasteLayerBehavior.ALL.name()));
+        LayerRange layerRange = tags.read("RenderLayerRange", LayerRange.CODEC).orElse(null);
+        final boolean changedBlocksOnly = tags.getBooleanOr("ChangedBlocksOnly", false);
+        final boolean ignoreBlocks = tags.getBooleanOr("IgnoreBlocks", false);
+        final boolean ignoreEntities = tags.getBooleanOr("IgnoreEntities", false);
+        final int interval = tags.getIntOr("Interval", 1);
+        ServerLevel level = player.level();
+
+        PasteTask task = new PasteTask(level.getServer(), level, player, placement, timeStart, layerRange,
+                replaceMode, layerBehavior, changedBlocksOnly, ignoreBlocks, ignoreEntities);
+        TaskScheduler.getInstance().scheduleTask(task, interval);
     }
 
     @Override public boolean hasPermission(ServerPlayer player) { return Perms.check(player, this.permNode, this.permissionLevel.getValue()); }
@@ -615,7 +646,7 @@ public class LitematicsDataProvider extends DataProviderBase
         this.removePlayer(player);
         HANDLER.onPlayerQuit(player.getUUID());
         // ★ 有意不取消该玩家的进行中任务（上游语义：任务跑完、帧/消息发死连接被静默丢弃）——
-        //   保证世界方块结果一致性；发送路径在 FillDeleteTask 内按 UUID 解析，退出后自动跳过。
+        //   保证世界方块结果一致性；发送路径在任务基类（LitematicaTask）内按 UUID 解析，退出后自动跳过。
     }
 
     /** task 组调度驱动（对应上游 MixinMinecraftServer tickServer RETURN → TaskScheduler.runTasks）。 */
