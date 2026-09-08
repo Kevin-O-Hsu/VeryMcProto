@@ -18,6 +18,7 @@ import verymc.top.veryMcProto.Reference;
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderManager;
 import verymc.top.veryMcProto.framework.dataproviders.IDataProvider;
 import verymc.top.veryMcProto.framework.debug.FrameworkDebug;
+import verymc.top.veryMcProto.framework.network.ChannelManager;
 import verymc.top.veryMcProto.framework.nms.Nms;
 
 /**
@@ -161,6 +162,15 @@ public class LifecycleBridge implements Listener
             {
                 Reference.logger().warning("onPlayerQuit[" + p.getName() + "] 异常: " + ex.getMessage());
             }
+        }
+        // 通道级清理：撤销该玩家各通道的 C2S 证明（堵「同账号换 vanilla 客户端重进」时兜底误发的边缘）
+        try
+        {
+            ChannelManager.INSTANCE.clearProven(event.getPlayer().getUniqueId());
+        }
+        catch (Exception ex)
+        {
+            Reference.logger().warning("onPlayerQuit[ChannelManager.clearProven] 异常: " + ex.getMessage());
         }
     }
 

@@ -178,7 +178,7 @@ Paper 的 **plugin messaging channel（`namespace:path` 命名）直接映射到
 3. **C2S 变化**：请求删除 `transactionId` 前置 VarInt（残留吞读会错位解析）；批量重组体改按 NBT `"Task"` 字符串路由；新增 `UNREGISTER_REPLY`（HUD=9 / Entities=7 / Tweaks=7 / Litematics=8，服务端 decode→unregister）；Structures 删 type 10/11/12（spawn/weather 完全收敛到 HUD 通道）；Litematica task 组 14-17 **已实现**（`scheduler/` 三类 v3 极简形态 + 四处接线，见 docs/09 §26.1.5——type 14 受理 Fill/Delete、type 16 状态/完成帧；type 15 客户端接收端 TODO 故服务端永不发送、type 17 上游同源忽略）。
 
 **三种 S2C 路径**（按 mod 选择）：
-- **Servux**：全程 **plugin messaging**（`ProtocolChannel.send` → `player.sendPluginMessage`），大包走 `PacketSplitter` 分片。
+- **Servux**：**plugin messaging 优先**（`ProtocolChannel.send` → `player.sendPluginMessage`），大包走 `PacketSplitter` 分片。**同通道 C2S 证明兜底**：Paper `CraftPlayer.sendPluginMessage` 有 `channels().contains(channel)` 门控（26.1.2 反编译实锤），玩家声明包被处理前 S2C **静默丢弃**（声明处理晚于客户端首个 C2S 到达）；若该玩家已在本通道发过 C2S（= 装有对应 mod、注册了 codec，能发即能收），`ProtocolChannel.send` 在 `listening=false` 时改走 NMS `new ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes))`——与 Paper 自身放行路径逐字同构。未发过 C2S 的玩家（vanilla / 未装 mod）永不走兜底（防护语义构造性保留）；证明集合随 `PlayerQuitEvent` 清除。
 - **JEI Recipe Bridge**：**NMS `ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes))` 直发**（`RecipeSyncHandler.sendPayload`），配方包常远超 32KiB，走 `sendPluginMessage` 会被拒。
 - **Syncmatica**：默认 **NMS `DiscardedPayload` 直发**（`ExchangeTarget.sendPacket`，`S2C_VIA_NMS=true`），构造 `[Identifier][body]` 复合包体；可用 `/syncmatica debug s2c msg` 切回 plugin messaging 对比（实测 plugin messaging wire 对纯 Fabric syncmatica 客户端不可达，故默认走 NMS）。
 
@@ -191,7 +191,7 @@ Paper 的 **plugin messaging channel（`namespace:path` 命名）直接映射到
   - **26.1 客户端（malilib）重组上限降为 16MB**（1.21.11 为 128MB）——S2C 文件投递入口有服务端 16MB 门禁（`LitematicaSchematic.MAX_TRANSMIT_FILE_SIZE`，超限 TransmitCancel + 明确提示，不截断不静默）
 - 大包（Recipe / Litematic 投影 / Structures / 批量实体）必须走 `PacketSplitter` 分片。Syncmatica 文件分片**不复用 `PacketSplitter`**，自写 stop-and-wait（`BUFFER_SIZE=16384`，每片确认）。详见 [`docs/02-network-protocol.md`](docs/02-network-protocol.md) §分片与 [`docs/21-syncmatica-protocol.md`](docs/21-syncmatica-protocol.md) §6。
 
-**C2S 接收命门**：Paper 原版服务端对未注册的 custom payload 会**踢玩家**（"Invalid payload"）。plugin messaging 注册的通道由 Paper 内置路由、不踢人——这正是用 `Messenger.registerIncomingPluginChannel` 接收 C2S 的理由。**握手机制命门**：configuration phase 期间 `sendPluginMessage` 会静默丢弃，客户端收不到。框架用 `PlayerRegisterChannelEvent`（客户端声明通道 = 装了对应 mod = configuration phase 已完成）作为可靠信号，在 `IDataProvider.onPlayerRegisterChannel` / syncmatica `onPlayerRegisterChannel` 重发 metadata / 发起握手。
+**C2S 接收命门**：Paper 原版服务端对未注册的 custom payload 会**踢玩家**（"Invalid payload"）。plugin messaging 注册的通道由 Paper 内置路由、不踢人——这正是用 `Messenger.registerIncomingPluginChannel` 接收 C2S 的理由。**握手机制命门**：configuration phase 期间 `sendPluginMessage` 会静默丢弃，客户端收不到。框架用 `PlayerRegisterChannelEvent`（客户端声明通道 = 装了对应 mod = configuration phase 已完成）作为可靠信号，在 `IDataProvider.onPlayerRegisterChannel` / syncmatica `onPlayerRegisterChannel` 重发 metadata / 发起握手。**但该补发范式对 minihud structures 无效**——其客户端 metadata 接受窗口是单次的（进服开门 → 首个 `%20` tick 关门，`DataStorage.java:288/:804`），只能靠首个 C2S REGISTER 的**即时回复**建立连接；这正是上文「同通道 C2S 证明兜底」存在的理由（进服首回复不再被 Paper 门控吞掉）。已知限制：REGISTER 回复 RTT 超过客户端剩余窗口时仍需手动 toggle，与上游 Fabric servux 同源。
 
 ### 2. Mixin / AccessWidener 无法迁移 → 三段式处置
 

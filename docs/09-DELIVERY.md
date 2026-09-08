@@ -236,9 +236,9 @@ verymc.top.veryMcProto/
   - 保留 `onPlayerJoin` 40t 兜底 + 客户端主动 C2S `PACKET_C2S_METADATA_REQUEST` 自愈（原版握手语义）。
 - **架构**：握手钩子在框架层（`IDataProvider`/`LifecycleBridge`），具体响应在 mod 层（`HudDataProvider`），保持 framework/mod 分层（便于后续迁移其他 mod）。
 
-### 10.4 Structures 周期扫描门控
+### 10.4 Structures 周期扫描门控（已废除，2026-09-08）
 
-- `StructureDataProvider.rescanAndSend` 顶部加门控：客户端未声明 `servux:structures`（`getListeningPluginChannels` 不含）则跳过采集（不 createTag / 不遍历区块），避免重活白干 + 发送失败累计计数误注销。
+- 原设计（已删除）：`StructureDataProvider.rescanAndSend` 顶部按 `getListeningPluginChannels` 早退，理由是「避免重活白干 + 发送失败累计计数误注销」。该前提已被 Paper 26.1.2 反编译证伪：能进 `rescanAndSend` 的必是发过 C2S REGISTER 的玩家（= 装有 MiniHUD、能解码），其「未声明」只是 Paper 声明簿记滞后；投递由框架层「同通道 C2S 证明」兜底（`ProtocolChannel.send` NMS 路径，见 §10.6.2）保证，失败计数也只在真实发送异常时累计。上游 servux 无此门。同批删除 `register()` 中不可达的「重复 REGISTER 跳过」分支（唯一调用方 `ServuxStructuresHandler` 恒先 unregister，上游语义 = 每次 REGISTER 全量应答）。
 
 ### 10.5 标志对称 + 文档勘误
 
@@ -248,7 +248,7 @@ verymc.top.veryMcProto/
 ### 10.6 验收关键注意（实测前必读）
 
 1. **客户端必须装 masa mod**（MiniHUD/Litematica/Tweakeroo + servux 协议）：plugin messaging ↔ vanilla custom payload 互通**当且仅当**客户端通过 1.20.5+ `PayloadTypeRegistry.playS2C()` 注册通道 id（masa mod 这么做了）。原版/未装 mod 客户端收不到 servux 数据。
-2. **勿对原版客户端推测性发 S2C**：1.20.5+ payload registry 下，原版客户端收到未注册 ResourceLocation 的 custom payload **可能断连**（disconnect）也可能静默丢弃——此点 1.21.11 未完全明确（Fabric 倾向丢弃，NeoForge/vanilla 倾向断连）。当前代码用 `getListeningPluginChannels` 门控 + 失败计数规避，但**玩家 join 后首包（40t 延迟的 sendMetadata）仍可能在客户端声明通道前发出**。混合玩家群体（部分原版）需实测确认无断连；若发现问题，可把 HUD 的 onPlayerJoin 40t 兜底改为纯事件驱动（仅 onPlayerRegisterChannel 触发）。
+2. **原版客户端 S2C 安全性（2026-09-08 裁决，取代旧「推测性发 S2C」风险注记）**：Paper `CraftPlayer.sendPluginMessage` 按 `channels().contains(channel)` 门控、未声明即静默丢弃（26.1.2 反编译实锤）——这曾吞掉 minihud structures 的进服首握手回复（其客户端 metadata 接受窗口是单次的：`DataStorage.java:288` 开门 → 首个 `%20` tick `:804` 关门，错过即恒 not_connected 直到手动 toggle）。修复：`ProtocolChannel.send` 引入**同通道 C2S 证明兜底**——只对**在本通道发过 C2S 的玩家**（= 装有对应 mod，能发即能收）在 Paper 声明簿记未跟上时走 NMS `new ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes))` 直发（与 Paper 自身放行路径逐字同构；证明集合随 PlayerQuitEvent 清除）。未发过 C2S 的玩家（vanilla / 未装 mod）**构造性不受兜底影响**，仍走 sendPluginMessage 由 Paper 丢弃——设计**不押注**「原版客户端对未知通道 S2C 的行为」（旧记述「NeoForge/vanilla 倾向断连」系未实证断言：服务端侧对称机制 `CustomPacketPayload.codec` 的 fallback 把未知 id 解码为 DiscardedPayload 后忽略，vanilla 大概率静默丢弃、断连风险主要在 NeoForge 网络层；仍保留为待实测项）。**已知限制**：REGISTER 回复 RTT 超过客户端剩余 `%20` 窗口（概率 ≈ RTT/1000ms）时仍需手动 toggle——与上游 Fabric servux 同源，不劣于上游。附带语义收敛：syncmatica `S2C_VIA_NMS=false` 诊断对照组在「未声明且已证明」场景也会经框架兜底走 NMS（两路 wire 逐字等价、均可达）。
 3. **握手时序**：HUD 现有三道保障（onPlayerJoin 40t / onPlayerRegisterChannel 事件 / 客户端 C2S 主动请求），首包可靠性已大幅提升。
 4. **C2S 不踢人**：5 条通道均 `registerIncomingPluginChannel`，Paper 内置路由，客户端 C2S 不会因「Invalid payload」被踢。
 5. **互通性未真机验证**：workflow 调研确认方案可行（`blocksRuntime=false`），但 Fabric+masa 客户端 ↔ Paper 1.21.11 的端到端字节级 round-trip **仍需实测确认**（FabricMC #4430 是求助帖非权威结论；其作者曾反映「能发不能收」，masa mod 因正确注册 PayloadTypeRegistry.playS2C 而可用）。
