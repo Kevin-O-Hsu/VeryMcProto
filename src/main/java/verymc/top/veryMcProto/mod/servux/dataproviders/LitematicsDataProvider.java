@@ -156,9 +156,12 @@ public class LitematicsDataProvider extends DataProviderBase
             return;
         }
         boolean ok = HANDLER.sendPlayPayload(player, ServuxLitematicaPacket.MetadataResponse(this.metadata));
+        boolean listening = player.getBukkitEntity().getListeningPluginChannels().contains(this.getNetworkChannel().toString());
         ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic sendMetadata → " + player.getName().getString()
-                + " ok=" + ok + " servux=" + this.metadata.getStringOr("servux", "?")
-                + " ver=" + this.metadata.getIntOr("version", -1));
+                + " ok=" + ok + " listening=" + listening
+                + " servux=" + this.metadata.getStringOr("servux", "?")
+                + " ver=" + this.metadata.getIntOr("version", -1)
+                + " keys=" + this.metadata.keySet());
     }
 
     public void onPacketFailure(ServerPlayer player) { this.setPlayerInvalid(player); }
@@ -335,16 +338,26 @@ public class LitematicsDataProvider extends DataProviderBase
 
         if (tags != null && tags.getStringOr("Task", "").equals("LitematicaPaste"))
         {
-            ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "litematic_data: 执行粘贴 from " + player.getName().getString());
+            ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "litematic paste 受理 ← " + player.getName().getString()
+                    + " keys=" + tags.keySet()
+                    + " ReplaceMode=" + tags.getStringOr("ReplaceMode", "?")
+                    + " PasteLayerBehavior=" + tags.getStringOr("PasteLayerBehavior", "?"));
             long timeStart = System.currentTimeMillis();
             SchematicPlacement placement = SchematicPlacement.createFromNbt(tags);
             ReplaceBehavior replaceMode = ReplaceBehavior.fromStringStatic(tags.getStringOr("ReplaceMode", ReplaceBehavior.NONE.name()));
             PasteLayerBehavior layerBehavior = PasteLayerBehavior.fromStringStatic(tags.getStringOr("PasteLayerBehavior", PasteLayerBehavior.ALL.name()));
             LayerRange layerRange = tags.read("RenderLayerRange", LayerRange.CODEC).orElse(null);
+            ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "litematic paste 执行: placement=" + placement.getName()
+                    + " origin=" + placement.getOrigin() + " dim=" + player.level().dimension().identifier());
             placement.pasteTo(player.level(), replaceMode, layerBehavior, layerRange);
             long timeElapsed = System.currentTimeMillis() - timeStart;
+            ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "litematic paste 完成: " + timeElapsed + "ms");
             player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
                     "§aPasted §b" + placement.getName() + "§r to §d" + player.level().dimension().identifier().toString() + "§r in §a" + timeElapsed + "§rms."));
+        }
+        else if (tags != null)
+        {
+            ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "litematic paste 忽略: Task=" + tags.getStringOr("Task", "(无)") + "（非 LitematicaPaste）");
         }
     }
 
@@ -569,8 +582,14 @@ public class LitematicsDataProvider extends DataProviderBase
     @Override
     public void onPlayerJoin(ServerPlayer player)
     {
-        if (!this.isEnabled()) { return; }
+        if (!this.isEnabled())
+        {
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic onPlayerJoin 跳过: provider disabled");
+            return;
+        }
         // plugin messaging 握手需时间，直接 sendMetadata（与 Entities 一致；configuration phase 多半失败，由 onPlayerRegisterChannel 补救）
+        ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic onPlayerJoin: " + player.getName().getString()
+                + " → 直推 sendMetadata（此时通道多半未声明，config phase 可能丢弃）");
         this.sendMetadata(player);
     }
 
@@ -583,6 +602,11 @@ public class LitematicsDataProvider extends DataProviderBase
         {
             ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic onPlayerRegisterChannel: 客户端声明 " + channel + " → 重发 metadata");
             this.sendMetadata(player);
+        }
+        else if (channel.startsWith("servux:"))
+        {
+            ServuxDebug.log(ServuxDebug.Cat.NETWORK, "litematic onPlayerRegisterChannel: 收到 servux 声明 " + channel
+                    + "（非本通道 servux:" + this.getNetworkChannel().getPath() + "，忽略）");
         }
     }
 

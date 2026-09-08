@@ -95,7 +95,11 @@ public class EasyPlaceListener implements PacketListener
         // 手牌必须是 BlockItem（EasyPlace 只精确放置方块；其余放行原版）
         InteractionHand hand = toNms(pkt.getHand());
         ItemStack stack = player.getItemInHand(hand);
-        if (!(stack.getItem() instanceof BlockItem blockItem)) { return; }
+        if (!(stack.getItem() instanceof BlockItem blockItem))
+        {
+            ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "放行：手持非 BlockItem item=" + stack.getItem());
+            return;
+        }
 
         Vector3i bp = pkt.getBlockPosition();
         BlockPos pos = new BlockPos(bp.x, bp.y, bp.z);
@@ -107,8 +111,14 @@ public class EasyPlaceListener implements PacketListener
         {
             // 普通放置包（玩家正常右键 / 客户端未握手 servux 没启用 EasyPlace）→ 放行原版，
             // 不取消、不回 ack——交给原版 use_item_on 全流程处理（原版会回 ack）。
+            // 若持续只有此行而无「接管」日志 = 客户端从未发送协议编码包（servux 未被客户端检测到/协议配置关闭）。
+            ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "放行未编码普通放置包 pos=" + pos + " cursor.x=" + cursor.x
+                    + " pv=" + protocolValue + "（<0：普通右键或客户端未启用 EasyPlace 协议）");
             return;
         }
+
+        ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "★ 接管编码放置包 pos=" + pos + " cursor=" + cursor.x + "," + cursor.y + "," + cursor.z
+                + " pv=" + protocolValue + " item=" + stack.getItem());
 
         // —— 以下为 EasyPlace V3 已编码包：接管原版包处理 ——
         // 取消后原版不再处理此包，故后续（含失败路径）必须手动回 ack。

@@ -118,7 +118,14 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
 
                         if (nbt != null)
                         {
+                            ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeServerData litematics: DataTag 解析成功 keys=" + nbt.keySet()
+                                    + " Task=" + nbt.getStringOr("Task", "(无)"));
                             this.handleBulkData(player, nbt);
+                        }
+                        else
+                        {
+                            Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: 投影完整包 DataTag 解析返回 null（size=" + fullPacket.readableBytes()
+                                    + " key=" + readingSessionKey + "——长度/解压/NBT 失败，详见上方 DataTagIo 告警）");
                         }
                     }
                     catch (Exception e)
