@@ -599,7 +599,7 @@ See [`docs/10-testing-guide.md`](docs/10-testing-guide.md) (Servux) and [`docs/2
 ./gradlew test         # Pure-function unit tests (PacketSplitter/FeatureSet/LitematicaBitArray/DataTagIo)
 ```
 
-> **JDK note**: MC 26.1+ requires **Java 25**. The Gradle toolchain is set to 25; run builds with `JAVA_HOME` pointing at a JDK 25 (e.g. `F:\jdks\zulu25.36.205-ca-jdk25.0.4.1-win_x64`). Gradle wrapper is 9.7.1.
+> **JDK note**: MC 26.1+ requires **Java 25**. The Gradle toolchain is set to 25 and resolves automatically: the `foojay-resolver-convention` plugin (in `settings.gradle.kts`) downloads a JDK 25 if none is detected, and a local `~/.gradle/gradle.properties` can point `org.gradle.java.installations.paths` at an existing non-standard install. Gradle wrapper is 9.7.1.
 
 **Build chain**: paperweight `userdev` 2.0.0-beta.23 + `paperDevBundle("26.1.2.build.74-stable")` (new `<mc>.build.<N>-stable` naming since 26.1; fully-deobfuscated Mojang NMS at dev time — Mojang removed server obfuscation, so **there is no reobf step anymore**: the artifact is the Mojmap jar and Paper 26.1+ loads it directly). Reflection uses **Mojang names** (unchanged convention).
 

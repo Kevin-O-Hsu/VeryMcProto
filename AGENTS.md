@@ -16,7 +16,7 @@
 - **协议字段语义**改动前必须对照 `OriginImpl/` 下的客户端源码（litematica / malilib / syncmatica 是协议接收端），**不要凭服务端代码猜客户端行为**。26.1 起客户端还带协议版本 + MOD_STRING 前缀**硬门禁**（不匹配即整通道静默退网），协议常量必须与 `OriginImpl/*-LTS-26.1` 逐字对齐。
 - **禁止引入 Mixin / AccessWidener / 服务端 patch 依赖**——Paper 无 Mixin 运行时，替代方案见核心约束 §2。
 - **可选依赖**（PacketEvents 等 `compileOnly`）的类引用必须隔离到独立引导类 + 反射加载 + `catch(Throwable)`（见核心约束 §6 教训 5）。
-- **构建**：`JAVA_HOME` 指向 JDK 25（如 `F:\jdks\zulu25.36.205-ca-jdk25.0.4.1-win_x64`）后 `./gradlew build`（Mojang 映射 jar，26.1 起**无 reobf**）· `./gradlew test`（纯函数单测）· `./gradlew runServer`（本地测试服）。**配置缓存已开启**：task 配置 lambda 内不得捕获脚本顶层 `val`，用 task 自身的 `providers` 取值。
+- **构建**：`./gradlew build`（Mojang 映射 jar，26.1 起**无 reobf**）· `./gradlew test`（纯函数单测）· `./gradlew runServer`（本地测试服）。**JDK 25 工具链自动解析**：`settings.gradle.kts` 的 foojay-resolver-convention 插件（探测不到时自动下载）+ 本机 `~/.gradle/gradle.properties` 的 `org.gradle.java.installations.paths` 指向 F:\jdk——IDE / 无 JAVA_HOME 场景直接可用。**配置缓存已开启**：task 配置 lambda 内不得捕获脚本顶层 `val`，用 task 自身的 `providers` 取值。
 
 ## 项目简介
 
@@ -102,7 +102,7 @@ gradle.properties（mcVersion=26.1.2 · buildNumber=1）          ← 唯一改�
 | **版本注入** | 见上节；`gradle.properties` 是唯一版本来源 |
 | **当前状态** | 三个 mod（Servux / JEI Recipe Bridge / Syncmatica）在 26.1 线全部实现，服务端实机验证通过 |
 
-构建命令（`JAVA_HOME` 需指向 JDK 25，如 `F:\jdks\zulu25.36.205-ca-jdk25.0.4.1-win_x64`）：
+构建命令（工具链 25 自动解析——foojay 下载兜底 + 本机 `~/.gradle/gradle.properties` 探测路径，无需手动 JAVA_HOME）：
 ```bash
 ./gradlew build        # 产出 Mojang 映射 jar（VeryMcProto-<版本>.jar，标准 Paper 26.1+ 可直接加载）
 ./gradlew test         # 纯函数单测（PacketSplitter/FeatureSet/LitematicaBitArray/DataTagIo 等，无需起服务端）
