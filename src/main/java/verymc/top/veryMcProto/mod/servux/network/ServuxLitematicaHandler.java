@@ -80,12 +80,13 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
             case PACKET_C2S_BLOCK_ENTITY_REQUEST -> LitematicsDataProvider.INSTANCE.onBlockEntityRequest(player, packet.getPos());
             case PACKET_C2S_ENTITY_REQUEST -> LitematicsDataProvider.INSTANCE.onEntityRequest(player, packet.getEntityId());
             case PACKET_C2S_BULK_ENTITY_NBT_REQUEST -> LitematicsDataProvider.INSTANCE.onBulkEntityRequest(player, packet.getChunkPos(), packet.getCompound());
-            case PACKET_C2S_TASK_REQUEST, PACKET_S2C_TASK_RESPONSE, PACKET_S2C_TASK_STATUS_SYNC, PACKET_C2S_TASK_CANCEL ->
+            case PACKET_C2S_TASK_REQUEST -> LitematicsDataProvider.INSTANCE.onTaskRequest(player, packet.getCompound());
+            case PACKET_S2C_TASK_RESPONSE, PACKET_S2C_TASK_STATUS_SYNC, PACKET_C2S_TASK_CANCEL ->
             {
-                // 26.1 task 组占位：服务端 Fill/Delete 任务执行未实现（上游新功能，超出迁移范围），
-                // 明确日志声明后忽略（客户端无能力探测机制——见 docs/09 限制条款）
-                Reference.logger().info("ServuxLitematicaHandler#decodeServerData: 收到未实现的 task 包 type="
-                        + packet.getPacketType() + " from " + player.getName().getString() + "（Fill/Delete 经 servux 的服务端执行未实现，已忽略）");
+                // 上游同源忽略：type 15 客户端接收端被 TODO 注释（服务端无发送场景）；type 16 为 S2C 下行，
+                // 服务端收到即异常方向；type 17 上游 handler 分支亦注释（客户端 sendServuxTaskCancel 整体注释）。
+                Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: 收到非预期 task 包 type="
+                        + packet.getPacketType() + " from " + player.getName().getString() + "（上游同源忽略）");
             }
             case PACKET_C2S_NBT_RESPONSE_DATA ->
             {

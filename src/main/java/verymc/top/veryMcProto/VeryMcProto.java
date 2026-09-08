@@ -150,6 +150,8 @@ public final class VeryMcProto extends JavaPlugin
             {
                 lifecycleBridge.stop();
             }
+            // task 组调度器清理须在 onServerTickEndPre() 之前（否则停服先空跑一轮任务再清）
+            verymc.top.veryMcProto.mod.servux.scheduler.TaskScheduler.getInstance().clearTasks();
             DataProviderManager.INSTANCE.writeToConfig();
             DataProviderManager.INSTANCE.onServerTickEndPre();
             // syncmatica 卸载（shutdown 保存 placements.json + 注销 handler；须在 ChannelManager.unregisterAll 前）

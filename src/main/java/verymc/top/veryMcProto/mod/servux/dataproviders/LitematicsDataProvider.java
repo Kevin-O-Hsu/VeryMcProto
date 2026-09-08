@@ -31,8 +31,11 @@ import verymc.top.veryMcProto.framework.settings.ServuxIntSetting;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
 import verymc.top.veryMcProto.mod.servux.network.ServuxLitematicaHandler;
 import verymc.top.veryMcProto.mod.servux.network.ServuxLitematicaPacket;
+import verymc.top.veryMcProto.mod.servux.scheduler.FillDeleteTask;
+import verymc.top.veryMcProto.mod.servux.scheduler.TaskScheduler;
 import verymc.top.veryMcProto.mod.servux.schematic.LitematicaSchematic;
 import verymc.top.veryMcProto.mod.servux.schematic.placement.SchematicPlacement;
+import verymc.top.veryMcProto.mod.servux.schematic.selection.Box;
 import verymc.top.veryMcProto.mod.servux.util.ReplaceBehavior;
 import verymc.top.veryMcProto.mod.servux.util.PasteLayerBehavior;
 import verymc.top.veryMcProto.mod.servux.util.LayerRange;
@@ -73,11 +76,16 @@ public class LitematicsDataProvider extends DataProviderBase
 
     private final ServuxIntSetting permissionLevel = new ServuxIntSetting(this, "permission_level", 0, 4, 0);
     private final ServuxIntSetting pastePermissionLevel = new ServuxIntSetting(this, "permission_level_paste", 0, 4, 0);
+    /** task 组权限等级（上游键名 permission_level_tasks，LitematicsDataProvider.java:66）。 */
+    private final ServuxIntSetting taskPermissionLevel = new ServuxIntSetting(this, "permission_level_tasks", 0, 4, 0);
+    /** task 组完成/中断聊天反馈（上游键名 player_task_feedback，默认 false，LitematicsDataProvider.java:67）。 */
+    private final ServuxBoolSetting playerTaskFeedback = new ServuxBoolSetting(this, "player_task_feedback", false);
     public ServuxBoolSetting fixRailRotations = new ServuxBoolSetting(this, "fix_rail_rotations", true);
     public ServuxBoolSetting fixStairMirror = new ServuxBoolSetting(this, "fix_stairs_mirror", true);
     public ServuxBoolSetting fixChestMirror = new ServuxBoolSetting(this, "fix_chest_mirror", true);
     private final List<IServuxSetting<?>> settings = List.of(
             this.permissionLevel, this.pastePermissionLevel,
+            this.taskPermissionLevel, this.playerTaskFeedback,
             this.fixRailRotations, this.fixStairMirror, this.fixChestMirror
     );
 
@@ -378,6 +386,186 @@ public class LitematicsDataProvider extends DataProviderBase
         return this.hasPermission(player) && Perms.check(player, this.permNode + ".paste", this.pastePermissionLevel.getValue());
     }
 
+    /** task 组权限（上游 hasPermissionsForTask 同构：permNode + ".task.fill/.delete" @ permission_level_tasks）。 */
+    public boolean hasPermissionsForTask(ServerPlayer player, String task)
+    {
+        return this.hasPermission(player) && Perms.check(player, this.permNode + ".task." + task, this.taskPermissionLevel.getValue());
+    }
+
+    public boolean shouldSendPlayerTaskFeedback() { return this.playerTaskFeedback.getValue(); }
+
+    // ───── task 组（type 14-17，26.1 移植；对照上游 LitematicsDataProvider.onTaskRequest:272-437）─────
+
+    /** task 组反馈文案（上游 servux en_us.json 原文）。 */
+    private static final String MSG_TASK_INSUFFICIENT = "§cServux: Insufficient Permissions for Litematic task operations.§r";
+    private static final String MSG_TASK_CREATIVE_REQUIRED = "§cServux: Creative Mode is required for this Litematic Task Request.§r";
+    private static final String MSG_TASK_NO_FILL_STATE = "§cServux: No fill state provided.§r";
+    private static final String MSG_TASK_NO_BOXES = "§cServux: No fill area boxes provided.§r";
+    private static final String MSG_TASK_INVALID = "§cServux: Invalid task type provided.§r";
+
+    /**
+     * TASK_REQUEST（type 14）受理：权限 → 创造模式 → Boxes/FillState 解析 → 登记 TaskScheduler。
+     * 检查顺序与消息门控照抄上游（insufficient/creative 无条件、no_fill_state/no_boxes/invalid 受
+     * player_task_feedback 门控）。Box 线格式 = 客户端 Box.CODEC 产物 {pos1:int[3], pos2:int[3], name}
+     * （malilib DataOps INT_STREAM → IntArrayTag，B 轮实证），手工解 IntArrayTag。
+     */
+    public void onTaskRequest(ServerPlayer player, CompoundTag tags)
+    {
+        if (!this.isPlayerRegistered(player) || !this.isEnabled() || tags == null || tags.isEmpty())
+        {
+            return;
+        }
+
+        if (!this.hasPermission(player))
+        {
+            ServuxDebug.log(ServuxDebug.Cat.PERMISSION, "litematic_data: 拒绝 onTaskRequest from " + player.getName().getString() + "（权限不足）");
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(MSG_TASK_INSUFFICIENT));
+            return;
+        }
+
+        final String taskType = tags.getStringOr("Task", "");
+        final long timeStart = System.currentTimeMillis();
+        ServerLevel level = player.level();
+        ServuxDebug.log(ServuxDebug.Cat.PACKET, "litematic_data: 收到 TaskRequest from " + player.getName().getString() + " type=[" + taskType + "]");
+
+        switch (taskType)
+        {
+            case "Fill", "Delete" ->
+            {
+                final boolean fill = taskType.equals("Fill");
+
+                if (!this.hasPermissionsForTask(player, taskType.toLowerCase(java.util.Locale.ROOT)))
+                {
+                    ServuxDebug.log(ServuxDebug.Cat.PERMISSION, "litematic_data: 拒绝 " + taskType + " Task from " + player.getName().getString() + "（task 权限不足）");
+                    player.sendSystemMessage(net.minecraft.network.chat.Component.literal(MSG_TASK_INSUFFICIENT));
+                    return;
+                }
+
+                if (!player.isCreative())
+                {
+                    ServuxDebug.log(ServuxDebug.Cat.PERMISSION, "litematic_data: 拒绝 " + taskType + " Task from " + player.getName().getString() + "（非创造模式）");
+                    player.sendSystemMessage(net.minecraft.network.chat.Component.literal(MSG_TASK_CREATIVE_REQUIRED));
+                    return;
+                }
+
+                List<Box> boxes = this.decodeBoxes(tags);
+
+                if (fill)
+                {
+                    net.minecraft.world.level.block.state.BlockState fillState = tags.read("FillState", net.minecraft.world.level.block.state.BlockState.CODEC).orElse(null);
+
+                    if (fillState == null)
+                    {
+                        if (this.shouldSendPlayerTaskFeedback())
+                        {
+                            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(MSG_TASK_NO_FILL_STATE));
+                        }
+                        return;
+                    }
+
+                    if (boxes.isEmpty())
+                    {
+                        if (this.shouldSendPlayerTaskFeedback())
+                        {
+                            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(MSG_TASK_NO_BOXES));
+                        }
+                        return;
+                    }
+
+                    net.minecraft.world.level.block.state.BlockState replaceState = tags.read("ReplaceState", net.minecraft.world.level.block.state.BlockState.CODEC).orElse(null);
+                    boolean removeEntities = tags.getBooleanOr("RemoveEntities", false);
+                    int interval = tags.getIntOr("Interval", 1);
+                    FillDeleteTask task = new FillDeleteTask("Fill", level.getServer(), level, player, boxes, fillState, replaceState, removeEntities);
+                    TaskScheduler.getInstance().scheduleTask(task, interval);
+                }
+                else
+                {
+                    if (boxes.isEmpty())
+                    {
+                        if (this.shouldSendPlayerTaskFeedback())
+                        {
+                            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(MSG_TASK_NO_BOXES));
+                        }
+                        return;
+                    }
+
+                    boolean removeEntities = tags.getBooleanOr("RemoveEntities", false);
+                    int interval = tags.getIntOr("Interval", 1);
+                    // Delete = fillState=AIR 的 Fill（上游 TaskDeleteArea 同构）
+                    FillDeleteTask task = new FillDeleteTask("Delete", level.getServer(), level, player, boxes,
+                            net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), null, removeEntities);
+                    TaskScheduler.getInstance().scheduleTask(task, interval);
+                }
+            }
+            // Save：上游整段注释（LitematicsDataProvider.java:400-428 "TODO (Ensure Safe Transmit)"）——同源忽略
+            default ->
+            {
+                if (this.shouldSendPlayerTaskFeedback())
+                {
+                    player.sendSystemMessage(net.minecraft.network.chat.Component.literal(MSG_TASK_INVALID));
+                }
+            }
+        }
+    }
+
+    /** 解析 "Boxes" 列表（客户端 Box.CODEC 产物：pos1/pos2 = IntArrayTag[x,y,z]，name = string）。 */
+    private List<Box> decodeBoxes(CompoundTag tags)
+    {
+        ListTag list = tags.getListOrEmpty("Boxes");
+        List<Box> boxes = new ArrayList<>();
+
+        for (int i = 0; i < list.size(); ++i)
+        {
+            CompoundTag entry = list.getCompoundOrEmpty(i);
+
+            if (entry != null && !entry.isEmpty())
+            {
+                Box box = decodeBox(entry);
+
+                if (box != null)
+                {
+                    boxes.add(box);
+                }
+            }
+        }
+
+        return boxes;
+    }
+
+    /** 单个 Box 解码（形状黄金样本见 TaskGroupTest；public 供跨包单测）。 */
+    public static Box decodeBox(CompoundTag entry)
+    {
+        // 26.1：getIntArray 返回 Optional<int[]>
+        int[] p1 = entry.getIntArray("pos1").orElse(null);
+        int[] p2 = entry.getIntArray("pos2").orElse(null);
+
+        if (p1 == null || p2 == null || p1.length != 3 || p2.length != 3)
+        {
+            return null;
+        }
+
+        return new Box(new BlockPos(p1[0], p1[1], p1[2]), new BlockPos(p2[0], p2[1], p2[2]), entry.getStringOr("name", ""));
+    }
+
+    /**
+     * TASK_STATUS_SYNC（type 16）下行：任务进度/完成帧的唯一出口（上游 onTaskStatusSync:439-454 四道门照抄）。
+     */
+    public void onTaskStatusSync(ServerPlayer player, CompoundTag tags)
+    {
+        if (!this.isPlayerRegistered(player) || !this.isEnabled() || tags == null || tags.isEmpty())
+        {
+            return;
+        }
+
+        if (!this.hasPermission(player))
+        {
+            ServuxDebug.log(ServuxDebug.Cat.PERMISSION, "litematic_data: 拒绝 onTaskStatusSync to " + player.getName().getString() + "（权限不足）");
+            return;
+        }
+
+        HANDLER.encodeServerData(player, ServuxLitematicaPacket.TaskPacket(ServuxLitematicaPacket.Type.PACKET_S2C_TASK_STATUS_SYNC, tags));
+    }
+
     @Override
     public void onPlayerJoin(ServerPlayer player)
     {
@@ -398,8 +586,14 @@ public class LitematicsDataProvider extends DataProviderBase
         }
     }
 
-    @Override public void onPlayerQuit(ServerPlayer player) { this.removePlayer(player); }
+    @Override public void onPlayerQuit(ServerPlayer player)
+    {
+        this.removePlayer(player);
+        // ★ 有意不取消该玩家的进行中任务（上游语义：任务跑完、帧/消息发死连接被静默丢弃）——
+        //   保证世界方块结果一致性；发送路径在 FillDeleteTask 内按 UUID 解析，退出后自动跳过。
+    }
 
-    @Override public void onTickEndPre() { /* NO-OP */ }
+    /** task 组调度驱动（对应上游 MixinMinecraftServer tickServer RETURN → TaskScheduler.runTasks）。 */
+    @Override public void onTickEndPre() { TaskScheduler.getInstance().runTasks(); }
     @Override public void onTickEndPost() { /* NO-OP */ }
 }

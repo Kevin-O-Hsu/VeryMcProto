@@ -330,3 +330,20 @@ verymc.top.veryMcProto/
 - `./gradlew runServer`（`JAVA_HOME=F:\jdk` zulu25.0.4.1）：`Starting minecraft server version 26.1.2` → 插件 `v26.1.2-b1` 加载+启用（api-version '1.21' 接受）→ servux / jei_recipe_bridge / syncmatica 三模块注册 → `框架就绪` → `Done (12.334s)`，无 ERROR/SEVERE；PacketEvents 缺席时 EasyPlace 优雅降级日志正常。
 - 旧 1.21.11 测试世界保护：`run/server.properties` `level-name=world26` 隔离（旧 world/ 未被触碰），6 个共享配置 `.pre261.bak` 备份，packetevents jar 移出 plugins。
 - **客户端互通冒烟（26.1 Fabric 客户端，用户侧最终验收）**：服务端侧已全部验证；协议常量/载体均经客户端源码逐字钉死，但最终裁决需要真实 26.1.2 客户端连服冒烟（HUD 握手 + litematics 握手，docs/10 流程）——无头环境无法运行模组客户端。
+
+### 26.1.5 Litematica task 组（type 14-17）服务端实现（2026-09-08 追加）
+
+> 三轮对抗辩论 + 一次反事实路径熔断（v2 十六类照抄 → v3 三类极简）的产物；协议与可观测行为与上游/客户端逐项等价，裁掉的每一项均验证过"客户端不可观测或上游零调用"。
+
+**架构（`mod/servux/scheduler/` 三类）**：
+- `TaskScheduler`：单列表 + 每 tick `runTasks()`（无 synchronized——Paper 单主线程不变式；无双列表——任务 timer 初值 0 等价承载"下 tick 启动"）。
+- `FillDeleteTask`：合并上游 TaskBase+TaskProcessChunkBase+MultiPhase+TaskFillArea+TaskDeleteArea。行为真值：分区块队列最近优先（参考点=构造时捕获的原 ServerPlayer 引用，上游冻结语义）+ 每 tick 25ms 预算 + 无进展退出 + currentChunkPos 预检短路；`directFillBox` 逐行照抄（z 外/x 中/y 内层降序、三态替换、容器 clearContent+barrier、flags 0x32、AABB 非玩家 discard）；进度推送仅在进度变化或首推（pendingChunks 空则全程零进度帧）、FINISHED 提前 return 不推末帧；完成链顺序=①消息入缓冲→②Complete 帧→③冲刷缓冲+completed 行（帧先于聊天，门控读活值）；Interval 读作重复周期。
+- `InfoHudTaskSync`：type 16 组帧（进度帧 `Type="REMAINING_CHUNKS"` 枚举常量名——客户端 valueOf 无容错；完成帧仅 `InfoHudComplete=true` 缺 InfoHudSync 键）。
+
+**接线四处**：Handler type 14 → `onTaskRequest`（15/16/17 上游同源忽略）；Provider settings `permission_level_tasks(0)`+`player_task_feedback(false)` + 权限节点 `servux.provider.litematic_data.task.fill/.delete` + `onTaskStatusSync` 四道门 + Box 手工解码（客户端 wire 形状 `{pos1:int[3],pos2:int[3],name}` IntArrayTag）+ FillState `tags.read(codec)`；`LifecycleBridge.onTick` 前置 `onServerTickEndPre()`（对应上游 Mixin tickServer RETURN）；`VeryMcProto.onDisable` 前置 `clearTasks()`。
+
+**四项有意偏差（相对上游，代码注释已声明）**：① 启动 ≤1 tick 偏移（Bukkit 心跳先于网络包处理，非逐 tick 等价）；② 玩家退出**不取消**任务（上游跑完语义，保证世界方块结果一致性；发送路径 UUID 解析 null 即跳过=上游"发死连接静默丢弃"等效）；③ 停服 clearTasks（良性增量）；④ 不移植 SEND_COMMAND_FEEDBACK gamerule 翻转（对不发命令的任务零可观测效果，MultiPhase sendCommand 零调用点）。
+
+**验证**：TaskGroupTest 4 项黄金样本（Box IntArrayTag 形状 + REMAINING_CHUNKS 字面量 + 完成帧缺键 + 10 行上限；纯 JVM 测试需 `SharedConstants.tryDetectVersion()+Bootstrap.bootStrap()` 前置——26.1 ChunkPos <clinit> 链到注册表）；build 27/27 全绿；runServer 26.1.2 干净起服（调度器 tick 接线空转无异常）。**真实 Fill/Delete 端到端**：26.1 litematica 客户端创造模式选区 Fill/Delete（ToolUtils 强制走 servux 路径）→ 观察 InfoHud 剩余区块 HUD 与完成消息——用户侧最终验收。
+
+**残留工单（非 task 组锚点）**：26.1 客户端 paste 前会置 InfoHudSync 而我方 paste 为同步直放 → 客户端 HUD renderer 滞留（type 12/13 路径）；如需对齐可后续把粘贴迁移到 scheduler 的 TaskPasteSchematicPerChunkDirect 形态。

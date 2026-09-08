@@ -24,7 +24,7 @@
 
 每个被移植的 Mod 独占一个目录单元；原版 Fabric 实现统一存放在 `OriginImpl/` 下用于逐行对照（本地参考，已 gitignore，不入库；**1.21.11 与 26.1 双版本并存**，masa 系全部为 sakura-ryoko 维护的 `LTS/<版本>` 分支，JEI 为 Mrbysco 真上游）。**三个移植目标在 26.1 线全部实现并通过服务端实机验证**：
 
-- **Servux**（`mod/servux/`，对照 `OriginImpl/servux-LTS-26.1/`）—— masa 开发的服务端协议 Mod，为 masa 的客户端 Mod（**MiniHUD / Litematica / Tweakeroo**）提供**服务端→客户端的数据投递与协议**，通过自定义网络通道（`servux:*`）下发：世界元数据、出生点、天气、TPS/MobCap、结构边界框、Litematica 投影投递/粘贴、实体与方块实体 NBT 查询、EasyPlace 服务端放置协议等。5 通道 + schematic（粘贴/投递）+ EasyPlace 已实现（26.1 wire：协议版本 3/2/2/3/2、DataTag 载体、UNREGISTER_REPLY；**Litematica task 组 14-17 的服务端 Fill/Delete 执行未实现**——上游新功能，超迁移范围）。
+- **Servux**（`mod/servux/`，对照 `OriginImpl/servux-LTS-26.1/`）—— masa 开发的服务端协议 Mod，为 masa 的客户端 Mod（**MiniHUD / Litematica / Tweakeroo**）提供**服务端→客户端的数据投递与协议**，通过自定义网络通道（`servux:*`）下发：世界元数据、出生点、天气、TPS/MobCap、结构边界框、Litematica 投影投递/粘贴、实体与方块实体 NBT 查询、EasyPlace 服务端放置协议等。5 通道 + schematic（粘贴/投递）+ EasyPlace + **task 组 Fill/Delete**（`scheduler/` 三类：受理→分 tick 执行→InfoHud 状态同步，26.1 wire：协议版本 3/2/2/3/2、DataTag 载体、UNREGISTER_REPLY；type 15 客户端 TODO 故不发送、type 17 上游同源忽略）。
 - **JEI Recipe Bridge**（`mod/jeirecipebridge/`，对照 `OriginImpl/JEIRecipeBridge-26.1/`）—— 玩家进服时把服务端配方表同步给 JEI 客户端，按 client brand 走 `fabric:recipe_sync` / `neoforge:recipe_content` 两条原版 custom payload 通道（NMS `ClientboundCustomPayloadPacket` 直发，绕过 plugin messaging size 上限）。纯 S2C / 一次性 / 仅 1 个 `enabled` 配置项。26.1 wire 零变化。
 - **Syncmatica**（`mod/syncmatica/`，对照 `OriginImpl/syncmatica-LTS-26.1/`）—— **投影共享**协议 Mod：服务端作中央仓库存储 `.litematic`，多玩家上传/下载/协同修改放置位置。单物理通道 `syncmatica:main` + 18 逻辑 PacketType + Exchange 会话层（请求-应答状态机）+ 文件存储 + JSON 持久化 + 配额/调试服务。与 Servux（单向广播）根本不同——**双向、有状态、多玩家共享**。26.1 wire 零变化。
 
@@ -175,7 +175,7 @@ Paper 的 **plugin messaging channel（`namespace:path` 命名）直接映射到
 **26.1 wire 三大变化**（对照 `OriginImpl/*-LTS-26.1` 客户端源码逐字实证）：
 1. **MOD_STRING 硬门禁**：客户端校验 `servux.startsWith("servux-fabric-<精确上游MC id>")`（`MOD_TYPE` 恒 "fabric"），故我方 `ServuxReference.MOD_TYPE = "fabric"` 伪装 + `mcVersion` 必须用精确补丁号 26.1.2；1.21.11 时代的 "paper" 三段式会被四通道全部静默拒绝。
 2. **DataTag 线格式载体**：业务包 NBT 从 vanilla `writeNbt` 切换为 malilib DataTag 格式 `[int32 大端 压缩长][GZIP(具名根 NBT 流)]`（`mod/servux/util/nbt/DataTagIo.java`，与 NMS `NbtIo` 输出逐字节兼容，配单测）。分界规则**逐 Type**：全通道 metadata 1/2 恒 vanilla；分片 10-13 恒裸字节；其余业务 Type 走 DataTag（含 START 大包经 PacketSplitter 的**重组整体**）。Structures 通道包帧本身全程 vanilla/裸字节，是唯一幸存者。
-3. **C2S 变化**：请求删除 `transactionId` 前置 VarInt（残留吞读会错位解析）；批量重组体改按 NBT `"Task"` 字符串路由；新增 `UNREGISTER_REPLY`（HUD=9 / Entities=7 / Tweaks=7 / Litematics=8，服务端 decode→unregister）；Structures 删 type 10/11/12（spawn/weather 完全收敛到 HUD 通道）；Litematica 新增 task 组 14-17（**服务端 Fill/Delete 执行未实现**，收到时明确日志后忽略——客户端无能力探测机制，该功能静默不执行，见 docs/09）。
+3. **C2S 变化**：请求删除 `transactionId` 前置 VarInt（残留吞读会错位解析）；批量重组体改按 NBT `"Task"` 字符串路由；新增 `UNREGISTER_REPLY`（HUD=9 / Entities=7 / Tweaks=7 / Litematics=8，服务端 decode→unregister）；Structures 删 type 10/11/12（spawn/weather 完全收敛到 HUD 通道）；Litematica task 组 14-17 **已实现**（`scheduler/` 三类 v3 极简形态 + 四处接线，见 docs/09 §26.1.5——type 14 受理 Fill/Delete、type 16 状态/完成帧；type 15 客户端接收端 TODO 故服务端永不发送、type 17 上游同源忽略）。
 
 **三种 S2C 路径**（按 mod 选择）：
 - **Servux**：全程 **plugin messaging**（`ProtocolChannel.send` → `player.sendPluginMessage`），大包走 `PacketSplitter` 分片。

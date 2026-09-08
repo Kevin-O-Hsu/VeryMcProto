@@ -80,6 +80,17 @@ public class LifecycleBridge implements Listener
             MinecraftServer server = Nms.server();
             if (server != null)
             {
+                // 先跑 tick 末尾前置钩子（task 组调度器驱动——对应上游 MixinMinecraftServer tickServer RETURN
+                // 处 runTasks → tickProviders 的顺序），再跑 provider 周期 tick
+                try
+                {
+                    DataProviderManager.INSTANCE.onServerTickEndPre();
+                }
+                catch (Exception e)
+                {
+                    Reference.logger().warning("onServerTickEndPre 异常: " + e.getMessage());
+                }
+
                 DataProviderManager.INSTANCE.tickProviders(server, tickCounter);
             }
         }
