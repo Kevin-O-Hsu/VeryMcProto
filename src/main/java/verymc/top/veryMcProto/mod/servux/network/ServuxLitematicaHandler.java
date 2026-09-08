@@ -58,6 +58,17 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
     @Override
     public void reset(Identifier channel) { if (channel.equals(CHANNEL_ID)) { this.failures.clear(); } }
 
+    /** 玩家退出：丢弃其进行中的分片上传（会话键 + 重组会话 + buffer 一起清，防 TTL 窗口内重进复用键命中僵尸会话）。 */
+    public void onPlayerQuit(UUID uuid)
+    {
+        Long key = this.readingSessionKeys.remove(uuid);
+
+        if (key != null)
+        {
+            PacketSplitter.discardSession(key);
+        }
+    }
+
     @Override
     public void receivePlayPayload(FriendlyByteBuf data, ServerPlayer player)
     {
@@ -105,33 +116,43 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
 
                 ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeServerData litematics: 收到投影分片 size=" + packet.getTotalSize() + " key=" + readingSessionKey);
 
-                FriendlyByteBuf fullPacket = PacketSplitter.receive(this, readingSessionKey, packet.getBuffer());
-
-                if (fullPacket != null)
+                try
                 {
-                    ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeServerData litematics: 投影完整包 size=" + fullPacket.readableBytes() + " key=" + readingSessionKey);
-                    try
-                    {
-                        this.readingSessionKeys.remove(uuid);
-                        // 26.1：重组整体为 DataTag 帧，且无 type VarInt 前缀——按 NBT "Task" 字符串路由
-                        CompoundTag nbt = DataTagIo.readTag(fullPacket);
+                    FriendlyByteBuf fullPacket = PacketSplitter.receive(this, readingSessionKey, packet.getBuffer());
 
-                        if (nbt != null)
-                        {
-                            ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeServerData litematics: DataTag 解析成功 keys=" + nbt.keySet()
-                                    + " Task=" + nbt.getStringOr("Task", "(无)"));
-                            this.handleBulkData(player, nbt);
-                        }
-                        else
-                        {
-                            Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: 投影完整包 DataTag 解析返回 null（size=" + fullPacket.readableBytes()
-                                    + " key=" + readingSessionKey + "——长度/解压/NBT 失败，详见上方 DataTagIo 告警）");
-                        }
-                    }
-                    catch (Exception e)
+                    if (fullPacket != null)
                     {
-                        Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: 投影完整包解析失败: " + e.getMessage());
+                        ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeServerData litematics: 投影完整包 size=" + fullPacket.readableBytes() + " key=" + readingSessionKey);
+                        try
+                        {
+                            this.readingSessionKeys.remove(uuid);
+                            // 26.1：重组整体为 DataTag 帧，且无 type VarInt 前缀——按 NBT "Task" 字符串路由
+                            CompoundTag nbt = DataTagIo.readTag(fullPacket);
+
+                            if (nbt != null)
+                            {
+                                ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeServerData litematics: DataTag 解析成功 keys=" + nbt.keySet()
+                                        + " Task=" + nbt.getStringOr("Task", "(无)"));
+                                this.handleBulkData(player, nbt);
+                            }
+                            else
+                            {
+                                Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: 投影完整包 DataTag 解析返回 null（size=" + fullPacket.readableBytes()
+                                        + " key=" + readingSessionKey + "——长度/解压/NBT 失败，详见上方 DataTagIo 告警）");
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: 投影完整包解析失败: " + e.getMessage());
+                        }
                     }
+                }
+                catch (IllegalArgumentException | NullPointerException e)
+                {
+                    // 上游 packet/ServuxLitematicaHandler.java:162-170 同构：分片坏流终态——清键让下次上传换新会话键
+                    //（僵尸会话本体由 receive 异常路径移除 / TTL 驱逐兜底）
+                    Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: PacketSplitter 分片异常，废弃会话 key=" + readingSessionKey + ": " + e.getMessage());
+                    this.readingSessionKeys.remove(uuid);
                 }
             }
             default -> Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: 无效 packetType " + packet.getPacketType()

@@ -19,6 +19,7 @@ import verymc.top.veryMcProto.framework.dataproviders.DataProviderManager;
 import verymc.top.veryMcProto.framework.dataproviders.IDataProvider;
 import verymc.top.veryMcProto.framework.debug.FrameworkDebug;
 import verymc.top.veryMcProto.framework.network.ChannelManager;
+import verymc.top.veryMcProto.framework.network.PacketSplitter;
 import verymc.top.veryMcProto.framework.nms.Nms;
 
 /**
@@ -71,6 +72,16 @@ public class LifecycleBridge implements Listener
             catch (Exception ignored) { }
             tickTask = null;
         }
+        // 确定性释放全部分片重组会话的 netty buffer（插件 disable/reload 时——不依赖 GC cleaner 回收；
+        // 进行中的上传会被作废，与上游 TTL 驱逐行为同桶，客户端重传即可）
+        try
+        {
+            PacketSplitter.releaseAllSessions();
+        }
+        catch (Exception e)
+        {
+            Reference.logger().warning("PacketSplitter.releaseAllSessions 异常: " + e.getMessage());
+        }
     }
 
     private void onTick()
@@ -78,6 +89,20 @@ public class LifecycleBridge implements Listener
         tickCounter++;
         try
         {
+            // PacketSplitter 过期会话清理（每 CLEANER_INTERVAL_TICKS=100t≈5s，对应上游 servux/malilib
+            // "PacketSplitter-Cleaner" 守护线程的 scheduleAtFixedRate(5,5,SECONDS) 节拍）
+            if (tickCounter % PacketSplitter.CLEANER_INTERVAL_TICKS == 0)
+            {
+                try
+                {
+                    PacketSplitter.evictStaleSessions();
+                }
+                catch (Exception e)
+                {
+                    Reference.logger().warning("PacketSplitter.evictStaleSessions 异常: " + e.getMessage());
+                }
+            }
+
             MinecraftServer server = Nms.server();
             if (server != null)
             {

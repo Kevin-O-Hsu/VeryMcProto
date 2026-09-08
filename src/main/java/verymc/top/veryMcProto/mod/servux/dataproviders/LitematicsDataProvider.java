@@ -613,6 +613,7 @@ public class LitematicsDataProvider extends DataProviderBase
     @Override public void onPlayerQuit(ServerPlayer player)
     {
         this.removePlayer(player);
+        HANDLER.onPlayerQuit(player.getUUID());
         // ★ 有意不取消该玩家的进行中任务（上游语义：任务跑完、帧/消息发死连接被静默丢弃）——
         //   保证世界方块结果一致性；发送路径在 FillDeleteTask 内按 UUID 解析，退出后自动跳过。
     }

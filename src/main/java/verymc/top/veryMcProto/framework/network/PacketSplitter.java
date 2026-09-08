@@ -1,6 +1,7 @@
 package verymc.top.veryMcProto.framework.network;
 
 import javax.annotation.Nullable;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -8,6 +9,8 @@ import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+
+import verymc.top.veryMcProto.Reference;
 
 /**
  * 应用层分包器（框架层）。移植自原版 {@code fi.dy.masa.servux.network.PacketSplitter}（源自 QuickCarpet by skyrising）。
@@ -19,7 +22,10 @@ import net.minecraft.server.level.ServerPlayer;
  * <ul>
  *   <li>{@code READING_SESSIONS} 从 {@code HashMap} 改 {@link ConcurrentHashMap}；</li>
  *   <li>单个 {@link ReadingSession#receive} 加 {@code synchronized}，防止 Netty / 异步投递下同一 session 并发重组错乱；</li>
- *   <li>坏包（超限 / 空缓冲）立即丢弃该 session，避免卡死后续接收。</li>
+ *   <li>坏包（超限 / 空缓冲 / 零长带余字节）立即丢弃该 session，避免卡死后续接收；</li>
+ *   <li>会话带 {@code lastReceivedTime}（每片刷新），由 LifecycleBridge 心跳每 {@link #CLEANER_INTERVAL_TICKS} tick
+ *       过期驱逐并 {@code release()}——上游 "PacketSplitter-Cleaner" 守护线程（10s TTL + 5s 扫描）的主线程等价物，
+ *       中断的分片上传不再留下永生 session 与未释放 buffer。</li>
  * </ul>
  */
 public class PacketSplitter
@@ -32,6 +38,11 @@ public class PacketSplitter
     // plugin messaging 单物理通道不分方向）。原版另有 C2S 专用常量，但本实现 C2S/S2C 共用一通道，
     // 故只保留一个接收上限（C2S 专用死常量已删——见 docs/TECH_DEBT_AUDIT F006）。DoS 防护最后防线。
     public static final int DEFAULT_MAX_RECEIVE_SIZE_S2C = 67_108_864;
+
+    /** 会话过期阈值（ms）——溯上游 servux/malilib {@code STALE_TIMEOUT_MS = 10000}。 */
+    static final long STALE_TIMEOUT_MS = 10_000L;
+    /** 过期扫描节拍（tick，100t = 5s）——对齐上游 {@code scheduleAtFixedRate(5, 5, SECONDS)}，由 LifecycleBridge 心跳驱动。 */
+    public static final int CLEANER_INTERVAL_TICKS = 100;
 
     private static final Map<Long, ReadingSession> READING_SESSIONS = new ConcurrentHashMap<>();
 
@@ -84,10 +95,69 @@ public class PacketSplitter
         return session.receive(buf, maxLength);
     }
 
-    /** 主动丢弃一个未完成的接收会话（玩家断连等清理，防内存泄漏）。 */
+    /** 主动丢弃一个未完成的接收会话（玩家断连等清理，防内存泄漏）；一并释放其 netty buffer。 */
     public static void discardSession(long key)
     {
-        READING_SESSIONS.remove(key);
+        ReadingSession session = READING_SESSIONS.remove(key);
+
+        if (session != null)
+        {
+            session.release();
+        }
+    }
+
+    /**
+     * 周期过期清理入口（LifecycleBridge 每 {@link #CLEANER_INTERVAL_TICKS} tick 调一次）。
+     *
+     * <p>对应上游 "PacketSplitter-Cleaner" 守护线程的 evict 循环（servux/malilib
+     * {@code scheduleAtFixedRate(5, 5, SECONDS)}）；此处改挂主线程心跳——receive 同为主线程
+     * （Bukkit Messenger 同步分发），无跨线程释放竞态，且随 bridge start/stop 启停，
+     * 插件 reload 不泄漏旧 classloader / 线程。
+     */
+    public static void evictStaleSessions()
+    {
+        evictExpired(System.currentTimeMillis());
+    }
+
+    /** 过期判定纯函数（nowMs 可注入——测试入口）：距最后收片超过 {@link #STALE_TIMEOUT_MS} 即驱逐并释放。 */
+    static void evictExpired(long nowMs)
+    {
+        Iterator<Map.Entry<Long, ReadingSession>> it = READING_SESSIONS.entrySet().iterator();
+
+        while (it.hasNext())
+        {
+            Map.Entry<Long, ReadingSession> entry = it.next();
+
+            if (nowMs - entry.getValue().lastReceivedTime > STALE_TIMEOUT_MS)
+            {
+                Reference.logger().warning("PacketSplitter: 过期驱逐读取会话 [" + entry.getKey() + "]（超 " + STALE_TIMEOUT_MS + "ms 未收片）");
+                it.remove();
+                entry.getValue().release();
+            }
+        }
+    }
+
+    /** 全量释放（LifecycleBridge.stop() 调用）：插件 disable/reload 时确定性回收全部会话 buffer，不依赖 GC cleaner。 */
+    public static void releaseAllSessions()
+    {
+        Iterator<Map.Entry<Long, ReadingSession>> it = READING_SESSIONS.entrySet().iterator();
+
+        while (it.hasNext())
+        {
+            Map.Entry<Long, ReadingSession> entry = it.next();
+            it.remove();
+            entry.getValue().release();
+        }
+    }
+
+    /** 测试桥：当前活动会话数（同包 {@code PacketSplitterTest} 断言用）。 */
+    static int readingSessionCount() { return READING_SESSIONS.size(); }
+
+    /** 测试桥：指定会话的最后收片时间（断言「每片刷新」语义用）。 */
+    static long sessionLastReceived(long key)
+    {
+        ReadingSession session = READING_SESSIONS.get(key);
+        return session != null ? session.lastReceivedTime : Long.MIN_VALUE;
     }
 
     /**
@@ -102,16 +172,20 @@ public class PacketSplitter
         private final long key;
         private int expectedSize = -1;
         private FriendlyByteBuf received;
+        /** 最后收片时间（ms）。volatile：心跳清理与（潜在异步的）接收线程的读写可见性。 */
+        private volatile long lastReceivedTime;
 
         private ReadingSession(long key)
         {
             this.key = key;
+            this.lastReceivedTime = System.currentTimeMillis();
         }
 
         @Nullable
         private synchronized FriendlyByteBuf receive(FriendlyByteBuf data, int maxLength)
         {
             data.readerIndex(0);
+            this.lastReceivedTime = System.currentTimeMillis(); // 每片刷新（servux 语义）——活跃大文件流不受 TTL 误杀
 
             if (this.expectedSize < 0)
             {
@@ -123,13 +197,27 @@ public class PacketSplitter
                     throw new IllegalArgumentException("Payload too large: " + this.expectedSize + " > " + maxLength);
                 }
 
+                // 上游同源边界分支（servux:145-149 / malilib:151-156）：声明正长度却无载荷字节 → 坏流，废弃会话
+                if (this.expectedSize > 0 && data.readableBytes() == 0)
+                {
+                    PacketSplitter.READING_SESSIONS.remove(this.key);
+                    throw new IllegalArgumentException("Received size header but no data bytes.");
+                }
+
+                // 上游同源边界分支（malilib:158-162）：零长度却带多余字节 → 坏流，静默丢弃（调用方按 null 处理本流无产物）
+                if (this.expectedSize == 0 && data.readableBytes() > 0)
+                {
+                    PacketSplitter.READING_SESSIONS.remove(this.key);
+                    return null;
+                }
+
                 this.received = new FriendlyByteBuf(Unpooled.buffer(this.expectedSize));
             }
 
             if (this.received == null)
             {
                 PacketSplitter.READING_SESSIONS.remove(this.key);
-                throw new RuntimeException("Receive Buffer is empty");
+                throw new NullPointerException("Receive Buffer is empty"); // 上游 :160-163 同为 NPE——落入调用方 catch 集清键
             }
 
             this.received.writeBytes(data.copy());
@@ -141,6 +229,16 @@ public class PacketSplitter
             }
 
             return null;
+        }
+
+        /** 释放会话缓冲（幂等）。synchronized 与 receive 互斥，防 evict/discard 与在途收片的释放竞态。 */
+        private synchronized void release()
+        {
+            if (this.received != null)
+            {
+                this.received.release();
+                this.received = null;
+            }
         }
     }
 }
