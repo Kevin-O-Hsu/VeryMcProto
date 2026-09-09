@@ -243,9 +243,9 @@ VeryMcProto.onDisable
 | `features` | 握手后填的 `FeatureSet` |
 | `ongoingExchanges` | `List<Exchange>`（按注册顺序，路由时遍历） |
 
-`sendPacket(type, buf, context)`：构造 `[Identifier][body]` 复合包体 → 默认走 **NMS `DiscardedPayload` 直发**（`S2C_VIA_NMS=true`，同 JEI Recipe Bridge 路径）。
+`sendPacket(type, buf, context)`：构造 `[Identifier][body]` 复合包体 → 默认走 **NMS `DiscardedPayload` 直发**（`S2C_VIA_NMS=true`，同 JEI 模块 `JeiPacketSender.send` 路径）。
 
-> **S2C 路径命门（实测）**：plugin messaging（`sendPluginMessage`）的 S2C wire 格式，纯 Fabric 客户端（syncmatica）**收不到**——客户端零响应、零 C2S 回包。而 NMS `new ClientboundCustomPayloadPacket(new DiscardedPayload(syncmatica:main, bytes))` 经 `ServerPlayer.connection.send` 投递，已被 JEI Recipe Bridge 验证 fabric 客户端可解码。故 S2C 默认走 NMS 直发；plugin messaging 仅作诊断 fallback（`/syncmatica debug s2c msg` 切换）。
+> **S2C 路径命门（实测）**：plugin messaging（`sendPluginMessage`）的 S2C wire 格式，纯 Fabric 客户端（syncmatica）**收不到**——客户端零响应、零 C2S 回包。而 NMS `new ClientboundCustomPayloadPacket(new DiscardedPayload(syncmatica:main, bytes))` 经 `ServerPlayer.connection.send` 投递，已被 JEI 配方同步（原 JEI Recipe Bridge，现 `mod/jei` 的 `JeiPacketSender.send`）验证 fabric 客户端可解码。故 S2C 默认走 NMS 直发；plugin messaging 仅作诊断 fallback（`/syncmatica debug s2c msg` 切换）。
 
 ### 5.4 Feature 协商
 

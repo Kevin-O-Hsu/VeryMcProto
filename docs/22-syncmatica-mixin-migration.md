@@ -199,7 +199,7 @@ final byte[] bytes = FriendlyByteBufs.extractAndRelease(out);
 
 **S2C 路径命门**（`ExchangeTarget.S2C_VIA_NMS = true`，实测关键）：
 
-plugin messaging（`sendPluginMessage`）的 S2C wire 格式，纯 Fabric 客户端（syncmatica）**收不到**——客户端零响应、零 C2S 回包。而 NMS `ClientboundCustomPayloadPacket(new DiscardedPayload(syncmatica:main, bytes))` 直发（同 `RecipeSyncHandler.sendPayload` 路径，JEI Recipe Bridge 实测通过）已验证 fabric 客户端可解码。故 **S2C 默认走 NMS 直发**；plugin messaging 仅作 fallback 保留，可经 `/syncmatica debug s2c msg` 切回对比。
+plugin messaging（`sendPluginMessage`）的 S2C wire 格式，纯 Fabric 客户端（syncmatica）**收不到**——客户端零响应、零 C2S 回包。而 NMS `ClientboundCustomPayloadPacket(new DiscardedPayload(syncmatica:main, bytes))` 直发（同 JEI 模块 `JeiPacketSender.send` 路径，原 `RecipeSyncHandler.sendPayload`——2026-09 上游重做后易主；JEI 配方同步实测通过）已验证 fabric 客户端可解码。故 **S2C 默认走 NMS 直发**；plugin messaging 仅作 fallback 保留，可经 `/syncmatica debug s2c msg` 切回对比。
 
 ```java
 if (S2C_VIA_NMS) {

@@ -4,11 +4,11 @@
 >
 > **三个协议 mod 全部已完整实现并实测通过**：
 > - **Servux**（masa 服务端协议）—— 5 数据通道 + schematic（投影投递/粘贴）+ EasyPlace。
-> - **JEI Recipe Bridge**（配方同步）—— 玩家进服按 client brand（fabric/neoforge）同步配方表。
+> - **JEI 服务端协议**（最上游 mezz/JustEnoughItems 26.1，2026-09 起更换）—— 完整三层：配方同步（fabric/neoforge 双腿）+ jei:* 自有 10 通道（cheat 给/删/热键栏 + 配方转移）+ 服务端行为层。
 > - **Syncmatica**（投影共享中央仓库）—— 单通道 + Exchange 会话层 + 文件存储 + JSON 持久化（实现说明见 20–24）。
 >
 > 顶层项目说明见根目录 [`../CLAUDE.md`](../CLAUDE.md)。
-> 原版 Fabric 源码对照：[`../OriginImpl/`](../OriginImpl/)（`servux` / `syncmatica` / `litematica` / `malilib` / `syncmatica` / `JEIRecipeBridge` 各子目录）。
+> 原版 Fabric 源码对照：[`../OriginImpl/`](../OriginImpl/)（`servux` / `syncmatica` / `litematica` / `malilib` / `JustEnoughItems-26.1`（mezz 最上游）/ `JEIRecipeBridge-{1.21.11,26.1}`（Mrbysco，1.21.11 线沿用 + neoforge 层参考）各子目录）。
 
 ---
 
@@ -95,6 +95,22 @@
 **了解实现全貌**：[23](23-syncmatica-implementation-plan.md) 实际包结构 + 关键决策表 + 完成状态。
 
 **排错**：[24](24-syncmatica-testing-guide.md) 排错流程 + 症状→病因表。
+
+---
+
+# 三、JEI 服务端协议（文档 30）
+
+## 一句话定位
+
+**JEI（Just Enough Items）是客户端物品/配方查看 Mod**；26.1 线（实为 1.21.2+）配方表收敛到服务端后，JEI 的完整功能依赖「服务端协议」：配方同步（Fabric API / NeoForge 加载器层通道）+ jei:* 自有通道（cheat 权限/给删物品/热键栏/配方转移）。上游 = 最上游 mezz/JustEnoughItems 分支 `26.1`（2026-09 起正式更换，原 Mrbysco/JEIRecipeBridge 已停更）；1.21.11 旧线仍用旧实现。
+
+## 文档地图
+
+| # | 文档 | 内容速览 | 关键词 |
+|---|---|---|---|
+| 30 | [jei-protocol.md](30-jei-protocol.md) ⭐ | **完整协议**：三层全景、通道声明契约（isJeiOnServer 门禁）、12 通道 wire 逐字段、cheat 权限模型、配方转移算法、配方同步双触发、尺寸模型、上游源码索引、实机验证清单 | 协议层 |
+
+**维护入口**：[30](30-jei-protocol.md) 一篇全覆盖；上游更新时按其 §10 源码索引对照 `OriginImpl/JustEnoughItems-26.1/` 逐文件核对。
 
 ---
 

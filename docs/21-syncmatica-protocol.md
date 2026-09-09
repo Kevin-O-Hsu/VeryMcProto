@@ -63,7 +63,7 @@
    - **plugin messaging 路径**（fallback）：`ChannelManager.instance().send(NETWORK_ID, player, bytes)`。注：框架层 `ProtocolChannel.send` 引入「同通道 C2S 证明」NMS 兜底（2026-09-08）后，此对照组在「客户端未声明但已在 `syncmatica:main` 发过 C2S」场景会自动走 NMS `DiscardedPayload`（两路 wire 逐字等价、均可达），不再是纯 plugin messaging 对照；仅「已声明」场景仍为真正的 sendPluginMessage 路径。
 4. 失败 → 警告日志。
 
-> 🔑 **S2C 走 NMS 直发的实证理由**（`ExchangeTarget.java:57-67` 注释）：plugin messaging（`sendPluginMessage`）的 S2C wire 格式，纯 Fabric 客户端（syncmatica）**收不到**——客户端零响应、零 C2S 回包。而 NMS `DiscardedPayload` 直发（同 `RecipeSyncHandler.sendPayload` 路径）已验证 Fabric 客户端可解码（JEI Recipe Bridge 实测通过）。`DiscardedPayload` 本身即 vanilla payload 类型，序列化时由 Paper 注册的 codec 原样写出 bytes，不会被强转拒绝。客户端用其自行注册的 `SyncmaticaPacket.Payload.CODEC`（按 `syncmatica:main` 查得）解码 payload data = `[Identifier][body]`，与原版 Fabric 服务端发的 wire 一致。
+> 🔑 **S2C 走 NMS 直发的实证理由**（`ExchangeTarget.java:57-67` 注释）：plugin messaging（`sendPluginMessage`）的 S2C wire 格式，纯 Fabric 客户端（syncmatica）**收不到**——客户端零响应、零 C2S 回包。而 NMS `DiscardedPayload` 直发（同 JEI 模块 `JeiPacketSender.send` 路径，原 `RecipeSyncHandler.sendPayload`——2026-09 上游重做后易主）已验证 Fabric 客户端可解码（JEI 配方同步实测通过）。`DiscardedPayload` 本身即 vanilla payload 类型，序列化时由 Paper 注册的 codec 原样写出 bytes，不会被强转拒绝。客户端用其自行注册的 `SyncmaticaPacket.Payload.CODEC`（按 `syncmatica:main` 查得）解码 payload data = `[Identifier][body]`，与原版 Fabric 服务端发的 wire 一致。
 >
 > 可经 `/syncmatica debug s2c nms|msg` 运行时切换路径做对比诊断。
 

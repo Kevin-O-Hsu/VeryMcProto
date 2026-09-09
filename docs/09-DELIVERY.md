@@ -109,7 +109,7 @@ verymc.top.veryMcProto/
 | **List.copyOf(enum[])** | 不接受数组 | 用 `Arrays.asList(values())`（ImmutableList.copyOf 已移除） |
 | **commons-lang3 Fraction** | 不保证暴露 | MathUtils 去掉 Fraction 重载 |
 | **@NotNull/@Environment 注解** | Fabric 专有 | 全部删除 |
-| **Messenger.MAX_MESSAGE_SIZE 不再是 32768** | 旧文档（docs/02/05/06/07 等）曾称 32768（32KiB），CLAUDE.md §1 已更正 | 1.21.x 已上调（Spigot API `1048576`≈1MiB）；**真 S2C 瓶颈是原版客户端 ClientboundCustomPayload 32767 字节解码上限**（超过客户端断连）。PacketSplitter S2C 分片 32000 仍正确（防御 32767，余量充足） |
+| **Messenger.MAX_MESSAGE_SIZE 不再是 32768** | 旧文档（docs/02/05/06/07 等）曾称 32768（32KiB），CLAUDE.md §1 已更正 | 1.21.x 已上调（Spigot API `1048576`≈1MiB）；**真 S2C 瓶颈是原版客户端对 ClientboundCustomPayload（未知通道 discarded 解码）的 32767 字节上限**（超过客户端断连）。PacketSplitter S2C 分片 32000 仍正确（防御 32767，余量充足）。**注意**：客户端**已注册 codec 的已知通道**不受 32767 限（Fabric API 把 `fabric:recipe_sync` 注册为 64MB large payload——见 docs/30 §6），JEI 配方大包单发因此安全 |
 
 ---
 
@@ -314,7 +314,7 @@ verymc.top.veryMcProto/
 6. **客户端重组上限 128MB → 16MB**（malilib `PacketSplitter.DEFAULT_MAX_RECEIVE_SIZE`）→ 我方 transmit 入口加 16MB 门禁（`LitematicaSchematic.MAX_TRANSMIT_FILE_SIZE`，超限 TransmitCancel + error + 玩家提示，不截断不静默）。
 7. **Litematica task 组（14-17）未实现（声明限制）**：26.1 客户端在检测到 servux 服务端后 Fill/Delete 选区**强制**走 `PACKET_C2S_TASK_REQUEST`（无超时回退、无能力探测机制、type 15 的客户端处理本身被上游 TODO 注释）。服务端不实现 = 该功能静默不执行（InfoHudSync 渲染空列表、链式 completionListener 不回调；无崩溃无断连）。属上游新功能，超出"迁移"锚点；收到 task 包时明确日志后忽略。后续若要支持：对照 `litematica-LTS-26.1 ToolUtils` + `servux-LTS-26.1 LitematicsDataProvider` 的 task 状态机。
 8. **隐私裁剪**（26.1 上游新增，我方 1.21.11 线已内置，无需改动）：查询**他人**玩家实体时按 `nbt_allow_player_inventory` / `player_inventory_permission_level`（ender 同理）清空 `Inventory` / `EnderItems`。
-9. **零变化**：JEI payload（`fabric:recipe_sync` / `neoforge:recipe_content`）、syncmatica 全协议（18 PacketType + Exchange + FeatureSet）、PacketSplitter 分片帧（`[VarInt 总长][分片…]`、常量逐字一致）、HUD v3 数据字段（两侧 20 字段名 comm 比对零增删改——差异全在包封层）。
+9. **零变化**：JEI payload（`fabric:recipe_sync` / `neoforge:recipe_content`）、syncmatica 全协议（18 PacketType + Exchange + FeatureSet）、PacketSplitter 分片帧（`[VarInt 总长][分片…]`、常量逐字一致）、HUD v3 数据字段（两侧 20 字段名 comm 比对零增删改——差异全在包封层）。（后记：2026-09 JEI 上游更换为 mezz/JustEnoughItems 后完整协议重做，配方同步层 wire 与本节结论仍一致，新增 jei:* 自有 10 通道——见 docs/30。）
 
 ### 26.1.3 NMS 漂移实测清单（编译驱动，全库 632 import 仅 39 处断裂）
 
@@ -327,7 +327,7 @@ verymc.top.veryMcProto/
 ### 26.1.4 实机验证记录（Paper 26.1.2 + Java 25，2026-09-08）
 
 - `./gradlew build`：23/23 单测全绿（PacketSplitter 3 + FeatureSet 4 + LitematicaBitArray 10 + **DataTagIo 6**），产物 `VeryMcProto-26.1.2-b1.jar`（Mojang 映射，无 reobf）。
-- `./gradlew runServer`（`JAVA_HOME=F:\jdk` zulu25.0.4.1）：`Starting minecraft server version 26.1.2` → 插件 `v26.1.2-b1` 加载+启用（api-version '1.21' 接受）→ servux / jei_recipe_bridge / syncmatica 三模块注册 → `框架就绪` → `Done (12.334s)`，无 ERROR/SEVERE；PacketEvents 缺席时 EasyPlace 优雅降级日志正常。
+- `./gradlew runServer`（`JAVA_HOME=F:\jdk` zulu25.0.4.1）：`Starting minecraft server version 26.1.2` → 插件 `v26.1.2-b1` 加载+启用（api-version '1.21' 接受）→ servux / jei_recipe_bridge / syncmatica 三模块注册 → `框架就绪` → `Done (12.334s)`，无 ERROR/SEVERE；PacketEvents 缺席时 EasyPlace 优雅降级日志正常。（历史记录：jei_recipe_bridge 后于 2026-09 上游重做为 jei 模块，见 docs/30。）
 - 旧 1.21.11 测试世界保护：`run/server.properties` `level-name=world26` 隔离（旧 world/ 未被触碰），6 个共享配置 `.pre261.bak` 备份，packetevents jar 移出 plugins。
 - **客户端互通冒烟（26.1 Fabric 客户端，用户侧最终验收）**：服务端侧已全部验证；协议常量/载体均经客户端源码逐字钉死，但最终裁决需要真实 26.1.2 客户端连服冒烟（HUD 握手 + litematics 握手，docs/10 流程）——无头环境无法运行模组客户端。
 

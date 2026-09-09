@@ -5,7 +5,7 @@
 
 ```
 Paper 26.1.2 · Java 25 · paperweight userdev · Version 26.1.2-b1
-Servux ✅  ·  JEI Recipe Bridge ✅  ·  Syncmatica ✅   (all three targets fully implemented; server-side verified on 26.1.2)
+Servux ✅  ·  JEI ✅  ·  Syncmatica ✅   (all three targets fully implemented; server-side verified on 26.1.2)
 ```
 
 ---
@@ -53,7 +53,7 @@ This project uses **paperweight `userdev`** to reference fully-deobfuscated Moja
 |  Mod                    |  Client Mod                                   |  Nature                                                                 |  Status  |
 | ----------------------- | --------------------------------------------- | ----------------------------------------------------------------------- | -------- |
 |  **Servux**             |  masa's **MiniHUD / Litematica / Tweakeroo**  |  Server→client **one-way broadcast** (6 providers)                      |  ✅ Full  |
-|  **JEI Recipe Bridge**  |  **JEI** + **JEIRecipeBridge**                |  **One-shot S2C** recipe sync on player join                            |  ✅ Full  |
+|  **JEI**                |  **JEI** (mezz/JustEnoughItems 26.1)          |  **Full server protocol**: recipe sync + cheat + recipe transfer        |  ✅ Full  |
 |  **Syncmatica**         |  **endte syncmatica**                         |  **Bidirectional, stateful, multi-player shared** schematic repository  |  ✅ Full  |
 
 ### 1. Servux
@@ -79,14 +79,21 @@ A server-side protocol mod that delivers data to masa's client mods (MiniHUD / L
 
 > **26.1 wire changes** (vs 1.21.11, all verified against the LTS/26.1 client sources): protocol versions bumped as above; the `servux` handshake field is now a **hard gate** on the client — it must start with `servux-fabric-<exact upstream MC id>` (e.g. `servux-fabric-26.1.2-b1`), so the server impersonates `fabric`; most business packets switched their NBT carrier from vanilla `writeNbt` to the **malilib DataTag wire format** (`[int32 BE compressed length][GZIP'd named-root NBT stream]`, see `DataTagIo`); the C2S `transactionId` VarInt prefix was removed; Structures dropped types 10/11/12 (spawn/weather now HUD-only); new `UNREGISTER_REPLY` types (HUD=9 / Entities=7 / Tweaks=7 / Litematics=8); the malilib client reassembly cap dropped **128MB → 16MB** (server-side transmit guard added). The Litematica **task group (types 14-17, Fill/Delete via servux) is implemented**: `TASK_REQUEST` → per-tick budgeted server-side fill/delete with InfoHud status sync (`REMAINING_CHUNKS` frames) and completion frames (see docs/09 §26.1.5; type 15 stays encodable-but-unsent since the client's receiver is TODO'd upstream, and type 17 is upstream-identically ignored).
 
-### 2. JEI Recipe Bridge
+### 2. JEI (full server protocol, upstream = mezz/JustEnoughItems `26.1` branch)
 
-On player join, syncs the **server's complete recipe table** to the JEI client, routed by client brand over two vanilla custom payload channels:
+Since 2026-09 the upstream is **mezz/JustEnoughItems** itself (JEI 29.37.0 / MC 26.1.2; the former Mrbysco/JEIRecipeBridge reference is discontinued and only ever covered the recipe-sync slice on 1.21.11). Three layers:
 
-- Fabric client → `fabric:recipe_sync`
-- NeoForge client → `neoforge:recipe_content`
+- **Recipe sync layer** (S2C, loader-level wire):
+  - Fabric client → `fabric:recipe_sync` (Fabric API `fabric-recipe-api-v1` wire; triggered when the client declares the channel — mirrors upstream's `canSend(player)` gating; vanilla clients get nothing, not even a chat message)
+  - NeoForge client → `neoforge:recipe_content` + tag table (triggered on join by client brand — preserved proven behavior)
+  - Sent directly via NMS `ClientboundCustomPayloadPacket` (recipe packs routinely exceed 1MiB; the channel is a client-registered known channel with a 64MB upstream cap, so the single-packet direct send is safe)
+- **`jei:*` channel layer** (10 channels, loader-agnostic):
+  - 8 C2S: `request_cheat_permission` / `give_item_stack` / `delete_player_item` / `set_hotbar_item_stack` / `recipe_transfer_with_result` / `recipe_transfer_counted_with_result` / legacy `recipe_transfer` / legacy `recipe_transfer_counted`
+  - 2 S2C: `cheat_permission` / `recipe_transfer_result`
+  - The client's feature gate `isJeiOnServer()` checks whether the **server declared** `jei:delete_player_item` etc. (channel registration via `ChannelManager`, brand-independent) — with all channels declared, cheat give/delete/hotbar-set and network recipe transfer unlock on Paper
+- **Server behavior layer**: cheat permission model (three switches: op level 2 / `minecraft.command.give` / creative mode, defaults op=true, creative=true, give=false) + `BasicRecipeTransferHandlerServer` ported line-by-line (slot validation, complete-set rollback, failure receipts — no half-applied state)
 
-Sent directly via NMS `ClientboundCustomPayloadPacket` (bypasses the plugin messaging size limit — recipe packs routinely exceed 32KiB). **Pure S2C / one-shot / a single `enabled` config option.** Handshake field `jei-recipe-bridge-paper-26.1.2-b1`.
+Protocol details: [docs/30-jei-protocol.md](docs/30-jei-protocol.md).
 
 ### 3. Syncmatica
 
@@ -116,7 +123,7 @@ Fundamentally different from Servux (one-way broadcast):
 |  Feature family                                                              |  Client must install                                                         |
 | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 |  All of Servux (HUD / structures / NBT query / schematic paste / EasyPlace)  |  **MiniHUD** + **Litematica** + **Tweakeroo** (the masa suite, 26.1 LTS)     |
-|  JEI recipe sync                                                             |  **JEI** + **JEIRecipeBridge**                                               |
+|  JEI recipe sync + cheat + recipe transfer                                  |  **JEI** (mezz/JustEnoughItems, 26.1 line)                                    |
 |  Schematic sharing                                                           |  **Syncmatica** (endte client, 26.1 LTS)                                     |
 
 > The client version must match the server's **MC 26.1 line (26.1.2)**. The client is the "receiving end" of these features; every protocol field semantic and packet-reassembly behavior is verified against the client source (see `OriginImpl/` for litematica / malilib / syncmatica).
@@ -137,7 +144,7 @@ On startup the console shows:
 ```
 [VeryMcProto] 启动中 (MC 26.1.2, paper)...
 [VeryMcProto] 已注册协议 mod: servux
-[VeryMcProto] 已注册协议 mod: jei_recipe_bridge
+[VeryMcProto] 已注册协议 mod: jei
 [VeryMcProto] 已注册协议 mod: syncmatica
 [VeryMcProto] 服务端启动完成，已捕获 RegistryAccess 并加载 servux.json。
 [VeryMcProto] 框架就绪。
@@ -166,11 +173,11 @@ verymc.top.veryMcProto
 │   └── util/              JSON / string utilities (Gson pretty + atomic tmp/move write)
 └── mod/                   Protocol-mod layer (each ported Fabric protocol mod occupies one directory unit)
     ├── servux/            Servux (app/command/dataproviders/network/easyplace/loggers/schematic/util)
-    ├── jeirecipebridge/   JEI Recipe Bridge
+    ├── jei/               JEI full server protocol (recipe sync + jei:* channels)
     └── syncmatica/        Syncmatica (communication/exchange/data/litematica/service/...)
 ```
 
-**Assembly order** (`VeryMcProto.onEnable`): initialize the framework (`ChannelManager` / `DataProviderManager` / `LifecycleBridge`) → register `servux` → `jeirecipebridge` → `syncmatica` in turn → register the `/servux` `/jei` `/syncmatica` commands.
+**Assembly order** (`VeryMcProto.onEnable`): initialize the framework (`ChannelManager` / `DataProviderManager` / `LifecycleBridge`) → register `servux` → `jei` → `syncmatica` in turn → register the `/servux` `/jei` `/syncmatica` commands.
 
 **Key replacements (Fabric → Paper), one-liners**:
 
@@ -180,7 +187,7 @@ verymc.top.veryMcProto
 - Fabric `ServerPlayNetworking` → **Paper `Messenger` (plugin messaging) + NMS `ClientboundCustomPayloadPacket` direct send**
 - `fabric-permissions-api` → `framework.permission.Perms` (op-level mapping)
 
-> **Original implementation archive**: `OriginImpl/` holds the original Fabric sources of every ported mod (servux / litematica / malilib / syncmatica / JEIRecipeBridge / tweakeroo / minihud / itemscroller / packetevents) for line-by-line comparison — **in case of divergence, the real source wins**.
+> **Original implementation archive**: `OriginImpl/` holds the original Fabric sources of every ported mod (servux / litematica / malilib / syncmatica / **JustEnoughItems-26.1 (mezz, the JEI upstream since 2026-09)** / tweakeroo / minihud / itemscroller / packetevents; plus JEIRecipeBridge-{1.21.11,26.1} as the old-line reference and the neoforge-layer wire reference) for line-by-line comparison — **in case of divergence, the real source wins**.
 
 ---
 
@@ -270,12 +277,12 @@ verymc.top.veryMcProto
 **Permission**: `jei.command` (default: op)
 
 ```
-/jei                Show current state + usage
-/jei enable         Enable join-time recipe sync (subsequent joiners get synced)
-/jei disable        Stop join-time push (channel kept, no kicks; already-online players are unaffected)
+/jei                (or /jei status)  Show module + cheat-switch state
+/jei enable         Enable the module (recipe sync + jei:* interactions for subsequent joiners)
+/jei disable        Disable the module (channels stay registered — no kicks; in-flight C2S silently dropped)
 ```
 
-> **Scope of effect**: only affects players who join **afterward**. Recipe sync is a one-shot join push with no persistent connection to tear down (unlike syncmatica's "interrupt in-progress transfers").
+> **Scope of effect**: only affects interactions **afterward** (recipe syncs for new joiners; new C2S packets are dropped). Channels are never unregistered on disable — unregistering would make later client packets hit an unregistered channel and get the player kicked. The three cheat switches live in `jei.json` (file-managed, same as upstream's `jei-server.properties`; no command toggles).
 
 ---
 
@@ -286,7 +293,7 @@ verymc.top.veryMcProto
 |  Permission node                 |  default   |  Purpose                                              |
 | -------------------------------- | ---------- | ----------------------------------------------------- |
 |  `servux.command`                |  op        |  All `/servux` subcommands                            |
-|  `jei.command`                   |  op        |  `/jei enable\|disable`                               |
+|  `jei.command`                   |  op        |  `/jei status\|enable\|disable`                       |
 |  `syncmatica.command`            |  **true**  |  Base `/syncmatica` command (incl. `load`)            |
 |  `syncmatica.command.admin`      |  op        |  `/syncmatica save\|reload\|enable\|disable\|status`  |
 |  `syncmatica.command.load`       |  **true**  |  `/syncmatica load` (bulk load)                       |
@@ -424,13 +431,16 @@ The config main channel — permanently enabled, and sends no network packets (o
 |  `fix_stairs_mirror`       |  bool        |  true     |  Fix stairs mirroring on paste       |
 |  `fix_chest_mirror`        |  bool        |  true     |  Fix chest mirroring on paste        |
 
-### 8.2 `jei-recipe-bridge.json`
+### 8.2 `jei.json`
 
-|  key        |  type  |  default  |  description                                                                     |
-| ----------- | ------ | --------- | -------------------------------------------------------------------------------- |
-|  `enabled`  |  bool  |  true     |  Whether to sync recipes to joining players (toggled by `/jei enable\|disable`)  |
+|  key                          |  type  |  default  |  description                                                                                              |
+| ----------------------------- | ------ | --------- | ---------------------------------------------------------------------------------------------------------- |
+|  `enabled`                    |  bool  |  true     |  Module master switch — recipe sync + jei:* interactions (toggled by `/jei enable\|disable`)               |
+|  `cheatModeEnabledForOp`      |  bool  |  true     |  Cheat allowed for permission level 2 (op) players                                                        |
+|  `cheatModeEnabledForCreative`|  bool  |  true     |  Cheat allowed for creative-mode players                                                                  |
+|  `cheatModeEnabledForGive`    |  bool  |  false    |  Cheat allowed for players with the `/give` permission (`minecraft.command.give`)                          |
 
-A missing / corrupt file is rebuilt from defaults and persisted.
+Defaults mirror upstream `jei-server.properties`. On first start, if the legacy `jei-recipe-bridge.json` exists, its `enabled` value is migrated (no silent re-enable of a deliberately disabled server). A missing / corrupt file is rebuilt from defaults and persisted.
 
 ### 8.3 `syncmatica-config.json`
 
@@ -461,7 +471,7 @@ Segmented by service (each service is a sub-object); **prefer managing via `/syn
 ```
 plugins/VeryMcProto/
 ├── servux.json                 Servux global config (6 provider segments)
-├── jei-recipe-bridge.json      JEI config (enabled toggle)
+├── jei.json                    JEI config (enabled + three cheat switches; migrates legacy jei-recipe-bridge.json)
 ├── syncmatica-config.json      Syncmatica config (quota / debug / debugLog segments)
 ├── placements.json             Syncmatica placement-metadata persistence (+ .bak / .new atomic write)
 ├── syncmatics/                 Syncmatica .litematic central repository (player upload / download / share)
@@ -506,7 +516,7 @@ The original Servux has **26 Mixins + 2 AccessWideners**; Syncmatica has **5 ser
 |  Mod                    |  S2C path                                                                                                              |  Notes                                                                    |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 |  **Servux**             |  plugin messaging (`ProtocolChannel.send` → `player.sendPluginMessage`)                                                |  Large packets split by `PacketSplitter`                                  |
-|  **JEI Recipe Bridge**  |  **NMS `ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes))` direct send**                                 |  Recipe packs routinely exceed 32KiB; plugin messaging would reject them  |
+|  **JEI**                |  **NMS `ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes))` direct send** (`JeiPacketSender`)            |  Recipe packs exceed 1MiB (known-channel 64MB cap makes single-packet safe); `jei:*` C2S via `ChannelManager` |
 |  **Syncmatica**         |  defaults to **NMS `DiscardedPayload` direct send** (`S2C_VIA_NMS=true`; builds a `[Identifier][body]` compound body)  |  `/syncmatica debug s2c msg` switches to plugin messaging for comparison  |
 
 ### Byte Limits
@@ -550,7 +560,7 @@ S2C-path troubleshooting: `/syncmatica debug s2c` (inspect) → `/syncmatica deb
 
 ### JEI
 
-JEI has no independent debug engine; check state via `/jei` and watch server logs for join-time sync.
+No independent debug engine; check state via `/jei status` and watch server logs (fabric leg logs on channel-declaration trigger, neoforge leg on join).
 
 ### Symptom Lookup
 
@@ -560,7 +570,7 @@ JEI has no independent debug engine; check state via `/jei` and watch server log
 |  Large schematic transmit / paste fails  |  Check for the client 32,767 disconnect; enable `network`/`packet` to inspect splitting                                                 |
 |  EasyPlace does nothing                  |  Confirm PacketEvents plugin is installed (`softdepend`); enable the `easyplace` category                                               |
 |  Syncmatica client can't connect         |  Defaults to NMS direct send; confirm with `/syncmatica debug s2c`; enable `handshake` to inspect the chain                             |
-|  JEI recipes don't sync                  |  Confirm `enabled` via `/jei`; note it only affects players joining **afterward**                                                       |
+|  JEI recipes don't sync                  |  Confirm `enabled` via `/jei`; fabric leg requires the client to declare `fabric:recipe_sync` (any Fabric-API client does); note it only affects players joining **afterward** |
 
 ---
 
@@ -714,7 +724,8 @@ This project is a Paper protocol-layer port of the following Fabric protocol mod
   - [`sakura-ryoko/litematica`](https://github.com/sakura-ryoko/litematica) · [`sakura-ryoko/malilib`](https://github.com/sakura-ryoko/malilib) · [`sakura-ryoko/minihud`](https://github.com/sakura-ryoko/minihud) · [`sakura-ryoko/tweakeroo`](https://github.com/sakura-ryoko/tweakeroo) · [`sakura-ryoko/itemscroller`](https://github.com/sakura-ryoko/itemscroller)
   - These are the client-side receivers of the protocols.
 - **Syncmatica** — originally by **endte** ([`End-Tech/syncmatica`](https://github.com/End-Tech/syncmatica)); now maintained by **sakura-ryoko** ([`sakura-ryoko/syncmatica`](https://github.com/sakura-ryoko/syncmatica)). The shared schematic central repository.
-- **JEIRecipeBridge** — by **Mrbysco** ([`Mrbysco/JEIRecipeBridge`](https://github.com/Mrbysco/JEIRecipeBridge)). The JEI recipe bridge.
+- **JustEnoughItems (JEI)** — by **mezz** ([`mezz/JustEnoughItems`](https://github.com/mezz/JustEnoughItems), `26.1` branch). **The JEI upstream since 2026-09** — the full server protocol (recipe sync via loader channels + `jei:*` cheat/transfer channels) is ported from it.
+- **JEIRecipeBridge** — by **Mrbysco** ([`Mrbysco/JEIRecipeBridge`](https://github.com/Mrbysco/JEIRecipeBridge)). The historical JEI recipe-sync reference (1.21.11 line still uses it; kept in `OriginImpl/` for the neoforge-layer wire reference).
 
 ### References
 
