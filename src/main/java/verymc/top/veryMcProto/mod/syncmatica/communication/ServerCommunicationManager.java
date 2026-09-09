@@ -17,6 +17,7 @@ import verymc.top.veryMcProto.mod.syncmatica.data.LocalLitematicState;
 import verymc.top.veryMcProto.mod.syncmatica.data.ServerPlacement;
 import verymc.top.veryMcProto.mod.syncmatica.extended_core.PlayerIdentifier;
 import verymc.top.veryMcProto.mod.syncmatica.network.PacketType;
+import verymc.top.veryMcProto.mod.syncmatica.SyncmaticaReference;
 import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaLog;
 import io.netty.buffer.Unpooled;
 
@@ -83,25 +84,44 @@ public class ServerCommunicationManager extends CommunicationManager
         // 此处【不】立即发起 VersionHandshakeServer——原版可行是因为 Fabric 配置阶段已完成通道声明；
         // Paper 下 PlayerJoinEvent 时客户端 codec 尚未就绪，立即推 REGISTER_VERSION 会握手失败并残留 exchange。
         // 握手发起策略（双保险，见 SyncmaticaModule.onJoin）：
-        //   ① 主路径：onJoin → runTaskLater(40t) → tryStartHandshake（等 configuration phase 完成、codec 就绪）；
-        //   ② 兜底：onPlayerRegisterChannel(syncmatica:main) → tryStartHandshake（旧式 MC|Register，1.21 通常不触发）。
+        //   ① 主路径：onJoin → runTaskLater(40t) → tryStartHandshake（等 configuration phase 完成、codec 就绪；
+        //      声明已到则守卫通过立即握手，未到则被 canSend 守卫拦截）；
+        //   ② 兜底：onPlayerRegisterChannel(syncmatica:main) → tryStartHandshake（26.1 实测：Fabric 客户端进服后
+        //      声明通道并触发本事件，时序可晚于 40t 探针 0~2s+，届时 Paper 已先更新声明集合、守卫必过）。
         // tryStartHandshake 幂等（已在 broadcastTargets / 有进行中的 VersionHandshakeServer 则跳过）。
     }
 
     /**
      * 幂等发起版本握手（Paper 新增）。
      *
+     * <p><b>canSend 声明守卫</b>（上游 {@code ServerPlayHandler.sendSyncPacket(player)} 的 Paper 等价物）：
+     * 仅当客户端已声明 {@code syncmatica:main}（{@code getListeningPluginChannels()} 包含）才发探针——
+     * vanilla 客户端永不声明（零探针零死包），mod 客户端声明未达时由本守卫拦截、待
+     * {@code onPlayerRegisterChannel} 到达后再发起（26.1 实测：Fabric 客户端进服后声明通道并触发本事件
+     * 且入集合，但时序可晚于 onJoin+40t 探针 0~2s+，见 2026-09-08 测试服日志）。
+     *
      * <p>由 {@code SyncmaticaModule} 双路径调用：
      * <ul>
      *   <li>主路径——{@code onJoin}（{@link org.bukkit.event.player.PlayerJoinEvent}）延迟 40t 后调用
-     *       （等 configuration phase 完成、客户端 codec 就绪）；</li>
+     *       （等 configuration phase 完成、客户端 codec 就绪；声明已到则立即握手，未到则被守卫拦截等待兜底）；</li>
      *   <li>兜底——{@code onPlayerRegisterChannel}（{@link org.bukkit.event.player.PlayerRegisterChannelEvent}，
-     *       客户端经旧式 MC|Register 声明 {@code syncmatica:main} 时；1.21 Fabric 客户端通常不触发）。</li>
+     *       客户端声明 {@code syncmatica:main} 时触发；Paper 先更新声明集合再触发事件，届时守卫必过）。</li>
      * </ul>
      * 幂等：已握手成功（在 {@code broadcastTargets}）/ 已有进行中的 VersionHandshakeServer 则跳过。
      */
     public void tryStartHandshake(final ExchangeTarget target)
     {
+        // ★ canSend 客户端声明守卫：未声明不发探针（对齐上游 ServerPlayNetworking.canSend 语义）。
+        // 拦截三态：vanilla 客户端（永不声明，本次连接零 syncmatica 包）/ mod 客户端声明未达
+        //（由 onPlayerRegisterChannel 兜底再发起）/ 退出重进的陈旧 target（旧连接的声明集合残留，
+        // 既有竞态——见 docs 残留声明，拦截或有界瞬态，均不创建 exchange）。
+        if (!target.getPlayer().getListeningPluginChannels().contains(SyncmaticaReference.NETWORK_ID.toString()))
+        {
+            SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] tryStartHandshake: 拦截 " + target.getPersistentName()
+                    + "（未声明 syncmatica:main——vanilla 客户端，或 mod 声明未达（由 onPlayerRegisterChannel 兜底），"
+                    + "或退出重进的陈旧 target）");
+            return;
+        }
         if (broadcastTargets.contains(target))
         {
             SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] tryStartHandshake: 跳过 " + target.getPersistentName()
@@ -118,8 +138,8 @@ public class ServerCommunicationManager extends CommunicationManager
             }
         }
         SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] tryStartHandshake: 发起握手 → " + target.getPersistentName()
-                + "（客户端已声明 syncmatica:main）");
-        SyncmaticaLog.info("syncmatica 发起握手 → {}（客户端已声明 syncmatica:main）", target.getPersistentName());
+                + "（canSend 守卫通过：已声明 syncmatica:main）");
+        SyncmaticaLog.info("syncmatica 发起握手 → {}（canSend 守卫通过：已声明 syncmatica:main）", target.getPersistentName());
         final VersionHandshakeServer hi = new VersionHandshakeServer(target, context);
         startExchangeUnchecked(hi);
     }

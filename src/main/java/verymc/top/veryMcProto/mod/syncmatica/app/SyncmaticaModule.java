@@ -79,12 +79,13 @@ public class SyncmaticaModule
                     final ExchangeTarget target = fComMan.getOrCreateTarget(e.getPlayer());
                     fComMan.onPlayerJoin(target);
 
-                    // ★ 命门修复：把握手从「仅依赖 onPlayerRegisterChannel」改为双保险（与 servux HudDataProvider 一致）。
-                    // 1.21.x Fabric 客户端（syncmatica 经 PayloadTypeRegistry.playS2C() 声明通道）不通过 Bukkit
-                    // 旧式 MC|Register 机制声明 → PlayerRegisterChannelEvent 不触发 → 单路径下 tryStartHandshake
-                    // 永不调用 → syncmatica 完全不可用（实测：玩家进服后无任何 HANDSHAKE 日志）。
-                    // 主路径改为 onPlayerJoin 延迟 40t（2s，等 configuration phase 完成、客户端 codec 就绪），
-                    // onPlayerRegisterChannel 保留为加速/兜底（若事件触发则立即握手，tryStartHandshake 幂等）。
+                    // ★ 双保险握手（与 servux HudDataProvider 一致；历史：曾单依赖 onPlayerRegisterChannel，
+                    // 1.21.11 时代实测事件不触发导致 syncmatica 完全不可用，遂加入 onJoin+40t 主路径）。
+                    // 26.1 实测更新（2026-09-08 测试服日志）：Fabric 客户端进服后会声明通道并触发
+                    // onPlayerRegisterChannel、getListeningPluginChannels() 亦包含——但时序可晚于 40t 探针
+                    // 0~2s+（两路径真实竞态）。onJoin+40t 主路径（等 configuration phase 完成、codec 就绪，
+                    // 声明已到则守卫通过立即握手）；tryStartHandshake 带 canSend 声明守卫，声明未达时拦截，
+                    // 由 onPlayerRegisterChannel 到达后再发起（届时守卫必过）。
                     final org.bukkit.entity.Player bukkitPlayer = e.getPlayer();
                     new BukkitRunnable()
                     {
@@ -139,10 +140,10 @@ public class SyncmaticaModule
             @EventHandler
             public void onRegisterChannel(final PlayerRegisterChannelEvent e)
             {
-                // 兜底/加速路径：若客户端通过 MC|Register 声明了 syncmatica:main（旧式协商），立即握手。
-                // 注意：1.21.x Fabric 客户端（PayloadTypeRegistry.playS2C() 新式协商）通常【不】触发本事件，
-                // 故握手的主路径在 onJoin 的 40t 延迟（见上），此处仅作加速/兜底。tryStartHandshake 幂等，
-                // 两路径安全共存。
+                // 兜底/主力路径：客户端声明 syncmatica:main 时立即握手（Paper 先更新声明集合再触发本事件，
+                // tryStartHandshake 的 canSend 守卫届时必过）。26.1 实测：Fabric 客户端进服后会触发本事件，
+                // 但时序可晚于 onJoin+40t 探针 0~2s+——即 40t 主路径被守卫拦截（声明未达）时，本路径是
+                // 声明晚到场景的握手发起主力。tryStartHandshake 幂等，两路径安全共存。
                 if (!SyncmaticaReference.NETWORK_ID.toString().equals(e.getChannel()))
                 {
                     return;
