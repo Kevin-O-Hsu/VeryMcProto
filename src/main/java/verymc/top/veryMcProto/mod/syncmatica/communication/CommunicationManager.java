@@ -112,7 +112,7 @@ public abstract class CommunicationManager
     public void putMetaData(final ServerPlacement metaData, final FriendlyByteBuf buf, final ExchangeTarget exchangeTarget)
     {
         buf.writeUUID(metaData.getId());
-        buf.writeUtf(metaData.getFileName());
+        buf.writeUtf(metaData.getCleanFileName());
         buf.writeUUID(metaData.getHash());
 
         if (exchangeTarget.getFeatureSet().hasFeature(Feature.DISPLAY_NAME))
