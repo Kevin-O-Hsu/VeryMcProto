@@ -56,7 +56,7 @@
 **当前版本**（尚未冻结）的 Bug 直接走 `dev → main`，不为它开 `ver/*` 分支——避免同一件事存在多个改动入口。`ver/*` 对只在上游出现新版本的那一刻创建。
 
 **当前状态**（2026-09，以上游版本清单为准）：
-- 上游最新 release **26.2**，snapshot **26.3-pre-2**（26.3 将近）。
+- 上游最新 release **26.2**，snapshot **26.3-pre-3**（26.3 将近）。
 - **`dev → main` 承载 26.1 线（26.1.2）**：26.1 全量迁移已完成（构建面 Java 25 / 新 dev-bundle 格式 / reobf 废除、协议面 DataTag 载体 + 版本常量 + 硬门禁对齐、NMS 漂移 39 处修复），`./gradlew build` 23/23 单测全绿，Paper 26.1.2 实机起服验证通过。
 - **1.21.11 是旧版本**：`ver/1.21.11` + `ver/1.21.11-dev` 维护对已从 `main`（tag `v1.21.11-b1`）冻结切出。
 - 适配 26.2 属后续工作（冻结 ver/26.1.2 对 → dev 升 mcVersion + bundle → NMS/协议漂移核对，见「升级 Minecraft 版本」）。
@@ -291,7 +291,7 @@ Litematica 投影子系统（`mod/servux/schematic/`，约 8000 行）已移植�
 | [`docs/00-INDEX.md`](docs/00-INDEX.md) | 文档总索引 + 推荐阅读路线 |
 | [`docs/01-servux-architecture.md`](docs/01-servux-architecture.md) | 原版架构总览：启动流程、`DataProviderManager`、生命周期、配置/设置系统 |
 | [`docs/02-network-protocol.md`](docs/02-network-protocol.md) ⭐ | **核心网络协议**：`CustomPacketPayload` 模型、`PacketSplitter` 分片、6 条通道、字节布局、收发流程 |
-| [`docs/03-dataproviders-detail.md`](docs/03-dataproviders-detail.md) | 6 个 Provider 的协议数据内容 + 数据采集（含 `loggers` TPS/MobCap）+ 权限节点 |
+| [`docs/03-dataproviders-detail.md`](docs/03-dataproviders-detail.md) | 5 个数据 Provider（+配置主通道）的协议数据内容 + 数据采集（含 `loggers` TPS/MobCap）+ 权限节点 |
 | [`docs/04-mixin-analysis.md`](docs/04-mixin-analysis.md) | 26 Mixin + 2 AccessWidener 逐项清单、分类、迁移去向 |
 | [`docs/05-schematic-system.md`](docs/05-schematic-system.md) ⭐ | Litematica 投影系统：BitArray/Palette/Container/Selection/Placement/Transmit + 传输协议 |
 | [`docs/06-fabric-vs-paper.md`](docs/06-fabric-vs-paper.md) | Fabric ↔ Paper 框架差异对照表 |

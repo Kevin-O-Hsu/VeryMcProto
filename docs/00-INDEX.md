@@ -1,14 +1,15 @@
 # VeryMcProto · 文档总索引
 
-> 本目录是 **VeryMcProto**（Fabric 协议 Mod → Paper 1.21.11 插件移植）的全部技术文档。
+> 本目录是 **VeryMcProto**（Fabric 协议 Mod → Paper 插件移植，当前 26.1.2 线）的全部技术文档。
 >
 > **三个协议 mod 全部已完整实现并实测通过**：
 > - **Servux**（masa 服务端协议）—— 5 数据通道 + schematic（投影投递/粘贴）+ EasyPlace。
 > - **JEI 服务端协议**（最上游 mezz/JustEnoughItems 26.1，2026-09 起更换）—— 完整三层：配方同步（fabric/neoforge 双腿）+ jei:* 自有 10 通道（cheat 给/删/热键栏 + 配方转移）+ 服务端行为层。
 > - **Syncmatica**（投影共享中央仓库）—— 单通道 + Exchange 会话层 + 文件存储 + JSON 持久化（实现说明见 20–24）。
 >
-> 顶层项目说明见根目录 [`../CLAUDE.md`](../CLAUDE.md)。
+> 顶层项目说明见根目录 [`../AGENTS.md`](../AGENTS.md)（唯一权威；`CLAUDE.md` 已收敛为指向它的薄指针）。
 > 原版 Fabric 源码对照：[`../OriginImpl/`](../OriginImpl/)（`servux` / `syncmatica` / `litematica` / `malilib` / `JustEnoughItems-26.1`（mezz 最上游）/ `JEIRecipeBridge-{1.21.11,26.1}`（Mrbysco，1.21.11 线沿用 + neoforge 层参考）各子目录）。
+> ⚠️ **时代标注**：文档 01–07 / 10 对原版的分析成文于 1.21.11 LTS 源码（文中协议版本等数字以该线为准）；26.1 线的协议面差异（协议版本 3/2/2/3/2、DataTag 载体、MOD_STRING 硬门禁等）以 [`09-DELIVERY.md`](09-DELIVERY.md) §26.1 与根 [`AGENTS.md`](../AGENTS.md) 为准。
 
 ---
 
@@ -47,7 +48,7 @@
 ## 推荐阅读路线（Servux）
 
 **第一次读（建立全貌，约 30 分钟）**：
-1. 根 [`../CLAUDE.md`](../CLAUDE.md) —— 项目定位与核心约束
+1. 根 [`../AGENTS.md`](../AGENTS.md) —— 项目定位与核心约束
 2. 本文 `00-INDEX.md`
 3. [01-servux-architecture.md](01-servux-architecture.md) —— 原版怎么组织的
 4. [02-network-protocol.md](02-network-protocol.md) —— **网络层是最关键、必须先吃透的**
@@ -146,4 +147,4 @@
 | **NMS** | `net.minecraft.*`（Mojang 原版服务端类），Paper 经 paperweight userdev 可访问。 |
 | **Mojang 名** | Mojang 全反混淆映射下的类/字段/方法名（`reobf` 不转换反射字符串，故反射用 Mojang 名）。 |
 
-> **协作约定**：所有文档互相用相对链接索引；提到原版代码时优先给出**相对路径**（`OriginImpl/<mod>-LTS-1.21.11/src/main/java/...`）与**关键行/方法名**，方便直接跳转对照。
+> **协作约定**：所有文档互相用相对链接索引；提到原版代码时优先给出**相对路径**（`OriginImpl/<mod>-LTS-26.1/src/main/java/...`）与**关键行/方法名**，方便直接跳转对照。

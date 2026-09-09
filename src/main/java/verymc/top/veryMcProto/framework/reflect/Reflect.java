@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>paperweight-userdev 的 Mojang dev bundle 提供全映射 {@code net.minecraft.*}：
  * public / protected 成员直接用 Mojang 名访问；private / final 成员用本工具兜底反射。
- * Paper 1.21.11 运行时即 Mojang 映射，reobf 不转换反射字符串，故反射用 Mojang 名天然命中。
+ * 26.1 起 reobf 废除（Mojang 移除服务端混淆），产物与 Paper 运行时同为 Mojang 映射，反射用 Mojang 名天然命中。
  *
  * <p>沿父类链逐层查找字段 / 方法，自动 {@link Field#setAccessible(boolean)}。
  * 字段 / 方法查找结果做线程安全缓存，避免热路径（如每 tick 的 TPS / MobCap 采集）重复反射。

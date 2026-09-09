@@ -9,7 +9,7 @@ import verymc.top.veryMcProto.Reference;
  *
  * <p><b>Paper 适配</b>：
  * <ul>
- *   <li>{@link #MOD_VERSION} = 插件版本（如 {@code "1.21.11-b1"}，源自框架 Reference 版本单一来源），
+ *   <li>{@link #MOD_VERSION} = 插件版本（如 {@code "26.1.2-b1"}，源自框架 Reference 版本单一来源），
  *       使 {@code FeatureSet.fromVersionString} 返回 null → 触发 FEATURE 交换 → 双方用全集
  *       FeatureSet（MODIFY/DISPLAY_NAME/CORE_EX/VERSION 全开）。{@code -b} 构建号后缀使其永远
  *       不命中 {@code ^\d+(\.\d+){2,4}$} 版本正则（连 "0.1.x" 兼容分支都不可能误入），行为比裸

@@ -661,7 +661,7 @@ While a version is current (not yet frozen), its fixes go straight through `dev 
 
 **Before any development session**, query the Mojang version manifest — `https://launchermeta.mojang.com/mc/game/version_manifest_v2.json` (read `latest.release` / `latest.snapshot`; cross-check Paper at `https://api.papermc.io/v2/projects/paper`) — to see where upstream is. If upstream has moved past the line you are on, that line is old: its work belongs on `ver/<X>-dev`, and `dev` is due for an upgrade pass.
 
-**Current status** (2026-09): upstream latest release is **26.2** (snapshot `26.3-pre-2`). `dev → main` carries the **26.1 line (26.1.2)** — the full 26.1 migration landed (build/toolchain, DataTag wire format, protocol v3/v2 bumps, NMS drift). `ver/1.21.11` + `ver/1.21.11-dev` are the frozen 1.21.11 maintenance pair, cut from `main` at tag `v1.21.11-b1`.
+**Current status** (2026-09): upstream latest release is **26.2** (snapshot `26.3-pre-3`). `dev → main` carries the **26.1 line (26.1.2)** — the full 26.1 migration landed (build/toolchain, DataTag wire format, protocol v3/v2 bumps, NMS drift). `ver/1.21.11` + `ver/1.21.11-dev` are the frozen 1.21.11 maintenance pair, cut from `main` at tag `v1.21.11-b1`.
 
 Release flow (in-version): on the active dev line (`dev` or `ver/<X>-dev`), bump `buildNumber` → commit → merge into the matching release line (`main` or `ver/<X>`) → `./gradlew build` → tag `v<version>` (e.g. `v1.21.11-b1`).
 
