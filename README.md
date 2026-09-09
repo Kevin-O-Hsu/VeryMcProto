@@ -53,7 +53,7 @@ This project uses **paperweight `userdev`** to reference fully-deobfuscated Moja
 |  Mod                    |  Client Mod                                   |  Nature                                                                 |  Status  |
 | ----------------------- | --------------------------------------------- | ----------------------------------------------------------------------- | -------- |
 |  **Servux**             |  masa's **MiniHUD / Litematica / Tweakeroo**  |  Server→client **one-way broadcast** (6 providers)                      |  ✅ Full  |
-|  **JEI Recipe Bridge**  |  **JEI** + **JEIRecipeBridge**                |  **One-shot S2C** recipe sync on player join                            |  ✅ Full  |
+|  **JEI Recipe Bridge**  |  **JEI** only (bridge is server-side)         |  **One-shot S2C** recipe sync on player join                            |  ✅ Full  |
 |  **Syncmatica**         |  **endte syncmatica**                         |  **Bidirectional, stateful, multi-player shared** schematic repository  |  ✅ Full  |
 
 ### 1. Servux
@@ -88,6 +88,8 @@ On player join, syncs the **server's complete recipe table** to the JEI client, 
 
 Sent directly via NMS `ClientboundCustomPayloadPacket` (bypasses the plugin messaging size limit — recipe packs routinely exceed 32KiB). **Pure S2C / one-shot / a single `enabled` config option.** Handshake field `jei-recipe-bridge-paper-1.21.11-b1`.
 
+> **The client only needs JEI itself.** JEIRecipeBridge is **server-side software** (upstream it is a Fabric *server* mod; here this plugin plays that role on Paper) — **nothing extra is ever installed on the client**.
+
 ### 3. Syncmatica
 
 Fundamentally different from Servux (one-way broadcast):
@@ -116,7 +118,7 @@ Fundamentally different from Servux (one-way broadcast):
 |  Feature family                                                              |  Client must install                                                         |
 | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 |  All of Servux (HUD / structures / NBT query / schematic paste / EasyPlace)  |  **MiniHUD** + **Litematica** + **Tweakeroo** (the masa suite, 1.21.11 LTS)  |
-|  JEI recipe sync                                                             |  **JEI** + **JEIRecipeBridge**                                               |
+|  JEI recipe sync                                                             |  **JEI** (JEIRecipeBridge runs server-side — no extra client mod)             |
 |  Schematic sharing                                                           |  **Syncmatica** (endte client, 1.21.11 LTS)                                  |
 
 > The client version must match the server's **MC 1.21.11**. The client is the "receiving end" of these features; every protocol field semantic and packet-reassembly behavior is verified against the client source (see `OriginImpl/` for litematica / malilib / syncmatica).
@@ -710,7 +712,7 @@ This project is a Paper protocol-layer port of the following Fabric protocol mod
   - [`sakura-ryoko/litematica`](https://github.com/sakura-ryoko/litematica) · [`sakura-ryoko/malilib`](https://github.com/sakura-ryoko/malilib) · [`sakura-ryoko/minihud`](https://github.com/sakura-ryoko/minihud) · [`sakura-ryoko/tweakeroo`](https://github.com/sakura-ryoko/tweakeroo) · [`sakura-ryoko/itemscroller`](https://github.com/sakura-ryoko/itemscroller)
   - These are the client-side receivers of the protocols.
 - **Syncmatica** — originally by **endte** ([`End-Tech/syncmatica`](https://github.com/End-Tech/syncmatica)); now maintained by **sakura-ryoko** ([`sakura-ryoko/syncmatica`](https://github.com/sakura-ryoko/syncmatica)). The shared schematic central repository.
-- **JEIRecipeBridge** — by **Mrbysco** ([`Mrbysco/JEIRecipeBridge`](https://github.com/Mrbysco/JEIRecipeBridge)). The JEI recipe bridge.
+- **JEIRecipeBridge** — by **Mrbysco** ([`Mrbysco/JEIRecipeBridge`](https://github.com/Mrbysco/JEIRecipeBridge)). A server-side recipe bridge (runs on the server only — the client just runs JEI).
 
 ### References
 
