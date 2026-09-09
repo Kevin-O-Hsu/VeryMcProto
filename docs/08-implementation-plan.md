@@ -141,7 +141,7 @@
 
 | # | 任务 | 细节 | 优先级 | 参考 |
 |---|---|---|---|---|
-| 7.1 | EasyPlace ✅ 已完成 | PacketEvents 拦截 `PLAYER_BLOCK_PLACEMENT`，实现 `PlacementHandler.applyPlacementProtocolV3` + 手动复刻 place 副作用（`EasyPlaceListener`） | P3 | [04](04-mixin-analysis.md) §4；[07](07-migration-architecture.md) §4 |
+| 7.1 | EasyPlace ✅ 已完成 | 「改写放行」范式（2026-09 重构）：`EasyPlaceListener` 改写编码包 cursor 放行 + 登记 pv（`EasyPlacePending`），vanilla 全流程放置；`EasyPlaceFixListener` 在 `BlockPlaceEvent` 用 `PlacementHandler.applyPlacementProtocolV3` 修正属性 | P3 | [04](04-mixin-analysis.md) §4；[07](07-migration-architecture.md) §4 |
 | 7.2 | 大包性能优化 | Recipe/Litematic 通道升级方案 B（NMS 发包保 1MiB 分片） | P2 | [07](07-migration-architecture.md) §2.2 |
 | 7.3 | Structures 性能 | 扫描频率/缓存优化；view distance 限制 | P2 | [07](07-migration-architecture.md) §6 |
 | 7.4 | i18n / 日志 | lang 文件或硬编码消息；`getLogger` | P3 | [01](01-servux-architecture.md) §9 |

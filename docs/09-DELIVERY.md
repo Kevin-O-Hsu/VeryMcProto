@@ -152,7 +152,7 @@ verymc.top.veryMcProto/
 
 | 功能 | 原版实现 | Paper 处置 | 影响 |
 |---|---|---|---|
-| **EasyPlace**（Tweakeroo 精确放置） | Mixin BlockItem/NetworkHandler | ✅ 已实现（PacketEvents `EasyPlaceListener`） | 需服务器装 packetevents 插件 |
+| **EasyPlace**（Tweakeroo 精确放置） | Mixin BlockItem/NetworkHandler | ✅ 已实现（「改写放行」：PacketEvents `EasyPlaceListener` 改写 cursor 放行 + `EasyPlaceFixListener` 在 BlockPlaceEvent 修正） | 需服务器装 packetevents 插件；床/门双半格朝向不修正（降级） |
 | **UpdateSuppression** | Mixin Level/WorldChunk | 省略 | 协议非必需 |
 | **潜影盒可堆叠** | Mixin ItemStack/Hopper | ⛔ 不可能实现（已删代码） | 改 NMS 全局方法行为，Paper 无等价；不下发元数据避免客户端误判 |
 | **Allay 收集修复** | Mixin Mob/ItemEntity/Allay | 省略 | 影响小 |

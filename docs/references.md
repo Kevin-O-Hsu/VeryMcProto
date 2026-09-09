@@ -52,7 +52,7 @@
 
 | 资源 | 链接 | 用途 |
 |---|---|---|
-| PacketEvents | https://docs.packetevents.com/ / https://modrinth.com/plugin/packetevents | **EasyPlace 已实现**（`EasyPlaceListener` 拦截 `PLAYER_BLOCK_PLACEMENT`）；见 [07](07-migration-architecture.md) §4、[08](08-implementation-plan.md) 7.1 |
+| PacketEvents | https://docs.packetevents.com/ / https://modrinth.com/plugin/packetevents | **EasyPlace 已实现**（`EasyPlaceListener` 拦截 `PLAYER_BLOCK_PLACEMENT` 改写 cursor 放行 + `EasyPlaceFixListener` 修正）；见 [07](07-migration-architecture.md) §4、[08](08-implementation-plan.md) 7.1 |
 | LuckPerms | https://luckperms.net/ | 权限增强（可选，替代 fabric-permissions-api） |
 | Vault | https://github.com/MilkBowl/Vault | 权限/经济抽象（可选） |
 

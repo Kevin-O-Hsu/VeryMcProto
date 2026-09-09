@@ -219,7 +219,7 @@ long sprint = Reflect.get(tickManager, "remainingSprintTicks");  // Mojang 名
 | **Litematica 投影投递/粘贴** | MixinChestBlock/Rail/Stairs（镜像） | ✅ **做**（投影照抄 + 镜像修复**内联**到粘贴） | P2 | 见 [05](05-schematic-system.md) |
 | **潜影盒可堆叠** | MixinItemStack/Hopper | ⛔ **不可能实现** | P3 | 改 NMS 方法全局返回行为，Paper 无 Mixin；已删 Tweaks provider 相关遗留代码（不下发 stackingShulkers 元数据，避免客户端误判）。详见 [04](04-mixin-analysis.md) §4 |
 | **Allay 收集修复** | MixinMob/ItemEntity/Allay | ⚠️ **省略** | P4 | 改行为，影响小 |
-| **EasyPlace**（Tweakeroo 精确放置） | MixinBlockItem_EasyPlace + MixinServerPlayNetworkHandler_EasyPlace | ✅ **已实现** | P3 | PacketEvents 拦截 `PLAYER_BLOCK_PLACEMENT` + `PlacementHandler.applyPlacementProtocolV3` + 手动复刻 `BlockItem.place` 副作用（`EasyPlaceListener`） |
+| **EasyPlace**（Tweakeroo 精确放置） | MixinBlockItem_EasyPlace + MixinServerPlayNetworkHandler_EasyPlace | ✅ **已实现** | P3 | 「改写放行」范式：`EasyPlaceListener` netty 线程把编码包 `cursor.x` 改写回 `relX`（等效上游短路校验的 Mixin）+ 登记 pv；vanilla 全流程放置（手持/检查/BE/消耗/ack 原生——**消除 netty 读手持的换手 desync 竞态**，2026-09 修复）；`EasyPlaceFixListener` 在 `BlockPlaceEvent`（HIGHEST）用 `applyPlacementProtocolV3` 修正属性（基座=vanilla 落块状态）。与上游差异：床/门双半格不修正（`BlockMultiPlaceEvent` 降级）、`itemPlacementContext` 恒 null、恢复 vanilla 距离/保护检查、保护插件重新可见放置事件 |
 | **UpdateSuppression** | MixinWorld/WorldChunk/Block | ❌ **省略** | P4 | 改行为，Paper 无等价，省略 |
 | **调试 (IDE 模式)** | MixinSharedConstants | ❌ **省略** | — | 生产无用 |
 
@@ -278,7 +278,7 @@ load: POSTWORLD
 | `MOD_STRING` 协议握手字段 | 客户端版本协商 | 改为 `servux-paper-1.21.11-x.y.z`；`version`(协议版本号) **保持不变**（HUD=2 等） |
 | NMS 签名随版本漂移 | 升级 MC 时编译失败 | 反射点集中在 `reflect/`；升级时按 [04](04-mixin-analysis.md) 反射点清单核对 |
 | Structures 周期扫描性能 | 玩家多时 CPU 占用 | 限扫描频率（`update_interval` 默认 100t=5s）；只扫 view distance 内；去重缓存 |
-| EasyPlace 已实现 | Tweakeroo 精确放置可用（需服务器装 PacketEvents 插件） | `EasyPlaceListener` 拦截 use_item_on + 协议 v3 解码 |
+| EasyPlace 已实现 | Tweakeroo 精确放置可用（需服务器装 PacketEvents 插件） | 「改写放行」：`EasyPlaceListener` 改写编码包 cursor 放行 + `EasyPlaceFixListener` 在 `BlockPlaceEvent` 协议 v3 修正 |
 | 通道名与 provider 名混淆 | 注册错通道 | 用各 Handler 的 `CHANNEL_ID` 常量（网络名），非 provider 名；见 [02](02-network-protocol.md) §2 |
 
 ---
