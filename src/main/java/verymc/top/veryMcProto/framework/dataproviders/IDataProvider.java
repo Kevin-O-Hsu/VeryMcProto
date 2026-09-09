@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.google.gson.JsonObject;
 
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -71,6 +72,27 @@ public interface IDataProvider
     }
 
     boolean isPlayerRegistered(ServerPlayer player);
+
+    /**
+     * 客户端 C2S 注册入口（type 2 METADATA_REQUEST / type 3 STRUCTURES_REGISTER）。移植自原版
+     * {@code IDataProvider#register(ServerPlayer, CompoundData)}（上游 :134）。
+     *
+     * <p>实现须以 {@link DataProviderBase#isVersionTooLow} 做版本门禁：客户端 version 低于本
+     * Provider 协议版本即拒绝（warn 日志 + 聊天提示 + tickFailures 检疫 + 不入注册名册），
+     * 其余入口（刷新/请求/推送）均以 {@link #isPlayerRegistered} 名册拦截被拒玩家。
+     *
+     * @param tags 注册包 NBT（含 "version"）；可为 null（视同版本过低，拒绝）
+     */
+    void register(ServerPlayer player, CompoundTag tags);
+
+    /**
+     * 客户端注销（UNREGISTER_REPLY）。移植自原版 {@code IDataProvider#unregister(ServerPlayer, CompoundData)}
+     * （上游 :141）——上游双参的 tags 形参在全部六个实现中均未读取，有意简化为单参。
+     *
+     * <p>语义：出注册名册 + resetFailures；<b>不清</b> invalid 名册（上游 unregister 同款——
+     * invalid 由 removePlayer[quit] 与 register 成功路径清理）。
+     */
+    void unregister(ServerPlayer player);
 
     boolean hasPermission(ServerPlayer player);
 

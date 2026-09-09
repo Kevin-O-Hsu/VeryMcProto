@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.resources.Identifier;
@@ -13,6 +14,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
+import verymc.top.veryMcProto.Reference;
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderBase;
 import verymc.top.veryMcProto.mod.servux.ServuxDebug;
 import verymc.top.veryMcProto.framework.network.IPluginServerPlayHandler;
@@ -58,6 +60,8 @@ public class EntitiesDataProvider extends DataProviderBase
     );
 
     private final List<UUID> invalidPlayers = new ArrayList<>();
+    /** 注册名册（上游 registeredPlayers）：C2S REGISTER 版本门禁 + 权限双门通过后入册。 */
+    private final List<UUID> registeredPlayers = new ArrayList<>();
 
     protected EntitiesDataProvider()
     {
@@ -87,7 +91,54 @@ public class EntitiesDataProvider extends DataProviderBase
 
     @Override public IPluginServerPlayHandler getPacketHandler() { return HANDLER; }
 
-    @Override public boolean isPlayerRegistered(ServerPlayer player) { return !this.isPlayerInvalid(player); }
+    @Override
+    public boolean isPlayerRegistered(ServerPlayer player)
+    {
+        return this.registeredPlayers.contains(player.getUUID()) && !this.isPlayerInvalid(player);
+    }
+
+    /**
+     * C2S 注册入口（type 2 METADATA_REQUEST）。上游 EntitiesDataProvider.register（:111-149）字面移植：
+     * isEnabled → 版本门禁（deny 四件套）→ 权限（不入册）→ 入册 → sendMetadata。
+     * （上游 Entities register 不调 removeInvalidPlayer，从上游。）
+     */
+    @Override
+    public void register(ServerPlayer player, CompoundTag tags)
+    {
+        if (!this.isEnabled()) { return; }
+
+        if (DataProviderBase.isVersionTooLow(tags, this.getProtocolVersion()))
+        {
+            Reference.logger().warning("entity_data: Denying access for player " + player.getName().getString()
+                    + ", Insufficient Protocol Version; This Server Requires: Version " + this.getProtocolVersion());
+            player.sendSystemMessage(Component.literal(ServuxReference.MSG_PROTOCOL_VERSION_TOO_LOW.formatted(this.getName())));
+            HANDLER.tickFailures(player);
+            return;
+        }
+
+        if (!this.hasPermission(player))
+        {
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "entity_data: Denying access for player "
+                    + player.getName().getString() + ", Insufficient Permissions");
+            return;
+        }
+
+        this.registeredPlayers.add(player.getUUID());
+        this.sendMetadata(player);
+    }
+
+    /** C2S 注销（UNREGISTER_REPLY）：resetFailures + 出注册名册（上游 :152-158 字面，不清 invalid）。 */
+    @Override
+    public void unregister(ServerPlayer player)
+    {
+        if (this.registeredPlayers.contains(player.getUUID()))
+        {
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "entity_data: Unregistered player " + player.getName().getString());
+        }
+
+        HANDLER.resetFailures(this.getNetworkChannel(), player);
+        this.registeredPlayers.remove(player.getUUID());
+    }
 
     public void sendMetadata(ServerPlayer player)
     {
@@ -107,9 +158,19 @@ public class EntitiesDataProvider extends DataProviderBase
                 + " ver=" + this.metadata.getIntOr("version", -1));
     }
 
-    public void onPacketFailure(ServerPlayer player) { this.setPlayerInvalid(player); }
+    public void onPacketFailure(ServerPlayer player)
+    {
+        this.setPlayerInvalid(player);
+        this.registeredPlayers.remove(player.getUUID());
+    }
 
-    public void removePlayer(ServerPlayer player) { this.removeInvalidPlayer(player); }
+    /** 玩家退出（quit）全清理：invalid + 注册名册 + resetFailures（上游 removePlayer 字面）。 */
+    public void removePlayer(ServerPlayer player)
+    {
+        this.removeInvalidPlayer(player);
+        this.registeredPlayers.remove(player.getUUID());
+        HANDLER.resetFailures(this.getNetworkChannel(), player);
+    }
 
     private void setPlayerInvalid(ServerPlayer player) { if (!this.invalidPlayers.contains(player.getUUID())) { this.invalidPlayers.add(player.getUUID()); } }
     private boolean isPlayerInvalid(ServerPlayer player) { return this.invalidPlayers.contains(player.getUUID()); }
@@ -117,7 +178,7 @@ public class EntitiesDataProvider extends DataProviderBase
 
     public void onBlockEntityRequest(ServerPlayer player, BlockPos pos)
     {
-        if (!this.hasPermission(player) || !this.isEnabled()) { return; }
+        if (!this.isPlayerRegistered(player) || !this.hasPermission(player) || !this.isEnabled()) { return; }
 
         BlockEntity be = player.level().getBlockEntity(pos);
         CompoundTag nbt = be != null ? be.saveWithFullMetadata(player.registryAccess()) : new CompoundTag();
@@ -126,7 +187,7 @@ public class EntitiesDataProvider extends DataProviderBase
 
     public void onEntityRequest(ServerPlayer player, int entityId)
     {
-        if (!this.hasPermission(player) || !this.isEnabled()) { return; }
+        if (!this.isPlayerRegistered(player) || !this.hasPermission(player) || !this.isEnabled()) { return; }
 
         Entity entity = player.level().getEntity(entityId);
         if (entity == null) { return; }
@@ -199,7 +260,11 @@ public class EntitiesDataProvider extends DataProviderBase
 
     @Override public boolean hasPermission(ServerPlayer player) { return Perms.check(player, this.permNode, this.permissionLevel.getValue()); }
 
-    @Override public void onPlayerJoin(ServerPlayer player) { this.sendMetadata(player); }
+    /** 白名单：仅已注册玩家推送（旧客户端被版本门禁拒后永不入册 → 永不收 metadata）。 */
+    @Override public void onPlayerJoin(ServerPlayer player)
+    {
+        if (this.isPlayerRegistered(player)) { this.sendMetadata(player); }
+    }
 
     @Override
     public void onPlayerRegisterChannel(ServerPlayer player, String channel)
@@ -207,7 +272,8 @@ public class EntitiesDataProvider extends DataProviderBase
         // ★ 修复 entity sync not_enabled 根因：onPlayerJoin 时客户端尚未声明 servux:entity_data（configuration phase），
         // sendMetadata 的 ProtocolChannel.send 会因 getListeningPluginChannels 不含该通道而失败丢弃 metadata。
         // 客户端声明该通道（= 装了实体查询 mod）时立即重发，确保 metadata 可达。sendMetadata 幂等，重复无害。
-        if (this.getNetworkChannel().toString().equals(channel))
+        // 白名单：声明通常先于客户端首个 REGISTER 到达，此时重发被挡——metadata 首达由 REGISTER 应答链保证。
+        if (this.getNetworkChannel().toString().equals(channel) && this.isPlayerRegistered(player))
         {
             ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "entity onPlayerRegisterChannel: 客户端声明 " + channel + " → 重发 metadata");
             this.sendMetadata(player);

@@ -46,4 +46,14 @@ public final class ServuxReference
     public static final Identifier CHANNEL_TWEAKS = Identifier.fromNamespaceAndPath("servux", "tweaks");
     public static final Identifier CHANNEL_STRUCTURES = Identifier.fromNamespaceAndPath("servux", "structures");
     public static final Identifier CHANNEL_LITEMATICS = Identifier.fromNamespaceAndPath("servux", "litematics");
+
+    // ───── 注册门禁提示文案（上游 lang en_us.json:128/:129 的单一定义等价物）─────
+    // 我方无 lang 资源体系（StringUtils.translate 会给玩家显示裸键名），以常量承载 § 码字面文本；
+    // § 码由客户端聊天渲染器解析（先例：LitematicsDataProvider 的 MSG_TASK_INSUFFICIENT）。
+    /** 上游 servux.general.error.protocol_version_too_low；%s = Provider 逻辑名（如 hud_data）。 */
+    public static final String MSG_PROTOCOL_VERSION_TOO_LOW =
+            "§d%s§7: §6data provider failed to be connected; Your client protocol version is too low.\n§6Please upgrade the relevant mod.";
+    /** 上游 servux.hud_data.error.insufficient_for_loggers；%s = Data Logger 名。 */
+    public static final String MSG_INSUFFICIENT_FOR_LOGGERS =
+            "§cServux: Insufficient Permissions for Data Logger '%s'.§r";
 }

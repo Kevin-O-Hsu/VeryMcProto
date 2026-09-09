@@ -241,12 +241,22 @@ private static class ReadingSession {
 Fabric:  ServerPlayNetworking 收到 Payload
   → ServuxHudHandler.receivePlayPayload(payload, ctx)              // :104
   → decodeServerData(CHANNEL_ID, ctx.player(), payload.data())     // :67
+  → 入口闸：!isEnabled() || !checkFailures(player) → 丢弃           // 上游 :77（五 Handler decode/encode 双侧）
   → switch(packet.getType()):
-       C2S_METADATA_REQUEST   → HudDataProvider.sendMetadata(player)
+       C2S_METADATA_REQUEST   → 已注册先 unregister → register(player, nbt)   // 版本门禁（见下）
        C2S_SPAWN_DATA_REQUEST → HudDataProvider.refreshSpawnMetadata(player, nbt)
        C2S_RECIPE_MANAGER_REQUEST → HudDataProvider.refreshRecipeManager(player, nbt)
        C2S_DATA_LOGGER_REQUEST → HudDataProvider.refreshLoggers(player, nbt)
 ```
+
+**C2S 注册版本门禁**（上游 `register()` 字面，五 Provider 同构）：`register(player, tags)` 首查
+`tags == null || tags.getIntOr("version", -1) < PROTOCOL_VERSION`（严格 `<`——相等放行、高版本放行由客户端
+自行退网）→ 拒绝四件套：warn 日志 + `protocol_version_too_low` 聊天提示（`ServuxReference.MSG_PROTOCOL_VERSION_TOO_LOW`
+预格式化常量）+ `HANDLER.tickFailures(player)` 检疫 + return **不入注册名册**；通过 → 权限检查（不足不入册）→
+`registeredPlayers` 入册 → sendMetadata。名册（`isPlayerRegistered = registered && !invalid`）是拒绝的
+状态载体：一切后续 C2S 请求入口（refresh*/blockEntity/entity/bulk/task/分片回执）与 S2C 主动推送
+（join/通道声明重发、tick 周期）均按名册拦截——被拒客户端只收得到 3 次拒绝消息（count 1→2→3，
+第 4 起 `checkFailures` 静默），永收不到 metadata。
 
 **发送（S2C）**：`HudDataProvider` 各 `refresh*` 方法构造 `ServuxHudPacket` → `HANDLER.encodeServerData(player, packet)`：
 ```
@@ -259,7 +269,10 @@ ServuxHudHandler.encodeServerData(player, data)                    // :121
       sendPlayPayload(player, new Payload(packet))                 // :134
 ```
 
-**失败重试**（`:134-157`）：`sendPlayPayload` 返回 false（客户端没装 MiniHUD / 通道未就绪）累计 `MAX_FAILURES=4` 次后 `HudDataProvider.onPacketFailure(player)` 把玩家标记 invalid（不再发）。
+**失败计数**（上游 `tickFailures/checkFailures` 语义，deny 检疫与发送失败共用同一份计数）：`sendPlayPayload`
+返回 false（客户端没装 MiniHUD / 通道未就绪）→ `tickFailures` 计数；超限（`> maxFailures() = 2`，对齐上游
+`MAX_FAILURES=2`）回调 `onPacketFailure(player)` 标记 invalid 且**不清零**——重置仅在 `resetFailures`
+（unregister / removePlayer[quit] 触发）；decode/encode 入口的 `checkFailures` 闸静默丢弃越限玩家的后续包。
 
 ---
 
@@ -268,8 +281,16 @@ ServuxHudHandler.encodeServerData(player, data)                    // :121
 ```
 客户端(MiniHUD)                         服务端(Servux / Paper插件)
      │  玩家进服，MiniHUD 发起握手
-     │ ──── C2S METADATA_REQUEST (nbt) ────────────────────────► PluginMessageListener
-     │                                                            → HudDataProvider.sendMetadata(player)
+     │ ──── C2S METADATA_REQUEST (nbt 含 version) ────────────► PluginMessageListener
+     │                                                            → register(player, nbt)
+     │                                                            → 版本门禁：version < PROTOCOL_VERSION?
+     │                                ┌─ 是（旧客户端）───────────┘
+     │                                │   → warn 日志 + protocol_version_too_low 消息
+     │                                │   → tickFailures 检疫 + return（不入名册）
+     │  ◄── §d…protocol version too low…（最多 3 次，此后静默）
+     │                                │
+     │                                └─ 否（合法客户端，含相等/更高）─
+     │                                                            → 权限检查 → 入册 registeredPlayers
      │                                                            → 构造 metadata CompoundTag
      │                                                            → HANDLER.sendPlayPayload(player, MetadataResponse)
      │ ◄──────── S2C METADATA (nbt: name/id/version/servux/      (player.sendPluginMessage 或 NMS发包)
@@ -299,6 +320,8 @@ ServuxHudHandler.encodeServerData(player, data)                    // :121
 4. **分包常量**：S2C 分片从 1MiB 改 ≤32760（若走 plugin messaging）；session key 逻辑照搬。
 5. **Payload record / StreamCodec / toPacket / fromPacket**：几乎照抄（去掉 `@Environment`）。
 6. **C2S 不踢人**：plugin messaging 注册的通道 Paper 内置路由，不会因"未知 payload"踢玩家。
-7. **协议版本号保持一致**（HUD=2 等），否则客户端协商失败。
+7. **协议版本号保持一致**（26.1 线 HUD=3 / structures=3 / entities=2 / tweaks=2 / litematics=2）：客户端
+   收 metadata 按 `!=` 严格校验自行退网；服务端 C2S REGISTER 按 `<` 拒绝旧客户端（版本门禁 + 名册拦截，
+   见 §6.2/§7）。
 
 完整迁移设计、字节限制方案、NMS vs plugin messaging 取舍见 [07-migration-architecture.md](07-migration-architecture.md) §网络层。

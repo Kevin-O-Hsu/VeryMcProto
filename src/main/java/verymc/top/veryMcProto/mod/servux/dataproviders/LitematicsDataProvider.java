@@ -92,6 +92,8 @@ public class LitematicsDataProvider extends DataProviderBase
     );
 
     private final List<UUID> invalidPlayers = new ArrayList<>();
+    /** 注册名册（上游 registeredPlayers）：C2S REGISTER 版本门禁 + 权限双门通过后入册。 */
+    private final List<UUID> registeredPlayers = new ArrayList<>();
     private final SchematicBufferManager bufferManager = new SchematicBufferManager();
 
     protected LitematicsDataProvider()
@@ -143,7 +145,60 @@ public class LitematicsDataProvider extends DataProviderBase
         return dir;
     }
 
-    @Override public boolean isPlayerRegistered(ServerPlayer player) { return !this.isPlayerInvalid(player); }
+    @Override
+    public boolean isPlayerRegistered(ServerPlayer player)
+    {
+        return this.registeredPlayers.contains(player.getUUID()) && !this.isPlayerInvalid(player);
+    }
+
+    /**
+     * C2S 注册入口（type 2 METADATA_REQUEST）。上游 LitematicsDataProvider.register（:183-218）字面移植：
+     * isEnabled → 版本门禁（deny 四件套）→ 权限（不入册）→ 入册 → sendMetadata。
+     * （上游 Litematics register 不调 removeInvalidPlayer，从上游。）
+     */
+    @Override
+    public void register(ServerPlayer player, CompoundTag tags)
+    {
+        if (!this.isEnabled()) { return; }
+
+        if (DataProviderBase.isVersionTooLow(tags, this.getProtocolVersion()))
+        {
+            Reference.logger().warning("litematic_data: Denying access for player " + player.getName().getString()
+                    + ", Insufficient Protocol Version; This Server Requires: Version " + this.getProtocolVersion());
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                    ServuxReference.MSG_PROTOCOL_VERSION_TOO_LOW.formatted(this.getName())));
+            HANDLER.tickFailures(player);
+            return;
+        }
+
+        if (!this.hasPermission(player))
+        {
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic_data: Denying access for player "
+                    + player.getName().getString() + ", Insufficient Permissions");
+            return;
+        }
+
+        this.registeredPlayers.add(player.getUUID());
+        this.sendMetadata(player);
+    }
+
+    /**
+     * C2S 注销（UNREGISTER_REPLY）。上游 LitematicsDataProvider.unregister（:230-232）字面移植：
+     * resetFailures + 清传输缓冲（getBufferManager().removePlayer——UNREGISTER_REPLY 是唯一上游
+     * 缓冲清理路径，我方此前零调用，本次随名册恢复闭合）+ 出注册名册；不清 invalid。
+     */
+    @Override
+    public void unregister(ServerPlayer player)
+    {
+        if (this.registeredPlayers.contains(player.getUUID()))
+        {
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic_data: Unregistered player " + player.getName().getString());
+        }
+
+        HANDLER.resetFailures(this.getNetworkChannel(), player);
+        this.getBufferManager().removePlayer(player);
+        this.registeredPlayers.remove(player.getUUID());
+    }
 
     public void sendMetadata(ServerPlayer player)
     {
@@ -166,9 +221,19 @@ public class LitematicsDataProvider extends DataProviderBase
                 + " keys=" + this.metadata.keySet());
     }
 
-    public void onPacketFailure(ServerPlayer player) { this.setPlayerInvalid(player); }
+    public void onPacketFailure(ServerPlayer player)
+    {
+        this.setPlayerInvalid(player);
+        this.registeredPlayers.remove(player.getUUID());
+    }
 
-    public void removePlayer(ServerPlayer player) { this.removeInvalidPlayer(player); }
+    /** 玩家退出（quit）全清理：invalid + 注册名册 + resetFailures（上游 removePlayer 字面；分片会话另经 HANDLER.onPlayerQuit 清）。 */
+    public void removePlayer(ServerPlayer player)
+    {
+        this.removeInvalidPlayer(player);
+        this.registeredPlayers.remove(player.getUUID());
+        HANDLER.resetFailures(this.getNetworkChannel(), player);
+    }
 
     private void setPlayerInvalid(ServerPlayer player) { if (!this.invalidPlayers.contains(player.getUUID())) { this.invalidPlayers.add(player.getUUID()); } }
     private boolean isPlayerInvalid(ServerPlayer player) { return this.invalidPlayers.contains(player.getUUID()); }
@@ -618,10 +683,13 @@ public class LitematicsDataProvider extends DataProviderBase
             ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic onPlayerJoin 跳过: provider disabled");
             return;
         }
-        // plugin messaging 握手需时间，直接 sendMetadata（与 Entities 一致；configuration phase 多半失败，由 onPlayerRegisterChannel 补救）
-        ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic onPlayerJoin: " + player.getName().getString()
-                + " → 直推 sendMetadata（此时通道多半未声明，config phase 可能丢弃）");
-        this.sendMetadata(player);
+        // 白名单：仅已注册玩家推送（旧客户端被版本门禁拒后永不入册 → 永不收 metadata）。
+        if (this.isPlayerRegistered(player))
+        {
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic onPlayerJoin: " + player.getName().getString()
+                    + " → 直推 sendMetadata（已注册）");
+            this.sendMetadata(player);
+        }
     }
 
     @Override
@@ -629,7 +697,8 @@ public class LitematicsDataProvider extends DataProviderBase
     {
         // ★ 修复 litematic sync not_enabled：onPlayerJoin 时通道未声明，sendMetadata 丢弃；
         // 客户端声明 servux:litematics（= 装了 Litematica）时立即重发。sendMetadata 幂等。
-        if (this.getNetworkChannel().toString().equals(channel))
+        // 白名单：声明通常先于客户端首个 REGISTER 到达，此时重发被挡——metadata 首达由 REGISTER 应答链保证。
+        if (this.getNetworkChannel().toString().equals(channel) && this.isPlayerRegistered(player))
         {
             ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic onPlayerRegisterChannel: 客户端声明 " + channel + " → 重发 metadata");
             this.sendMetadata(player);

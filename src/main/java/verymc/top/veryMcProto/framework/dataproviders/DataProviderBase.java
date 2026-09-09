@@ -5,6 +5,7 @@ import java.util.List;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
 
 import verymc.top.veryMcProto.framework.settings.IServuxSetting;
@@ -59,6 +60,21 @@ public abstract class DataProviderBase implements IDataProvider
     public int getProtocolVersion()
     {
         return this.protocolVersion;
+    }
+
+    /**
+     * C2S 注册版本门禁判定。上游各 DataProvider 的 {@code register()} 门禁语句提炼
+     * （{@code tags == null || tags.getIntOrDefault("version", -1) < getProtocolVersion()}，
+     * 上游 HudDataProvider:411，五 Provider 同构）。
+     *
+     * <p>26.1 NMS {@link CompoundTag} 取值 API 为 {@code getIntOr(key, def)}（对应 malilib
+     * {@code getIntOrDefault}）。纯函数，供单测（DataProviderVersionGateTest）。
+     *
+     * @return true = 客户端协议版本过低（或 tags/version 缺失），须拒绝注册
+     */
+    public static boolean isVersionTooLow(CompoundTag tags, int requiredVersion)
+    {
+        return tags == null || tags.getIntOr("version", -1) < requiredVersion;
     }
 
     @Override

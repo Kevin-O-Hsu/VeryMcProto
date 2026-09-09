@@ -29,8 +29,10 @@ import verymc.top.veryMcProto.mod.servux.util.nbt.DataTagIo;
  * 大包（{@code PACKET_S2C_NBT_RESPONSE_START}）走 {@link PacketSplitter} 分片，每片经
  * {@link #encodeWithSplitter} 包装成 {@code ResponseS2CData} 发送。
  *
- * <p><b>失败重试</b>：{@link #sendPlayPayload} 返回 false（客户端未声明监听该通道 = 未装 MiniHUD 等）
- * 累计 {@value #MAX_FAILURES} 次后调 {@link HudDataProvider#onPacketFailure} 标记 invalid（不刷屏）。
+ * <p><b>失败计数（上游 tickFailures/checkFailures 语义，ServuxHudHandler:169-205 字面）</b>：deny 检疫
+ * 与 S2C 发送失败共用同一份计数；超限（{@code > maxFailures() = 2}）回调 {@link HudDataProvider#onPacketFailure}
+ * 且<b>不清零</b>（重置仅在 resetFailures，由 unregister/removePlayer[quit] 触发）；decode/encode 入口的
+ * {@link #checkFailures} 闸静默丢弃越限玩家的后续包。
  */
 public class ServuxHudHandler implements IPluginServerPlayHandler
 {
@@ -42,7 +44,6 @@ public class ServuxHudHandler implements IPluginServerPlayHandler
 
     private boolean payloadRegistered = false;
     private final Map<UUID, Integer> failures = new HashMap<>();
-    private static final int MAX_FAILURES = 4;
     private final Map<UUID, Long> readingSessionKeys = new HashMap<>();
 
     /** HUD 通道的接收 session key 映射（按玩家 UUID）；供 PacketSplitter C2S 大包重组用。 */
@@ -79,6 +80,38 @@ public class ServuxHudHandler implements IPluginServerPlayHandler
         if (channel.equals(CHANNEL_ID)) { this.failures.remove(player.getUUID()); }
     }
 
+    /** 入口闸（上游 checkFailures:177-180 字面）：失败计数越限（&gt; maxFailures()）后丢弃该玩家本通道后续包。 */
+    @Override
+    public boolean checkFailures(ServerPlayer player)
+    {
+        return !(this.failures.getOrDefault(player.getUUID(), 0) > this.maxFailures());
+    }
+
+    /**
+     * 失败计数 +1（上游 tickFailures:183-205 字面）：超限时回调 Provider.onPacketFailure 且<b>不清零</b>——
+     * 重置仅在 {@link #resetFailures}（unregister / removePlayer[quit] 触发）。注册版本门禁的 deny 分支必调。
+     */
+    @Override
+    public void tickFailures(ServerPlayer player)
+    {
+        UUID uuid = player.getUUID();
+
+        if (!this.failures.containsKey(uuid))
+        {
+            this.failures.put(uuid, 1);
+        }
+        else if (this.failures.get(uuid) > this.maxFailures())
+        {
+            ServuxDebug.log(ServuxDebug.Cat.PACKET, "tickFailures hud → " + player.getName().getString()
+                    + " 超过 " + this.maxFailures() + " 次失败，触发 onPacketFailure（未装 MiniHUD 或版本被拒后反复重试）");
+            HudDataProvider.INSTANCE.onPacketFailure(player);
+        }
+        else
+        {
+            this.failures.put(uuid, this.failures.get(uuid) + 1);
+        }
+    }
+
     @Override
     public void receivePlayPayload(FriendlyByteBuf data, ServerPlayer player)
     {
@@ -101,10 +134,24 @@ public class ServuxHudHandler implements IPluginServerPlayHandler
             return;
         }
 
+        if (!HudDataProvider.INSTANCE.isEnabled() || !this.checkFailures(player))
+        {
+            return;
+        }
+
         switch (packet.getType())
         {
-            case PACKET_C2S_METADATA_REQUEST -> HudDataProvider.INSTANCE.sendMetadata(player);
-            case PACKET_C2S_UNREGISTER_REPLY -> HudDataProvider.INSTANCE.removePlayer(player);
+            case PACKET_C2S_METADATA_REQUEST ->
+            {
+                // 上游 :86-95 字面：已注册玩家先 unregister（出册+resetFailures），再走带 tags 的注册
+                // （版本门禁 + 权限 + 入册 + metadata 应答）
+                if (HudDataProvider.INSTANCE.isPlayerRegistered(player))
+                {
+                    HudDataProvider.INSTANCE.unregister(player);
+                }
+                HudDataProvider.INSTANCE.register(player, packet.getCompound());
+            }
+            case PACKET_C2S_UNREGISTER_REPLY -> HudDataProvider.INSTANCE.unregister(player);
             case PACKET_C2S_SPAWN_DATA_REQUEST -> HudDataProvider.INSTANCE.refreshSpawnMetadata(player, packet.getCompound());
             case PACKET_C2S_RECIPE_MANAGER_REQUEST -> HudDataProvider.INSTANCE.refreshRecipeManager(player, packet.getCompound());
             case PACKET_C2S_DATA_LOGGER_REQUEST -> HudDataProvider.INSTANCE.refreshLoggers(player, packet.getCompound());
@@ -123,7 +170,7 @@ public class ServuxHudHandler implements IPluginServerPlayHandler
     @Override
     public <P extends IServerPayloadData> void encodeServerData(ServerPlayer player, P data)
     {
-        if (!HudDataProvider.INSTANCE.isEnabled()) { return; }
+        if (!HudDataProvider.INSTANCE.isEnabled() || !this.checkFailures(player)) { return; }
 
         ServuxHudPacket packet = (ServuxHudPacket) data;
 
@@ -138,21 +185,8 @@ public class ServuxHudHandler implements IPluginServerPlayHandler
         }
         else if (!this.sendPlayPayload(player, packet))
         {
-            // 普通包发送失败 → 计数（第 MAX_FAILURES 次触发 onPacketFailure 并清零，避免重复触发 + 内存泄漏）
-            UUID id = player.getUUID();
-            int count = this.failures.getOrDefault(id, 0) + 1;
-
-            if (count >= MAX_FAILURES)
-            {
-                this.failures.remove(id);
-                ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData hud → " + player.getName().getString()
-                        + " 连续 " + MAX_FAILURES + " 次发送失败，触发 onPacketFailure（可能未装 MiniHUD）");
-                HudDataProvider.INSTANCE.onPacketFailure(player);
-            }
-            else
-            {
-                this.failures.put(id, count);
-            }
+            // 普通包发送失败 → tickFailures 计数（上游 :169-172 字面；超限由 onPacketFailure 处理，不清零）
+            this.tickFailures(player);
         }
     }
 }

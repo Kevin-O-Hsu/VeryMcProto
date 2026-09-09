@@ -34,8 +34,9 @@ import verymc.top.veryMcProto.mod.servux.util.nbt.DataTagIo;
  * 大包（{@code PACKET_S2C_STRUCTURE_DATA_START}）走 {@link PacketSplitter} 分片，每片经
  * {@link #encodeWithSplitter} 包装成 {@code PACKET_S2C_STRUCTURE_DATA} 发送。
  *
- * <p><b>失败重试</b>：{@link #sendPlayPayload} 返回 false（客户端未声明监听该通道 = 未装 MiniHUD）
- * 累计 {@value #MAX_FAILURES} 次后注销该玩家结构订阅。
+ * <p><b>失败计数（上游 tickFailures/checkFailures 语义）</b>：deny 检疫与 S2C 发送失败共用同一份计数；
+ * 超限（&gt; maxFailures() = 2）回调 {@link StructureDataProvider#onPacketFailure}（= unregister，
+ * 传递性复现上游 :197-199 失败后清零怪癖）。
  */
 public class ServuxStructuresHandler implements IPluginServerPlayHandler
 {
@@ -47,7 +48,6 @@ public class ServuxStructuresHandler implements IPluginServerPlayHandler
 
     private boolean payloadRegistered = false;
     private final Map<UUID, Integer> failures = new HashMap<>();
-    private static final int MAX_FAILURES = 4;
 
     @Override public Identifier getPayloadChannel() { return CHANNEL_ID; }
 
@@ -80,6 +80,35 @@ public class ServuxStructuresHandler implements IPluginServerPlayHandler
         if (channel.equals(CHANNEL_ID)) { this.failures.remove(player.getUUID()); }
     }
 
+    /** 入口闸（上游 checkFailures 字面）：失败计数越限（&gt; maxFailures() = 2）后丢弃该玩家后续包。 */
+    @Override
+    public boolean checkFailures(ServerPlayer player)
+    {
+        return !(this.failures.getOrDefault(player.getUUID(), 0) > this.maxFailures());
+    }
+
+    /** 失败计数 +1（上游 tickFailures 字面）：超限回调 onPacketFailure（= unregister，含 resetFailures）且计数被其清零。 */
+    @Override
+    public void tickFailures(ServerPlayer player)
+    {
+        UUID uuid = player.getUUID();
+
+        if (!this.failures.containsKey(uuid))
+        {
+            this.failures.put(uuid, 1);
+        }
+        else if (this.failures.get(uuid) > this.maxFailures())
+        {
+            ServuxDebug.log(ServuxDebug.Cat.PACKET, "tickFailures structures → " + player.getName().getString()
+                    + " 超过 " + this.maxFailures() + " 次失败，触发 onPacketFailure（注销订阅）");
+            StructureDataProvider.INSTANCE.onPacketFailure(player);
+        }
+        else
+        {
+            this.failures.put(uuid, this.failures.get(uuid) + 1);
+        }
+    }
+
     @Override
     public void receivePlayPayload(FriendlyByteBuf data, ServerPlayer player)
     {
@@ -102,14 +131,20 @@ public class ServuxStructuresHandler implements IPluginServerPlayHandler
             return;
         }
 
+        if (!StructureDataProvider.INSTANCE.isEnabled() || !this.checkFailures(player))
+        {
+            return;
+        }
+
         switch (packet.getType())
         {
             // 仅 NBT 类型包来自 MiniHUD（Structures 通道不走 PacketSplitter 接收）
             case PACKET_C2S_STRUCTURES_REGISTER ->
             {
                 ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeStructuresPacket(): 收到 Structures Register from " + player.getName().getString());
+                // 上游 :87-96 字面：恒先 unregister（出册+resetFailures）再带 tags 注册（版本门禁 + 权限 + 入册 + 全量应答）
                 StructureDataProvider.INSTANCE.unregister(player);
-                StructureDataProvider.INSTANCE.register(player);
+                StructureDataProvider.INSTANCE.register(player, packet.getCompound());
             }
             case PACKET_C2S_STRUCTURES_UNREGISTER ->
             {
@@ -132,7 +167,7 @@ public class ServuxStructuresHandler implements IPluginServerPlayHandler
     @Override
     public <P extends IServerPayloadData> void encodeServerData(ServerPlayer player, P data)
     {
-        if (!StructureDataProvider.INSTANCE.isEnabled()) { return; }
+        if (!StructureDataProvider.INSTANCE.isEnabled() || !this.checkFailures(player)) { return; }
 
         ServuxStructuresPacket packet = (ServuxStructuresPacket) data;
 
@@ -147,22 +182,8 @@ public class ServuxStructuresHandler implements IPluginServerPlayHandler
         }
         else if (!this.sendPlayPayload(player, packet))
         {
-            // 普通包发送失败 → 计数（第 MAX_FAILURES 次触发注销并清零）
-            UUID id = player.getUUID();
-            int count = this.failures.getOrDefault(id, 0) + 1;
-
-            if (count >= MAX_FAILURES)
-            {
-                this.failures.remove(id);
-                ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData structures → " + player.getName().getString()
-                        + " 连续 " + MAX_FAILURES + " 次发送失败，注销该玩家结构订阅（可能未装 MiniHUD）");
-
-                StructureDataProvider.INSTANCE.unregister(player);
-            }
-            else
-            {
-                this.failures.put(id, count);
-            }
+            // 发送失败 → tickFailures 计数（超限经 onPacketFailure=unregister 注销订阅并清零计数）
+            this.tickFailures(player);
         }
     }
 }

@@ -30,7 +30,6 @@ public class ServuxEntitiesHandler implements IPluginServerPlayHandler
 
     private boolean payloadRegistered = false;
     private final Map<UUID, Integer> failures = new HashMap<>();
-    private static final int MAX_FAILURES = 4;
     private final Map<UUID, Long> readingSessionKeys = new HashMap<>();
 
     public Map<UUID, Long> getReadingSessionKeys() { return this.readingSessionKeys; }
@@ -49,6 +48,40 @@ public class ServuxEntitiesHandler implements IPluginServerPlayHandler
     @Override
     public void reset(Identifier channel) { if (channel.equals(CHANNEL_ID)) { this.failures.clear(); } }
 
+    public void resetFailures(Identifier channel, ServerPlayer player)
+    {
+        if (channel.equals(CHANNEL_ID)) { this.failures.remove(player.getUUID()); }
+    }
+
+    /** 入口闸（上游 checkFailures 字面）：失败计数越限（&gt; maxFailures() = 2）后丢弃该玩家后续包。 */
+    @Override
+    public boolean checkFailures(ServerPlayer player)
+    {
+        return !(this.failures.getOrDefault(player.getUUID(), 0) > this.maxFailures());
+    }
+
+    /** 失败计数 +1（上游 tickFailures 字面）：超限回调 onPacketFailure 且不清零。 */
+    @Override
+    public void tickFailures(ServerPlayer player)
+    {
+        UUID uuid = player.getUUID();
+
+        if (!this.failures.containsKey(uuid))
+        {
+            this.failures.put(uuid, 1);
+        }
+        else if (this.failures.get(uuid) > this.maxFailures())
+        {
+            ServuxDebug.log(ServuxDebug.Cat.PACKET, "tickFailures entity → " + player.getName().getString()
+                    + " 超过 " + this.maxFailures() + " 次失败，触发 onPacketFailure");
+            EntitiesDataProvider.INSTANCE.onPacketFailure(player);
+        }
+        else
+        {
+            this.failures.put(uuid, this.failures.get(uuid) + 1);
+        }
+    }
+
     @Override
     public void receivePlayPayload(FriendlyByteBuf data, ServerPlayer player)
     {
@@ -64,10 +97,19 @@ public class ServuxEntitiesHandler implements IPluginServerPlayHandler
         ServuxEntitiesPacket packet = (ServuxEntitiesPacket) data;
         if (!channel.equals(CHANNEL_ID)) { return; }
 
+        if (!EntitiesDataProvider.INSTANCE.isEnabled() || !this.checkFailures(player)) { return; }
+
         switch (packet.getType())
         {
-            case PACKET_C2S_METADATA_REQUEST -> EntitiesDataProvider.INSTANCE.sendMetadata(player);
-            case PACKET_C2S_UNREGISTER_REPLY -> EntitiesDataProvider.INSTANCE.removePlayer(player);
+            case PACKET_C2S_METADATA_REQUEST ->
+            {
+                if (EntitiesDataProvider.INSTANCE.isPlayerRegistered(player))
+                {
+                    EntitiesDataProvider.INSTANCE.unregister(player);
+                }
+                EntitiesDataProvider.INSTANCE.register(player, packet.getCompound());
+            }
+            case PACKET_C2S_UNREGISTER_REPLY -> EntitiesDataProvider.INSTANCE.unregister(player);
             case PACKET_C2S_BLOCK_ENTITY_REQUEST -> EntitiesDataProvider.INSTANCE.onBlockEntityRequest(player, packet.getPos());
             case PACKET_C2S_ENTITY_REQUEST -> EntitiesDataProvider.INSTANCE.onEntityRequest(player, packet.getEntityId());
             default -> Reference.logger().warning("ServuxEntitiesHandler#decodeServerData: 无效 packetType " + packet.getPacketType()
@@ -84,7 +126,7 @@ public class ServuxEntitiesHandler implements IPluginServerPlayHandler
     @Override
     public <P extends IServerPayloadData> void encodeServerData(ServerPlayer player, P data)
     {
-        if (!EntitiesDataProvider.INSTANCE.isEnabled()) { return; }
+        if (!EntitiesDataProvider.INSTANCE.isEnabled() || !this.checkFailures(player)) { return; }
 
         ServuxEntitiesPacket packet = (ServuxEntitiesPacket) data;
 
@@ -99,16 +141,8 @@ public class ServuxEntitiesHandler implements IPluginServerPlayHandler
         }
         else if (!this.sendPlayPayload(player, packet))
         {
-            UUID id = player.getUUID();
-            int count = this.failures.getOrDefault(id, 0) + 1;
-            if (count >= MAX_FAILURES)
-            {
-                this.failures.remove(id);
-                ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData entity → " + player.getName().getString()
-                        + " 连续 " + MAX_FAILURES + " 次发送失败，触发 onPacketFailure");
-                EntitiesDataProvider.INSTANCE.onPacketFailure(player);
-            }
-            else { this.failures.put(id, count); }
+            // 发送失败 → tickFailures 计数（上游字面；超限由 onPacketFailure 处理，不清零）
+            this.tickFailures(player);
         }
     }
 }

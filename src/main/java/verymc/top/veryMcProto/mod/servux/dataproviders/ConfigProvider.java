@@ -7,6 +7,7 @@ import org.bukkit.command.CommandSender;
 
 import com.google.gson.JsonObject;
 
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -70,6 +71,14 @@ public class ConfigProvider extends DataProviderBase
 
     @Override
     public boolean isPlayerRegistered(ServerPlayer player) { return true; }
+
+    /** servux_main 无网络通道、无 C2S 注册流量，register 为 NO-OP（上游 ServuxConfigProvider:130-133 同构）。 */
+    @Override
+    public void register(ServerPlayer player, CompoundTag tags) { /* NO-OP */ }
+
+    /** 同 {@link #register}，NO-OP（上游 ServuxConfigProvider:136-139 同构）。 */
+    @Override
+    public void unregister(ServerPlayer player) { /* NO-OP */ }
 
     public void doReloadConfig(CommandSender source)
     {

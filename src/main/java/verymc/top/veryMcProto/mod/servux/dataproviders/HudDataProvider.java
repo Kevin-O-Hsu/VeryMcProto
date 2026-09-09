@@ -12,6 +12,7 @@ import com.mojang.serialization.DataResult;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
@@ -36,7 +37,6 @@ import verymc.top.veryMcProto.framework.settings.IServuxSettingCallback;
 import verymc.top.veryMcProto.framework.settings.ServuxBoolSetting;
 import verymc.top.veryMcProto.framework.settings.ServuxIntSetting;
 import verymc.top.veryMcProto.framework.settings.ServuxStringListSetting;
-import verymc.top.veryMcProto.framework.util.StringUtils;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
 import verymc.top.veryMcProto.mod.servux.loggers.DataLogger;
 import verymc.top.veryMcProto.mod.servux.loggers.DataLoggerBase;
@@ -92,6 +92,8 @@ public class HudDataProvider extends DataProviderBase
     private boolean refreshSpawnMetadata;
     private boolean refreshWeatherData;
     private final List<UUID> invalidPlayers = new ArrayList<>();
+    /** 注册名册（上游 registeredPlayers，HudDataProvider:68）：C2S REGISTER 版本门禁 + 权限双门通过后入册；deny/未注册玩家的一切刷新与请求入口均被 {@link #isPlayerRegistered} 拦截。 */
+    private final List<UUID> registeredPlayers = new ArrayList<>();
 
     private final HashMap<UUID, List<DataLogger>> loggerPlayers = new HashMap<>();
     private final HashMap<DataLogger, DataLoggerBase<?>> LOGGERS = new HashMap<>();
@@ -162,7 +164,10 @@ public class HudDataProvider extends DataProviderBase
     public IPluginServerPlayHandler getPacketHandler() { return HANDLER; }
 
     @Override
-    public boolean isPlayerRegistered(ServerPlayer player) { return !this.isPlayerInvalid(player); }
+    public boolean isPlayerRegistered(ServerPlayer player)
+    {
+        return this.registeredPlayers.contains(player.getUUID()) && !this.isPlayerInvalid(player);
+    }
 
     @Override
     public boolean shouldTick() { return this.enabled; }
@@ -194,8 +199,9 @@ public class HudDataProvider extends DataProviderBase
             {
                 if (this.isPlayerInvalid(player)) { continue; }
 
-                if (this.shouldRefreshWeatherData()) { this.refreshWeatherData(player, null); }
-                if (this.shouldRefreshSpawnMetadata()) { this.refreshSpawnMetadata(player, null); }
+                // 上游 tick 传空 CompoundData（非 null）以通过 refresh 入口的 tags==null 门禁（上游 :206-209）
+                if (this.shouldRefreshWeatherData()) { this.refreshWeatherData(player, new CompoundTag()); }
+                if (this.shouldRefreshSpawnMetadata()) { this.refreshSpawnMetadata(player, new CompoundTag()); }
             }
 
             if (this.shouldRefreshWeatherData())
@@ -350,6 +356,56 @@ public class HudDataProvider extends DataProviderBase
         }
     }
 
+    /**
+     * C2S 注册入口（type 2 METADATA_REQUEST）。上游 HudDataProvider.register（:405-448）字面移植：
+     * isEnabled → 版本门禁（deny 四件套：warn 日志 + 聊天提示 + tickFailures 检疫 + return 不入册）
+     * → 权限（不足 debugLog + return 不入册）→ 入册 → sendMetadata。
+     */
+    @Override
+    public void register(ServerPlayer player, @Nullable CompoundTag tags)
+    {
+        if (!this.isEnabled()) { return; }
+
+        if (DataProviderBase.isVersionTooLow(tags, this.getProtocolVersion()))
+        {
+            Reference.logger().warning("hud_data: Denying access for player " + player.getName().getString()
+                    + ", Insufficient Protocol Version; This Server Requires: Version " + this.getProtocolVersion());
+            player.sendSystemMessage(Component.literal(ServuxReference.MSG_PROTOCOL_VERSION_TOO_LOW.formatted(this.getName())));
+            HANDLER.tickFailures(player);
+            return;
+        }
+
+        if (!this.hasPermission(player))
+        {
+            // No Permission
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud_data: Denying access for player "
+                    + player.getName().getString() + ", Insufficient Permissions");
+            return;
+        }
+
+        // 上游 register 内的 removeInvalidPlayer(:426) 由 sendMetadata 内(:366)调用天然覆盖（终态等价：出 invalid、入 registered）
+        this.registeredPlayers.add(player.getUUID());
+        this.sendMetadata(player);
+    }
+
+    /**
+     * C2S 注销（UNREGISTER_REPLY）。上游 HudDataProvider.unregister（:451-464）字面移植：
+     * resetFailures + 出注册名册 + 摘 loggerPlayers；<b>不清</b> invalid 名册（invalid 由
+     * removePlayer[quit] / register 成功路径清理）。
+     */
+    @Override
+    public void unregister(ServerPlayer player)
+    {
+        if (this.registeredPlayers.contains(player.getUUID()))
+        {
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud_data: Unregistered player " + player.getName().getString());
+        }
+
+        HANDLER.resetFailures(this.getNetworkChannel(), player);
+        this.registeredPlayers.remove(player.getUUID());
+        this.loggerPlayers.remove(player.getUUID());
+    }
+
     public void sendMetadata(ServerPlayer player)
     {
         if (!this.isEnabled())
@@ -381,13 +437,15 @@ public class HudDataProvider extends DataProviderBase
 
     public void refreshLoggers(ServerPlayer player, CompoundTag nbt)
     {
+        if (!this.isPlayerRegistered(player) || !this.isEnabled() || nbt == null) { return; }
+
         if (!this.hasPermissionsForLoggers(player))
         {
-            player.sendSystemMessage(StringUtils.translate("servux.hud_data.error.insufficient_for_loggers", "any"));
+            player.sendSystemMessage(Component.literal(ServuxReference.MSG_INSUFFICIENT_FOR_LOGGERS.formatted("any")));
             return;
         }
 
-        if (nbt != null && !nbt.isEmpty())
+        if (!nbt.isEmpty())
         {
             List<DataLogger> list = new ArrayList<>();
             UUID uuid = player.getUUID();
@@ -401,7 +459,7 @@ public class HudDataProvider extends DataProviderBase
                 {
                     if (this.hasPermissionsForLogger(player, key) && enable) { list.add(type); }
                     else if (!enable) { continue; }
-                    else { player.sendSystemMessage(StringUtils.translate("servux.hud_data.error.insufficient_for_loggers", key)); }
+                    else { player.sendSystemMessage(Component.literal(ServuxReference.MSG_INSUFFICIENT_FOR_LOGGERS.formatted(key))); }
                 }
             }
 
@@ -413,20 +471,24 @@ public class HudDataProvider extends DataProviderBase
     public void onPacketFailure(ServerPlayer player)
     {
         this.setPlayerInvalid(player);
+        this.registeredPlayers.remove(player.getUUID());
         this.removePlayerLoggers(player);
     }
 
+    /** 玩家退出（quit）全清理：invalid + 注册名册 + loggers + resetFailures（上游 removePlayer :476-483 字面）。 */
     public void removePlayer(ServerPlayer player)
     {
         this.removeInvalidPlayer(player);
+        this.registeredPlayers.remove(player.getUUID());
         this.removePlayerLoggers(player);
+        HANDLER.resetFailures(this.getNetworkChannel(), player);
     }
 
     private void removePlayerLoggers(ServerPlayer player) { this.loggerPlayers.remove(player.getUUID()); }
 
     public void refreshSpawnMetadata(ServerPlayer player, @Nullable CompoundTag data)
     {
-        if (!this.isEnabled()) { return; }
+        if (!this.isPlayerRegistered(player) || !this.isEnabled() || data == null) { return; }
 
         GlobalPos spawnPos = this.getSpawnPos();
         CompoundTag nbt = new CompoundTag();
@@ -449,7 +511,9 @@ public class HudDataProvider extends DataProviderBase
 
     public void refreshWeatherData(ServerPlayer player, @Nullable CompoundTag data)
     {
-        if (!this.hasPermissionsForWeather(player) || !this.isEnabled()) { return; }
+        if (!this.isPlayerRegistered(player) || !this.isEnabled() || data == null) { return; }
+
+        if (!this.hasPermissionsForWeather(player)) { return; }
 
         CompoundTag nbt = new CompoundTag();
         nbt.putString("id", this.getNetworkChannel().toString());
@@ -476,6 +540,8 @@ public class HudDataProvider extends DataProviderBase
 
     public void refreshRecipeManager(ServerPlayer player, @Nullable CompoundTag data)
     {
+        if (!this.isPlayerRegistered(player) || !this.isEnabled() || data == null) { return; }
+
         if (!this.hasPermission(player)) { return; }
 
         ServerLevel world = (ServerLevel) player.level();
@@ -592,12 +658,20 @@ public class HudDataProvider extends DataProviderBase
     {
         if (!this.isEnabled()) { return; }
         // plugin messaging 握手（客户端 MC|Register servux:hud_metadata）需要时间，延迟 sendMetadata。
+        // 白名单：仅已通过 C2S REGISTER 版本门禁的玩家（上游无 join 推送路径，此处是我方 Paper
+        // configuration-phase 握手补偿——被版本门禁拒绝的旧客户端永不入册，故永不收到 metadata）。
         try
         {
             new BukkitRunnable()
             {
                 @Override
-                public void run() { HudDataProvider.this.sendMetadata(player); }
+                public void run()
+                {
+                    if (HudDataProvider.this.isPlayerRegistered(player))
+                    {
+                        HudDataProvider.this.sendMetadata(player);
+                    }
+                }
             }.runTaskLater(Reference.plugin(), 40L); // 2s
         }
         catch (Exception e) { ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "onPlayerJoin 延迟 sendMetadata 失败: " + e.getMessage()); }
@@ -610,9 +684,10 @@ public class HudDataProvider extends DataProviderBase
     public void onPlayerRegisterChannel(ServerPlayer player, String channel)
     {
         // 客户端声明监听 servux:hud_metadata = 装了 MiniHUD（configuration phase 后的可靠信号，
-        // 比 onPlayerJoin 固定 40t 延迟更准时）。立即主动推 metadata；sendMetadata 幂等，重复无害，
-        // 且会 removeInvalidPlayer 清除可能的失败计数 invalid 标记。
-        if (ServuxReference.CHANNEL_HUD.toString().equals(channel))
+        // 比 onPlayerJoin 固定 40t 延迟更准时）。白名单：仅已注册玩家重发（声明通常先于客户端首个
+        // REGISTER 到达，此时重发被挡——metadata 首达由 REGISTER 应答链保证[同通道 C2S 证明兜底]；
+        // sendMetadata 幂等，注册后重复无害）。
+        if (ServuxReference.CHANNEL_HUD.toString().equals(channel) && this.isPlayerRegistered(player))
         {
             this.sendMetadata(player);
         }

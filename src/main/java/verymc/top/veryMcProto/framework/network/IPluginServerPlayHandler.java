@@ -35,6 +35,36 @@ public interface IPluginServerPlayHandler
     int FROM_CLIENT = 5;
     int BOTH_CLIENT = 6;
 
+    /**
+     * 失败计数上限，default 2 对齐上游 {@code MAX_FAILURES = 2}（上游 IPluginServerPlayHandler:35）。
+     * deny 检疫与 S2C 发送失败共用同一份计数（上游同源，不拆分）。
+     */
+    default int maxFailures()
+    {
+        return 2;
+    }
+
+    /**
+     * 入口闸：失败计数越限（{@code count > maxFailures()}）后丢弃该玩家本通道后续包。
+     * 上游 checkFailures（ServuxHudHandler:177-180），decode 与 encode 入口均须短路。
+     *
+     * <p>default true（无门禁）：本接口为跨 mod 共享框架（syncmatica 等自有会话模型不适用失败检疫），
+     * 仅 servux 五 Handler 覆写带上游计数语义。
+     */
+    default boolean checkFailures(ServerPlayer player)
+    {
+        return true;
+    }
+
+    /**
+     * 失败计数 +1；超限时回调 Provider.onPacketFailure 且<b>不清零</b>——重置仅在 resetFailures
+     * （unregister / removePlayer[quit] 触发）。上游 tickFailures（ServuxHudHandler:183-205）。
+     * 注册版本门禁的 deny 分支必调（上游 deny 四件套之一）。
+     *
+     * <p>default 空实现（理由同 {@link #checkFailures}）。
+     */
+    default void tickFailures(ServerPlayer player) { }
+
     /** 返回该 handler 的通道 ID（网络名，如 servux:hud_metadata）。 */
     Identifier getPayloadChannel();
 

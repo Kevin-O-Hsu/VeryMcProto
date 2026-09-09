@@ -11,6 +11,7 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.resources.Identifier;
@@ -26,6 +27,7 @@ import net.minecraft.world.level.levelgen.structure.StructureStart;
 import net.minecraft.world.level.levelgen.structure.TerrainAdjustment;
 import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSerializationContext;
 
+import verymc.top.veryMcProto.Reference;
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderBase;
 import verymc.top.veryMcProto.mod.servux.ServuxDebug;
 import verymc.top.veryMcProto.framework.network.IPluginServerPlayHandler;
@@ -121,6 +123,11 @@ public class StructureDataProvider extends DataProviderBase
     @Override
     public IPluginServerPlayHandler getPacketHandler() { return HANDLER; }
 
+    /**
+     * 名册语义（上游 StructureDataProvider:117-119 = contains && !invalid）：我方无独立 invalid 名册，
+     * 由 {@link #onPacketFailure} → {@link #unregister}（移除 Map 项 + resetFailures）传递性承担
+     * 上游 invalid 轴——onPacketFailure 后 containsKey 即 false，等价于上游 contains && !invalid。
+     */
     @Override
     public boolean isPlayerRegistered(ServerPlayer player)
     {
@@ -185,20 +192,37 @@ public class StructureDataProvider extends DataProviderBase
         }
     }
 
-    public boolean register(ServerPlayer player)
+    /**
+     * C2S 注册入口（type 3 STRUCTURES_REGISTER）。上游 StructureDataProvider.register（:199-241）字面移植：
+     * isEnabled → 版本门禁（deny 四件套）→ 权限（不入册）→ 入册 → sendMetadata + initialSync。
+     *
+     * <p>已知偏差：上游尚读 {@code tags.max_receive_s2c}（:221，存 per-player maxPacketSize 供
+     * sendStructures :565-580 超限分片）——四客户端目录 grep 零发送点（恒走默认值），且完整移植需
+     * :573-599 分片发送循环，行为不可观测，故不移植（记录为后续工单）。
+     */
+    @Override
+    public void register(ServerPlayer player, CompoundTag tags)
     {
-        if (!this.isEnabled()) { return false; }
+        if (!this.isEnabled()) { return; }
+
+        if (DataProviderBase.isVersionTooLow(tags, this.getProtocolVersion()))
+        {
+            Reference.logger().warning("structure_bounding_boxes: Denying access for player " + player.getName().getString()
+                    + ", Insufficient Protocol Version; This Server Requires: Version " + this.getProtocolVersion());
+            player.sendSystemMessage(Component.literal(ServuxReference.MSG_PROTOCOL_VERSION_TOO_LOW.formatted(this.getName())));
+            HANDLER.tickFailures(player);
+            return;
+        }
 
         ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "structures register(): " + player.getName().getString() + " (C2S STRUCTURES_REGISTER)");
 
-        boolean registered = false;
         MinecraftServer server = player.createCommandSourceStack().getServer();
         UUID uuid = player.getUUID();
 
         if (!this.hasPermission(player))
         {
             ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "structures register 拒绝 " + player.getName().getString() + " (权限不足)");
-            return registered;
+            return;
         }
 
         // 上游语义 = 每次 REGISTER 全量应答（metadata + initialSync）。唯一调用方 ServuxStructuresHandler
@@ -211,17 +235,26 @@ public class StructureDataProvider extends DataProviderBase
             this.sendMetadata(player);
             this.initialSyncStructuresToPlayerWithinRange(player, server != null ? server.getPlayerList().getViewDistance() + 2 : this.retainDistance, tickCounter);
 
-            registered = true;
             ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "structures register OK: " + player.getName().getString() + " → 已加入订阅，推 metadata + initialSync");
         }
-
-        return registered;
     }
 
-    public boolean unregister(ServerPlayer player)
+    /** C2S 注销（UNREGISTER_REPLY）：resetFailures + 出名册（上游 :243-253 字面）。 */
+    @Override
+    public void unregister(ServerPlayer player)
     {
         HANDLER.resetFailures(this.getNetworkChannel(), player);
-        return this.registeredPlayers.remove(player.getUUID()) != null;
+        this.registeredPlayers.remove(player.getUUID());
+    }
+
+    /**
+     * 失败回调：出册 + resetFailures。上游 StructureDataProvider.onPacketFailure（:260-267）+
+     * ServuxStructuresHandler.tickFailures 的失败后清零怪癖（:197-199，"you know ... design"）——
+     * 以 unregister 一站式传递性复现（出册 + resetFailures 同做），周期 tick 自动停推。
+     */
+    public void onPacketFailure(ServerPlayer player)
+    {
+        this.unregister(player);
     }
 
     /** 发送 metadata（ PACKET_S2C_METADATA，NBT）。 */

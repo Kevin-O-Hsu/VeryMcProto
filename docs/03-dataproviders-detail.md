@@ -148,9 +148,13 @@ for (ServerLevel world : server.getAllLevels()) {                       // Paper
 
 权限节点：`servux.provider.hud_data` / `.weather` / `.seed` / `.logger` / `.logger.<type>`。
 
-### 1.8 失败重试与 invalid 玩家
+### 1.8 失败计数（tickFailures/checkFailures）与 invalid 玩家
 
-`ServuxHudHandler.encodeServerData` 在 `sendPlayPayload` 返回 false（客户端无 MiniHUD/通道未就绪）时累计计数，超过 `MAX_FAILURES=4` 调 `onPacketFailure` → `setPlayerInvalid`（加入 `invalidPlayers`，后续 tick 跳过该玩家，不再刷屏）。`sendMetadata` 时 `removeInvalidPlayer` 恢复。
+上游 `tickFailures/checkFailures` 语义（对齐 `maxFailures()=2`）：`sendPlayPayload` 返回 false 或 C2S 注册版本被拒时 `tickFailures` 计数；超限（`>2`）回调 `onPacketFailure` → `setPlayerInvalid` + 出注册名册（**不清零**——重置仅在 `resetFailures`，由 unregister / quit 触发）；decode/encode 入口的 `checkFailures` 闸静默丢弃越限玩家的后续包（被拒旧客户端只收 3 次拒绝消息后静默）。`register` 成功路径经 `sendMetadata` 内 `removeInvalidPlayer` 恢复。
+
+### 1.9 C2S 注册版本门禁 + 注册名册
+
+五 Provider 的 `register(player, tags)` 首做版本门禁：`tags == null || tags.getIntOr("version", -1) < PROTOCOL_VERSION`（严格 `<`，相等/更高放行——26.1 合法客户端常量与我方一致 3/2/2/3/2）→ 拒绝四件套（warn 日志 + `ServuxReference.MSG_PROTOCOL_VERSION_TOO_LOW` 预格式化聊天提示 + `tickFailures` 检疫 + return 不入册）。名册 `isPlayerRegistered = registeredPlayers && !invalid`（Structures 用自有 registeredPlayers Map 等价承载）拦截一切后续 C2S 请求入口（refresh*/blockEntity/entity/bulk/task/分片回执）与 S2C 推送（join/声明重发、tick 周期）。
 
 > **Paper 迁移**：plugin messaging 的 `sendPluginMessage` 不返回成功/失败；需用"客户端是否回 C2S 握手"或 Paper 的通道就绪判断替代；或在玩家 JOIN 后延迟试发 + 重试。
 
