@@ -13,6 +13,7 @@
 - **分支**：当前 MC 版本的开发一律在 `dev` 分支提交，完成后合入 `main`（= 最新 MC 稳定发布线）。旧 MC 版本冻结为 `ver/<X>` + `ver/<X>-dev` 维护对：修 Bug 在 `ver/<X>-dev`，验证后合入 `ver/<X>`。详见下文「分支模型与版本系统」。
 - **版本**：插件版本 = `<mcVersion>-b<buildNumber>`（当前 `26.1.2-b1`——26.1 线的精确上游补丁号，26.1 客户端 MOD_STRING 硬门禁要求）。**唯一来源是 `gradle.properties`**——发版只需在 dev 上 `buildNumber` +1，**任何源码、plugin.yml、文档中都不得手写版本号**（注入链路见下文）。
 - **语言与风格**：注释、日志、文档用中文；与现有代码一致（中文 javadoc、常量类 + 源码实证注释）。
+- **文档同步强制**：本仓库的**每一个改动**，改的时候都必须同步更改对应的文档——受影响的 [`docs/`](docs/) 篇章、`README.md`、`AGENTS.md` 等；没有合适文档可承载时**新建文档**（放 `docs/` 并在 [`docs/00-INDEX.md`](docs/00-INDEX.md) 登记索引）。文档更新与代码改动落在**同一个 commit**，禁止"先合代码、事后补文档"。
 - **协议字段语义**改动前必须对照 `OriginImpl/` 下的客户端源码（litematica / malilib / syncmatica 是协议接收端），**不要凭服务端代码猜客户端行为**。26.1 起客户端还带协议版本 + MOD_STRING 前缀**硬门禁**（不匹配即整通道静默退网），协议常量必须与 `OriginImpl/*-LTS-26.1` 逐字对齐。
 - **禁止引入 Mixin / AccessWidener / 服务端 patch 依赖**——Paper 无 Mixin 运行时，替代方案见核心约束 §2。
 - **可选依赖**（PacketEvents 等 `compileOnly`）的类引用必须隔离到独立引导类 + 反射加载 + `catch(Throwable)`（见核心约束 §6 教训 5）。
