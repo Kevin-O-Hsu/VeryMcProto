@@ -42,6 +42,7 @@ import verymc.top.veryMcProto.mod.servux.loggers.DataLogger;
 import verymc.top.veryMcProto.mod.servux.loggers.DataLoggerBase;
 import verymc.top.veryMcProto.mod.servux.network.ServuxHudHandler;
 import verymc.top.veryMcProto.mod.servux.network.ServuxHudPacket;
+import verymc.top.veryMcProto.mod.servux.util.nbt.RecipeNbtNormalizer;
 
 /**
  * HUD Provider（mod 层，配 MiniHUD）。移植自原版 {@code HudDataProvider}（通道 servux:hud_metadata，协议版本 2）。
@@ -564,7 +565,22 @@ public class HudDataProvider extends DataProviderBase
                 CompoundTag entry = new CompoundTag();
                 entry.putString("id_reg", recipeEntry.id().registry().toString());
                 entry.putString("id_value", recipeEntry.id().identifier().toString());
-                entry.put("recipe", dr.result().get());
+
+                // wire 兼容层：混合 ingredients 列表同构化（详见 RecipeNbtNormalizer javadoc）；
+                // 防御兜底——任何异常退回原树，行为与未规范化时一致
+                Tag recipeTag = dr.result().get();
+
+                try
+                {
+                    recipeTag = RecipeNbtNormalizer.normalizeIngredients(recipeTag);
+                }
+                catch (Throwable t)
+                {
+                    ServuxDebug.log(ServuxDebug.Cat.PACKET, "normalizeIngredients failed (falling back to raw tree) for "
+                            + recipeEntry.id().identifier() + ": " + t);
+                }
+
+                entry.put("recipe", recipeTag);
                 list.add(entry);
             }
         }
