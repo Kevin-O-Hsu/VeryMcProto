@@ -137,6 +137,8 @@ public class ServuxEntitiesHandler implements IPluginServerPlayHandler
             // 大包（26.1：重组整体为 DataTag 帧，无 transactionId 前缀）
             var buf = new FriendlyByteBuf(io.netty.buffer.Unpooled.buffer());
             DataTagIo.writeTag(buf, packet.getCompound());
+            // 死分支（26.1：EntitiesDataProvider 零生产点、客户端该 Type 无接收分支）；16MB 客户端重组上限
+            // 预检由 PacketSplitter.send 入口覆盖，上游激活此路径后自动生效。
             verymc.top.veryMcProto.framework.network.PacketSplitter.send(this, buf, player);
         }
         else if (!this.sendPlayPayload(player, packet))

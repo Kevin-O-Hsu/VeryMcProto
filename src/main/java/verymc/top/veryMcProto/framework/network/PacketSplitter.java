@@ -27,6 +27,11 @@ import verymc.top.veryMcProto.Reference;
  *       过期驱逐并 {@code release()}——上游 "PacketSplitter-Cleaner" 守护线程（10s TTL + 5s 扫描）的主线程等价物，
  *       中断的分片上传不再留下永生 session 与未释放 buffer。</li>
  * </ul>
+ *
+ * <p><b>S2C 客户端重组上限预检</b>：26.1 客户端（malilib）对分片重组帧有 16MB 硬上限
+ * （客户端侧 {@code DEFAULT_MAX_RECEIVE_SIZE_S2C = 16777216}，严格 {@code >}，恰好相等放行），超限即销毁
+ * 重组会话并抛异常——后续分片还会以垃圾 expectedSize 重建残留会话污染下一帧。故 {@link #send} 入口对
+ * 帧总长预检，超限整帧拒发（零分片发出）并记日志，见 {@link #MAX_REASSEMBLY_SIZE_S2C}。
  */
 public class PacketSplitter
 {
@@ -39,6 +44,14 @@ public class PacketSplitter
     // 故只保留一个接收上限（C2S 专用死常量已删——见 docs/TECH_DEBT_AUDIT F006）。DoS 防护最后防线。
     public static final int DEFAULT_MAX_RECEIVE_SIZE_S2C = 67_108_864;
 
+    // 26.1 客户端重组上限预检：malilib【客户端侧】同名常量（DEFAULT_MAX_RECEIVE_SIZE_S2C = 16777216，注意与上方
+    // 我方接收侧 64MB 常量同名不同源、方向相反），客户端重组时严格 > 比较即销毁 session 抛异常；恰好相等放行。
+    // 1.21.11 线客户端为 128MB——回流 ver/1.21.11 时须同步改值。
+    // 被检量 = DataTag 帧化后 buffer 的 writerIndex（4 + GZIP 压缩长），与首包 VarInt 下发 / 客户端 expectedSize
+    // 读取三方同源。与 LitematicaSchematic.MAX_TRANSMIT_FILE_SIZE（文件投递入口门禁）数值相同但源头不同——
+    // 那边量的是文件字节数，禁合并：贴 16MiB 下方的文件可过文件门禁、其 START 帧仍可能撞本门禁（见 docs/09）。
+    public static final int MAX_REASSEMBLY_SIZE_S2C = 16_777_216;
+
     /** 会话过期阈值（ms）——溯上游 servux/malilib {@code STALE_TIMEOUT_MS = 10000}。 */
     static final long STALE_TIMEOUT_MS = 10_000L;
     /** 过期扫描节拍（tick，100t = 5s）——对齐上游 {@code scheduleAtFixedRate(5, 5, SECONDS)}，由 LifecycleBridge 心跳驱动。 */
@@ -46,7 +59,13 @@ public class PacketSplitter
 
     private static final Map<Long, ReadingSession> READING_SESSIONS = new ConcurrentHashMap<>();
 
-    /** 按 S2C 默认分片上限发送（大 NBT 包）。 */
+    /**
+     * 按 S2C 默认分片上限发送（大 NBT 包）。
+     *
+     * <p>返回 false 含义：帧总长超 26.1 客户端重组上限 {@link #MAX_REASSEMBLY_SIZE_S2C} 被拒——
+     * 零分片发出、仅记日志（当前五处调用点均不消费返回值，语义供未来调用方观测用；不计 tickFailures，
+     * 超限是数据体量属性而非玩家过错）。
+     */
     public static boolean send(IPluginServerPlayHandler handler, FriendlyByteBuf packet, ServerPlayer player)
     {
         return send(handler, packet, MAX_PAYLOAD_PER_PACKET_S2C, player);
@@ -59,6 +78,19 @@ public class PacketSplitter
 
         try
         {
+            // 26.1 客户端重组上限预检：超限帧发出去会被客户端销毁 session + 异常裸抛（且后续分片以垃圾
+            // expectedSize 重建残留会话污染下一帧），故入口整帧拒发——零分片发出、finally 恒释放本 buffer。
+            // 日志有意不限频：每条对应一次真实拦截事件；唯一重复触发源是 Structures 周期全量重发（默认 100t），
+            // 上界 ≈ 每名已注册玩家 12 条/分钟，随数据缩量自停。
+            if (len > MAX_REASSEMBLY_SIZE_S2C)
+            {
+                Reference.logger().warning("PacketSplitter: 拒发超限帧 channel=" + handler.getPayloadChannel()
+                        + " player=" + (player != null ? player.getName().getString() : "null")
+                        + " size=" + len + " > " + MAX_REASSEMBLY_SIZE_S2C
+                        + "（超 26.1 客户端分片重组上限，整帧丢弃，零分片发出）");
+                return false;
+            }
+
             for (int offset = 0; offset < len; offset += payloadLimit)
             {
                 int thisLen = Math.min(len - offset, payloadLimit);

@@ -12,6 +12,7 @@ import net.minecraft.server.level.ServerPlayer;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -22,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p>验证：send 把大包按 {@link PacketSplitter#MAX_PAYLOAD_PER_PACKET_S2C}（≈31995）切片
  * （首片含 VarInt 总长），receive 按相同 key 累积重组、收齐还原原字节。覆盖单片、跨片边界、
- * 超大 expectedSize 拒绝（DoS 防护）。
+ * 超大 expectedSize 拒绝（DoS 防护）、S2C 客户端重组上限预检边界（16MB 严格 {@code >}）。
  *
  * <p>用真实 {@link FriendlyByteBuf}（netty buffer 包装，paperDevBundle 提供，纯 JVM 可用，无需 MC 注册表）
  * + 手写 {@link IPluginServerPlayHandler} stub（捕获 send 各分片字节）。
@@ -201,5 +202,30 @@ class PacketSplitterTest
         assertEquals(before - 1, PacketSplitter.readingSessionCount(), "discardSession 应精确移除指定会话（增量断言，不依赖用例顺序）");
         PacketSplitter.releaseAllSessions();
         assertEquals(0, PacketSplitter.readingSessionCount(), "releaseAllSessions 应清空全部会话");
+    }
+
+    @Test
+    void send_rejectsFrameOver16MBClientLimit()
+    {
+        // 16,777,217 = 客户端上限 +1：malilib 26.1 严格 > 语义即销毁 session，服务端入口应整帧拒发
+        FriendlyByteBuf buf = wrap(payload(PacketSplitter.MAX_REASSEMBLY_SIZE_S2C + 1, 3));
+        CapturingHandler h = new CapturingHandler();
+        boolean sent = PacketSplitter.send(h, buf, null);
+        assertFalse(sent, "超客户端 16MB 重组上限（+1 字节）应整帧拒发返回 false");
+        assertEquals(0, h.slices.size(), "拒发路径应零分片发出（客户端残留会话污染窗口归零）");
+        assertEquals(0, buf.refCnt(), "入参 buffer 应已被 finally 释放（无泄漏）");
+    }
+
+    @Test
+    void send_acceptsExact16MBClientLimit()
+    {
+        // 恰好 16,777,216：客户端严格 > 语义放行（1.21.11 线客户端为 128MB——回流时改常量须同步此处）
+        int size = PacketSplitter.MAX_REASSEMBLY_SIZE_S2C;
+        FriendlyByteBuf buf = wrap(payload(size, 4));
+        CapturingHandler h = new CapturingHandler();
+        assertTrue(PacketSplitter.send(h, buf, null), "恰好等于客户端上限应放行（严格 >，无 off-by-one）");
+        int expectedSlices = (size + PacketSplitter.MAX_PAYLOAD_PER_PACKET_S2C - 1) / PacketSplitter.MAX_PAYLOAD_PER_PACKET_S2C;
+        assertEquals(expectedSlices, h.slices.size(), "片数按分片常量表达式断言（解除对 31995 的除数耦合）；只数片不重组（免二次 16MB 分配）");
+        assertEquals(0, buf.refCnt(), "发送完成后入参 buffer 应已释放");
     }
 }

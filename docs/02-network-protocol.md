@@ -141,10 +141,15 @@ public interface IServerPayloadData {
 public static final int MAX_TOTAL_PER_PACKET_S2C = 32_000;          // S2C 单片总上限（防御客户端 32767 解码上限）
 public static final int MAX_PAYLOAD_PER_PACKET_S2C = MAX_TOTAL_PER_PACKET_S2C - 5; // ≈31995（留 VarInt 头）
 public static final int DEFAULT_MAX_RECEIVE_SIZE_S2C = 67_108_864;  // 64 MiB（接收端缓冲上限；receive 默认用它）
+public static final int MAX_REASSEMBLY_SIZE_S2C = 16_777_216;       // 26.1 客户端重组上限预检（send 入口严格 >，恰好相等放行）
 // 原版另有 MAX_TOTAL_PER_PACKET_C2S / MAX_PAYLOAD_PER_PACKET_C2S / DEFAULT_MAX_RECEIVE_SIZE_C2S
 // 三个 C2S 专用常量，但本实现 C2S/S2C 共用单物理通道，C2S 常量全代码库零引用——已在 F006 删除。
 // C2S 上传（servux litematic 粘贴）的 receive 也走 DEFAULT_MAX_RECEIVE_SIZE_S2C（64MB）。
 ```
+
+> 📌 **三常量方向对照**（同名/近名易混，方向各不相同）：`MAX_TOTAL_PER_PACKET_S2C`（32,000）= **我方发送**的单片上限；`DEFAULT_MAX_RECEIVE_SIZE_S2C`（64MB）= **我方接收**（C2S 上传）的缓冲上限；`MAX_REASSEMBLY_SIZE_S2C`（16,777,216）= **客户端（malilib 26.1）重组**上限——我方发送前的预检阈值，与 malilib 客户端侧同名常量（16MB）数值对齐而与上方 64MB 同名常量无关。
+>
+> **send 入口 16MB 门禁**（26.1 客户端重组上限预检）：被检量 = DataTag 帧化后 buffer 的 `writerIndex()`（= 4 + GZIP 压缩长 = 首包 VarInt 下发、客户端 `expectedSize` 读取的同一个数，三方同源）；超限（严格 `>`，恰好相等放行）在分片循环前**整帧拒发**（零分片发出——超限帧发出去会被客户端销毁重组 session 并抛异常，后续分片还会以垃圾 expectedSize 重建残留会话污染下一帧）+ warn 日志（log-and-drop，有意不限频：唯一重复源 Structures 周期重发上界 ≈ 每名已注册玩家 12 条/分钟，随数据缩量自停）。覆盖全部 S2C 分片大帧：HUD RecipeManager 全量帧、Litematics BulkEntityReply、Structures 全量帧三活跃点 + Entities/Tweaks 两死分支。**上游 servux 26.1 无此预检——我方增强，勿随上游模板回退**。与 `LitematicaSchematic.MAX_TRANSMIT_FILE_SIZE`（文件投递门禁）数值相同但**量纲不同**（那边量文件字节），禁合并；量纲缝隙：贴 16MiB 下方的文件可过文件门禁、其 START 帧仍可能撞本门禁（TransmitStart 后中止、仅日志）——非回归（无门禁时该帧直接销毁客户端 session）。裁分依据详见 [09](09-DELIVERY.md)。
 
 > ⚠️ **移植核心风险点**：Bukkit plugin messaging 单包硬上限是 `Messenger.MAX_MESSAGE_SIZE = 32768`（32 KiB），**远小于** S2C 的 1 MiB。详见 [07](07-migration-architecture.md) §网络层 · 字节限制方案。若 Paper 端全程走 plugin messaging，S2C 分片常量须改为 ≤32760。
 
