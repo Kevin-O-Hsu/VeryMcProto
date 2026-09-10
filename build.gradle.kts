@@ -78,10 +78,19 @@ tasks {
     // 版本注入终检：解包产物 jar，断言内部 version.properties / plugin.yml 与 project.version
     // 一致——把「展开陈旧 / 占位符缺位」这类静默错版转为构建失败（26.1.2-b2 事故后增设）。
     // 无 outputs 声明故每次构建必跑（成本为解包读两Entry）；捕获 Provider 而非 Task，配置缓存安全。
-    val verifyVersionInjection by registering {
-        val jarArchive = jar.flatMap { it.archiveFile }
+    val verifyVersionInjection = register("verifyVersionInjection") {
+        // 依赖必须经 tasks.named 显式取得——registering lambda 内裸引用 `jar` 会静默解析到
+        // 非任务对象，dependsOn 不进任务图（dry-run 实证 :verifyVersionInjection 孤节点），
+        // verify 抢在 jar 重打包前读旧 jar。
+        val jarTask = named<Jar>("jar")
+        val jarArchive = jarTask.flatMap { it.archiveFile }
         val expectedVersion = project.version.toString()
+        // api-version 应逐字等于 mcVersion（如 26.1.2；1.20.5 起官方支持三段式，语义 = 低于该值
+        // 的服务器拒载）。本插件协议面绑死精确补丁（MOD_STRING 硬门禁 + dev bundle），放行旧补丁
+        // 只会让握手静默失败；Modrinth 等平台亦按 api-version 标注适用版本——纳入终检构建期拦截。
+        val expectedApiVersion = providers.gradleProperty("mcVersion").get()
         group = "verification"
+        dependsOn(jarTask)
         doLast {
             val jarFile = jarArchive.get().asFile
             val expected = expectedVersion
@@ -97,6 +106,13 @@ tasks {
                 val ymlText = zip.getInputStream(ymlEntry).use { it.readBytes().toString(Charsets.UTF_8) }
                 val ymlVersion = Regex("(?m)^version:\\s*'?([^'\\r\\n]+)'?\\s*$").find(ymlText)?.groupValues?.get(1)
                     ?: throw GradleException("plugin.yml 缺 version 行：${jarFile.name}")
+                val ymlApiVersion = Regex("(?m)^api-version:\\s*'?([^'\\r\\n]+)'?\\s*$").find(ymlText)?.groupValues?.get(1)
+                    ?: throw GradleException("plugin.yml 缺 api-version 行：${jarFile.name}")
+                if (ymlApiVersion != expectedApiVersion) {
+                    throw GradleException(
+                        "api-version 注入不一致：jar=${jarFile.name} 内 plugin.yml=$ymlApiVersion，期望 $expectedApiVersion" +
+                            "（= mcVersion 主次段）——升级 MC 版本时须同步 plugin.yml 的 api-version")
+                }
                 if (propVersion != expected || ymlVersion != expected) {
                     throw GradleException(
                         "版本注入不一致：jar=${jarFile.name} 内 version.properties=$propVersion / " +

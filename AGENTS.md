@@ -97,7 +97,7 @@ gradle.properties（mcVersion=26.1.2 · buildNumber=2）          ← 唯一改�
 
 | 项 | 说明 |
 |---|---|
-| **目标平台** | Paper **26.1.2**（`api-version: 1.21`——旧值前向兼容，26.1 实测接受），Java **25** |
+| **目标平台** | Paper **26.1.2**（`api-version: '26.1.2'`——三段精确式，1.20.5 起官方支持补丁段，语义 = 低于该值的服务器拒载；本插件 MOD_STRING 硬门禁绑死精确补丁，2026-09-10 由遗留 '1.21' 更正，Modrinth 按 api-version 标注适用版本），Java **25** |
 | **构建** | Gradle 9.7.1（Kotlin DSL） + **paperweight `userdev` 2.0.0-beta.23** + `run-paper 3.1.0`（v2 下载 API 已下线，3.1.0 起走 Fill v3）；配置缓存 / build cache / parallel 已开启 |
 | **NMS 映射** | 开发期用 `paperDevBundle("26.1.2.build.74-stable")`（26.1 起新格式 `<mc>.build.<N>-stable`；Mojang 已移除服务端混淆）提供 Mojang 名 `net.minecraft.*`；**26.1 起 reobf 废除**（paperweight 官方文档：reobf 插件无法在 Paper 26.1+ 加载），产物即 Mojang 映射 jar，标准 Paper 直接加载 |
 | **反射用 Mojang 名** | 产物即 Mojang 映射、Paper 运行时亦然 → 反射私有成员直接用 Mojang 名 |

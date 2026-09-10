@@ -114,7 +114,7 @@ Fundamentally different from Servux (one-way broadcast):
 
 |  Item      |  Requirement                                                                                                               |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------- |
-|  Server    |  **Paper 26.1.2** (`api-version: 1.21`; standard Paper, no patch / fork needed)                                            |
+|  Server    |  **Paper 26.1.2** (`api-version: '26.1.2'`; standard Paper, no patch / fork needed)                                        |
 |  Java      |  **25**                                                                                                                    |
 |  Optional  |  **PacketEvents 2.13.0** (only for EasyPlace; if absent, EasyPlace is gracefully skipped — other features are unaffected)  |
 

@@ -293,7 +293,7 @@ verymc.top.veryMcProto/
 | run-paper | 3.0.2 | **3.1.0** | `api.papermc.io/v2` 已下线（sunset），3.1.0 走 Fill v3；且 run-task 3.1.0 要求 Gradle ≥9.7 |
 | Gradle wrapper | 9.6.1 | **9.7.1** | run-paper 3.1.0 的插件 API 版本要求 |
 | **reobfJar** | 装配进 assemble | **删除** | paperweight 官方文档：26.1 起 Paper 不再支持 Spigot 重映射（Mojang 移除服务端混淆），reobf 插件无法加载；产物 = Mojang 映射 jar |
-| api-version | '1.21' | **保留 '1.21'** | 旧值前向兼容（Bukkit 语义：高于服务器才拒载）；实机 26.1.2 起服加载正常 |
+| api-version | '1.21' | **改 '26.1.2'**（2026-09-10 b2 重发更正） | 初版误保留 '1.21'（仅前向兼容验证）；Modrinth 按 api-version 标注适用版本致错标 1.21 线。官方 1.20.5 起支持三段式、语义 = 低于该值拒载；本插件 MOD_STRING 硬门禁绑死精确补丁，取 '26.1.2' 并入构建终检（api-version ≡ mcVersion） |
 | mcVersion | 1.21.11 | **26.1.2** | 必须精确补丁号：客户端 MOD_STRING 门禁 + Fill/dev-bundle/runServer 三处都无裸 "26.1" |
 
 ### 26.1.2 协议面 wire 差异（静默失败重灾区，编译器不可见）

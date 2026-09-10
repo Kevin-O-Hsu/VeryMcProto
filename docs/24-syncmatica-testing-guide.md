@@ -26,9 +26,9 @@
 
 | 项 | 要求 |
 |---|---|
-| Paper | 1.21.11（与本项目一致，`api-version: 1.21`） |
+| Paper | 26.1.2（与本项目一致，`api-version: '26.1.2'`） |
 | 插件 | VeryMcProto（含 syncmatica 模块，`POSTWORLD` 加载） |
-| Java | 21 |
+| Java | 25 |
 | 配置 | `plugins/VeryMcProto/syncmatica-config.json`（首次启动自动生成）：`{ quota: {enabled: false, limit: 40000000}, debug: {doPacketLogging: false} }` |
 | 端口 | 默认 25565；客户端直连 |
 
