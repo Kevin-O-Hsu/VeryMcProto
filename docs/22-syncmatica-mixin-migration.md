@@ -2,7 +2,7 @@
 
 > **文档定位**：syncmatica（投影共享）**迁移已完成**，本文是 Mixin → Paper 迁移的【已落地实现记录】，非方案/建议。
 > 对应实现代码：`src/main/java/verymc/top/veryMcProto/mod/syncmatica/`（实际包结构见 §10）。
-> 原版根目录：`OriginImpl/syncmatica-LTS-1.21.11/src/main/java/ch/endte/syncmatica/`（含 `mixin/` 9 个服务端/客户端 Mixin + `litematica_mixin/` 10 个 GUI Mixin）。
+> 原版根目录：`OriginImpl/syncmatica-LTS-26.1/src/main/java/ch/endte/syncmatica/`（含 `mixin/` 9 个服务端/客户端 Mixin + `litematica_mixin/` 10 个 GUI Mixin——26.1 树计数与 1.21.11 相同）。
 > 相关：架构见 [20](20-syncmatica-architecture.md)；协议字段见 [21](21-syncmatica-protocol.md)；实施记录见 [23](23-syncmatica-implementation-plan.md)；测试见 [24](24-syncmatica-testing-guide.md)；项目总览见 [../CLAUDE.md](../CLAUDE.md)。
 
 ---
@@ -448,4 +448,4 @@ verymc.top.veryMcProto.mod.syncmatica/
 
 ---
 
-> **相关**：架构与本质差异见 [20](20-syncmatica-architecture.md)；协议字段与 Exchange 状态机见 [21](21-syncmatica-protocol.md)；阶段实施记录见 [23](23-syncmatica-implementation-plan.md)；客户端兼容测试见 [24](24-syncmatica-testing-guide.md)；项目总览与核心约束见 [../CLAUDE.md](../CLAUDE.md)；原版权威源码见 `OriginImpl/syncmatica-LTS-1.21.11/`。
+> **相关**：架构与本质差异见 [20](20-syncmatica-architecture.md)；协议字段与 Exchange 状态机见 [21](21-syncmatica-protocol.md)；阶段实施记录见 [23](23-syncmatica-implementation-plan.md)；客户端兼容测试见 [24](24-syncmatica-testing-guide.md)；项目总览与核心约束见 [../CLAUDE.md](../CLAUDE.md)；原版权威源码见 `OriginImpl/syncmatica-LTS-26.1/`。

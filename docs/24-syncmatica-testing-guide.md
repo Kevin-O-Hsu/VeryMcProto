@@ -2,7 +2,7 @@
 
 > **实现状态**：syncmatica（投影共享）已 **100% 完整实现并可测试**。本文档从「待移植蓝图」改写为「已实现实测指南」——所有命令/权限/配置/日志/协议流程均与真实代码逐一对齐。
 >
-> **代码定位**：`src/main/java/verymc/top/veryMcProto/mod/syncmatica/`（命令 `command/SyncmaticaCommand.java`、配置 `SyncmaticaReference.java`、握手 `communication/exchange/VersionHandshakeServer.java`、上传/下载 `UploadExchange.java`/`DownloadExchange.java`、持久化 `data/SyncmaticManager.java`、配额 `service/QuotaService.java`、调试 `service/DebugService.java` + `util/SyncmaticaDebug.java`）；权限注册 `src/main/resources/plugin.yml`；客户端对照 `OriginImpl/syncmatica-LTS-1.21.11/`。
+> **代码定位**：`src/main/java/verymc/top/veryMcProto/mod/syncmatica/`（命令 `command/SyncmaticaCommand.java`、配置 `SyncmaticaReference.java`、握手 `communication/exchange/VersionHandshakeServer.java`、上传/下载 `UploadExchange.java`/`DownloadExchange.java`、持久化 `data/SyncmaticManager.java`、配额 `service/QuotaService.java`、调试 `service/DebugService.java` + `util/SyncmaticaDebug.java`）；权限注册 `src/main/resources/plugin.yml`；客户端对照 `OriginImpl/syncmatica-LTS-26.1/`。
 >
 > **关联文档**：实施蓝图 [23](23-syncmatica-implementation-plan.md)；架构/协议/迁移 [20](20-syncmatica-architecture.md)/[21](21-syncmatica-protocol.md)/[22](22-syncmatica-mixin-migration.md)；姊妹（Servux 客户端测试）[10](10-testing-guide.md)；项目总览 [../CLAUDE.md](../CLAUDE.md)。
 
@@ -40,12 +40,12 @@
 
 | Mod | 版本（来自 `fabric.mod.json` suggests） | 用途 |
 |---|---|---|
-| **Minecraft Fabric** | 1.21.11 + Fabric Loader | 基础 |
-| **syncmatica** | LTS 1.21.11（`OriginImpl/syncmatica-LTS-1.21.11/` 对应版本） | 协议客户端（注入 Litematica GUI） |
-| **Litematica** | `>=0.25.4- <0.27.0`（建议用 syncmatica 兼容的 LTS fork，如 sakura-ryoko） | 投影客户端 |
-| **Malilib** | `>=0.27.4- <0.28.0`（Litematica 前置） | Litematica 前置 |
+| **Minecraft Fabric** | 26.1.2 + Fabric Loader（`depends: minecraft ~26.1-`） | 基础 |
+| **syncmatica** | LTS 26.1（`OriginImpl/syncmatica-LTS-26.1/` 对应版本） | 协议客户端（注入 Litematica GUI） |
+| **Litematica** | `>=0.27.11- <0.28.0`（建议用 syncmatica 兼容的 LTS fork，如 sakura-ryoko） | 投影客户端 |
+| **Malilib** | `>=0.28.10- <0.29.0`（Litematica 前置） | Litematica 前置 |
 
-> ⚠️ syncmatica `fabric.mod.json` 的 `breaks` 声明：malilib `<0.27.4-` / litematica `<0.25.4-` 会冲突。务必用足版本的 LTS fork。
+> ⚠️ syncmatica `fabric.mod.json` 的 `breaks` 声明：malilib `<0.28.10-` / litematica `<0.27.11-` 会冲突。务必用足版本的 LTS fork。
 
 **至少 2 个客户端账号**（用于多玩家协同测试，§11）。单机多开或两台机器均可。
 
@@ -138,16 +138,16 @@ syncmatica 有**两套独立**调试日志系统，互不替代，需配合开�
 **验证**（服务端日志，`SyncmaticaDebug` HANDSHAKE 分类）：
 
 ```
-[DBG/syncmatica/handshake] VersionHandshakeServer.init: 推 REGISTER_VERSION[服务端版本=1.21.11-b1] → <玩家>
+[DBG/syncmatica/handshake] VersionHandshakeServer.init: 推 REGISTER_VERSION[服务端版本=26.1.2-b2] → <玩家>
 [DBG/syncmatica/handshake] VersionHandshakeServer: 收到客户端 REGISTER_VERSION[版本=<客户端版本>] ← <玩家>
-（服务端 MOD_VERSION="1.21.11-b1" 带 `-b` 后缀，不命中版本正则 → FeatureSet.fromVersionString 返回 null → 触发 FEATURE 交换，双方用全集 FeatureSet）
+（服务端 MOD_VERSION="26.1.2-b2" 带 `-b` 后缀，不命中版本正则 → FeatureSet.fromVersionString 返回 null → 触发 FEATURE 交换，双方用全集 FeatureSet）
 [DBG/syncmatica/handshake] VersionHandshakeServer: fromVersionString 返回 null → requestFeatureSet（FEATURE 交换）
 （FEATURE 交换完成后）
 [DBG/syncmatica/handshake] VersionHandshakeServer.onFeatureSetReceive: 推 CONFIRM_USER[placementCount=N] → <玩家>
 <玩家> 已加入 broadcastTargets（共 N+1 个）
 ```
 
-同时 INFO 级日志：`Syncmatica client joining with local version 1.21.11-b1 and client version <客户端版本>`。
+同时 INFO 级日志：`Syncmatica client joining with local version 26.1.2-b2 and client version <客户端版本>`。
 
 **客户端侧**：进服无报错；Litematica 主菜单的「服务端投影」入口可见（即使列表为空）。
 

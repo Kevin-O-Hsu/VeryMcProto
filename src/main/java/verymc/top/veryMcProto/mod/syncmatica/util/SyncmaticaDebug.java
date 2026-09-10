@@ -23,7 +23,9 @@ import verymc.top.veryMcProto.framework.debug.DebugSystem;
  * 所有 debug 都受 {@code /syncmatica debug cat} 管控，杜绝 {@code cat none} 后仍刷屏。业务日志
  * （warn/error/info）走 {@code SyncmaticaLog}。
  *
- * <p><b>开关来源</b>：命令 {@code /syncmatica debug}（运行时即时生效）。<b>不持久化</b>（重启恢复 false）。
+ * <p><b>开关来源</b>：命令 {@code /syncmatica debug}（运行时即时生效）。<b>持久化</b>：master + 分类经
+ * {@code SyncmaticaContext.saveConfiguration} 以顶层 {@code debugLog} 子对象写入 {@code syncmatica-config.json}，
+ * 启动时 restore 恢复（docs/24 §2.3）。
  *
  * <p><b>线程安全</b>：由 {@link DebugSystem} 保证（copy-on-write active + volatile）。
  */

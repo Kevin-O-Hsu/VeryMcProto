@@ -2,7 +2,7 @@
 
 > ✅ **syncmatica（投影共享）已 100% 完整实现**。本文档从「待移植逐阶段作战手册」改写为「实现总览」——记录实际包结构、文件清单、已落地的关键实现决策与完成状态。
 > 架构见 [20](20-syncmatica-architecture.md)；协议见 [21](21-syncmatica-protocol.md)；Mixin 迁移实现见 [22](22-syncmatica-mixin-migration.md)；测试见 [24](24-syncmatica-testing-guide.md)。
-> 原版源码根：`OriginImpl/syncmatica-LTS-1.21.11/src/main/java/ch/endte/syncmatica/`（下文 `ORIGIN/`）。
+> 原版源码根：`OriginImpl/syncmatica-LTS-26.1/src/main/java/ch/endte/syncmatica/`（下文 `ORIGIN/`；26.1 wire 零变化，自 1.21.11 迁移）。
 > Paper 实现包根：`src/main/java/verymc/top/veryMcProto/mod/syncmatica/`（下文 `PAPER/`）。
 
 ---

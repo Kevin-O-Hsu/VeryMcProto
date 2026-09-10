@@ -29,7 +29,7 @@ import verymc.top.veryMcProto.mod.servux.network.ServuxEntitiesPacket;
 import verymc.top.veryMcProto.mod.servux.util.nbt.NbtView;
 
 /**
- * Entities Provider（mod 层）。移植自原版 {@code EntitiesDataProvider}（通道 servux:entity_data，协议版本 1）。
+ * Entities Provider（mod 层）。移植自原版 {@code EntitiesDataProvider}（通道 servux:entity_data，协议版本 2——26.1 真值，常量 ServuxEntitiesPacket.PROTOCOL_VERSION）。
  *
  * <p>方块实体 NBT：{@code be.saveWithFullMetadata(registryAccess)}（NMS 公开）。
  * 实体 NBT：{@link NbtView#getWriter} + {@code entity.saveWithoutId}（绕开 Mixin）。

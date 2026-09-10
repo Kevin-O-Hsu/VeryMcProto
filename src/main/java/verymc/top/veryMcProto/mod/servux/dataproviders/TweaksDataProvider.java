@@ -31,7 +31,7 @@ import verymc.top.veryMcProto.mod.servux.network.ServuxTweaksPacket;
 import verymc.top.veryMcProto.mod.servux.util.nbt.NbtView;
 
 /**
- * Tweaks Provider（mod 层）。移植自原版 {@code TweaksDataProvider}（通道 servux:tweaks，协议版本 1）。
+ * Tweaks Provider（mod 层）。移植自原版 {@code TweaksDataProvider}（通道 servux:tweaks，协议版本 2——26.1 真值，常量 ServuxTweaksPacket.PROTOCOL_VERSION）。
  *
  * <p>方块实体 NBT：{@code be.saveWithFullMetadata(registryAccess)}（NMS 公开，与 Entities 一致）。
  * 实体 NBT：{@link NbtView#getWriter} + {@code entity.saveWithoutId}；NBT 查询权限 / 玩家背包权限

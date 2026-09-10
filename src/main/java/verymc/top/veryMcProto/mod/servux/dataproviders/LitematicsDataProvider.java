@@ -48,7 +48,7 @@ import verymc.top.veryMcProto.mod.servux.util.nbt.NbtView;
 
 /**
  * Litematics Provider（mod 层，配 Litematica）。移植自原版 {@code LitematicsDataProvider}
- * （通道 servux:litematics，协议版本 1）。
+ * （通道 servux:litematics，协议版本 2——26.1 真值，常量 ServuxLitematicaPacket.PROTOCOL_VERSION）。
  *
  * <p><b>已实现</b>：
  * <ul>

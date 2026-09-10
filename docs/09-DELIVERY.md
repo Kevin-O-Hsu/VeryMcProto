@@ -1,6 +1,8 @@
 # 09 · VeryMcProto 移植交付说明（注意事项 / 与原版差异 / 降级）
 
-> 本文档是 VeryMcProto（Servux 协议 Mod → Paper 1.21.11 插件移植）的**交付说明**：架构决策、移植进度、1.21.11 API 坑全集、与原版 Servux 的差异/适配点、降级清单、防御性要点、验收指南。
+> 本文档是 VeryMcProto（Servux 协议 Mod → Paper 插件移植）的**交付说明**：架构决策、移植进度、API 坑全集、与原版 Servux 的差异/适配点、降级清单、防御性要点、验收指南。
+>
+> ⚠️ **版本口径**：§1–§9 主体写于 **1.21.11 线**（含 §8 验收指南 / §9 已知限制），系历史交付记录；当前开发线为 **26.1.2**，26.1 变化（reobf 废除、DataTag 载体、协议 v3/v2、MOD_STRING 硬门禁等）以 **§26.1.x 增补章节为准**——两处冲突时一律以 §26.1.x 为当前真值。
 >
 > 配合阅读：[`00-INDEX.md`](00-INDEX.md)、[`07-migration-architecture.md`](07-migration-architecture.md)、[`08-implementation-plan.md`](08-implementation-plan.md)。
 
@@ -198,7 +200,7 @@ verymc.top.veryMcProto/
 
 - **Litematics（M2）**：投影系统（schematic/）代码量最大（~9000 行），阶段6 完成度见实际进度。
 - **通道名纠偏**：CLAUDE.md / docs 表格的通道名（`tweaks_data`/`structure_bounding_boxes`/`litematic_data`）是 **provider 逻辑名**，真实网络名（源码 CHANNEL_ID 实证）是 `servux:tweaks`/`servux:structures`/`servux:litematics`。本移植用真实网络名。
-- **MOD_STRING**：`servux-paper-1.21.11-b1`（= MOD_ID-平台-插件版本，插件版本自带 MC 版本；保持 `servux-` 前缀供客户端识别，客户端仅前缀识别不做分段解析；版本协商走各通道 protocol version，不变）。
+- **MOD_STRING**：~~`servux-paper-1.21.11-b1`（= MOD_ID-平台-插件版本...客户端仅前缀识别不做分段解析）~~ **已被 26.1 推翻（见 §26.1.2 第 2 条）**：26.1 客户端四通道硬门禁校验 `startsWith("servux-fabric-<精确上游id>")`，`paper` 前缀会被整通道静默拒绝——`MOD_TYPE` 恒 `fabric` 伪装 + 精确补丁版本注入，当前真值 `servux-fabric-26.1.2-b2`。
 - **方案 B（NMS 发包）预留**：当前方案 A（plugin messaging，S2C 分片 32000）。Payload record 保留，后续大包（Recipe/Litematic）可升级方案 B（NMS `ClientboundCustomPayloadPacket` 保 1MiB 分片）。
 - ** Structures 性能**：周期扫描玩家 view distance 区块，玩家多时 CPU 占用；默认 update_interval=100t（5s）+ 只扫 view distance 内 + 去重。
 
@@ -316,7 +318,7 @@ verymc.top.veryMcProto/
    - **框架分片入口**（`framework/network/PacketSplitter.MAX_REASSEMBLY_SIZE_S2C = 16_777_216`，量 DataTag 帧总长 = 4 + GZIP = 首包 VarInt `expectedSize`，与客户端严格 `>` 判定同源、恰好相等放行）：`send` 入口在分片循环前对超限帧**整帧拒发**（零分片发出——若无门禁，客户端会销毁重组 session 抛 `PacketSplitterException`，且后续分片以垃圾 expectedSize 重建残留会话污染下一帧，窗口 ≈10–15s）+ warn 日志（log-and-drop）。覆盖 RecipeManager 全量帧 / BulkEntityReply / Structures 全量帧三活跃点 + Entities/Tweaks 两死分支（全部经 `PacketSplitter.send` 单瓶颈）。**上游 servux 26.1 无此预检——我方增强，勿随上游模板回退**（同 `Slice=totalSlices` 前例）。
    - **两级门禁的裁分依据**：transmit 有取消包语义 → 取消 + 红字；走分片器的帧类型（HUD 配方请求 fire-and-forget、BulkEntity 客户端 7.5s 超时自愈、Structures 周期推送）**无取消包语义**、红字接收者无可执行动作，故框架级 log-only（第一性原理裁决：拒收方零信号为上游同源行为，服务端日志保可观测性）。
    - **两门禁数值相同、量纲不同，禁合并**（文件字节 vs 帧总长）：贴 16MiB 下方的文件可过文件门禁、其 START 帧仍可能撞框架门禁 → TransmitStart 后中止、仅日志无 TransmitCancel。非回归——无门禁时该帧直接销毁客户端 session。
-7. **Litematica task 组（14-17）未实现（声明限制）**：26.1 客户端在检测到 servux 服务端后 Fill/Delete 选区**强制**走 `PACKET_C2S_TASK_REQUEST`（无超时回退、无能力探测机制、type 15 的客户端处理本身被上游 TODO 注释）。服务端不实现 = 该功能静默不执行（InfoHudSync 渲染空列表、链式 completionListener 不回调；无崩溃无断连）。属上游新功能，超出"迁移"锚点；收到 task 包时明确日志后忽略。后续若要支持：对照 `litematica-LTS-26.1 ToolUtils` + `servux-LTS-26.1 LitematicsDataProvider` 的 task 状态机。
+7. **Litematica task 组（14-17）**：26.1 客户端在检测到 servux 服务端后 Fill/Delete 选区**强制**走 `PACKET_C2S_TASK_REQUEST`（无超时回退、无能力探测机制、type 15 的客户端处理本身被上游 TODO 注释）。~~服务端不实现 = 该功能静默不执行（InfoHudSync 渲染空列表、链式 completionListener 不回调；无崩溃无断连）。属上游新功能，超出"迁移"锚点；收到 task 包时明确日志后忽略。后续若要支持：对照 `litematica-LTS-26.1 ToolUtils` + `servux-LTS-26.1 LitematicsDataProvider` 的 task 状态机。~~ **✅ 已实现（2026-09-08，见 §26.1.5/§26.1.6）**——type 14 受理 Fill/Delete（权限 + 创造门 + Box/FillState 解码），Paste 任务经 `LitematicaPaste` 批量路由创建 `PasteTask`；type 16 为三类任务共用进度/完成帧唯一 S2C 出口；type 15 客户端接收端 TODO 故服务端永不发送；type 17 上游同源忽略。
 8. **隐私裁剪**（26.1 上游新增，我方 1.21.11 线已内置，无需改动）：查询**他人**玩家实体时按 `nbt_allow_player_inventory` / `player_inventory_permission_level`（ender 同理）清空 `Inventory` / `EnderItems`。
 9. **零变化**：JEI payload（`fabric:recipe_sync` / `neoforge:recipe_content`）、syncmatica 全协议（18 PacketType + Exchange + FeatureSet）、PacketSplitter 分片帧（`[VarInt 总长][分片…]`、常量逐字一致）、HUD v3 数据字段（两侧 20 字段名 comm 比对零增删改——差异全在包封层）。（后记：2026-09 JEI 上游更换为 mezz/JustEnoughItems 后完整协议重做，配方同步层 wire 与本节结论仍一致，新增 jei:* 自有 10 通道——见 docs/30。）
 

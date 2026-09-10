@@ -1,7 +1,7 @@
 # 20 · Syncmatica 架构总览（已实现）
 
-> **状态**：syncmatica（投影共享）已在 Paper 1.21.11 上完整实现，所有协议路径（握手 / 分享 / 下载 / 修改 / 删除 / 持久化 / 多玩家广播 / 软禁用）均经实测。
-> **本文描述实际架构**，对应代码 `src/main/java/verymc/top/veryMcProto/mod/syncmatica/`；原版对照 `OriginImpl/syncmatica-LTS-1.21.11/`（下文简写 ORIGIN/）。
+> **状态**：syncmatica（投影共享）已在 Paper 26.1.2 上完整实现，所有协议路径（握手 / 分享 / 下载 / 修改 / 删除 / 持久化 / 多玩家广播 / 软禁用）均经实测（26.1 wire 零变化，自 1.21.11 迁移后行为不变）。
+> **本文描述实际架构**，对应代码 `src/main/java/verymc/top/veryMcProto/mod/syncmatica/`；原版对照 `OriginImpl/syncmatica-LTS-26.1/`（下文简写 ORIGIN/）。
 > 相关文档：网络协议与 Exchange 状态机见 [21](21-syncmatica-protocol.md)；Mixin 分析与迁移方案见 [22](22-syncmatica-mixin-migration.md)；实施计划见 [23](23-syncmatica-implementation-plan.md)；测试见 [24](24-syncmatica-testing-guide.md)。同步阅读 [../CLAUDE.md](../CLAUDE.md) 与本项目 Servux 移植文档（[01](01-servux-architecture.md)～[11](11-schematic-migration-plan.md)）——syncmatica 与 Servux 共享同一套 `framework/network` 网络框架。
 
 ---
@@ -40,7 +40,7 @@
 ```
 mod/syncmatica/
 ├── SyncmaticaContext.java         ← ★ 领域根容器：聚合 files/comMan/synMan/quota/debug + 配置 + 生命周期
-├── SyncmaticaReference.java       ← 常量（MOD_ID / NETWORK_ID / 文件名 / MOD_VERSION=插件版本（1.21.11-b1 式））
+├── SyncmaticaReference.java       ← 常量（MOD_ID / NETWORK_ID / 文件名 / MOD_VERSION=插件版本（26.1.2-b2 式））
 ├── Feature.java                   ← 9 个 Feature 枚举（协议特性协商，见 §5.3）
 │
 ├── app/
@@ -172,7 +172,7 @@ VeryMcProto.onDisable
 **关键方法**：
 
 - `startup()` / `shutdown()`：编排各 service 启停 + `synMan` 载入/保存 + 配置读写。
-- `getFeatureSet()`：懒加载 `Arrays.asList(Feature.values())`——声明全集，配合 `MOD_VERSION`=插件版本（`1.21.11-b1` 式，带 `-b` 后缀永不命中版本正则，更不会落入 `"0.1.x"` 兼容分支）触发 FEATURE 交换，使双方用全集编码（MODIFY/DISPLAY_NAME/CORE_EX/VERSION 全开）。
+- `getFeatureSet()`：懒加载 `Arrays.asList(Feature.values())`——声明全集，配合 `MOD_VERSION`=插件版本（`26.1.2-b2` 式，带 `-b` 后缀永不命中版本正则，更不会落入 `"0.1.x"` 兼容分支）触发 FEATURE 交换，使双方用全集编码（MODIFY/DISPLAY_NAME/CORE_EX/VERSION 全开）。
 - `checkPartnerVersion(version)`：**仅拒绝 `"0.0.1"`**，其余全放行——版本兼容性实际靠 FeatureSet 协商。
 - `loadConfiguration()` / `saveConfiguration()`：读/写 `syncmatica-config.json`，按 service 的 `configKey`（`quota` / `debug`）分段装配；额外保存 `SyncmaticaDebug` 状态到顶层 `"debugLog"` 子对象。
 - `suspendProtocol()` / `resumeProtocol()`：软禁用——`suspendAll()` 关闭进行中 exchange + 清空 `broadcastTargets`，但**通道仍注册**（避免 Paper 踢人）；`resumeProtocol()` 仅翻标志，在线玩家重握手由 `SyncmaticaModule.reconnectOnlinePlayers` 负责。

@@ -258,7 +258,7 @@ public class ServuxLitematicaPacket implements IServerPayloadData
                 case PACKET_C2S_METADATA_REQUEST -> { return ServuxLitematicaPacket.MetadataRequest(input.readNbt()); }
                 case PACKET_S2C_METADATA -> { return ServuxLitematicaPacket.MetadataResponse(input.readNbt()); }
                 case PACKET_C2S_UNREGISTER_REPLY -> { return ServuxLitematicaPacket.UnregisterReply(DataTagIo.readTag(input)); }
-                // task 组（14-17）：type 14 已实现受理（Fill/Delete/Paste），type 16 为任务帧唯一 S2C 出口；15/17 上游同源不发送/忽略
+                // task 组（14-17）：type 14 已实现受理（Fill/Delete；Paste 走 LitematicaPaste 批量路由创建 PasteTask），type 16 为任务帧唯一 S2C 出口；15/17 上游同源不发送/忽略
                 case PACKET_C2S_TASK_REQUEST, PACKET_S2C_TASK_RESPONSE, PACKET_S2C_TASK_STATUS_SYNC, PACKET_C2S_TASK_CANCEL ->
                 {
                     CompoundTag taskNbt = DataTagIo.readTag(input);
@@ -312,7 +312,7 @@ public class ServuxLitematicaPacket implements IServerPayloadData
         // For Packet Splitter (Oversize Packets, C2S)
         PACKET_C2S_NBT_RESPONSE_START(12),
         PACKET_C2S_NBT_RESPONSE_DATA(13),
-        // Task Scheduler Items（26.1 新增；服务端执行未实现，仅协议占位）
+        // Task Scheduler Items（26.1 新增；type 14 受理与 type 16 任务帧已实现——见 docs/09 §26.1.5/§26.1.6）
         PACKET_C2S_TASK_REQUEST(14),
         PACKET_S2C_TASK_RESPONSE(15),
         PACKET_S2C_TASK_STATUS_SYNC(16),

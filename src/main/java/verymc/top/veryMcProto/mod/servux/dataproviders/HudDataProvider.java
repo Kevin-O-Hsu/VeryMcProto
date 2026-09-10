@@ -45,7 +45,7 @@ import verymc.top.veryMcProto.mod.servux.network.ServuxHudPacket;
 import verymc.top.veryMcProto.mod.servux.util.nbt.RecipeNbtNormalizer;
 
 /**
- * HUD Provider（mod 层，配 MiniHUD）。移植自原版 {@code HudDataProvider}（通道 servux:hud_metadata，协议版本 2）。
+ * HUD Provider（mod 层，配 MiniHUD）。移植自原版 {@code HudDataProvider}（通道 servux:hud_metadata，协议版本 3——26.1 真值，常量 ServuxHudPacket.PROTOCOL_VERSION）。
  *
  * <p><b>适配点</b>：
  * <ul>

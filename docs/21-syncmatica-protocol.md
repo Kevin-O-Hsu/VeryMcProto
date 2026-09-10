@@ -1,7 +1,7 @@
 # 21 · Syncmatica 网络协议详解（已实现）
 
 > **状态**：syncmatica（投影共享）已 100% 完整实现并实测通过。本文是【已实现说明】——所有协议字段、收发路径、Exchange 状态机、分片机制均已落地，对应代码在 `src/main/java/verymc/top/veryMcProto/mod/syncmatica/`。
-> **原版对照**：`OriginImpl/syncmatica-LTS-1.21.11/src/main/java/ch/endte/syncmatica/`（逐行对照的权威实现）。
+> **原版对照**：`OriginImpl/syncmatica-LTS-26.1/src/main/java/ch/endte/syncmatica/`（逐行对照的权威实现；26.1 wire 零变化，自 1.21.11 迁移）。
 > **相关文档**：架构总览 [20](20-syncmatica-architecture.md)；Mixin→Bukkit 映射与降级 [22](22-syncmatica-mixin-migration.md)；实施记录 [23](23-syncmatica-implementation-plan.md)；测试 [24](24-syncmatica-testing-guide.md)；项目总览 [../CLAUDE.md](../CLAUDE.md)。
 > **字段语义对照**：syncmatica 是双端 mod，同仓库的 `communication/ClientCommunicationManager.java` + 各 `*Client` Exchange 即协议接收端。本文所有字段顺序均已对照客户端 `receiveMetaData` / `receivePositionData` 确认一致。
 
@@ -17,7 +17,7 @@
 | 包体结构 | `[packetType VarInt][body]`（每通道独立） | **`[逻辑通道 Identifier][body bytes]`**（单通道内复用） |
 | 消息区分 | 通道本身就是消息类别 | 第一字段 `Identifier` 决定消息类别（18 种） |
 
-物理通道 `NETWORK_ID = Identifier("syncmatica", "main")`（`SyncmaticaReference.java:25`），C2S 与 S2C 共用。
+物理通道 `NETWORK_ID = Identifier("syncmatica", "main")`（`SyncmaticaReference.java:29`），C2S 与 S2C 共用。
 
 ### 1.2 物理包体复合结构 `[Identifier][body]`
 
@@ -120,7 +120,7 @@
 
 `FeatureSet.java:65-68`：仅一条 `"0.1" → {CORE}`。`fromVersionString(version)`（`:21-33`）用正则 `^\d+(\.\d+){2,4}$` 校验后**逐级去掉末段**查表（`0.1.0` → 查不到 → 去成 `0.1` → 命中 `{CORE}`）；不命中返回 null。
 
-**本实现的关键决策**（`SyncmaticaReference.java:21-22`）：`MOD_VERSION` = 插件版本（`1.21.11-b1` 式，`-b` 构建号后缀永不命中 `^\d+(\.\d+){2,4}$` 正则），使 `fromVersionString` 返回 null → **强制双方走 FEATURE 交换** → 双方用全集 FeatureSet（MODIFY/DISPLAY_NAME/CORE_EX/VERSION 全开）。这保证 metadata/position 编码所有可选字段都下发，功能完整。
+**本实现的关键决策**（`SyncmaticaReference.java:25-26`）：`MOD_VERSION` = 插件版本（`26.1.2-b2` 式，`-b` 构建号后缀永不命中 `^\d+(\.\d+){2,4}$` 正则），使 `fromVersionString` 返回 null → **强制双方走 FEATURE 交换** → 双方用全集 FeatureSet（MODIFY/DISPLAY_NAME/CORE_EX/VERSION 全开）。这保证 metadata/position 编码所有可选字段都下发，功能完整。
 
 > 对端若是真原版 `0.1.x` 客户端，`fromVersionString` 命中 `{CORE}` → 只编码 CORE 子集（无 DISPLAY_NAME/CORE_EX/VERSION/MODIFY 字段），客户端镜像 `receiveMetaData` 缺失字段用默认值兜底，仍能工作。
 
@@ -153,14 +153,14 @@
 
 ## 4. Metadata 与 Position 字段布局（已实现）
 
-协议最核心的字段表。`putMetaData` / `putPositionData` 在 `CommunicationManager.java:109-167`，镜像 `receiveMetaData` / `receivePositionData` 在 `:169-244`。
+协议最核心的字段表。`putMetaData` / `putPositionData` 在 `CommunicationManager.java:112-171`，镜像 `receiveMetaData` / `receivePositionData` 在 `:172-300`（上游 26.1 同构 `:86-146` / `:147-224`）。
 
 ### 4.1 REGISTER_METADATA / CONFIRM_USER 中的 placement 编码
 
 ```
-putMetaData(metaData, buf, target)                          // CommunicationManager.java:109-134
+putMetaData(metaData, buf, target)                          // CommunicationManager.java:112-138
 ├─ writeUUID(id)                          placement UUID
-├─ writeUtf(fileName)                     基础文件名
+├─ writeUtf(getCleanFileName())           基础文件名（剥路径前缀——ServerPlacement.getCleanFileName 取 `[^/\]+$` 末段，防目录穿越；上游同源，紧邻留有被注释停用的 sanitizeFileName 旧线）
 ├─ writeUUID(hash)                        文件内容 MD5→UUID
 ├─ [若 target 有 DISPLAY_NAME]
 │   └─ writeUtf(name)                     显示名（litematic 内的 Display Name）
@@ -178,7 +178,7 @@ putMetaData(metaData, buf, target)                          // CommunicationMana
 ### 4.2 putPositionData（origin + 朝向 + 子区域）
 
 ```
-putPositionData(metaData, buf, target)                     // CommunicationManager.java:136-167
+putPositionData(metaData, buf, target)                     // CommunicationManager.java:139-171
 ├─ writeBlockPos(position)                origin 坐标
 ├─ writeUtf(dimensionId)                  维度（如 "minecraft:overworld"）
 ├─ writeInt(rotation.ordinal())           Rotation 枚举序号（0..3）
@@ -194,11 +194,11 @@ putPositionData(metaData, buf, target)                     // CommunicationManag
 
 > ⚠️ **字段顺序依赖握手阶段已确定的 FeatureSet**。`onFeatureSetReceive` 在 `setFeatureSet` **之后**才调（`VersionHandshakeServer.handle` 命中默认集分支 `:60-64`，或 `FeatureExchange.handle` 收 FEATURE 后 `:37-38`），故 `putMetaData` 调用时 FeatureSet 必然已就绪。
 >
-> ⚠️ **Rotation / Mirror 用 ordinal 传输**（非 name）。原版注释（`CommunicationManager.java:140-143`）说明这是有意为之——传输「非修改性枚举」给同应用另一实例，不关心序号持久性。本实现用 `net.minecraft.world.level.block.Rotation` / `Mirror` 的 `values()[ordinal]`（`CommunicationManager.java:50-51,225-226`）直接还原，枚举顺序与原版一致。
+> ⚠️ **Rotation / Mirror 用 ordinal 传输**（非 name）。原版注释（`CommunicationManager.java:143-146`，上游 26.1 `:118-121` 同文）说明这是有意为之——传输「非修改性枚举」给同应用另一实例，不关心序号持久性。本实现用 `net.minecraft.world.level.block.Rotation` / `Mirror` 的 `values()` 数组（`CommunicationManager.java:51-52`）经 `safeRotation` / `safeMirror`（`:309-325`）校验还原（越界值抛 `IllegalArgumentException` 被 `ProtocolChannel` try 兜底丢弃，与原版隐式 AIOOBE 表面行为一致），枚举顺序与原版一致。
 
 ### 4.3 接收镜像（已实现，对照确认）
 
-`receiveMetaData`（`:169-219`）严格按 §4.1 顺序读取，缺失 `DISPLAY_NAME` 时 `displayName = fileName` 兜底（`:184-187`）；缺失 `CORE_EX` 时 `owner = lastModifiedBy = MISSING_PLAYER`（`:176-177`）；缺失 `VERSION` 时走无版本构造（`:210-211`）。`receivePositionData`（`:221-244`）按 §4.2 顺序，CORE_EX 子区域逐个 `subRegionData.modify(name, pos, rot, mir)`。**`putXxx` 与此镜像逐字段对应**。
+`receiveMetaData`（`:172-223`）严格按 §4.1 顺序读取，缺失 `DISPLAY_NAME` 时 `displayName = fileName` 兜底（`:189`）；缺失 `CORE_EX` 时 `owner = lastModifiedBy = MISSING_PLAYER`（`:179-180`）；缺失 `VERSION` 时走无版本构造（`:212-214`）。`receivePositionData`（`:224-300`）按 §4.2 顺序，CORE_EX 子区域逐个 `subRegionData.modify(name, pos, rot, mir)`。**`putXxx` 与此镜像逐字段对应**。
 
 ---
 
