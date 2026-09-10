@@ -4,7 +4,7 @@
 > The client still uses the original Fabric mods; the server swaps from "Fabric server + server-side mod" to "standard Paper server + this plugin", with identical protocol behavior.
 
 ```
-Paper 26.1.2 · Java 25 · paperweight userdev · Version 26.1.2-b1
+Paper 26.1.2 · Java 25 · paperweight userdev · Version 26.1.2-b2
 Servux ✅  ·  JEI ✅  ·  Syncmatica ✅   (all three targets fully implemented; server-side verified on 26.1.2)
 ```
 
@@ -77,7 +77,7 @@ A server-side protocol mod that delivers data to masa's client mods (MiniHUD / L
 |  `servux:structures`     |  `structure_bounding_boxes`  |  3                 |  Structures: structure bounding boxes (periodic chunk scan)                                                                     |
 |  `servux:litematics`     |  `litematic_data`            |  2                 |  Litematics: schematic transmit / paste / bulk entities                                                                         |
 
-> **26.1 wire changes** (vs 1.21.11, all verified against the LTS/26.1 client sources): protocol versions bumped as above; the `servux` handshake field is now a **hard gate** on the client — it must start with `servux-fabric-<exact upstream MC id>` (e.g. `servux-fabric-26.1.2-b1`), so the server impersonates `fabric`; most business packets switched their NBT carrier from vanilla `writeNbt` to the **malilib DataTag wire format** (`[int32 BE compressed length][GZIP'd named-root NBT stream]`, see `DataTagIo`); the C2S `transactionId` VarInt prefix was removed; Structures dropped types 10/11/12 (spawn/weather now HUD-only); new `UNREGISTER_REPLY` types (HUD=9 / Entities=7 / Tweaks=7 / Litematics=8); the malilib client reassembly cap dropped **128MB → 16MB** (server-side transmit guard added). The Litematica **task group (types 14-17, Fill/Delete via servux) is implemented**: `TASK_REQUEST` → per-tick budgeted server-side fill/delete with InfoHud status sync (`REMAINING_CHUNKS` frames) and completion frames (see docs/09 §26.1.5; type 15 stays encodable-but-unsent since the client's receiver is TODO'd upstream, and type 17 is upstream-identically ignored).
+> **26.1 wire changes** (vs 1.21.11, all verified against the LTS/26.1 client sources): protocol versions bumped as above; the `servux` handshake field is now a **hard gate** on the client — it must start with `servux-fabric-<exact upstream MC id>` (e.g. `servux-fabric-26.1.2-b2`), so the server impersonates `fabric`; most business packets switched their NBT carrier from vanilla `writeNbt` to the **malilib DataTag wire format** (`[int32 BE compressed length][GZIP'd named-root NBT stream]`, see `DataTagIo`); the C2S `transactionId` VarInt prefix was removed; Structures dropped types 10/11/12 (spawn/weather now HUD-only); new `UNREGISTER_REPLY` types (HUD=9 / Entities=7 / Tweaks=7 / Litematics=8); the malilib client reassembly cap dropped **128MB → 16MB** (server-side transmit guard added). The Litematica **task group (types 14-17, Fill/Delete via servux) is implemented**: `TASK_REQUEST` → per-tick budgeted server-side fill/delete with InfoHud status sync (`REMAINING_CHUNKS` frames) and completion frames (see docs/09 §26.1.5; type 15 stays encodable-but-unsent since the client's receiver is TODO'd upstream, and type 17 is upstream-identically ignored).
 
 ### 2. JEI (full server protocol, upstream = mezz/JustEnoughItems `26.1` branch)
 
@@ -104,7 +104,7 @@ Fundamentally different from Servux (one-way broadcast):
 - File storage + JSON persistence + **upload quota / debug** services.
 - On handshake, both sides exchange a **FeatureSet** to negotiate the optional-field encoding of metadata / position packets.
 
-**Feature enum** (negotiated on handshake): `CORE` `FEATURE` `MODIFY` `MESSAGE` `QUOTA` `DEBUG` `CORE_EX` `VERSION` `DISPLAY_NAME`. This server advertises the **full FeatureSet** (combined with `MOD_VERSION=26.1.2-b1` — the `-b` build suffix never matches the legacy version regex — to trigger FEATURE exchange so both sides encode with the full set).
+**Feature enum** (negotiated on handshake): `CORE` `FEATURE` `MODIFY` `MESSAGE` `QUOTA` `DEBUG` `CORE_EX` `VERSION` `DISPLAY_NAME`. This server advertises the **full FeatureSet** (combined with `MOD_VERSION=26.1.2-b2` — the `-b` build suffix never matches the legacy version regex — to trigger FEATURE exchange so both sides encode with the full set).
 
 ---
 
@@ -132,7 +132,7 @@ Fundamentally different from Servux (one-way broadcast):
 
 ## 4. Installation
 
-1. Get `VeryMcProto-26.1.2-b1.jar` from the project Releases page, or build it with `./gradlew build` (the Mojang-mapped artifact loads directly on standard Paper 26.1+ — no reobf step exists anymore).
+1. Get `VeryMcProto-26.1.2-b2.jar` from the project Releases page, or build it with `./gradlew build` (the Mojang-mapped artifact loads directly on standard Paper 26.1+ — no reobf step exists anymore).
 2. Drop it into the server's `plugins/` directory.
 3. **(Optional, only for EasyPlace)** Install the PacketEvents plugin.
 4. With PacketEvents installed, EasyPlace is enabled automatically; without it, it is skipped automatically.
@@ -641,7 +641,7 @@ See [`docs/10-testing-guide.md`](docs/10-testing-guide.md) (Servux) and [`docs/2
 
 ### Versioning & Branch Model
 
-Plugin version = **`<MC version>-b<build number>`** — currently `26.1.2-b1` (the 26.1 line's exact upstream patch id; required by the 26.1 client MOD_STRING hard gate). The **single source of truth** is `gradle.properties` (`mcVersion` / `buildNumber`): Gradle derives `version` from it, injects it into `plugin.yml` / the jar name / `version.properties`, and `Reference.MC_VERSION` / `Reference.PLUGIN_VERSION` (hence every protocol handshake string such as `servux-fabric-26.1.2-b1`) read it back from `version.properties`. Never hardcode a version anywhere else.
+Plugin version = **`<MC version>-b<build number>`** — currently `26.1.2-b2` (the 26.1 line's exact upstream patch id; required by the 26.1 client MOD_STRING hard gate). The **single source of truth** is `gradle.properties` (`mcVersion` / `buildNumber`): Gradle derives `version` from it, injects it into `plugin.yml` / the jar name / `version.properties`, and `Reference.MC_VERSION` / `Reference.PLUGIN_VERSION` (hence every protocol handshake string such as `servux-fabric-26.1.2-b2`) read it back from `version.properties`. Never hardcode a version anywhere else.
 
 | Branch | Purpose |
 | --- | --- |
