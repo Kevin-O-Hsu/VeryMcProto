@@ -200,7 +200,7 @@ verymc.top.veryMcProto/
 
 - **Litematics（M2）**：投影系统（schematic/）代码量最大（~9000 行），阶段6 完成度见实际进度。
 - **通道名纠偏**：CLAUDE.md / docs 表格的通道名（`tweaks_data`/`structure_bounding_boxes`/`litematic_data`）是 **provider 逻辑名**，真实网络名（源码 CHANNEL_ID 实证）是 `servux:tweaks`/`servux:structures`/`servux:litematics`。本移植用真实网络名。
-- **MOD_STRING**：~~`servux-paper-1.21.11-b1`（= MOD_ID-平台-插件版本...客户端仅前缀识别不做分段解析）~~ **已被 26.1 推翻（见 §26.1.2 第 2 条）**：26.1 客户端四通道硬门禁校验 `startsWith("servux-fabric-<精确上游id>")`，`paper` 前缀会被整通道静默拒绝——`MOD_TYPE` 恒 `fabric` 伪装 + 精确补丁版本注入，当前真值 `servux-fabric-26.1.2-b2`。
+- **MOD_STRING**：~~`servux-paper-1.21.11-b1`（= MOD_ID-平台-插件版本...客户端仅前缀识别不做分段解析）~~ **已被 26.1 推翻（见 §26.1.2 第 2 条）**：26.1 客户端四通道硬门禁校验 `startsWith("servux-fabric-<精确上游id>")`，`paper` 前缀会被整通道静默拒绝——`MOD_TYPE` 恒 `fabric` 伪装 + 精确补丁版本注入，当前真值 `servux-fabric-26.1.2-b3`。
 - **方案 B（NMS 发包）预留**：当前方案 A（plugin messaging，S2C 分片 32000）。Payload record 保留，后续大包（Recipe/Litematic）可升级方案 B（NMS `ClientboundCustomPayloadPacket` 保 1MiB 分片）。
 - ** Structures 性能**：周期扫描玩家 view distance 区块，玩家多时 CPU 占用；默认 update_interval=100t（5s）+ 只扫 view distance 内 + 去重。
 

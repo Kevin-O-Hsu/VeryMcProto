@@ -120,7 +120,7 @@
 
 `FeatureSet.java:65-68`：仅一条 `"0.1" → {CORE}`。`fromVersionString(version)`（`:21-33`）用正则 `^\d+(\.\d+){2,4}$` 校验后**逐级去掉末段**查表（`0.1.0` → 查不到 → 去成 `0.1` → 命中 `{CORE}`）；不命中返回 null。
 
-**本实现的关键决策**（`SyncmaticaReference.java:25-26`）：`MOD_VERSION` = 插件版本（`26.1.2-b2` 式，`-b` 构建号后缀永不命中 `^\d+(\.\d+){2,4}$` 正则），使 `fromVersionString` 返回 null → **强制双方走 FEATURE 交换** → 双方用全集 FeatureSet（MODIFY/DISPLAY_NAME/CORE_EX/VERSION 全开）。这保证 metadata/position 编码所有可选字段都下发，功能完整。
+**本实现的关键决策**（`SyncmaticaReference.java:25-26`）：`MOD_VERSION` = 插件版本（`26.1.2-b3` 式，`-b` 构建号后缀永不命中 `^\d+(\.\d+){2,4}$` 正则），使 `fromVersionString` 返回 null → **强制双方走 FEATURE 交换** → 双方用全集 FeatureSet（MODIFY/DISPLAY_NAME/CORE_EX/VERSION 全开）。这保证 metadata/position 编码所有可选字段都下发，功能完整。
 
 > 对端若是真原版 `0.1.x` 客户端，`fromVersionString` 命中 `{CORE}` → 只编码 CORE 子集（无 DISPLAY_NAME/CORE_EX/VERSION/MODIFY 字段），客户端镜像 `receiveMetaData` 缺失字段用默认值兜底，仍能工作。
 
