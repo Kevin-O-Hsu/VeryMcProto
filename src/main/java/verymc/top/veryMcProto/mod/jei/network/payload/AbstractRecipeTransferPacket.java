@@ -25,6 +25,16 @@ import verymc.top.veryMcProto.mod.jei.transfer.TransferOperation;
  */
 public abstract class AbstractRecipeTransferPacket
 {
+    /**
+     * 列表预分配容量封顶（65536 = vanilla 26.1.2 {@code ByteBufCodecs.collection(...)} 匿名 decode 的
+     * {@code Math.min(count, 65536)}，常量 {@code MAX_INITIAL_COLLECTION_SIZE}）。声明 count 攻击者
+     * 可控，直达分配器即 GB 级预分配 OutOfMemoryError——Error 穿透全部 catch(Exception)（本类两层 +
+     * Paper handleCustomPayload 层）。封顶后：超大声明在元素循环内因字节耗尽 fail-fast（每帧 C2S
+     * ≤32767 字节，vanilla DiscardedPayload 解码上限），负数由 ArrayList 构造器抛 IAE，均被
+     * JeiServerPlayHandler 逐包 catch 承接。仅影响初始容量提示，合法列表（真实转移 ≤54 元素）零变化。
+     */
+    private static final int MAX_INITIAL_LIST_CAPACITY = 65536;
+
     final List<TransferOperation> transferOperations;
     final List<Integer> craftingSlots;
     final List<Integer> inventorySlots;
@@ -48,7 +58,7 @@ public abstract class AbstractRecipeTransferPacket
     public static List<TransferOperation> readOperations(RegistryFriendlyByteBuf buf, boolean counted)
     {
         int size = buf.readVarInt();
-        List<TransferOperation> list = new ArrayList<>(Math.max(0, size));
+        List<TransferOperation> list = new ArrayList<>(Math.min(size, MAX_INITIAL_LIST_CAPACITY));
         for (int i = 0; i < size; i++)
         {
             list.add(counted ? TransferOperation.readCounted(buf) : TransferOperation.readUncounted(buf));
@@ -56,11 +66,15 @@ public abstract class AbstractRecipeTransferPacket
         return list;
     }
 
-    /** 解码 VAR_INT 列表（{@code ByteBufCodecs.VAR_INT.apply(ByteBufCodecs.list())} 的裸 buffer 等价物）。 */
+    /**
+     * 解码 VAR_INT 列表（{@code ByteBufCodecs.VAR_INT.apply(ByteBufCodecs.list())} 的裸 buffer 等价物；
+     * 预分配容量经 {@code MAX_INITIAL_LIST_CAPACITY} 封顶——上游经 {@code ByteBufCodecs.list()} 解码
+     * 同样落在 vanilla collection decode 的 65536 初始容量封顶内）。
+     */
     public static List<Integer> readVarIntList(FriendlyByteBuf buf)
     {
         int size = buf.readVarInt();
-        List<Integer> list = new ArrayList<>(Math.max(0, size));
+        List<Integer> list = new ArrayList<>(Math.min(size, MAX_INITIAL_LIST_CAPACITY));
         for (int i = 0; i < size; i++)
         {
             list.add(buf.readVarInt());

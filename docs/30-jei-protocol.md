@@ -36,7 +36,7 @@ public boolean isJeiOnServer() {
 
 ## 2. jei:* 自有层 wire 逐字段
 
-全部通道 id = `jei:<name>`（上游 `ModIds.JEI_ID`）。列表线序 = VarInt(size) + 元素（`ByteBufCodecs.list()` 等价物）；枚举 = VarInt 序号（`readEnum` 越界严格拒绝）；ItemStack = `ItemStack.STREAM_CODEC`（需 `RegistryFriendlyByteBuf`）。
+全部通道 id = `jei:<name>`（上游 `ModIds.JEI_ID`）。列表线序 = VarInt(size) + 元素（`ByteBufCodecs.list()` 等价物，预分配容量 65536 封顶——vanilla collection decode 同源，见 §6）；枚举 = VarInt 序号（`readEnum` 越界严格拒绝）；ItemStack = `ItemStack.STREAM_CODEC`（需 `RegistryFriendlyByteBuf`）。
 
 ### S2C（服务端 → 客户端，2 条，均经 `JeiPacketSender` NMS 直发）
 
@@ -124,7 +124,8 @@ recipes:    VarInt(count) + RecipeHolder.STREAM_CODEC 列表
 
 - **32767** = 客户端对**未知通道** custom payload 的 discarded 解码上限（超过断连）——对发给 vanilla/未装 mod 客户端的任意通道成立，servux 的 PacketSplitter 32000 分片防的就是它。
 - **已知通道不受此限**：Fabric API 把 `fabric:recipe_sync` 注册为 64MB large payload（客户端 codec + mixin 提限）。我方单包直发给 Fabric API 客户端安全（26.1.2 实机验证，配方表全量 >1MiB 场景）。
-- jei:* S2C 恒小包（几十字节）；C2S 受 vanilla custom payload 上限约束（≤32KiB 级），恶意超大列表被解码期上限天然截断。
+- jei:* S2C 恒小包（几十字节）；C2S 每帧 ≤32767 字节（vanilla 未知通道 `DiscardedPayload` 解码上限，超限在 netty 解码期拒绝、到不了插件代码）。
+- **包长只限字节流，不限列表声明容量**（2026-09 修复记录：修复前转移包列表解码把声明 count 直达 `ArrayList` 构造容量——5 字节 VarInt 可声明 2^31，GB 级预分配的 `OutOfMemoryError` 是 Error，穿透全部 catch(Exception)，可达主线程）。现行防护：列表预分配容量按 vanilla 26.1.2 `ByteBufCodecs.collection(...)` decode 同源的 `Math.min(count, 65536)` 封顶（`AbstractRecipeTransferPacket.MAX_INITIAL_LIST_CAPACITY`）——超大声明在元素循环内字节耗尽 fail-fast、负数由 ArrayList 构造器抛 IAE，均被 `JeiServerPlayHandler` 逐包 catch(Exception) 记日志丢弃、连接保持（`RecipeTransferListBoundTest` 回归覆盖）。
 
 ## 7. 模块结构（`mod/jei/`，自管形态——黄金模板 syncmatica）
 

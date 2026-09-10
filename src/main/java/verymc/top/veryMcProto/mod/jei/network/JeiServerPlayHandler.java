@@ -32,7 +32,8 @@ import verymc.top.veryMcProto.mod.jei.network.payload.legacy.PacketRecipeTransfe
  *
  * <p><b>安全面</b>：逐包 try-catch（框架 {@code ProtocolChannel} 外层另有兜底）；解码严格
  * （{@code readEnum} 越界抛 {@code DecoderException}、{@code TransferOperation} count&lt;1 拒绝）；
- * 槽位界校验见 {@code AbstractRecipeTransferPacket.getSlots}。
+ * 列表预分配容量 65536 封顶（vanilla collection decode 同源——声明 count 不直达分配器，超大/负数
+ * 均 fail-fast 进本 catch，防 Error 级 OOM 穿透）；槽位界校验见 {@code AbstractRecipeTransferPacket.getSlots}。
  */
 public final class JeiServerPlayHandler implements IPluginServerPlayHandler
 {
