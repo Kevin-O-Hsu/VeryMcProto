@@ -1,3 +1,8 @@
+// 顶层显式 import：tasks{} 块内 Project 接收器的 `java` 扩展（JavaPluginExtension）会遮蔽
+// java.* 包名限定，故 ZipFile/Properties 必须走 import 引入而非全限定名。
+import java.util.Properties
+import java.util.zip.ZipFile
+
 plugins {
     `java-library`
     id("io.papermc.paperweight.userdev") version "2.0.0-beta.23"
@@ -60,8 +65,48 @@ tasks {
     processResources {
         val projectVersion = project.version
         val mcVersionProp = providers.gradleProperty("mcVersion").get()
+        // expand() 的占位符值不参与 Gradle up-to-date 跟踪——必须显式 inputs.property，否则
+        // 发版 buildNumber+1 后本任务误判 UP-TO-DATE、陈旧展开产物被打进新文件名 jar
+        // （26.1.2-b2 事故实证：jar 名 b2、内部 plugin.yml/version.properties 仍为 b1）。
+        inputs.property("version", projectVersion)
+        inputs.property("mcVersion", mcVersionProp)
         filesMatching(listOf("plugin.yml", "paper-plugin.yml", "version.properties")) {
             expand(mapOf("version" to projectVersion, "mcVersion" to mcVersionProp))
         }
+    }
+
+    // 版本注入终检：解包产物 jar，断言内部 version.properties / plugin.yml 与 project.version
+    // 一致——把「展开陈旧 / 占位符缺位」这类静默错版转为构建失败（26.1.2-b2 事故后增设）。
+    // 无 outputs 声明故每次构建必跑（成本为解包读两Entry）；捕获 Provider 而非 Task，配置缓存安全。
+    val verifyVersionInjection by registering {
+        val jarArchive = jar.flatMap { it.archiveFile }
+        val expectedVersion = project.version.toString()
+        group = "verification"
+        doLast {
+            val jarFile = jarArchive.get().asFile
+            val expected = expectedVersion
+            ZipFile(jarFile).use { zip ->
+                val propEntry = zip.getEntry("version.properties")
+                    ?: throw GradleException("产物 jar 缺 version.properties：${jarFile.name}")
+                val props = Properties()
+                zip.getInputStream(propEntry).use { props.load(it) }
+                val propVersion = props.getProperty("version")
+                    ?: throw GradleException("version.properties 缺 version 键：${jarFile.name}")
+                val ymlEntry = zip.getEntry("plugin.yml")
+                    ?: throw GradleException("产物 jar 缺 plugin.yml：${jarFile.name}")
+                val ymlText = zip.getInputStream(ymlEntry).use { it.readBytes().toString(Charsets.UTF_8) }
+                val ymlVersion = Regex("(?m)^version:\\s*'?([^'\\r\\n]+)'?\\s*$").find(ymlText)?.groupValues?.get(1)
+                    ?: throw GradleException("plugin.yml 缺 version 行：${jarFile.name}")
+                if (propVersion != expected || ymlVersion != expected) {
+                    throw GradleException(
+                        "版本注入不一致：jar=${jarFile.name} 内 version.properties=$propVersion / " +
+                            "plugin.yml=$ymlVersion，期望 $expected——疑似展开陈旧，执行 ./gradlew clean 后重新构建")
+                }
+                logger.lifecycle("版本注入校验通过：${jarFile.name} 内部版本 = $expected")
+            }
+        }
+    }
+    build {
+        dependsOn(verifyVersionInjection)
     }
 }

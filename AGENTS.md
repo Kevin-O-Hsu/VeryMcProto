@@ -87,6 +87,7 @@ gradle.properties（mcVersion=26.1.2 · buildNumber=2）          ← 唯一改�
 
 要点：
 - `Reference.loadVersionProperty` 资源缺失时回退 `dev-unknown`（开发环境不崩），生产 jar 恒有值。
+- **`processResources` 的 `expand()` 占位符值不参与 Gradle up-to-date 跟踪**，必须显式 `inputs.property(...)` 声明（`build.gradle.kts` 已接）——否则发版 `buildNumber`+1 后任务误判 UP-TO-DATE、陈旧展开被打进新文件名 jar（26.1.2-b2 曾实证 jar 名 b2 / 内部 plugin.yml 仍 b1）。`build` 挂 `verifyVersionInjection` 终检：解包产物 jar 断言内部 `plugin.yml` / `version.properties` 与 `project.version` 一致，不一致即构建失败。
 - 版本号出现在任何别的位置都是 bug——grep `26\.1\.2` 应只命中 `gradle.properties`、`version.properties` 模板（`${...}` 占位）与文档示例。
 - 历史 tag `v1.0.0`（旧命名体系）保留作历史记录；新 tag 一律 `v<mcVersion>-b<buildNumber>`。
 
