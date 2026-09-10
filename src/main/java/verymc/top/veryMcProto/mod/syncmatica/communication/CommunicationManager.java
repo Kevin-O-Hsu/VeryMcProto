@@ -264,9 +264,42 @@ public abstract class CommunicationManager
 
     public boolean getDownloadState(final ServerPlacement syncmatic) { return downloadState.getOrDefault(syncmatic.getHash(), false); }
 
-    public void setModifier(final ServerPlacement syncmatic, final Exchange exchange) { modifyState.put(syncmatic.getHash(), exchange); }
+    /**
+     * 占锁/解锁统一入口——上游 {@code setModifier(placement, null)} 即解锁。
+     *
+     * <p><b>本仓库修复（勿随模板回退）</b>：上游 {@code modifyState} 为 {@code HashMap}，允许 null 值——
+     * 「写 null」即解锁；本仓库迁移 {@link ConcurrentHashMap}（禁 null 值）后同一调用必抛 NPE，曾致四条
+     * 路径静默失败（MODIFY 成功不广播 / REMOVE 全流程中断 / onPlayerLeave 清理中断 / suspendAll 锁泄漏——
+     * NPE 被 ProtocolChannel 吞掉后 notifyClose 不执行，锁条目残留使后续 MODIFY 恒 DENY）。故 null 在此
+     * 翻译为 {@link Map#remove}——两库全部读点仅 {@code map.get}，「条目移除」与上游「null 值残留」可观测等价。
+     *
+     * <p>前置条件：{@code syncmatic} 非 null（与上游一致）——违反时沿上游解引用行为以 NPE 失败（本方法无守卫）。
+     */
+    public void setModifier(final ServerPlacement syncmatic, final Exchange exchange)
+    {
+        if (exchange == null)
+        {
+            modifyState.remove(syncmatic.getHash());
+        }
+        else
+        {
+            modifyState.put(syncmatic.getHash(), exchange);
+        }
+    }
 
-    public Exchange getModifier(final ServerPlacement syncmatic) { return modifyState.get(syncmatic.getHash()); }
+    /**
+     * 查询 placement 当前占锁者（null = 无锁）。
+     *
+     * <p><b>本仓库修复（勿随模板回退）</b>：{@code syncmatic == null}（MODIFY_REQUEST 指向不存在的
+     * placement，如 REMOVE 静默失败残留的幽灵 id）时返回 null 而非 NPE。上游此处为原生缺陷：
+     * {@code null.getHash()} 抛 NPE 且 {@code AbstractExchange#close} 中 onClose 先于 sendCancelPacket，
+     * DENY 永不发出、客户端 UI 挂起、exchange 残留。本守卫使该路径完整发出 DENY（sendCancelPacket 用
+     * placementId 构造器字段，与 placement 无关）并经 startExchangeUnchecked→notifyClose 自清理。
+     */
+    public Exchange getModifier(final ServerPlacement syncmatic)
+    {
+        return syncmatic == null ? null : modifyState.get(syncmatic.getHash());
+    }
 
     public void startExchange(final Exchange newExchange)
     {

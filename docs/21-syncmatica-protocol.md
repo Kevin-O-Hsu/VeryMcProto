@@ -305,6 +305,24 @@ putPositionData(placement, buf, client)            // §4.2
 
 对**不支持 MODIFY** feature 的客户端，退化兼容：先发 `REMOVE_SYNCMATIC[uuid]`，再发 `REGISTER_METADATA`（重发完整 metadata）。
 
+> 🔧 **我方修复标注（勿随模板回退）**：`modifyState` 锁表随迁移由上游 `HashMap` 改为 `ConcurrentHashMap`
+> （`CommunicationManager.java:60`，并发安全决策），由此产生两处与上游的**受控偏差**：
+>
+> 1. **setModifier null→remove 翻译**：上游「`setModifier(p, null)` 写 null 值 = 解锁」在 CHM 下必抛 NPE
+>    （CHM 禁 null 值），曾致四条路径静默失败——MODIFY 成功不广播（`succeed()→onClose` NPE 中断
+>    `notifyClose`）、REMOVE 全流程中断（placement 删不掉且不广播，残留幽灵 id 喂养下条）、
+>    onPlayerLeave 清理中断（targets 跨重连污染）、suspendAll 锁泄漏（后续 MODIFY 恒 DENY）。修复 =
+>    `exchange == null` 时 `modifyState.remove(hash)`——两库全部读点仅 `map.get`，与上游「null 值残留」
+>    可观测等价（上游 `CommunicationManager.java:242`）。
+> 2. **getModifier null placement 守卫**：`getModifier(null)`（MODIFY_REQUEST 指向不存在的 placement）返回
+>    null（无锁）而非 NPE。此为**上游原生缺陷**的本地修复：上游 `null.getHash()` 同样抛 NPE，且
+>    `AbstractExchange.close` 中 `onClose` 先于 `sendCancelPacket`，DENY 永不发出（客户端 UI 挂起）、
+>    exchange 残留（`startExchangeUnchecked` 先 add 后 init，NPE 逃逸则永不移除）。守卫后该路径完整发出
+>    DENY（`sendCancelPacket` 用 `placementId` 构造器字段）并经 `startExchangeUnchecked→notifyClose` 自清理。
+>
+> 两条 NPE 曾均被 `ProtocolChannel` 的 `catch(Exception)` 吞成零信息日志（NPE 的 `getMessage()` 为 null），
+> 该 catch 已改为带堆栈输出。单测 `ModifyStateTest` 固化上述锁语义契约（5 用例，修复前全部 NPE 失败）。
+
 ### 5.5 客户端 Exchange（服务端需回应的包）
 
 服务端 `ServerCommunicationManager.handle` 必须正确处理客户端 Exchange 发出的包：

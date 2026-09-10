@@ -4,6 +4,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
+import java.util.logging.Level;
 
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -74,7 +75,8 @@ public final class ProtocolChannel
             }
             catch (Exception e)
             {
-                Reference.logger().warning("ProtocolChannel[" + channelId + "] 处理 C2S 失败: " + e.getMessage());
+                // 带堆栈：NPE 的 getMessage() 为 null，此前线上只见「处理 C2S 失败: null」无法定位
+                Reference.logger().log(Level.WARNING, "ProtocolChannel[" + channelId + "] 处理 C2S 失败", e);
             }
         }
     };
