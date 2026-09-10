@@ -22,7 +22,7 @@
 ## 1. 总体规则（auto mode 硬约束）
 
 1. **编译门**：每阶段结束 `./gradlew compileJava` 必须 EXIT=0 才进下一阶段；失败当场修复，禁止带错推进。
-2. **照抄优先**：容器/几何/元数据/`SchematicPlacingUtils` 逐字节照抄原版；仅 3 类强制降级（Mixin/DataFixer/IMixinWorldTickScheduler）。
+2. **照抄优先**：容器/几何/元数据/`SchematicPlacingUtils` 逐字节照抄原版；仅 3 类强制降级（Mixin/DataFixer/IMixinWorldTickScheduler）。（**勘误 2026-09-10**：`SchematicPlacingUtils` 的"逐字节照抄"基准是 1.21.11 树；26.1 上游新增的实体位置修复族（上游 :446-513+:562-565）未随抄，已于 2026-09-10 补齐——属第 4 处差异、非降级类，见 docs/09 §26.1.6。）
 3. **包名替换**：`fi.dy.masa.servux` → `verymc.top.veryMcProto.mod.servux`；`Servux.LOGGER` / `Reference.logger()` → 优先 `ServuxLog.debug`，告警/错误用 `Reference.logger()`（照已有文件，如 `LitematicsDataProvider`）。
 4. **桩标注**：桩方法保留原版签名 + `// TODO P{n}: 回填（原版 ORIGIN/...:行号）`，便于 grep 定位回填。
 5. **提交 checkpoint**：P0–P9 每阶段完成（必含 P5/P6/P8/P9）`git commit`，结尾 `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`。
@@ -136,7 +136,7 @@
 
 ### P6 — 粘贴写世界核心 【#33】
 - **回填**：`PositionUtils.getTransformedPlacementPosition`（行 425）恢复原版实现 + placement import
-- **新建**：`ORIGIN/util/SchematicPlacingUtils.java` → `PAPER/util/SchematicPlacingUtils.java`（553，**逐字节照抄**）
+- **新建**：`ORIGIN/util/SchematicPlacingUtils.java` → `PAPER/util/SchematicPlacingUtils.java`（553，**逐字节照抄**；**勘误 2026-09-10**：553 行基准是 1.21.11 树，26.1 上游新增的实体位置修复族（上游 :446-513+:562-565）未随抄，已于同日补齐，见 docs/09 §26.1.6）
 - **回填**：`LitematicaSchematic.placeToWorld*` 方法体（调 `SchematicPlacingUtils.placeToWorldWithinChunk`）
 - **降级**：铁轨/楼梯镜像靠 `BlockState.mirror()/rotate()`；箱子镜像修复照抄（`fixChestMirror` setting 已在 `LitematicsDataProvider`）
 - **门**：`compileJava` + commit

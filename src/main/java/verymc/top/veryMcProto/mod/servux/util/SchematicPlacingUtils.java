@@ -17,6 +17,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Leashable;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.entity.decoration.painting.Painting;
@@ -45,6 +46,16 @@ import verymc.top.veryMcProto.mod.servux.util.position.PositionUtils;
 
 public class SchematicPlacingUtils
 {
+    // 实体位置修复族 NBT 键——逐字对齐上游 NbtKeys.java（OriginImpl/servux-LTS-26.1/
+    // src/main/java/fi/dy/masa/servux/util/nbt/NbtKeys.java）：POS=:12、ATTACHED_BLOCK_POS=:81、
+    // LEASH=:111、HOME_RADIUS=:150、HOME_POS=:151。"leash" 自 1.21.5 起为全小写（旧版 "Leash"），
+    // 键拼错无任何报错、修复整条静默失效——由 EntityPastePositionFixTest 字面串用例互锁。
+    private static final String KEY_POS = "Pos";
+    private static final String KEY_ATTACHED_BLOCK_POS = "block_pos";
+    private static final String KEY_LEASH = "leash";
+    private static final String KEY_HOME_RADIUS = "home_radius";
+    private static final String KEY_HOME_POS = "home_pos";
+
     public static boolean placeToWorldWithinChunk(Level world,
                                                   ChunkPos chunkPos,
                                                   SchematicPlacement schematicPlacement,
@@ -433,29 +444,9 @@ public class SchematicPlacingUtils
             if (x >= minX && x < maxX && z >= minZ && z < maxZ)
             {
                 CompoundTag tag = info.nbt.copy();
-                String id = tag.getStringOr("id", "");
 
-                // Avoid warning about invalid hanging position.
-                // Note that this position isn't technically correct, but it only needs to be within 16 blocks
-                // of the entity position to avoid the warning.
-                if (id.equals("minecraft:glow_item_frame") ||
-                    id.equals("minecraft:item_frame") ||
-                    id.equals("minecraft:leash_knot") ||
-                    id.equals("minecraft:painting"))
-                {
-                    Vec3 p = NbtUtils.readEntityPositionFromTag(tag);
-
-                    if (p == null)
-                    {
-                        p = new Vec3(x, y, z);
-//                        NbtUtils.writeEntityPositionToTag(p, tag);
-                        NbtUtils.putVec3dCodec(tag, p, "Pos");
-                    }
-
-                    tag.putInt("TileX", (int) p.x);
-                    tag.putInt("TileY", (int) p.y);
-                    tag.putInt("TileZ", (int) p.z);
-                }
+                // 粘贴前实体位置修复族（Pos/TileX/block_pos/leash/home_pos，对齐上游 :446-513）
+                applyEntityPastePositionFixes(tag, x, y, z, offX, offY, offZ);
 
                 ListTag rotation = tag.getListOrEmpty("Rotation");
                 origRot[0] = rotation.getFloatOr(0, 0f);
@@ -507,11 +498,105 @@ public class SchematicPlacingUtils
 
                     EntityUtils.spawnEntityAndPassengersInWorld(entity, world);
 
-                    if (entity instanceof Display)
+                    if (entity instanceof Display || entity instanceof Leashable)
                     {
                         entity.tick(); // Required to set the full data for rendering
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * 粘贴前实体 NBT 位置修复族——逐字对齐上游 servux-LTS-26.1
+     * SchematicPlacingUtils.placeEntitiesToWorldWithinChunk（OriginImpl/servux-LTS-26.1/
+     * src/main/java/fi/dy/masa/servux/util/SchematicPlacingUtils.java:446-513）：
+     * <ol>
+     * <li>一切实体：Pos 缺失或不等于世界目标坐标则重写为目标（vanilla 按 NBT Pos 构造实体；
+     *     悬挂类载入期依赖正确锚点消除 "invalid hanging position" 告警；修复后的 p 亦是
+     *     ② TileX/Y/Z 的数据源，恒为世界目标）。</li>
+     * <li>四种悬挂类（glow_item_frame / item_frame / leash_knot / painting）无条件写
+     *     TileX/Y/Z = (int) 目标坐标。</li>
+     * <li>同分支 block_pos（ATTACHED_BLOCK_POS，1.21.5+）：缺失或不等于目标
+     *     BlockPos((int)x, (int)y, (int)z) 则重写。</li>
+     * <li>leash（拴绳结，存区域相对 BlockPos；键 1.21.5 起为小写）：非 null 且非 ZERO 哨兵
+     *     则平移 off*（UUID 侧上游自认不可修，不触碰）。</li>
+     * <li>home_pos / home_radius：home_pos 非 null 且非 ZERO 哨兵、且 home_radius &gt; 0
+     *     （缺省 -1）才平移 off*；home_radius 值本身不改写（上游刻意形态）。</li>
+     * </ol>
+     *
+     * <p>offX/offY/offZ 语义（本类 placeEntitiesToWorldWithinChunk 头部计算 ≡ 上游 :406-408）：
+     * 变换后区域原点 + 粘贴原点；leash/home 锚点只平移、不随 mirror/rotation 旋转——上游同源形态。
+     *
+     * <p><b>有意偏差（顺序合并）</b>：上游 leash/home 修复位于 Rotation 读取（上游 :480-482）之后，
+     * 本方法把 ①-⑤ 收敛为单次调用、整体前置于 Rotation 读取之前——被修复键集
+     * （Pos/TileX/block_pos/leash/home_*）与 Rotation 键无交集，origRot 唯一消费点
+     * （本类 ItemFrame yaw 修正 / 上游 :551-558）不读写被修复键，行为等价。
+     *
+     * <p>注：五个键统一走 {@code tag.read(KEY, CODEC).orElse(null)} 直调（Pos 用 Vec3.CODEC，
+     * block_pos/leash/home_pos 用 BlockPos.CODEC）——缺失/畸形键一律 null，与上游
+     * getCodec(...).orElse(null) 逐字同构；不依赖 NbtUtils.readEntityPositionFromTag
+     * （其 getId() 守卫恒 false，恒返 null——2026-09-10 实测发现，缺陷详情见 docs/09 §26.1.6）。
+     */
+    public static void applyEntityPastePositionFixes(CompoundTag tag, double x, double y, double z,
+                                                     int offX, int offY, int offZ)
+    {
+        String id = tag.getStringOr("id", "");
+
+        // Entity Pos Fix（读取不用 NbtUtils.readEntityPositionFromTag：其守卫用 ListTag.getId()
+        // ——恒返列表自身类型 9——比对 TAG_DOUBLE(6)，恒 false → 恒返 null；codec 读取与
+        // block_pos/leash/home 同型 orElse(null) 直调，亦同上游 :446-447 弃用自家 NbtUtils
+        // 改走 DataTypeUtils 读取之决策）
+        Vec3 p = tag.read(KEY_POS, Vec3.CODEC).orElse(null);
+        Vec3 pn = new Vec3(x, y, z);
+
+        if (p == null || (!p.equals(pn)))
+        {
+            p = pn;
+            NbtUtils.putVec3dCodec(tag, pn, KEY_POS);
+        }
+
+        // Avoid warning about invalid hanging position.
+        // Note that this position isn't technically correct, but it only needs to be within 16 blocks
+        // of the entity position to avoid the warning.
+        if (id.equals("minecraft:glow_item_frame") ||
+            id.equals("minecraft:item_frame") ||
+            id.equals("minecraft:leash_knot") ||
+            id.equals("minecraft:painting"))
+        {
+            tag.putInt("TileX", (int) p.x);
+            tag.putInt("TileY", (int) p.y);
+            tag.putInt("TileZ", (int) p.z);
+
+            // Block-Attached Pos (1.21.5+) Fix
+            BlockPos ps = tag.read(KEY_ATTACHED_BLOCK_POS, BlockPos.CODEC).orElse(null);
+            BlockPos nps = new BlockPos((int) x, (int) y, (int) z);
+
+            if (ps == null || (!ps.equals(nps)))
+            {
+                NbtUtils.putPosCodec(tag, nps, KEY_ATTACHED_BLOCK_POS);
+            }
+        }
+
+        // Leash-Knot fix (we can't fix the UUID part, unless the other Mob has the
+        // *exact same* UUID in the Schematic World) -- "leash" 键 1.21.5 起为小写。
+        BlockPos lp = tag.read(KEY_LEASH, BlockPos.CODEC).orElse(null);
+
+        if (lp != null && !lp.equals(BlockPos.ZERO))
+        {
+            NbtUtils.putPosCodec(tag, new BlockPos(lp.getX() + offX, lp.getY() + offY, lp.getZ() + offZ), KEY_LEASH);
+        }
+
+        // Home Pos fix -- home_radius <= 0（含缺失）时刻意不修正（上游原样形态）。
+        BlockPos hp = tag.read(KEY_HOME_POS, BlockPos.CODEC).orElse(null);
+
+        if (hp != null && !hp.equals(BlockPos.ZERO))
+        {
+            int hr = tag.getIntOr(KEY_HOME_RADIUS, -1);
+
+            if (hr > 0)
+            {
+                NbtUtils.putPosCodec(tag, new BlockPos(hp.getX() + offX, hp.getY() + offY, hp.getZ() + offZ), KEY_HOME_POS);
             }
         }
     }

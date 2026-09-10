@@ -240,7 +240,7 @@ class AreaSelection {
 - `SchematicPlacement.createFromNbt(tags)`：从客户端粘贴请求解析（含旋转 `Rotation` / 镜像 `Mirror` / 各子区域位置 / 是否忽略实体）。
 - `pasteTo(ServerLevel, ReplaceBehavior, PasteLayerBehavior, LayerRange)`：核心粘贴——遍历每个 Region 的每个方块，应用旋转/镜像变换，按 `ReplaceBehavior` 写世界。
 - **镜像修复的内联点**：粘贴时对箱子/铁轨/楼梯的 `mirror`/`rotate` 结果做修正（替代 [04](04-mixin-analysis.md) 的 `MixinChestBlock`/`MixinRailBlocks`/`MixinStairsBlock`）。
-- `SchematicPlacingUtils`：放置辅助（含原版方块放置校验 `PlacementHandler`）。
+- `SchematicPlacingUtils`：放置辅助（含原版方块放置校验 `PlacementHandler`）。粘贴前**实体位置修复族**——`applyEntityPastePositionFixes` 逐字对齐上游 :446-513（Pos 全实体重写 / 悬挂类 TileX/Y/Z+block_pos / leash+home_pos 平移；leash/home 修复整体前置于 Rotation 读取，键集离散行为等价，有意偏差），详见 docs/09 §26.1.6。
 
 ### 粘贴请求处理（`LitematicsDataProvider.handleClientPasteRequest`）
 
@@ -248,10 +248,11 @@ class AreaSelection {
 客户端发 C2S_PASTE_REQUEST: { Task:"LitematicaPaste", Schematics, Origin, ReplaceMode, PasteLayerBehavior, RenderLayerRange }
   → 权限检查（hasPermissionsForPaste）+ 创造模式检查
   → SchematicPlacement.createFromNbt(...)
-  → placement.pasteTo(player.level(), replaceMode, layerBehavior, layerRange)
+  → new PasteTask 登记 TaskScheduler 分 tick 逐 chunk 调 SchematicPlacingUtils.placeToWorldWithinChunk
+    （2026-09-08 任务化，见 docs/09 §26.1.6；pasteTo 直放已随上游 @Deprecated 删除）
 ```
 
-> **Paper 迁移**：粘贴是**写世界**（`ServerLevel.setBlock`），NMS 直连。`ReplaceBehavior`/`PasteLayerBehavior`/`LayerRange` 是 Servux 自定义枚举/类，照抄。镜像修复内联进 `pasteTo`。
+> **Paper 迁移**：粘贴是**写世界**（`ServerLevel.setBlock`），NMS 直连。`ReplaceBehavior`/`PasteLayerBehavior`/`LayerRange` 是 Servux 自定义枚举/类，照抄。镜像修复内联进 `SchematicPlacingUtils.placeBlocksWithinChunk`（粘贴方块落盘路径；`pasteTo` 已删除）。
 
 ---
 
