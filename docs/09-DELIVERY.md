@@ -186,9 +186,9 @@ verymc.top.veryMcProto/
 ### 8.2 M1 验收（HUD）
 1. 把 jar 放 `plugins/`，启动 Paper 1.21.11。
 2. `/plugins` 见 VeryMcProto 已加载；控制台见 `框架就绪` + `已注册协议 mod: servux`。
-3. `/servux list` 列出 6 个 provider。
+3. `/servux list` 列出 6 个 provider。（1.21.11 时代行为——26.1 起已对齐上游：`list` 列**全部 settings 现值**，providers 经 `list <provider>` 过滤。）
 4. Fabric 客户端（装 MiniHUD）连入，观察 HUD 显示世界信息/出生点/天气/TPS/MobCap。
-5. `/servux set hud_data:share_seed true` + `/servux set hud_data:loggers_enabled true` 测试配置 + TPS/MobCap。
+5. `/servux set hud_data:share_seed true` + `/servux set hud_data:loggers_enabled true` 测试配置 + TPS/MobCap。（26.1 起 `set` 对齐上游为纯内存——验证持久化需追加 `/servux save`。）
 6. `/servux reload` 重读 `plugins/VeryMcProto/servux.json`。
 
 ### 8.3 抓包保真对照（关键）
@@ -264,7 +264,7 @@ verymc.top.veryMcProto/
 - 运行时可热切换的**宏开关**（`Debug.master`，`volatile`），无需重编译。旧实现开关碎片化（`Reference.DEV_DEBUG` / `ServuxReference.DEV_DEBUG` 为编译期常量、`ServuxLog` 与 `DataProviderManager.debugLog` 各走各的）统一收敛于此。
 - **8 分类**避免全开刷屏：`LIFECYCLE / HANDSHAKE / NETWORK / PACKET / TICK / PERMISSION / PROVIDER / CONFIG`。
 - 开关来源优先级：命令 `/servux debug`（即时）> 配置 `servux_main:debug_log`（`onServerLoad` 同步）> 编译期 `Reference.DEV_DEBUG`（兜底）。
-- 命令：`/servux debug [on|off|all|none|cat <name>|status]`（命令切换**不持久**；持久用 `/servux set servux_main:debug_log true` + reload）。
+- 命令：`/servux debug [on|off|all|none|cat <name>|status]`（命令切换**不持久**；持久用 `/servux set servux_main:debug_log true` + reload）。（注：后续实现已升级——`/servux debug` 切换经 `persistDebug` **即时持久化**到 servux.json，无需再 set+reload。）
 - 日志点覆盖全数据流：握手（`onPlayerJoin` / `onPlayerRegisterChannel` + `sendMetadata` 摘要）、网络（`ProtocolChannel.send` 各失败原因 + 字节数 + C2S 接收）、包（packet type / bytes / ok / 失败计数触发）、周期 tick、权限判定、provider 状态机、配置加载汇总。
 - `ServuxLog.debug` / 原 `DataProviderManager.debugLog` 统一委托 Debug；新增 `IDataProvider.onConfigLoaded()` 框架钩子，让 `ConfigProvider` 在配置加载后同步 Debug（框架层不依赖具体 mod）。
 

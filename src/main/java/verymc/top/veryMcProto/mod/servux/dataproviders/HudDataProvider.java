@@ -494,9 +494,8 @@ public class HudDataProvider extends DataProviderBase
         GlobalPos spawnPos = this.getSpawnPos();
         CompoundTag nbt = new CompoundTag();
 
-        nbt.putString("id", this.getNetworkChannel().toString());
-        nbt.putString("servux", ServuxReference.MOD_STRING);
-        nbt.putInt("version", this.getProtocolVersion());
+        // 对齐上游 :581-584：spawn 帧仅 spawnDimension/spawnPos*（+ 条件 worldSeed）——
+        // 客户端 minihud receiveSpawnMetadata 按键读取，不塞 id/servux/version 冗余键
         nbt.putString("spawnDimension", spawnPos.dimension().identifier().toString());
         nbt.putInt("spawnPosX", spawnPos.pos().getX());
         nbt.putInt("spawnPosY", spawnPos.pos().getY());
@@ -517,9 +516,9 @@ public class HudDataProvider extends DataProviderBase
         if (!this.hasPermissionsForWeather(player)) { return; }
 
         CompoundTag nbt = new CompoundTag();
-        nbt.putString("id", this.getNetworkChannel().toString());
-        nbt.putString("servux", ServuxReference.MOD_STRING);
 
+        // 对齐上游 :617-644：weather 帧仅 5 键（SetRaining/isRaining/SetThundering/isThundering/SetClear），
+        // 不塞 id/servux 冗余键（客户端 receiveWeatherData 按键读取）
         if (this.isRaining && this.rainWeatherTime > -1)
         {
             nbt.putInt("SetRaining", this.rainWeatherTime);

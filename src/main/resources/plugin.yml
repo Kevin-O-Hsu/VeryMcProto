@@ -9,8 +9,8 @@ description: Fabric 协议 Mod 的 Paper 插件移植框架（含 Servux 协议 
 commands:
   servux:
     description: Servux 协议配置与诊断命令
-    usage: /servux reload|save|set|info|list|enable|disable|search
-    permission: servux.command
+    usage: /servux reload|save|set|info|list|enable|disable|search|debug|litematic
+    permission: servux.commands
   syncmatica:
     description: Syncmatica 投影共享命令（配置管理 + 协议启停 + 加载 .litematic）
     usage: /syncmatica status|save|reload|enable|disable|load [file]|debug [...]
@@ -20,9 +20,50 @@ commands:
     usage: /jei status|enable|disable
     permission: jei.command
 permissions:
-  servux.command:
-    description: 允许使用 /servux 命令
+  servux.commands:
+    description: 允许使用 /servux 命令（根节点；上游 servux.commands requires level 4 的 Bukkit 近似）
     default: op
+  servux.commands.reload:
+    description: 允许 /servux reload
+    default: op
+  servux.commands.save:
+    description: 允许 /servux save
+    default: op
+  servux.commands.set:
+    description: 允许 /servux set（纯内存修改，save 落盘）
+    default: op
+  servux.commands.info:
+    description: 允许 /servux info
+    default: op
+  servux.commands.list:
+    description: 允许 /servux list 与 /servux search（上游 search 复用 list 节点）
+    default: op
+  servux.commands.enable:
+    description: 允许 /servux enable（我方扩展子命令，无上游对应）
+    default: op
+  servux.commands.disable:
+    description: 允许 /servux disable（我方扩展子命令，无上游对应）
+    default: op
+  servux.commands.debug:
+    description: 允许 /servux debug（我方扩展子命令，无上游对应）
+    default: op
+  servux.commands.litematic:
+    description: 允许 /servux litematic（我方扩展子命令，无上游对应）
+    default: op
+  servux.command:
+    description: 旧版 /servux 单节点（兼容保留：作为 parent 自动继承新权限树，既有授权不失效）
+    default: op
+    children:
+      servux.commands: true
+      servux.commands.reload: true
+      servux.commands.save: true
+      servux.commands.set: true
+      servux.commands.info: true
+      servux.commands.list: true
+      servux.commands.enable: true
+      servux.commands.disable: true
+      servux.commands.debug: true
+      servux.commands.litematic: true
   syncmatica.command:
     description: 允许使用 /syncmatica 命令
     default: true

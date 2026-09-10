@@ -181,8 +181,14 @@ public class EntitiesDataProvider extends DataProviderBase
         if (!this.isPlayerRegistered(player) || !this.hasPermission(player) || !this.isEnabled()) { return; }
 
         BlockEntity be = player.level().getBlockEntity(pos);
-        CompoundTag nbt = be != null ? be.saveWithFullMetadata(player.registryAccess()) : new CompoundTag();
-        HANDLER.encodeServerData(player, ServuxEntitiesPacket.SimpleBlockResponse(pos, nbt));
+
+        // 对齐上游 :218-222：BE 不存在时不回复（客户端 RequestTracker 自行重试/过期）；
+        // 回空 CompoundTag 会被 litematica 用空 NBT 覆盖客户端缓存并灌入活动方块实体（EntityDataManager:993-1000）。
+        if (be != null)
+        {
+            CompoundTag nbt = be.saveWithFullMetadata(player.registryAccess());
+            HANDLER.encodeServerData(player, ServuxEntitiesPacket.SimpleBlockResponse(pos, nbt));
+        }
     }
 
     public void onEntityRequest(ServerPlayer player, int entityId)
@@ -202,7 +208,8 @@ public class EntitiesDataProvider extends DataProviderBase
             {
                 Identifier id = EntityType.getKey(entity.getType());
 
-                if (entity.getType() == EntityType.PLAYER)
+                // 对齐上游 :251：查询者查自己时保留背包/末影箱（!uuid.equals 才进入剥离判断）
+                if (entity.getType() == EntityType.PLAYER && !entity.getUUID().equals(player.getUUID()))
                 {
                     if (!this.hasPlayerInventoryPermission(player)) { nbt.remove("Inventory"); nbt.put("Inventory", new ListTag()); }
                     if (!this.hasPlayerEnderItemsPermission(player)) { nbt.remove("EnderItems"); nbt.put("EnderItems", new ListTag()); }

@@ -1,7 +1,9 @@
 package verymc.top.veryMcProto.mod.servux.command;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -20,17 +22,36 @@ import verymc.top.veryMcProto.mod.servux.schematic.LitematicaSchematic;
 /**
  * /servux 命令（mod 层）。移植自原版 {@code ServuxCommand}（Brigadier）→ Bukkit {@link CommandExecutor}/{@link TabCompleter}。
  *
- * <p>子命令：reload / save / set / info / list / enable / disable / search。
- * 权限节点 {@code servux.command}（plugin.yml default: op）。
+ * <p>子命令：reload / save / set / info / list / enable / disable / search / debug / litematic。
+ * 权限树对齐上游 ServuxCommand:41-90：根节点 {@code servux.commands}（上游根 requires level 4 的
+ * Bukkit 近似，default: op）+ 每子命令独立节点 {@code servux.commands.<sub>}（search 复用 .list，
+ * 上游 :90）；旧单节点 {@code servux.command} 经 plugin.yml children 映射自动继承新树（兼容既有授权）。
+ * enable/disable/debug/litematic 为我方扩展子命令（挂同名扩展节点，无上游对应）。
+ *
+ * <p>持久化语义：{@code set} 对齐上游 configModify :307 纯内存（显式 {@code /servux save} 落盘）；
+ * enable/disable/debug 为我方扩展，保留切换即时落盘。
  */
 public class ServuxCommand implements CommandExecutor, TabCompleter
 {
+    private static final String PERM_ROOT = "servux.commands";
     private static final String USAGE = "§e/servux §7reload|save|set|info|list|enable|disable|search|debug|litematic";
+
+    /** 子命令权限检查（对齐上游每子命令独立节点；search 复用 list 节点）。 */
+    private boolean checkSubPerm(CommandSender sender, String sub)
+    {
+        if (!sender.hasPermission(PERM_ROOT + "." + sub))
+        {
+            sender.sendMessage("§c权限不足。");
+            return false;
+        }
+        return true;
+    }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args)
     {
-        if (!sender.hasPermission("servux.command"))
+        // 根门双查：新树节点 + 旧单节点（对不解析 plugin.yml children 的权限插件双保险）
+        if (!(sender.hasPermission(PERM_ROOT) || sender.hasPermission("servux.command")))
         {
             sender.sendMessage("§c权限不足。");
             return true;
@@ -45,16 +66,16 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
         {
             switch (args[0].toLowerCase())
             {
-                case "reload" -> ConfigProvider.INSTANCE.doReloadConfig(sender);
-                case "save" -> ConfigProvider.INSTANCE.doSaveConfig(sender);
-                case "set" -> handleSet(sender, args);
-                case "info" -> handleInfo(sender, args);
-                case "list" -> handleList(sender, args);
-                case "enable" -> handleToggle(sender, args, true);
-                case "disable" -> handleToggle(sender, args, false);
-                case "search" -> handleSearch(sender, args);
-                case "debug" -> handleDebug(sender, args);
-                case "litematic" -> handleLitematic(sender, args);
+                case "reload" -> { if (checkSubPerm(sender, "reload")) { ConfigProvider.INSTANCE.doReloadConfig(sender); } }
+                case "save" -> { if (checkSubPerm(sender, "save")) { ConfigProvider.INSTANCE.doSaveConfig(sender); } }
+                case "set" -> { if (checkSubPerm(sender, "set")) { handleSet(sender, args); } }
+                case "info" -> { if (checkSubPerm(sender, "info")) { handleInfo(sender, args); } }
+                case "list" -> { if (checkSubPerm(sender, "list")) { handleList(sender, args); } }
+                case "enable" -> { if (checkSubPerm(sender, "enable")) { handleToggle(sender, args, true); } }
+                case "disable" -> { if (checkSubPerm(sender, "disable")) { handleToggle(sender, args, false); } }
+                case "search" -> { if (checkSubPerm(sender, "list")) { handleSearch(sender, args); } }
+                case "debug" -> { if (checkSubPerm(sender, "debug")) { handleDebug(sender, args); } }
+                case "litematic" -> { if (checkSubPerm(sender, "litematic")) { handleLitematic(sender, args); } }
                 default -> sender.sendMessage(USAGE);
             }
         }
@@ -74,9 +95,11 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
         if (setting == null) { sender.sendMessage("§c未找到设置: " + name); return; }
         try
         {
+            // 对齐上游 configModify :302-307：set 纯内存，持久化走显式 /servux save（上游无即时落盘；
+            // 优雅停服时 onDisable 仍全量落盘，差异窗口仅 crash 场景）
             setting.setValueFromString(value);
-            DataProviderManager.INSTANCE.writeToConfig();
-            sender.sendMessage("§a已设置 " + setting.qualifiedName() + " §7=§f " + setting.valueToString(setting.getValue()));
+            sender.sendMessage("§a已设置 " + setting.qualifiedName() + " §7=§f " + setting.valueToString(setting.getValue())
+                    + " §7(未落盘，用 /servux save 持久化)");
         }
         catch (CommandSyntaxException e)
         {
@@ -93,12 +116,59 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
                 + " §7(默认 " + setting.valueToString(setting.getDefaultValue()) + "§7)");
     }
 
+    /**
+     * 对齐上游 list :73-87：裸 list = 全部 provider 的 settings 平铺现值；{@code list <provider>}
+     * = 该 provider 的 settings（上游 getProviderByName 过滤）。providers 概览上游无此形态，不保留。
+     */
     private void handleList(CommandSender sender, String[] args)
     {
-        sender.sendMessage("§6Providers:");
-        for (var p : DataProviderManager.INSTANCE.getAllProviders())
+        List<IServuxSetting<?>> list;
+        if (args.length >= 2)
         {
-            sender.sendMessage(" §7- §f" + p.getName() + " §7[" + (p.isEnabled() ? "§a启用" : "§c禁用") + "§7] §8" + p.getDescription());
+            var provider = DataProviderManager.INSTANCE.getProviderByName(args[1]);
+            if (provider.isEmpty()) { sender.sendMessage("§c未找到 provider: " + args[1]); return; }
+            list = provider.get().getSettings();
+        }
+        else
+        {
+            list = new ArrayList<>();
+            for (var p : DataProviderManager.INSTANCE.getAllProviders())
+            {
+                list.addAll(p.getSettings());
+            }
+        }
+        this.configList(sender, list);
+    }
+
+    /**
+     * settings 现值平铺（上游 configList :137-176 的 Bukkit 文本退化版）。
+     * 同名 setting 跨 provider 时附加 {@code (provider)} 消歧（上游 :145-165）；
+     * <b>值字符串 &lt;10 字符才附现值</b>为上游有意怪癖（:168-171，长值刷屏防护）——逐字照抄，勿"修复"。
+     */
+    private void configList(CommandSender sender, List<IServuxSetting<?>> list)
+    {
+        if (list.isEmpty()) { sender.sendMessage("§7（无 settings）"); return; }
+
+        Set<String> appearedNames = new HashSet<>();
+        Set<String> appearedMultiTimes = new HashSet<>();
+        for (IServuxSetting<?> setting : list)
+        {
+            if (!appearedNames.add(setting.name())) { appearedMultiTimes.add(setting.name()); }
+        }
+
+        for (IServuxSetting<?> setting : list)
+        {
+            String line = "§e§l" + setting.shortDisplayName().getString();
+            if (appearedMultiTimes.contains(setting.name()))
+            {
+                line += " §7(" + setting.dataProvider().getName() + ")";
+            }
+            String value = setting.valueToString(setting.getValue());
+            if (value.length() < 10)
+            {
+                line += "§f: " + value;
+            }
+            sender.sendMessage(line);
         }
     }
 
@@ -108,6 +178,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
         boolean ok = DataProviderManager.INSTANCE.setProviderEnabled(args[1].toLowerCase(), enable);
         if (ok)
         {
+            // 我方扩展语义（上游无 enable/disable 子命令）：切换即时落盘——与 set 的上游显式 save 语义并存，属声明性扩展
             DataProviderManager.INSTANCE.writeToConfig();
             sender.sendMessage("§a" + args[1] + " 已" + (enable ? "启用" : "禁用"));
         }
@@ -251,9 +322,11 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
 
         if (args.length == 1)
         {
+            // 按子命令权限过滤补全（search 复用 list 节点，与 onCommand 分派一致）
             for (String s : List.of("reload", "save", "set", "info", "list", "enable", "disable", "search", "debug", "litematic"))
             {
-                if (s.startsWith(typed)) { out.add(s); }
+                String node = s.equals("search") ? "list" : s;
+                if (s.startsWith(typed) && sender.hasPermission(PERM_ROOT + "." + node)) { out.add(s); }
             }
         }
         else if (args.length == 2)

@@ -195,15 +195,15 @@ verymc.top.veryMcProto
 
 ### `/servux`
 
-**Permission**: `servux.command` (default: op)
+**Permissions**: per-subcommand nodes aligned with upstream — root `servux.commands` (default: op) + `servux.commands.<sub>` for each of `reload`/`save`/`set`/`info`/`list` (`search` reuses `.list`); extension subcommands `enable`/`disable`/`debug`/`litematic` have their own nodes. The legacy single node `servux.command` is kept as a parent that auto-inherits the whole new tree (existing grants keep working).
 
 ```
 /servux                                          Show usage
-/servux list                                     List all providers and their enabled state
+/servux list [provider]                          List all settings with current values (upstream configList form; values shorter than 10 chars shown inline); optional provider filter
 /servux info <provider:setting|setting>          Show a setting's current value + default
-/servux set <provider:setting|setting> <value>   Modify a setting and persist immediately
-/servux enable <provider>                        Enable a provider (e.g. hud_data)
-/servux disable <provider>                       Disable a provider
+/servux set <provider:setting|setting> <value>   Modify a setting (in-memory only — persist via /servux save, upstream semantics)
+/servux enable <provider>                        Enable a provider (e.g. hud_data) — extension subcommand, persists immediately
+/servux disable <provider>                       Disable a provider — extension subcommand, persists immediately
 /servux search <keyword>                         Fuzzy-search setting names
 /servux reload                                   Reload config from servux.json
 /servux save                                     Write current config to servux.json
@@ -292,7 +292,10 @@ verymc.top.veryMcProto
 
 |  Permission node                 |  default   |  Purpose                                              |
 | -------------------------------- | ---------- | ----------------------------------------------------- |
-|  `servux.command`                |  op        |  All `/servux` subcommands                            |
+|  `servux.commands`               |  op        |  `/servux` root (Bukkit approximation of upstream level 4) |
+|  `servux.commands.reload/save/set/info/list` |  op |  Upstream per-subcommand nodes (`search` reuses `.list`) |
+|  `servux.commands.enable/disable/debug/litematic` |  op |  Extension subcommands (no upstream counterpart) |
+|  `servux.command`                |  op        |  Legacy single node — kept as parent auto-inheriting the new tree |
 |  `jei.command`                   |  op        |  `/jei status\|enable\|disable`                       |
 |  `syncmatica.command`            |  **true**  |  Base `/syncmatica` command (incl. `load`)            |
 |  `syncmatica.command.admin`      |  op        |  `/syncmatica save\|reload\|enable\|disable\|status`  |
@@ -566,7 +569,7 @@ No independent debug engine; check state via `/jei status` and watch server logs
 
 |  Symptom                                 |  Where to look                                                                                                                          |
 | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-|  Client connects but receives nothing    |  Check provider enabled (`/servux list`); check `permission_level`; enable the `handshake` category to see whether handshake succeeded  |
+|  Client connects but receives nothing    |  Check provider enabled (`/servux info` on a setting of that provider / `/servux debug cat provider`); check `permission_level`; enable the `handshake` category to see whether handshake succeeded  |
 |  Large schematic transmit / paste fails  |  Check for the client 32,767 disconnect; enable `network`/`packet` to inspect splitting                                                 |
 |  EasyPlace does nothing                  |  Confirm PacketEvents plugin is installed (`softdepend`); enable the `easyplace` category                                               |
 |  Syncmatica client can't connect         |  Defaults to NMS direct send; confirm with `/syncmatica debug s2c`; enable `handshake` to inspect the chain                             |

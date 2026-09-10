@@ -222,8 +222,13 @@ public class TweaksDataProvider extends DataProviderBase
 
         ServerLevel level = (ServerLevel) player.level();
         BlockEntity be = level.getBlockEntity(pos);
-        CompoundTag nbt = be != null ? be.saveWithFullMetadata(player.registryAccess()) : new CompoundTag();
-        HANDLER.encodeServerData(player, ServuxTweaksPacket.SimpleBlockResponse(pos, nbt));
+
+        // 对齐上游 :303-307：BE 不存在时不回复（回空帧会污染客户端缓存，见 EntitiesDataProvider 同点位注释）
+        if (be != null)
+        {
+            CompoundTag nbt = be.saveWithFullMetadata(player.registryAccess());
+            HANDLER.encodeServerData(player, ServuxTweaksPacket.SimpleBlockResponse(pos, nbt));
+        }
     }
 
     public void onEntityRequest(ServerPlayer player, int entityId)
@@ -244,7 +249,8 @@ public class TweaksDataProvider extends DataProviderBase
 
             if (nbt != null)
             {
-                if (entity.getType() == EntityType.PLAYER)
+                // 对齐上游 :336：查询者查自己时保留背包/末影箱（!uuid.equals 才进入剥离判断）
+                if (entity.getType() == EntityType.PLAYER && !entity.getUUID().equals(player.getUUID()))
                 {
                     if (!EntitiesDataProvider.INSTANCE.hasPlayerInventoryPermission(player))
                     {

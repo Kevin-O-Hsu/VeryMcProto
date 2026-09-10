@@ -42,31 +42,41 @@
 CompoundTag metadata:
   name           = "hud_data"            (provider 名)
   id             = "servux:hud_metadata" (通道网络名)
-  version        = 2                     (协议版本)
-  servux         = "servux-fabric-1.21.11-0.9.4"  (MOD_STRING，移植改 Paper 标识)
+  version        = 3                     (协议版本，26.1 真值)
+  servux         = "servux-fabric-26.1.2-b<N>"  (MOD_STRING——MOD_TYPE 恒 "fabric" 伪装，
+                                                26.1 客户端 startsWith 硬门禁，"paper" 会被拒)
   spawnDimension = "minecraft:overworld" (出生点维度 ResourceLocation)
   spawnPosX/Y/Z  = <int>                 (出生点坐标)
   [worldSeed]    = <long>                (仅 share_seed 且玩家有 seed 权限时)
   [Loggers]      = { tps:false, mob_caps:false }  (仅 loggers_enabled 时)
 ```
 
+> **有意偏离声明（worldSeed 过滤，上游 bug 我方不跟随）**：上游 `HudDataProvider.register`
+> （servux-LTS-26.1 `:429-447`）构建了剔除 worldSeed 的过滤副本 `nbt`，却发送**未过滤原件**
+> `this.metadata`——无 seed 权限的玩家仍能收到 worldSeed（上游自身 bug）。我方 `register`
+> （`HudDataProvider.java:425-431`）发送**过滤后的副本**：无 `share_seed`/seed 权限时 worldSeed
+> 键不出现。此为已声明的安全增强偏离，与上游行为不同属有意为之。
+
 ### 1.3 出生点数据（`refreshSpawnMetadata`，`:510-537`）
 
 ```
-id, servux, version, spawnDimension, spawnPosX/Y/Z
+spawnDimension, spawnPosX/Y/Z
 + worldSeed (权限 controlled)
 ```
+> 对齐上游 `:581-598`：spawn 帧仅上述键，**不含** id/servux/version 冗余键（客户端
+> minihud `receiveSpawnMetadata` 按键读取，多余键无害但属 wire 偏离，已删）。
 - 采集：`spawnPos`（`GlobalPos`）由 `MixinMinecraftServer.prepareLevels` / `MixinServerWorld.setRespawnData` 在出生点变化时回填 `HudDataProvider.setSpawnPos`。
 - 种子：`server.overworld().getSeed()`（`checkWorldSeed`，`:725`）。
 
 ### 1.4 天气数据（`refreshWeatherData`，`:539-577`）
 
 ```
-id, servux
-+ SetRaining=<int>, isRaining=<bool>        (降雨剩余 tick，不下雨则只 isRaining=false)
-+ SetThundering=<int>, isThundering=<bool>
-+ SetClear=<int>                            (晴天剩余 tick，>-1 时)
+SetRaining=<int>, isRaining=<bool>        (降雨剩余 tick，不下雨则只 isRaining=false)
+SetThundering=<int>, isThundering=<bool>
+SetClear=<int>                            (晴天剩余 tick，>-1 时)
 ```
+> 对齐上游 `:617-644`：weather 帧仅上述 5 键，**不含** id/servux 冗余键（客户端
+> `receiveWeatherData` 按键读取，多余键无害但属 wire 偏离，已删）。
 - 采集：`MixinServerWorld.advanceWeatherCycle @INVOKE(setRaining)` → `tickWeather(clearTime, rainTime, thunderTime, isRaining, isThunder)` 缓存当前天气计时。
 - **Paper 迁移**：可监听 `WeatherChangeEvent` / 读 `World#getWeatherDuration` 等 API（难度低）。
 
@@ -169,15 +179,18 @@ for (ServerLevel world : server.getAllLevels()) {                       // Paper
 | C2S 请求 | 服务端方法 | 回应内容 |
 |---|---|---|
 | 元数据请求 | `sendMetadata` | `{name, id, version, servux}` |
-| 方块实体 NBT | `onBlockEntityRequest(pos)` | `be.saveWithFullMetadata(registryAccess)` |
+| 方块实体 NBT | `onBlockEntityRequest(pos)` | `be.saveWithFullMetadata(registryAccess)`；**BE 不存在时不回复**（对齐上游 `:218-222`——回空帧会被 litematica 用空 NBT 覆盖客户端缓存，客户端 RequestTracker 自行重试） |
 | 实体 NBT | `onEntityRequest(entityId)` | 实体 NBT（含玩家背包/末影箱权限过滤） |
 
 ### 2.2 关键采集
 
 ```java
-// 方块实体（:157-169）
+// 方块实体（:157-169）—— be != null 才回复
 BlockEntity be = player.level().getBlockEntity(pos);
-CompoundTag nbt = be != null ? be.saveWithFullMetadata(player.registryAccess()) : new CompoundTag();
+if (be != null) {
+    CompoundTag nbt = be.saveWithFullMetadata(player.registryAccess());
+    HANDLER.encodeServerData(player, SimpleBlockResponse(pos, nbt));
+}
 
 // 实体（:171-209）
 Entity entity = player.level().getEntity(entityId);
@@ -186,8 +199,8 @@ entity.saveWithoutId(view.getWriter());
 CompoundTag nbt = view.readNbt();
 nbt.putString("id", EntityType.getKey(entity.getType()).toString());
 
-// 玩家权限过滤（:191-203）—— 玩家实体时，无背包权限则清空 Inventory/EnderItems
-if (entity.getType() == EntityType.PLAYER) {
+// 玩家权限过滤（:191-203）—— 仅查【他人】时剥离（查询者查自己保留完整背包，上游 :251 同构）
+if (entity.getType() == EntityType.PLAYER && !entity.getUUID().equals(player.getUUID())) {
     if (!hasPlayerInventoryPermission(player)) { nbt.remove("Inventory"); nbt.put("Inventory", new ListTag()); }
     // 末影箱同理
 }
@@ -238,6 +251,15 @@ CompoundTag (发给单个玩家，按其观察的区块):
   // { id:"minecraft:village", ChunkX, ChunkZ, BB:[minX,minY,minZ,maxX,maxY,maxZ], Pieces:[...] }
 ```
 
+**按客户端能力分批发送**（对齐上游 `sendStructures :565-604`）：register 时读
+`tags.max_receive_s2c`（TAG_INT，默认 16MB——26.1 客户端重组上限同源）存入名册 entry；
+发送时总量 + 4096 padding ≤ 上限则单帧，否则**条目级分批**多次 START 帧（逐条累计
+`>=` 即 flush、首条无条件入列、空条目跳过、收尾 flush——纯函数
+`StructureDataProvider.splitStructuresBySize` 配单测）。每业务帧仍走 PacketSplitter
+字节分片（分批在分片之上，两层叠加）；客户端按帧合并非替换（minihud 每重组帧独立
+`addOrUpdateStructuresFromServer`）。26.1 四客户端均无 `max_receive_s2c` 发送点（恒走
+默认值），机制层对齐、真实环境不可观测。
+
 ### 4.2 采集（**几乎全 NMS**）
 
 触发：`MixinServerChunkLoadingManager.markChunkPendingToSend` → `onStartedWatchingChunk(player, chunk)` → 记录该区块待查询。
@@ -282,13 +304,13 @@ Identifier type = BuiltInRegistries.STRUCTURE_TYPE.getKey(structure.type());    
 | 操作 | 方向 | 内容 |
 |---|---|---|
 | 元数据握手 | C2S→S2C | `{name, id, version, servux}` |
-| 方块实体查询 | C2S(pos)→S2C | `onBlockEntityRequest` → `be.saveWithFullMetadata` |
-| 实体查询 | C2S(entityId)→S2C | `onEntityRequest` → 实体 NBT |
-| 批量实体查询（大包） | C2S(chunkX,Z,minY,maxY)→S2C | `onBulkEntityRequest` → 区块内全部 TileEntities + Entities |
+| 方块实体查询 | C2S(pos)→S2C | `onBlockEntityRequest` → `be.saveWithFullMetadata`；BE 不存在不回复（同 Entities）；入口名册门（未注册静默） |
+| 实体查询 | C2S(entityId)→S2C | `onEntityRequest` → 实体 NBT；仅查他人时剥离背包（同 Entities）；入口名册门 |
+| 批量实体查询（大包） | C2S(chunkX,Z,minY,maxY)→S2C | `onBulkEntityRequest` → 区块内全部 TileEntities + Entities（详见 §5.2） |
 | 投影文件投递（C2S 上传） | C2S 分片→S2C 应答 | 四阶段（Start/Data/End/Cancel），见 [05](05-schematic-system.md) §传输协议 |
-| 粘贴请求 | C2S→执行 | `handleClientPasteRequest` → `SchematicPlacement.pasteTo`（需创造模式 + paste 权限） |
+| 粘贴请求 | C2S→执行 | `handleClientPasteRequest` → PasteTask 任务化粘贴（需创造模式 + paste 权限；实体 UUID/ID 撞车重排见 §5.4） |
 
-### 5.2 `onBulkEntityRequest`（`:243-333`）
+### 5.2 `onBulkEntityRequest`（对齐上游 `:542-644`）
 
 ```
 output.putString("Task", "BulkEntityReply");
@@ -296,11 +318,20 @@ output.put("TileEntities", <ListTag: 区块内所有方块实体 saveWithFullMet
 output.put("Entities", <ListTag: AABB 内所有非玩家实体 NBT>);
 // 走 PacketSplitter 分包
 ```
-采集：`chunk.getBlockEntitiesPos()` + `world.getEntities(null, bb, NOT_PLAYER)`。
+对齐要点（上游语义四则）：
+- **名册门**：`!isPlayerRegistered || !isEnabled || req null/empty → 静默 return`（先于权限消息）；权限不足消息无条件直发。
+- **Task 校验**：须存在 + TAG_STRING + 值 == `"BulkEntityRequest"`（无 Task 的旧形态包不再受理——26.1 客户端恒带此字段）。
+- **minY/maxY 回退**：字段缺失时回退 `world.getMinY()/getMaxY()`（维度实际上下界，自定义高度维度不错位）。
+- **反馈门控**：chunk-not-loaded 与 acknowledge 消息受 `player_task_feedback` setting 门控（默认 false 不发；文案=上游 en_us.json 原文）；批量循环内 BE 不存在的条目直接跳过（不塞空 tag）。
 
 ### 5.3 settings / 权限
 
-`permission_level`(0) + `paste_permission_level`(2)。粘贴需 `player.isCreative()`。节点 `servux.provider.litematic_data` / `.paste`。
+`permission_level`(0) + `permission_level_paste`(0) + `permission_level_tasks`(0) + `player_task_feedback`(false) + `fix_rail_rotations`/`fix_stairs_mirror`/`fix_chest_mirror`(true) + **`deduplicate_schematic_entities`(false)**。粘贴需 `player.isCreative()`。节点 `servux.provider.litematic_data` / `.paste`。
+
+### 5.4 粘贴实体 UUID/ID 撞车重排（对齐上游 `EntityUtils:93-123/:164-198`）
+
+- **创建**（`createEntityFromNBTSingle`）：尊重投影 NBT 原 `"UUID"`（int-array，无键才随机——重复粘贴同投影保留同 UUID）；`"LastEntityID"`(int) 恢复原 id，否则随机高位 id（50000..MAX）避开原版分配段。
+- **生成**（`spawnEntityAndPassengersInWorld`）：`deduplicate_schematic_entities=false`（默认）时撞车重排开——id/UUID 与世界现有实体撞车即改派新值（id 重排区间 `id*4..MAX`）；`true` 时跳过重排，依赖原版 `addFreshEntity` 的 UUID 唯一性拒绝重复实体（**去重模式**：同一投影重复粘贴不再产生重复实体）。`addFreshEntity` 带 try-catch（异常记日志不中断粘贴）。
 
 ---
 

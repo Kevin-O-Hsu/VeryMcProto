@@ -1,5 +1,6 @@
 package verymc.top.veryMcProto.mod.servux.dataproviders;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -29,6 +30,7 @@ import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSeriali
 
 import verymc.top.veryMcProto.Reference;
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderBase;
+import verymc.top.veryMcProto.framework.network.PacketSplitter;
 import verymc.top.veryMcProto.mod.servux.ServuxDebug;
 import verymc.top.veryMcProto.framework.network.IPluginServerPlayHandler;
 import verymc.top.veryMcProto.framework.network.ServerPlayHandler;
@@ -194,11 +196,11 @@ public class StructureDataProvider extends DataProviderBase
 
     /**
      * C2S 注册入口（type 3 STRUCTURES_REGISTER）。上游 StructureDataProvider.register（:199-241）字面移植：
-     * isEnabled → 版本门禁（deny 四件套）→ 权限（不入册）→ 入册 → sendMetadata + initialSync。
+     * isEnabled → 版本门禁（deny 四件套）→ 权限（不入册）→ 入册（含 max_receive_s2c 能力协商）→ sendMetadata + initialSync。
      *
-     * <p>已知偏差：上游尚读 {@code tags.max_receive_s2c}（:221，存 per-player maxPacketSize 供
-     * sendStructures :565-580 超限分片）——四客户端目录 grep 零发送点（恒走默认值），且完整移植需
-     * :573-599 分片发送循环，行为不可观测，故不移植（记录为后续工单）。
+     * <p>{@code tags.max_receive_s2c}（TAG_INT，上游 :221）= 客户端申报的单帧接收上限，存入名册 entry
+     * 供 {@link #sendStructures} 条目级分批（上游 :565-604）。26.1 四客户端均无发送点（grep 实证零命中），
+     * 恒走默认 16MB——机制层对齐上游，真实环境不可观测。
      */
     @Override
     public void register(ServerPlayer player, CompoundTag tags)
@@ -229,7 +231,10 @@ public class StructureDataProvider extends DataProviderBase
         // 恒先 unregister 再 register，故此处不做去重（客户端 %20 重试 / toggle 重开都会得到完整回复）。
         if (!this.registeredPlayers.containsKey(uuid))
         {
-            this.registeredPlayers.put(uuid, new PlayerDimensionPosition(player));
+            PlayerDimensionPosition entry = new PlayerDimensionPosition(player);
+            // 上游 :221/:226：max_receive_s2c 能力协商（TAG_INT）——内联承载于名册 entry
+            entry.maxReceiveS2c = tags.getIntOr("max_receive_s2c", PacketSplitter.MAX_REASSEMBLY_SIZE_S2C);
+            this.registeredPlayers.put(uuid, entry);
             int tickCounter = server != null ? server.getTickCount() : 0;
 
             this.sendMetadata(player);
@@ -385,6 +390,9 @@ public class StructureDataProvider extends DataProviderBase
         return starts;
     }
 
+    /** 分批 padding（上游 sendStructures :566 同值 4096：帧包裹开销余量）。 */
+    static final int STRUCTURE_BATCH_PADDING = 4096;
+
     /** 遍历 chunkRadius 立方形范围内所有区块，合并结构引用。 */
     protected Map<Structure, LongSet> getStructureReferencesWithinRange(ServerLevel world, ChunkPos center, int chunkRadius)
     {
@@ -401,7 +409,12 @@ public class StructureDataProvider extends DataProviderBase
         return references;
     }
 
-    /** 解析 starts → ListTag（含 ExpandBox 标志），经 PacketSplitter 分片发送 PACKET_S2C_STRUCTURE_DATA_START。 */
+    /**
+     * 解析 starts → ListTag（含 ExpandBox 标志），按客户端申报上限分批经 PacketSplitter 分片发送
+     * PACKET_S2C_STRUCTURE_DATA_START。对齐上游 sendStructures :565-604：每业务帧仍走
+     * encodeServerData → PacketSplitter 字节分片（分批在分片之上，两层叠加）；客户端按帧合并
+     * 非替换（minihud ServuxStructuresHandler:113-121 每重组帧独立 addOrUpdateStructuresFromServer）。
+     */
     protected void sendStructures(ServerPlayer player, Map<Structure, LongSet> references)
     {
         ServerLevel world = (ServerLevel) player.level();
@@ -413,11 +426,60 @@ public class StructureDataProvider extends DataProviderBase
 
             if (!structureList.isEmpty())
             {
-                CompoundTag nbt = new CompoundTag();
-                nbt.put("Structures", structureList.copy());
-                HANDLER.encodeServerData(player, new ServuxStructuresPacket(ServuxStructuresPacket.Type.PACKET_S2C_STRUCTURE_DATA_START, nbt));
+                PlayerDimensionPosition entry = this.registeredPlayers.get(player.getUUID());
+                final int maxSize = entry != null ? entry.maxReceiveS2c : PacketSplitter.MAX_REASSEMBLY_SIZE_S2C;
+
+                for (ListTag batch : splitStructuresBySize(structureList, maxSize, STRUCTURE_BATCH_PADDING))
+                {
+                    CompoundTag nbt = new CompoundTag();
+                    nbt.put("Structures", batch);
+                    HANDLER.encodeServerData(player, new ServuxStructuresPacket(ServuxStructuresPacket.Type.PACKET_S2C_STRUCTURE_DATA_START, nbt));
+                }
             }
         }
+    }
+
+    /**
+     * 条目级分批（上游 sendStructures :568-604 批量循环泛化为纯函数，配单测）。语义四要素照上游：
+     * ①总量 + padding ≤ maxSize 单批直通（= 上游单帧分支 :568-572）；②逐条累计，(sendList + padding
+     * + entry) ≥ maxSize 即 flush（:586，{@code >=} 判超）；③首条无条件入列（:586 的 !isEmpty() 前置）；
+     * ④空条目跳过（:582）+ 收尾 flush（:598-603）。批内条目 copy（上游 entry.copy() 同款防御）。
+     */
+    static List<ListTag> splitStructuresBySize(ListTag structureList, int maxSize, int padding)
+    {
+        if ((structureList.sizeInBytes() + padding) <= maxSize)
+        {
+            return List.of(structureList);
+        }
+
+        List<ListTag> batches = new ArrayList<>();
+        ListTag sendList = new ListTag();
+        final int total = structureList.size();
+
+        for (int i = 0; i < total; i++)
+        {
+            CompoundTag entry = structureList.getCompoundOrEmpty(i);
+            if (entry.isEmpty()) { continue; }
+            int currentSize = sendList.sizeInBytes() + padding;
+
+            // Check size
+            if (!sendList.isEmpty() && (currentSize + entry.sizeInBytes()) >= maxSize)
+            {
+                // Release.
+                batches.add(sendList);
+                sendList = new ListTag();
+            }
+
+            sendList.add(entry.copy());
+        }
+
+        if (!sendList.isEmpty())
+        {
+            // Release.
+            batches.add(sendList);
+        }
+
+        return batches;
     }
 
     /** starts → ListTag：每项 = StructureStart.createTag + ExpandBox 标志（黑白名单过滤）。 */

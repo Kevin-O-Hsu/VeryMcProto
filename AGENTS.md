@@ -196,7 +196,7 @@ Paper 的 **plugin messaging channel（`namespace:path` 命名）直接映射到
 
 **C2S 接收命门**：Paper 原版服务端对未注册的 custom payload 会**踢玩家**（"Invalid payload"）。plugin messaging 注册的通道由 Paper 内置路由、不踢人——这正是用 `Messenger.registerIncomingPluginChannel` 接收 C2S 的理由。**握手机制命门**：configuration phase 期间 `sendPluginMessage` 会静默丢弃，客户端收不到。框架用 `PlayerRegisterChannelEvent`（客户端声明通道 = 装了对应 mod = configuration phase 已完成）作为可靠信号，在 `IDataProvider.onPlayerRegisterChannel` / syncmatica `onPlayerRegisterChannel` 重发 metadata / 发起握手。**但该补发范式对 minihud structures 无效**——其客户端 metadata 接受窗口是单次的（进服开门 → 首个 `%20` tick 关门，`DataStorage.java:288/:804`），只能靠首个 C2S REGISTER 的**即时回复**建立连接；这正是上文「同通道 C2S 证明兜底」存在的理由（进服首回复不再被 Paper 门控吞掉）。已知限制：REGISTER 回复 RTT 超过客户端剩余窗口时仍需手动 toggle，与上游 Fabric servux 同源。
 
-**C2S 注册版本门禁 + 名册拦截**（对齐上游 `register()` 语义，五通道同构）：`register(player, tags)` 首查 `tags == null || tags.getIntOr("version", -1) < PROTOCOL_VERSION`（**严格 `<`**——26.1 合法客户端常量与我方相等 3/2/2/3/2，相等/更高均放行）→ 拒绝四件套（warn 日志 + `MSG_PROTOCOL_VERSION_TOO_LOW` 预格式化聊天提示 + `tickFailures` 检疫 + return **不入册**）；名册 `isPlayerRegistered = registeredPlayers && !invalid` 承载拒绝状态——后续全部 C2S 请求入口与 S2C 推送路径（join/声明重发、tick 周期）均按名册白名单拦截，被拒旧客户端只收 3 次拒绝消息（`maxFailures()=2`，count=3 起 decode/encode 双侧 `checkFailures` 闸静默）。Structures 的 `max_receive_s2c` 分片上限协商不移植（26.1 四客户端零发送点，行为不可观测——后续工单）；`unregister` 单参（上游 tags 形参全实现未读，有意简化）。
+**C2S 注册版本门禁 + 名册拦截**（对齐上游 `register()` 语义，五通道同构）：`register(player, tags)` 首查 `tags == null || tags.getIntOr("version", -1) < PROTOCOL_VERSION`（**严格 `<`**——26.1 合法客户端常量与我方相等 3/2/2/3/2，相等/更高均放行）→ 拒绝四件套（warn 日志 + `MSG_PROTOCOL_VERSION_TOO_LOW` 预格式化聊天提示 + `tickFailures` 检疫 + return **不入册**）；名册 `isPlayerRegistered = registeredPlayers && !invalid` 承载拒绝状态——后续全部 C2S 请求入口与 S2C 推送路径（join/声明重发、tick 周期）均按名册白名单拦截，被拒旧客户端只收 3 次拒绝消息（`maxFailures()=2`，count=3 起 decode/encode 双侧 `checkFailures` 闸静默）。Structures 的 `max_receive_s2c` 能力协商**已移植**（register 读 TAG_INT 存名册 entry，sendStructures 据此条目级分批——上游 :221/:565-604；26.1 四客户端零发送点恒走默认 16MB，机制层对齐、真实环境不可观测）；`unregister` 单参（上游 tags 形参全实现未读，有意简化）。
 
 ### 2. Mixin / AccessWidener 无法迁移 → 三段式处置
 
@@ -238,7 +238,10 @@ Servux 共 **26 个 Mixin + 2 个 AccessWidener 字段**；Syncmatica 共 **5 �
 
 | 节点 | default | 用途 |
 |---|---|---|
-| `servux.command` | op | `/servux` |
+| `servux.commands` | op | `/servux` 根节点（上游根 requires level 4 的 Bukkit 近似） |
+| `servux.commands.reload` / `.save` / `.set` / `.info` / `.list` | op | 上游六子命令各自节点（`search` 复用 `.list`） |
+| `servux.commands.enable` / `.disable` / `.debug` / `.litematic` | op | 我方扩展子命令节点（无上游对应） |
+| `servux.command` | op | 旧版单节点（兼容保留：plugin.yml children 映射自动继承新树） |
 | `jei.command` | op | `/jei status\|enable\|disable` |
 | `syncmatica.command` | true | `/syncmatica` 基础命令 |
 | `syncmatica.command.admin` | op | `/syncmatica save\|reload\|enable\|disable\|status` |

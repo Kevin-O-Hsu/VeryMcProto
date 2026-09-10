@@ -85,10 +85,14 @@ public class LitematicsDataProvider extends DataProviderBase
     public ServuxBoolSetting fixRailRotations = new ServuxBoolSetting(this, "fix_rail_rotations", true);
     public ServuxBoolSetting fixStairMirror = new ServuxBoolSetting(this, "fix_stairs_mirror", true);
     public ServuxBoolSetting fixChestMirror = new ServuxBoolSetting(this, "fix_chest_mirror", true);
+    /** 粘贴实体去重（上游键名 deduplicate_schematic_entities，默认 false，LitematicsDataProvider.java:71）：
+     *  false = 撞车重排开（id/UUID 与世界撞车时改派新值）；true = 跳过重排，依赖原版 UUID 唯一性拒绝重复实体。 */
+    public final ServuxBoolSetting deDuplicateSchematicEntities = new ServuxBoolSetting(this, "deduplicate_schematic_entities", false);
     private final List<IServuxSetting<?>> settings = List.of(
             this.permissionLevel, this.pastePermissionLevel,
             this.taskPermissionLevel, this.playerTaskFeedback,
-            this.fixRailRotations, this.fixStairMirror, this.fixChestMirror
+            this.fixRailRotations, this.fixStairMirror, this.fixChestMirror,
+            this.deDuplicateSchematicEntities
     );
 
     private final List<UUID> invalidPlayers = new ArrayList<>();
@@ -241,16 +245,25 @@ public class LitematicsDataProvider extends DataProviderBase
 
     public void onBlockEntityRequest(ServerPlayer player, BlockPos pos)
     {
-        if (!this.hasPermission(player) || !this.isEnabled()) { return; }
+        // 对齐上游 :475-484：名册门前置且静默（未注册不回任何消息），权限门在后
+        if (!this.isPlayerRegistered(player) || !this.isEnabled()) { return; }
+        if (!this.hasPermission(player)) { return; }
 
         BlockEntity be = player.level().getBlockEntity(pos);
-        CompoundTag nbt = be != null ? be.saveWithFullMetadata(player.registryAccess()) : new CompoundTag();
-        HANDLER.encodeServerData(player, ServuxLitematicaPacket.SimpleBlockResponse(pos, nbt));
+
+        // 对齐上游 :489-493：BE 不存在时不回复（回空帧会污染客户端缓存，见 EntitiesDataProvider 同点位注释）
+        if (be != null)
+        {
+            CompoundTag nbt = be.saveWithFullMetadata(player.registryAccess());
+            HANDLER.encodeServerData(player, ServuxLitematicaPacket.SimpleBlockResponse(pos, nbt));
+        }
     }
 
     public void onEntityRequest(ServerPlayer player, int entityId)
     {
-        if (!this.hasPermission(player) || !this.isEnabled()) { return; }
+        // 对齐上游 :498-507：名册门前置且静默，权限门在后
+        if (!this.isPlayerRegistered(player) || !this.isEnabled()) { return; }
+        if (!this.hasPermission(player)) { return; }
 
         Entity entity = player.level().getEntity(entityId);
         if (entity == null) { return; }
@@ -265,7 +278,8 @@ public class LitematicsDataProvider extends DataProviderBase
             {
                 Identifier id = EntityType.getKey(entity.getType());
 
-                if (entity.getType() == EntityType.PLAYER)
+                // 对齐上游 :522：查询者查自己时保留背包/末影箱（!uuid.equals 才进入剥离判断）
+                if (entity.getType() == EntityType.PLAYER && !entity.getUUID().equals(player.getUUID()))
                 {
                     // 复用 Entities Provider 的玩家背包/末影箱权限过滤
                     if (!EntitiesDataProvider.INSTANCE.hasPlayerInventoryPermission(player)) { nbt.remove("Inventory"); nbt.put("Inventory", new ListTag()); }
@@ -291,33 +305,42 @@ public class LitematicsDataProvider extends DataProviderBase
      */
     public void onBulkEntityRequest(ServerPlayer player, ChunkPos chunkPos, CompoundTag req)
     {
-        if (!this.hasPermission(player) || !this.isEnabled())
+        // 对齐上游 :544：名册门 + enabled + null/isEmpty 首查（未注册静默，先于权限消息）
+        if (!this.isPlayerRegistered(player) || !this.isEnabled() || req == null || req.isEmpty()) { return; }
+
+        if (!this.hasPermission(player))
         {
-            Reference.logger().warning("litematic_data: 拒绝 onBulkEntityRequest from " + player.getName().getString() + "（权限不足）");
-            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§cLitematics bulk request: insufficient permissions."));
+            Reference.logger().warning("litematic_data: Denying onBulkEntityRequest from " + player.getName().getString() + "（权限不足）");
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(MSG_BULK_INSUFFICIENT));
             return;
         }
-        if (req == null || req.isEmpty()) { return; }
 
         ServerLevel world = (ServerLevel) player.level();
         LevelChunk chunk = world.getChunkSource().getChunkNow(chunkPos.x(), chunkPos.z());
 
         if (chunk == null)
         {
-            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§cLitematics bulk request: chunk not loaded " + chunkPos.toString()));
+            // 对齐上游 :562-565：chunk 未加载消息受 player_task_feedback 门控
+            if (this.shouldSendPlayerTaskFeedback())
+            {
+                player.sendSystemMessage(net.minecraft.network.chat.Component.literal(MSG_BULK_CHUNK_NOT_LOADED.formatted(chunkPos.toString())));
+            }
             return;
         }
 
-        // 区分"批量实体请求"任务（原版兼容：无 Task 字段也走此分支）
-        if ((req.contains("Task") && req.getStringOr("Task", "").equals("BulkEntityRequest")) || !req.contains("Task"))
+        // 对齐上游 :570-571：Task 字段须存在 + TAG_STRING + 值相等（26.1 客户端恒带此字段，无 Task 的旧形态包不再受理）。
+        // vanilla CompoundTag 无 contains(String,int) 重载（上游系 malilib API）——getStringOr 对非 String 类型
+        // 恒回退默认 ""，故「contains && getStringOr().equals」与上游 TAG_STRING 类型校验语义等价
+        if (req.contains("Task") && req.getStringOr("Task", "").equals("BulkEntityRequest"))
         {
             ServuxDebug.log(ServuxDebug.Cat.PACKET, "litematic_data: 批量 NBT ChunkPos " + chunkPos.toString() + " → " + player.getName().getString());
 
             long timeStart = System.currentTimeMillis();
             ListTag tileList = new ListTag();
             ListTag entityList = new ListTag();
-            int minY = req.getIntOr("minY", -64);
-            int maxY = req.getIntOr("maxY", 319);
+            // 对齐上游 :577-578：回退维度实际上下界（自定义高度维度不再错位切片；26.1 客户端恒发 minY/maxY，回退仅兜底）
+            final int minY = req.getIntOr("minY", world.getMinY());
+            final int maxY = req.getIntOr("maxY", world.getMaxY());
             BlockPos pos1 = new BlockPos(chunkPos.getMinBlockX(), minY, chunkPos.getMinBlockZ());
             BlockPos pos2 = new BlockPos(chunkPos.getMaxBlockX(), maxY, chunkPos.getMaxBlockZ());
 
@@ -336,8 +359,13 @@ public class LitematicsDataProvider extends DataProviderBase
                 }
 
                 BlockEntity be = world.getBlockEntity(tePos);
-                CompoundTag beTag = be != null ? be.saveWithFullMetadata(player.registryAccess()) : new CompoundTag();
-                tileList.add(beTag);
+
+                // 对齐上游 :594-600：BE 不存在的条目直接跳过（不塞空 tag 进批量回复）
+                if (be != null)
+                {
+                    CompoundTag beTag = be.saveWithFullMetadata(player.registryAccess());
+                    tileList.add(beTag);
+                }
             }
 
             for (Entity entity : entities)
@@ -371,14 +399,17 @@ public class LitematicsDataProvider extends DataProviderBase
             output.put("Entities", entityList);
             output.putInt("chunkX", chunkPos.x());
             output.putInt("chunkZ", chunkPos.z());
-            long timeElapsed = System.currentTimeMillis() - timeStart;
 
             HANDLER.encodeServerData(player, ServuxLitematicaPacket.ResponseS2CStart(output));
 
-            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
-                    "§aLitematics bulk reply: §r" + world.dimension().identifier().toString()
-                            + " " + chunkPos.toString() + " §bTE=" + tileList.size()
-                            + " §bE=" + entityList.size() + " §7(" + timeElapsed + "ms)"), false);
+            // 对齐上游 :633-641：acknowledge 反馈受 player_task_feedback 门控；文案 = 上游 en_us.json 原文
+            if (this.shouldSendPlayerTaskFeedback())
+            {
+                long timeElapsed = System.currentTimeMillis() - timeStart;
+                player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                        MSG_BULK_ACKNOWLEDGE.formatted(world.dimension().identifier().toString(), chunkPos.toString(),
+                                tileList.size(), entityList.size(), timeElapsed)), false);
+            }
         }
     }
 
@@ -503,6 +534,9 @@ public class LitematicsDataProvider extends DataProviderBase
 
     public boolean shouldSendPlayerTaskFeedback() { return this.playerTaskFeedback.getValue(); }
 
+    /** 粘贴实体去重开关（上游 shouldDeDuplicateEntities:777-780）。 */
+    public boolean shouldDeDuplicateEntities() { return this.deDuplicateSchematicEntities.getValue(); }
+
     // ───── task 组（type 14-17，26.1 移植；对照上游 LitematicsDataProvider.onTaskRequest:272-437）─────
 
     /** task 组反馈文案（上游 servux en_us.json 原文）。 */
@@ -511,6 +545,11 @@ public class LitematicsDataProvider extends DataProviderBase
     private static final String MSG_TASK_NO_FILL_STATE = "§cServux: No fill state provided.§r";
     private static final String MSG_TASK_NO_BOXES = "§cServux: No fill area boxes provided.§r";
     private static final String MSG_TASK_INVALID = "§cServux: Invalid task type provided.§r";
+
+    /** bulk 组文案（上游 en_us.json 原文：error.bulk_request.* / feedback.bulk_request.acknowledge）。 */
+    private static final String MSG_BULK_INSUFFICIENT = "§cServux: Insufficient Permissions for the Litematic Bulk NBT Data Request operation.§r";
+    private static final String MSG_BULK_CHUNK_NOT_LOADED = "§cServux: Bulk NBT Data Request Error loading Chunk located at %s§r";
+    private static final String MSG_BULK_ACKNOWLEDGE = "Servux: Bulk NBT Data from world §d%s§r for chunk §e%s§r, [TE: §a%d§r, E: §a%d§r] delivered in §b%d §fms.";
 
     /**
      * TASK_REQUEST（type 14）受理：权限 → 创造模式 → Boxes/FillState 解析 → 登记 TaskScheduler。

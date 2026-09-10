@@ -199,13 +199,32 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 - 客户端开关仍是 **Tweakeroo** 配置 → Generic → `entityDataSync`。
 - **预期服务端日志**：`[DBG/HANDSHAKE] tweaks sendMetadata → <玩家> ok=true ... keys=[...]`
-- **预期客户端日志**：`tweaksDataChannel: joining Servux version servux-paper-...`
+- **预期客户端日志**：`tweaksDataChannel: joining Servux version servux-fabric-...`
 
 ### 6.3 测试 B：实体 / 方块实体 NBT 查询
 
 与 §5 Litematica 的 NBT 查询同构（`entityDataSync` 开 → 对实体/方块实体发 C2S 查询 → 服务端 `onEntityRequest` / `onBlockEntityRequest` 回 NBT）。判据参考 §5.3。
 
 > tweaks 通道**不再有**潜影盒堆叠配置同步测试（功能已删除，见上文）。
+
+---
+
+## 6.5 上游对齐回归（2026-09 八项修复实测）
+
+> 对应「Servux 与上游不一致八项修复」：A 查自己 NBT 保留背包 / B BE 不存在不回复 /
+> C bulk 四处 / D 粘贴实体撞车重排 + deduplicate setting / E Structures 分批 /
+> F 命令语义与权限树 / G 帧冗余键 / H worldSeed 过滤（保留我方行为）。需 Fabric 26.1 客户端实机。
+
+| # | 测试步骤 | 预期 |
+|---|---|---|
+| A | 玩家无 `servux.provider.entity_data.nbt_allow_player_inventory` 权限（或降 permission level），用 litematica/minihud 的 NBT 查询**选中自己** | 返回的 NBT 含完整 `Inventory`/`EnderItems`（上游语义：查自己不剥离）；查**他人**仍按权限剥离 |
+| B | 用客户端查询一个**不存在的方块实体**（已挖掉的箱子位置等） | 服务端不回帧（debug 日志无 encode 记录）；客户端短暂等待后按自身重试机制处理，**不出现空数据覆盖** |
+| C | ①开 `player_task_feedback`：`/servux set litematic_data:player_task_feedback true` + `/servux save`；②litematica 保存投影触发 bulk 请求 | ①默认 false 时无 chunk-not-loaded/acknowledge 聊天刷屏；开启后 bulk 完成出现上游原文 acknowledge（`Servux: Bulk NBT Data from world ...`）；②自定义高度维度（如模组维度）切片范围正确 |
+| D | 同一投影**连续粘贴两次**（默认 `deduplicate_schematic_entities=false`）→ 再 `/servux set litematic_data:deduplicate_schematic_entities true` + save 后粘贴第三次 | 前两次实体全部出现且 UUID 互不相同（撞车重排）；第三次开启去重后重复实体不再出现（原版 UUID 唯一性拒绝） |
+| E | （机制层，26.1 客户端无可观测差异）minihud 开 structures 后进服 | 结构框正常显示（分批路径与单帧路径行为一致；register 日志可见 max_receive_s2c 默认 16MB） |
+| F | `/servux list`、`/servux set` + `/servux save`、以非 op 账号测子命令权限 | list 列全部 settings 现值（值 <10 字符才内联显示）；set 后未 save 时重启+crash 场景不持久；各子命令权限独立生效（旧 `servux.command` 授权自动继承新树） |
+| G | minihud HUD 开启，观察 spawn/weather 数据 | 功能不回归（删的 id/servux/version 键客户端本就不读） |
+| H | 无 seed 权限玩家查询 HUD metadata（`share_seed=true` 时） | metadata 帧**不含** worldSeed 键（我方发过滤副本——有意偏离，上游发原件属其自身 bug，见 docs/03 §1.2 声明） |
 
 ---
 

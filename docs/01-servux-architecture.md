@@ -232,6 +232,8 @@ Servux 用一套**自定义事件总线**（`event/*Handler` 单例 + `interface
   - 启停 provider 经 `DataProviderManager.setProviderEnabled`
 
 > **移植要点**：Paper 用 `plugin.yml` 注册命令别名 + `CommandExecutor`/`TabCompleter`，或 Paper 的 Brigadier（`LifecycleEvent`/`PaperCommandManager`）。命令权限对接 Bukkit 权限。详见 [06](06-fabric-vs-paper.md) §命令。
+>
+> **我方对齐状态（26.1 线）**：权限树已对齐上游 `:41-90`——根节点 `servux.commands`（上游 requires level 4 的 Bukkit 近似，default: op）+ 每子命令独立节点 `servux.commands.<sub>`（search 复用 `.list`；旧单节点 `servux.command` 经 plugin.yml children 映射自动继承）；`list` 列全部 settings 现值（含上游"值 <10 字符才显示"怪癖）、`list <provider>` 过滤；`set` 纯内存 + 显式 `/servux save` 落盘（enable/disable/debug/litematic 为我方扩展子命令，保留切换即时落盘）。
 
 ---
 
