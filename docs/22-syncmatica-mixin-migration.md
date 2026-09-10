@@ -351,7 +351,7 @@ Gson 回调式配置实现。读时 try/catch 任何异常并设 `wasError=true`
 | **`material/`（材料配送）** | ⛔ **不移植，字段一起去掉** | 死代码：原版仅 `ServerPlacement.matList` 字段持有 `SyncmaticaMaterialList`，无 exchange / 无 PacketType / 无命令 / 无持久化引用。Paper `ServerPlacement` 删除 `matList` 字段 + `getMaterialList`/`setMaterialList` 方法 |
 | **`RedirectFileStorage`** | ⛔ **不移植** | 客户端装饰器（外部文件重定向免拷贝）；服务端纯 `FileStorage` 即可 |
 | **`extended_core/`（CORE_EX）** | ✅ **照抄** | owner / lastModifiedBy / subregion 共享，是协议字段（影响 metadata 编码），必须实现 |
-| **`litematica/schematic/`（peek）** | ✅ **照抄**（落地为 `data/litematica/`） | `SchematicMetadata`/`SchematicSchema`/`Schema`/`FileType` 是 syncmatica 自带的轻量 litematic 解析（不依赖 litematica mod），命令 `load` 需要 |
+| **`litematica/schematic/`（peek）** | ✅ **照抄**（落地为 `data/litematica/`） | `SchematicMetadata`/`SchematicSchema`/`Schema`/`FileType` 是 syncmatica 自带的轻量 litematic 解析（不依赖 litematica mod），命令 `load` 需要。`Schema` 版本表 2026-09-10 对照上游补齐曾漏抄的 `SCHEMA_26_1_RC1(4783, "26.1-rc-1")`（其余 60+ 条原已逐条一致；补前 4783~9998 的 dataVersion 全落到 "26.1-snapshot-6"） |
 | **版本协商（VERSION feature）** | ✅ **照抄** | `litematicVersion` / `dataVersion` 字段；`MOD_VERSION`=插件版本（`-b` 后缀永不命中版本正则）触发 FEATURE 交换使双方用全集 FeatureSet |
 | **客户端 exchange（3 个）** | ⛔ **不实现类，但服务端 `handle` 须回应其包** | `ModifyExchangeClient` / `ShareLitematicExchange` / `VersionHandshakeClient` 不移植；服务端 `ServerCommunicationManager.handle/handleExchange` 照常处理其对应 PacketType（见 [21](21-syncmatica-protocol.md) §5.5） |
 | **`Reference.isClient/isIntegratedServer/isOpenToLan` 分支** | ⚠️ **简化删除** | Paper 恒 dedicated server（`SyncmaticaContext.isServer()=true`，其余 false） |
