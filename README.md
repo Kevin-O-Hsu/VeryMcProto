@@ -84,7 +84,7 @@ A server-side protocol mod that delivers data to masa's client mods (MiniHUD / L
 Since 2026-09 the upstream is **mezz/JustEnoughItems** itself (JEI 29.37.0 / MC 26.1.2; the former Mrbysco/JEIRecipeBridge reference is discontinued and only ever covered the recipe-sync slice on 1.21.11). Three layers:
 
 - **Recipe sync layer** (S2C, loader-level wire):
-  - Fabric client → `fabric:recipe_sync` (Fabric API `fabric-recipe-api-v1` wire; triggered when the client declares the channel — mirrors upstream's `canSend(player)` gating; vanilla clients get nothing, not even a chat message)
+  - Fabric client → `fabric:recipe_sync` (Fabric API `fabric-recipe-api-v1` wire; triggered when the client declares the channel — mirrors upstream's `canSend(player)` gating; vanilla clients get nothing, not even a chat message). A join-time packet orderer (`network/RecipeSyncJoinOrderer`, a netty outbound interceptor installed at the end of the configuration phase) holds the vanilla `ClientboundUpdateRecipesPacket` until that declaration arrives, so the payload always lands **before** it — replicating upstream `PlayerListMixin`'s injection point and eliminating the "This Paper server does not provide recipes to JEI" warning (details: docs/30 §5.3)
   - NeoForge client → `neoforge:recipe_content` + tag table (triggered on join by client brand — preserved proven behavior)
   - Sent directly via NMS `ClientboundCustomPayloadPacket` (recipe packs routinely exceed 1MiB; the channel is a client-registered known channel with a 64MB upstream cap, so the single-packet direct send is safe)
 - **`jei:*` channel layer** (10 channels, loader-agnostic):
@@ -570,7 +570,7 @@ No independent debug engine; check state via `/jei status` and watch server logs
 |  Large schematic transmit / paste fails  |  Check for the client 32,767 disconnect; enable `network`/`packet` to inspect splitting                                                 |
 |  EasyPlace does nothing                  |  Confirm PacketEvents plugin is installed (`softdepend`); enable the `easyplace` category                                               |
 |  Syncmatica client can't connect         |  Defaults to NMS direct send; confirm with `/syncmatica debug s2c`; enable `handshake` to inspect the chain                             |
-|  JEI recipes don't sync                  |  Confirm `enabled` via `/jei`; fabric leg requires the client to declare `fabric:recipe_sync` (any Fabric-API client does); note it only affects players joining **afterward** |
+|  JEI recipes don't sync                  |  Confirm `enabled` via `/jei`; fabric leg requires the client to declare `fabric:recipe_sync` (any Fabric-API client does); the join orderer (`RecipeSyncJoinOrderer`) must appear in the pipeline — a missing/failed install degrades to the legacy timing (warning + client-local recipes); note it only affects players joining **afterward** |
 
 ---
 

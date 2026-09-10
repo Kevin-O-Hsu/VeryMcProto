@@ -96,9 +96,19 @@ VarInt entryCount
 └ 每 entry: Identifier(serializer id) + VarInt(n) + n × [ResourceKey<Recipe> + serializer.streamCodec(recipe)]
 ```
 
-- **触发**：`PlayerRegisterChannelEvent(fabric:recipe_sync)`——对齐上游 `RecipeSyncImpl.sendRecipes` 的 `canSend(player)` 门控（只发给声明过能收的客户端；Fabric API 客户端注册 receiver 即声明；vanilla 零打扰）。分组为单遍 O(R)（IdentityHashMap 按 serializer 身份聚合）。
+- **触发**：`PlayerRegisterChannelEvent(fabric:recipe_sync)`——对齐上游 `RecipeSyncImpl.sendRecipes` 的 `canSend(player)` 门控（只发给声明过能收的客户端；Fabric API 客户端注册 receiver 即声明；vanilla 零打扰）。分组为单遍 O(R)（IdentityHashMap 按 serializer 身份聚合）。该声明同时是**进服时序整形器**的"证据到达"信号（§5.3）。
 - **接收端**：Fabric API 展平排序 → `ClientRecipeSynchronizedEvent` → JEI `setClientSyncedRecipes`。read 端对未知 serializer 抛 `SkipPacketDecoderException`——Paper 配方恒 vanilla 序列化器，JEI 客户端 main entrypoint 已全量标记，无过滤对象。
-- **未实现（有意）**：C2S `fabric:recipe_sync/supported_serializers`（configuration phase 支持集协商）——① Paper 上无截获 config phase 任意载荷的先例与必要（协商对象为零）；② 不声明该通道 → 客户端 `canSend=false` → 根本不发送 → 行为安全。**若上游后续让协商结果影响行为需重估**。
+- **未实现（有意）**：C2S `fabric:recipe_sync/supported_serializers`（configuration phase 支持集协商）——① 该 payload 受客户端 `canSend` 门控（服务端须先在 config 相位 S2C 声明该通道才发；Paper 不发 config S2C register → 该 C2S 在 Paper 上物理不可达，实证见 §5.3）；② 不声明该通道 → 客户端 `canSend=false` → 根本不发送 → 行为安全。**若上游后续让协商结果影响行为需重估**。
+
+### 进服时序整形（`network/RecipeSyncJoinOrderer`）——JEI 警告根因与修复
+
+**根因（26.1 实证链）**：JEI 客户端在处理 play 相位 `ClientboundUpdateRecipesPacket` 的 **RETURN** 时启动并一次性判定配方同步状态（`ClientPacketListenerRecipeUpdateMixin` @Inject handleUpdateRecipes RETURN → `JeiStarter.verifyClientRecipes`，Paper brand 落入 `recipe.sync.unavailable` 分支）。上游 Fabric 服务端在 `PlayerList.placeNewPlayer` 内、构造 UpdateRecipesPacket **之前**发送配方（fabric-lifecycle-events-v1 `PlayerListMixin` 注入点 `@At("NEW", target=...UpdateRecipesPacket)`）→ payload 排在 UpdateRecipesPacket 之前上线；该时点 `canSend` 能通过靠 Fabric 服务端在 config 相位发 S2C register 触发客户端提前声明 play 通道（`AbstractChanneledNetworkAddon`："The normal case where the play channels are sent during configuration"——reactive 机制，Paper 不发 config S2C register 故结构性缺失）。Paper 侧 `PlayerJoinEvent` 在 UpdateRecipesPacket 之后、`PlayerRegisterChannelEvent` 更晚（客户端收到 LoginPacket 前不可能发包，`ClientPlayNetworkAddon.onServerReady` 注释）——任何 Bukkit 事件触发器因果上必输。
+
+**机制**：config 相位末（`AsyncPlayerConnectionConfigureEvent`，Paper 26.1 官方事件、异步阻塞语义）向连接 netty 管线 `addAfter(HandlerNames.ENCODER)` 安装一次性出站拦截器——扣住首个出站 UpdateRecipesPacket；play register 证据到达（现有 RegisterChannel 触发路径）→ `sendFabric` 提交 payload 写 → `release(uuid)` 放行被扣包。主线程同步提交序 + eventLoop FIFO ⇒ **wire 序恒为 payload → UpdateRecipesPacket**（与上游不变量逐字节同源）。netty 出站沿 tail→head 传播，拦截器必须在 encoder 的 **tail 侧**（addAfter）才能在编码前看到 Packet 对象（addBefore 在编码后收到 ByteBuf、拦截永不命中）。
+
+**防护与降级**：无证据绝不发送（~100KB 载荷给 vanilla 客户端会命中未知通道 32767 断连）；vanilla/慢网客户端走 **3s 超时放行**（配方书晚到上界，`ClientboundRecipeBookAddPacket.Entry` 自包含 RecipeDisplay 无损坏面）；一切内部失败（反射漂移 `packetListener`→`handle` 双名回退 / 管线异常 fail-open / reconfigure 经 `Channel.attr` 跳过）降级为现状时序（JEI 警告依旧，无新增损害）。扣留期又来 UpdateRecipes（进服 3s 内 /reload 竞态）按原 wire 序放行被扣包再透传新包。
+
+**已知局限（后续工单）**：① reconfigure（服务端发起重配）后不重发——通道集合从 play 相位携带、无 register 事件可作证据，JEI 用旧 synced 配方重启（无警告但配方陈旧）；② `/reload` 后不重发（上游 `reloadResources` 对全体玩家重发——`PlayerList.reloadResources` mache:849-862 对应物）；③ neoforge 腿（join+brand）仍为旧时序，NeoForge 客户端同样晚于 UpdateRecipes（需 NeoForge 实机环境验证后再对齐）。
 
 ### neoforge:recipe_content（NeoForge 加载器 wire，参考 Mrbysco）
 
@@ -123,6 +133,7 @@ app/JeiModule          enable(plugin)/disable()：配置→通道注册→监听
 JeiReference           全部常量单源（12 通道 id / C2S 清单 / 配置文件名新旧）
 network/JeiServerPlayHandler   IPluginServerPlayHandler 实现（每通道一实例，字节级分发 + R3 门控）
 network/JeiPacketSender        S2C NMS DiscardedPayload 直发
+network/RecipeSyncJoinOrderer  fabric 腿进服时序整形（netty 出站扣包-等证据-放行，§5.3）
 network/JeiServerPacketContext C2S 处理上下文（player + config + 回包）
 network/payload/*      10 个包类（record 化镜像上游；legacy/ 2 个）
 transfer/*             TransferOperation + BasicRecipeTransferHandlerServer
@@ -148,7 +159,7 @@ command/JeiCommand     /jei status|enable|disable
 
 ## 9. 实机验证清单（人工）
 
-1. Fabric + JEI 客户端进服 → JEI 显示服务端配方（无 "recipe sync unavailable" 红字）；
+1. Fabric + JEI 客户端进服 → JEI **进服即**显示服务端配方（无 "recipe sync unavailable" 红字、无 "Loaded N vanilla recipes from client resources" 回退行）——时序整形器生效的判定特征：服务端日志 `[JEI] fabric 配方同步` 早于客户端 JEI 启动（客户端警告消失即通过）；
 2. cheat：创造模式拿物品（MOUSE_PICKUP/INVENTORY 两模式）、删除手持、热键栏放置；生存模式无权限时客户端收到拒绝提示（cheat_permission 纠正链）；
 3. 配方转移：合成台打开 → JEI 转移按钮 → 物品正确入格 + 客户端收到成功回执；原料不足 → 失败回执 + 不动背包；
 4. vanilla 客户端进服 → 零聊天骚扰、零断连（jei:* REGISTER 声明无害）；
@@ -166,3 +177,4 @@ command/JeiCommand     /jei status|enable|disable
 | 权限三切面默认值 | `Fabric/.../fabric/config/ServerConfig.java` |
 | 客户端门禁 | `Fabric/.../fabric/network/ConnectionToServer.java`（isJeiOnServer/isSameModLoader）+ `Library/.../library/startup/JeiStarter.java`（verifyClientRecipes） |
 | fabric:recipe_sync wire | FabricMC/fabric 分支 26.1 `fabric-recipe-api-v1/.../impl/recipe/sync/*`（ClientboundRecipeSyncPayload / RecipeSyncImpl） |
+| 进服时序不变量 | FabricMC/fabric 分支 26.1 `fabric-lifecycle-events-v1/.../mixin/event/lifecycle/PlayerListMixin.java`（`@At("NEW", target=...UpdateRecipesPacket)`）+ `fabric-networking-api-v1/.../client/ClientPlayNetworkAddon.java`（onServerReady 注释：收到 LoginPacket 前不可能发包） |
