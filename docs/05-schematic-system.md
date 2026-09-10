@@ -132,14 +132,16 @@ Litematic 文件 (5 MiB)
 ```
 
 > **Paper 迁移**：两级分包**全可照抄**（纯 Java）。唯一改动：第二级的 PacketSplitter 分片常量受 plugin messaging 32KiB 限制（见 [02](02-network-protocol.md) §5.2 / [07](07-migration-architecture.md)）。
+>
+> **方向注记（2026-09 后）**：上图为上游四阶段协议的两级分包形态。26.1 线我方 **S2C 发送侧死信链已删**（客户端无接收端，见 §3）；16KiB 切片（`SchematicBuffer.BUFFER_SIZE`）现为对端 C2S 上传约定，我方接收侧仅重组、不切片。
 
 ---
 
-## 3. 传输协议：四阶段（`LitematicaSchematic` 传输方法）
+## 3. 传输协议：四阶段帧（C2S 上传侧）
 
-> `LitematicaSchematic.java:995-1140`（发送）+ 接收端。通过 `servux:litematics` 通道，packetType 用 `*_RESPONSE_*` 系列，`Task` 字段区分阶段。
+> 26.1 线现状：**S2C 发送侧（`sendTransmitFile` + `/servux litematic transmit`）死信链已删（2026-09）**——stock 26.1 客户端 `ServuxLitematicaHandler.handleBulkData` 的 Transmit 分流整块注释（一切帧坠入仅认 `BulkEntityReply` 的 `handleBulkEntityData`，静默丢弃无日志），上游服务端同方法 `@Deprecated(forRemoval=true)` 零调用点，且注释块引用 DataTag 迁移前变量名（取消注释无法编译）——服务端无法单方面修复，物理删除死链、恢复走 git revert。**C2S 上传侧为我方激活的协议面超集**（上游 `handleBulkData` 同为注释死路；客户端 `sliceForServux` 调用点也被上游注释，对 stock 客户端不可达），路由完整保留（`LitematicsDataProvider:479-484` 活/死错位声明）。
 
-### 3.1 服务端→客户端发送投影文件
+### 3.1 四阶段帧定义（两侧共用，保留于 `ServuxLitematicaPacket`）
 
 ```
 阶段1  TransmitStart:
@@ -151,18 +153,20 @@ Litematic 文件 (5 MiB)
 （异常）TransmitCancel: 取消
 ```
 
-### 3.2 客户端→服务端上传投影（反向同理）
+（历史注记：S2C 发送方向曾按此帧表由命令触发 `sendTransmitFile` 16KiB 切片投递并经 `PacketSplitter` 二级分包，2026-09 随 26.1 客户端接收端死路确认后物理删除。）
 
-服务端 `LitematicsDataProvider` 收到 `TransmitStart` → `SchematicBufferManager.createBuffer`；`TransmitData` → `receiveSlice`；`TransmitEnd` → 组装成文件 → `LitematicaSchematic.createFromFile` 加载。
+### 3.2 客户端→服务端上传（我方激活的超集路由）
 
-### 3.3 序列化字节流
+我方 `ServuxLitematicaHandler.handleBulkData` 按 NBT `"Task"` 字符串路由：`Litematic-Transmit*` → `LitematicaSchematic.receiveFileTransmit` → `SchematicBufferManager.createBuffer` / `receiveSlice` / `finishBuffer` 重组落盘 `schematics/`；粘贴受理 `LitematicsDataProvider.handleClientPasteRequestPair`。**活主路**为 `LitematicaPaste` 批量路由 → `handleClientPasteRequest` → `PasteTask` 分 tick 粘贴（见 [09](09-DELIVERY.md) §5.5）。
+
+### 3.3 序列化字节流（26.1 线格式）
+
+26.1 起批量重组体 NBT 载体从 vanilla `writeNbt` 切换为 malilib **DataTag 格式**，且**无 type VarInt / transactionId 前缀**、按 NBT `"Task"` 字符串路由（1.21.11 旧线为 `writeVarInt(transactionId) + writeNbt`——旧描述已过时）：
 
 ```java
-// ServuxLitematicaHandler.java:196-199
-FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
-buffer.writeVarInt(packet.getTransactionId());
-buffer.writeNbt(packet.getCompound());           // NBT → ByteBuf
-PacketSplitter.send(this, buffer, player, player.connection);
+// 我方 ServuxLitematicaHandler（C2S 重组入口，与 malilib DataTagIo 逐字节兼容）
+CompoundTag nbt = DataTagIo.readTag(fullPacket);   // [int32 大端 压缩长][GZIP(具名根 NBT 流)]
+// 按 nbt.getStringOr("Task", ...) 路由（LitematicaPaste / Litematic-Transmit*）
 ```
 
 ---
@@ -272,6 +276,6 @@ class AreaSelection {
 ## 8. 与网络层的衔接（移植注意）
 
 - 投影传输走 `servux:litematics` 通道（[03](03-dataproviders-detail.md) §Litematics）。
-- 大投影 = SchematicBuffer(16KiB) → PacketSplitter(网络包) 两级分包（[02](02-network-protocol.md) §5）。
+- 大上传 = 客户端 16KiB 切片（SchematicBuffer 约定）→ 我方 PacketSplitter 重组（[02](02-network-protocol.md) §5）；S2C 发送侧死链已删（见 §3 注记），26.1 线我方仅重组不切片。
 - Paper 端若 plugin messaging 限制 32KiB：每个 16KiB slice 仍在限制内，**单 slice 不会再触发 PacketSplitter 二次分包**（16KiB < 32KiB），反而简化——但仍保留 PacketSplitter 作为保险（应对极端情况）。
 - session key（`SliceKey`）需在插件侧维护 `Map<UUID, Long>` 映射，与原版 `SchematicBufferManager.playerMap` 一致。

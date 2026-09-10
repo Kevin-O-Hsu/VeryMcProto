@@ -216,7 +216,7 @@ long sprint = Reflect.get(tickManager, "remainingSprintTicks");  // Mojang 名
 | **配方下发** | — | ✅ **做**（NMS Recipe.CODEC） | P1 | 大包，分包 |
 | **实体/方块实体 NBT 查询** | MixinServerPlayNetworkHandler_QueryNbt | ✅ **做**（NMS saveWith*） | P1 | 权限走 Bukkit |
 | **结构边界框** | MixinServerChunkLoadingManager | ✅ **做**（NMS getAllReferences，周期扫描触发） | P2 | 工作量最大 |
-| **Litematica 投影投递/粘贴** | MixinChestBlock/Rail/Stairs（镜像） | ✅ **做**（投影照抄 + 镜像修复**内联**到粘贴） | P2 | 见 [05](05-schematic-system.md) |
+| **Litematica 投影粘贴** | MixinChestBlock/Rail/Stairs（镜像） | ✅ **做**（投影照抄 + 镜像修复**内联**到粘贴；S2C 投递死信链已删——26.1 客户端无接收端） | P2 | 见 [05](05-schematic-system.md) |
 | **潜影盒可堆叠** | MixinItemStack/Hopper | ⛔ **不可能实现** | P3 | 改 NMS 方法全局返回行为，Paper 无 Mixin；已删 Tweaks provider 相关遗留代码（不下发 stackingShulkers 元数据，避免客户端误判）。详见 [04](04-mixin-analysis.md) §4 |
 | **Allay 收集修复** | MixinMob/ItemEntity/Allay | ⚠️ **省略** | P4 | 改行为，影响小 |
 | **EasyPlace**（Tweakeroo 精确放置） | MixinBlockItem_EasyPlace + MixinServerPlayNetworkHandler_EasyPlace | ✅ **已实现** | P3 | 「改写放行」范式：`EasyPlaceListener` netty 线程把编码包 `cursor.x` 改写回 `relX`（等效上游短路校验的 Mixin）+ 登记 pv；vanilla 全流程放置（手持/检查/BE/消耗/ack 原生——**消除 netty 读手持的换手 desync 竞态**，2026-09 修复）；`EasyPlaceFixListener` 在 `BlockPlaceEvent`（HIGHEST）用 `applyPlacementProtocolV3` 修正属性（基座=vanilla 落块状态）。与上游差异：床/门双半格不修正（`BlockMultiPlaceEvent` 降级）、`itemPlacementContext` 恒 null、恢复 vanilla 距离/保护检查、保护插件重新可见放置事件 |

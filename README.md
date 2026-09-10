@@ -62,7 +62,7 @@ A server-side protocol mod that delivers data to masa's client mods (MiniHUD / L
 
 - **World metadata** (difficulty/weather/spawn point/seed), **TPS / MobCap** periodic logging
 - **Structure bounding boxes** (periodic chunk scanning; rendered by the structure debugger / MiniHUD)
-- **Litematica schematic transmit / paste** (S2C delivery of `.litematic`; C2S receives client uploads and pastes them into the world)
+- **Litematica schematic paste** (C2S receives client uploads and pastes them into the world; S2C transmit removed — the stock 26.1 client has no receiver for it, see docs/05 §3)
 - **Entity / block-entity NBT query** (client selects, server returns full NBT)
 - **EasyPlace** server-side precise placement protocol (Tweakeroo cooperation; implemented via PacketEvents)
 
@@ -75,9 +75,9 @@ A server-side protocol mod that delivers data to masa's client mods (MiniHUD / L
 |  `servux:entity_data`    |  `entity_data`               |  2                 |  Entities: block-entity / entity NBT query                                                                                      |
 |  `servux:tweaks`         |  `tweaks_data`               |  2                 |  Tweaks: entity / block-entity NBT (same pattern as Entities)                                                                   |
 |  `servux:structures`     |  `structure_bounding_boxes`  |  3                 |  Structures: structure bounding boxes (periodic chunk scan)                                                                     |
-|  `servux:litematics`     |  `litematic_data`            |  2                 |  Litematics: schematic transmit / paste / bulk entities                                                                         |
+|  `servux:litematics`     |  `litematic_data`            |  2                 |  Litematics: schematic paste / bulk entities (S2C transmit removed)                                                                         |
 
-> **26.1 wire changes** (vs 1.21.11, all verified against the LTS/26.1 client sources): protocol versions bumped as above; the `servux` handshake field is now a **hard gate** on the client — it must start with `servux-fabric-<exact upstream MC id>` (e.g. `servux-fabric-26.1.2-b2`), so the server impersonates `fabric`; most business packets switched their NBT carrier from vanilla `writeNbt` to the **malilib DataTag wire format** (`[int32 BE compressed length][GZIP'd named-root NBT stream]`, see `DataTagIo`); the C2S `transactionId` VarInt prefix was removed; Structures dropped types 10/11/12 (spawn/weather now HUD-only); new `UNREGISTER_REPLY` types (HUD=9 / Entities=7 / Tweaks=7 / Litematics=8); the malilib client reassembly cap dropped **128MB → 16MB** (server-side transmit guard added). The Litematica **task group (types 14-17, Fill/Delete via servux) is implemented**: `TASK_REQUEST` → per-tick budgeted server-side fill/delete with InfoHud status sync (`REMAINING_CHUNKS` frames) and completion frames (see docs/09 §26.1.5; type 15 stays encodable-but-unsent since the client's receiver is TODO'd upstream, and type 17 is upstream-identically ignored).
+> **26.1 wire changes** (vs 1.21.11, all verified against the LTS/26.1 client sources): protocol versions bumped as above; the `servux` handshake field is now a **hard gate** on the client — it must start with `servux-fabric-<exact upstream MC id>` (e.g. `servux-fabric-26.1.2-b2`), so the server impersonates `fabric`; most business packets switched their NBT carrier from vanilla `writeNbt` to the **malilib DataTag wire format** (`[int32 BE compressed length][GZIP'd named-root NBT stream]`, see `DataTagIo`); the C2S `transactionId` VarInt prefix was removed; Structures dropped types 10/11/12 (spawn/weather now HUD-only); new `UNREGISTER_REPLY` types (HUD=9 / Entities=7 / Tweaks=7 / Litematics=8); the malilib client reassembly cap dropped **128MB → 16MB** (server-side 16MB frame guard in `PacketSplitter.send`; the per-file transmit gate was removed with the S2C transmit dead path). The Litematica **task group (types 14-17, Fill/Delete via servux) is implemented**: `TASK_REQUEST` → per-tick budgeted server-side fill/delete with InfoHud status sync (`REMAINING_CHUNKS` frames) and completion frames (see docs/09 §26.1.5; type 15 stays encodable-but-unsent since the client's receiver is TODO'd upstream, and type 17 is upstream-identically ignored).
 
 ### 2. JEI (full server protocol, upstream = mezz/JustEnoughItems `26.1` branch)
 
@@ -231,10 +231,9 @@ verymc.top.veryMcProto
 
 ```
 /servux litematic list                          List .litematic files under schematics/
-/servux litematic transmit <file> [player]      Load a schematic and deliver it via servux:litematics
 ```
 
-> Running `transmit` from the console requires a target player. Files live in `plugins/VeryMcProto/schematics/`.
+> S2C transmit was **removed** (2026-09): the stock 26.1 client's `handleBulkData` Transmit branch is fully commented out upstream (no receiver, frames silently dropped) and upstream's `sendTransmitFile` is `@Deprecated(forRemoval)` with zero call sites. Files live in `plugins/VeryMcProto/schematics/`.
 
 ---
 
@@ -331,7 +330,7 @@ Servux provider permissions do not use the Bukkit permission `default`; instead 
 |  `servux.provider.entity_data.nbt_allow_player_ender_items`  |  `entity_data:player_ender_items_permission_level` (default 2)  |  Query a player's ender chest                                   |
 |  `servux.provider.tweaks_data`                               |  `tweaks_data:permission_level` (default 0)                     |  Tweaks base                                                    |
 |  `servux.provider.structure_bounding_boxes`                  |  `structure_bounding_boxes:permission_level` (default 0)        |  Structures base                                                |
-|  `servux.provider.litematic_data`                            |  `litematic_data:permission_level` (default 0)                  |  Litematics base (transmit/receive)                             |
+|  `servux.provider.litematic_data`                            |  `litematic_data:permission_level` (default 0)                  |  Litematics base (upload/paste)                             |
 |  `servux.provider.litematic_data.paste`                      |  `litematic_data:permission_level_paste` (default 0)            |  **Paste** a schematic into the world (requires creative mode)  |
 
 > When `nbt_query_override` is off, the Entities NBT query **falls back to the vanilla permission `minecraft.command.data`** (level 2), aligning with the vanilla `/data` command permission.
@@ -428,7 +427,7 @@ The config main channel — permanently enabled, and sends no network packets (o
 
 |  key                       |  type        |  default  |  description                         |
 | -------------------------- | ------------ | --------- | ------------------------------------ |
-|  `permission_level`        |  int [0..4]  |  0        |  Base permission (transmit/receive)  |
+|  `permission_level`        |  int [0..4]  |  0        |  Base permission (upload/paste)  |
 |  `permission_level_paste`  |  int [0..4]  |  0        |  Paste-into-world permission         |
 |  `fix_rail_rotations`      |  bool        |  true     |  Fix rail orientation on paste       |
 |  `fix_stairs_mirror`       |  bool        |  true     |  Fix stairs mirroring on paste       |
@@ -479,8 +478,8 @@ plugins/VeryMcProto/
 ├── placements.json             Syncmatica placement-metadata persistence (+ .bak / .new atomic write)
 ├── syncmatics/                 Syncmatica .litematic central repository (player upload / download / share)
 │   └── <hash-uuid>.litematic   Filename = hash UUID (/syncmatica load identifies files by this)
-└── schematics/                 Servux schematic transmit directory
-    └── *.litematic             Loaded by /servux litematic transmit; written by receiveFileTransmit
+└── schematics/                 Servux schematic upload (paste) directory
+    └── *.litematic             Written by receiveFileTransmit (client uploads); listed by /servux litematic list
 ```
 
 > `schematics/` and `syncmatics/` are created automatically on first access. On server shutdown (`onDisable`), `placements.json` is atomically saved by `SyncmaticManager` (backup → current ← incoming); on startup it is read, and corrupt entries are skipped one-by-one via try/catch and rewritten with corrections.
@@ -526,7 +525,7 @@ The original Servux has **26 Mixins + 2 AccessWideners**; Syncmatica has **5 ser
 
 - Bukkit `Messenger.MAX_MESSAGE_SIZE` = 1,048,576 (~1MiB) — the plugin-messaging API no longer rejects at 32KiB (old docs claiming 32768 are outdated).
 - **The real S2C bottleneck is the vanilla client's 32,767-byte decode limit on `ClientboundCustomPayload`** — exceeding it disconnects the client.
-- `PacketSplitter` split constants: **S2C `MAX_PAYLOAD_PER_PACKET_S2C = 31,995`** (leaves headroom for the VarInt header, defending the client's 32,767 limit); server receive cap `DEFAULT_MAX_RECEIVE_SIZE_S2C = 64MB`. **Since 26.1 the malilib client's reassembly cap is 16MB** (was 128MB) — the transmit path enforces a server-side 16MB guard.
+- `PacketSplitter` split constants: **S2C `MAX_PAYLOAD_PER_PACKET_S2C = 31,995`** (leaves headroom for the VarInt header, defending the client's 32,767 limit); server receive cap `DEFAULT_MAX_RECEIVE_SIZE_S2C = 64MB`. **Since 26.1 the malilib client's reassembly cap is 16MB** (was 128MB) — `PacketSplitter.send` enforces a server-side 16MB frame guard (the per-file transmit gate was removed with the S2C transmit dead path).
 - **Since 26.1, servux business packets carry their NBT in the malilib DataTag wire format** (`[int32 BE compressed length][GZIP'd named-root NBT stream]` — implemented byte-compatibly via NMS `NbtIo` in `DataTagIo`); metadata (types 1/2) stays vanilla NBT, splitter slices stay raw bytes.
 - Large packets (Recipe / Litematic schematics / Structures / bulk entities) must be split by `PacketSplitter`. **Syncmatica file-splitting does not reuse `PacketSplitter`**; it implements its own stop-and-wait (`BUFFER_SIZE=16384`, per-chunk ack).
 
@@ -570,7 +569,7 @@ No independent debug engine; check state via `/jei status` and watch server logs
 |  Symptom                                 |  Where to look                                                                                                                          |
 | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 |  Client connects but receives nothing    |  Check provider enabled (`/servux info` on a setting of that provider / `/servux debug cat provider`); check `permission_level`; enable the `handshake` category to see whether handshake succeeded  |
-|  Large schematic transmit / paste fails  |  Check for the client 32,767 disconnect; enable `network`/`packet` to inspect splitting                                                 |
+|  Large schematic paste / upload fails  |  Check for the client 32,767 disconnect; enable `network`/`packet` to inspect splitting                                                 |
 |  EasyPlace does nothing                  |  Confirm PacketEvents plugin is installed (`softdepend`); enable the `easyplace` category                                               |
 |  Syncmatica client can't connect         |  Defaults to NMS direct send; confirm with `/syncmatica debug s2c`; enable `handshake` to inspect the chain                             |
 |  JEI recipes don't sync                  |  Confirm `enabled` via `/jei`; fabric leg requires the client to declare `fabric:recipe_sync` (any Fabric-API client does); the join orderer (`RecipeSyncJoinOrderer`) must appear in the pipeline — a missing/failed install degrades to the legacy timing (warning + client-local recipes); note it only affects players joining **afterward** |
@@ -589,7 +588,7 @@ See [`docs/10-testing-guide.md`](docs/10-testing-guide.md) (Servux) and [`docs/2
 |  `servux:structures`    |  ✅ Structure bounding boxes  |  —                           |  —                              |
 |  `servux:entity_data`   |  ✅ NBT query                 |  —                           |  —                              |
 |  `servux:tweaks`        |  —                           |  —                           |  ✅ NBT query                    |
-|  `servux:litematics`    |  —                           |  ✅ Schematic transmit/paste  |  —                              |
+|  `servux:litematics`    |  —                           |  ✅ Schematic paste           |  —                              |
 |  EasyPlace              |  —                           |  ✅ Precise placement         |  ✅ Triggers placement protocol  |
 
 ### Test Points
@@ -597,7 +596,7 @@ See [`docs/10-testing-guide.md`](docs/10-testing-guide.md) (Servux) and [`docs/2
 1. Install the matching masa mods on the client; after joining, enable their debug (e.g. MiniHUD's `debugMessages`) and observe the handshake.
 2. HUD: check whether world info/TPS/MobCap refresh and whether structure bounding boxes render.
 3. NBT query: with MiniHUD/Tweakeroo, select an entity/block-entity and check whether NBT is returned.
-4. Schematic: `/servux litematic transmit` to deliver; paste-upload from within Litematica.
+4. Schematic: paste-upload from within Litematica (S2C transmit removed — the stock 26.1 client has no receiver; `/servux litematic list` to inspect uploaded files).
 5. Syncmatica: handshake → upload → download → modify placement → restart to verify persistence → multi-player collaboration.
 
 ---
@@ -687,7 +686,7 @@ Release flow (in-version): on the active dev line (`dev` or `ver/<X>-dev`), bump
 |  [`docs/02-network-protocol.md`](docs/02-network-protocol.md) ⭐              |  **Core network protocol**: `CustomPacketPayload`, `PacketSplitter` splitting, 6 channels, byte layout  |
 |  [`docs/03-dataproviders-detail.md`](docs/03-dataproviders-detail.md)        |  The 6 providers' data contents + collection (TPS/MobCap) + permission nodes                            |
 |  [`docs/04-mixin-analysis.md`](docs/04-mixin-analysis.md)                    |  Itemized list of 26 Mixins + 2 AccessWideners and their migration destinations                         |
-|  [`docs/05-schematic-system.md`](docs/05-schematic-system.md) ⭐              |  Litematica schematic system: BitArray/Palette/Selection/Placement/Transmit                             |
+|  [`docs/05-schematic-system.md`](docs/05-schematic-system.md) ⭐              |  Litematica schematic system: BitArray/Palette/Selection/Placement (+ C2S transmit routing)                             |
 |  [`docs/06-fabric-vs-paper.md`](docs/06-fabric-vs-paper.md)                  |  Fabric ↔ Paper framework-diff comparison table                                                         |
 |  [`docs/07-migration-architecture.md`](docs/07-migration-architecture.md) ⭐  |  **Complete migration plan**: architecture / network layer / data collection / fallback matrix          |
 |  [`docs/09-DELIVERY.md`](docs/09-DELIVERY.md)                                |  Delivery / byte-limit deep dive (with the client 32767 limit evidence)                                 |

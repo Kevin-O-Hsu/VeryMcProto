@@ -1,7 +1,6 @@
 package verymc.top.veryMcProto.mod.servux.schematic;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -47,8 +46,6 @@ import verymc.top.veryMcProto.mod.servux.util.Log;
 import verymc.top.veryMcProto.mod.servux.ServuxDebug;
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderManager;
 import verymc.top.veryMcProto.mod.servux.dataproviders.LitematicsDataProvider;
-import verymc.top.veryMcProto.mod.servux.network.ServuxLitematicaHandler;
-import verymc.top.veryMcProto.mod.servux.network.ServuxLitematicaPacket;
 import verymc.top.veryMcProto.mod.servux.schematic.container.ILitematicaBlockStatePalette;
 import verymc.top.veryMcProto.mod.servux.schematic.container.LitematicaBlockStateContainer;
 import verymc.top.veryMcProto.mod.servux.schematic.placement.SchematicPlacement;
@@ -61,7 +58,6 @@ import verymc.top.veryMcProto.mod.servux.util.data.FileType;
 import verymc.top.veryMcProto.mod.servux.util.nbt.NbtUtils;
 import verymc.top.veryMcProto.mod.servux.util.nbt.NbtView;
 import verymc.top.veryMcProto.mod.servux.util.position.PositionUtils;
-import verymc.top.veryMcProto.mod.servux.schematic.transmit.SchematicBuffer;
 import verymc.top.veryMcProto.mod.servux.schematic.transmit.SchematicBufferManager;
 
 public class LitematicaSchematic
@@ -73,8 +69,6 @@ public class LitematicaSchematic
     // This is basically a "sub-version" for the schematic version,
     // intended to help with possible data fix needs that are discovered.
     public static final int SCHEMATIC_VERSION_SUB = 1; // Bump to one after the sleeping entity position fix
-    /** 26.1 客户端 malilib PacketSplitter 重组上限（DEFAULT_MAX_RECEIVE_SIZE = 16MB）：S2C 文件投递大小门禁。 */
-    public static final long MAX_TRANSMIT_FILE_SIZE = 16L * 1024L * 1024L;
 
     public final Map<String, LitematicaBlockStateContainer> blockContainers = new HashMap<>();
     public final Map<String, Map<BlockPos, CompoundTag>> tileEntities = new HashMap<>();
@@ -548,99 +542,10 @@ public class LitematicaSchematic
         return tagList;
     }
 
-    public void sendTransmitFile(CompoundTag nbtIn, final long sessionKey, ServerPlayer player)
-    {
-        Path file = this.getFile();
-        CompoundTag output = new CompoundTag();
-        final int bufferSize = SchematicBuffer.BUFFER_SIZE;
-        long totalBytes;
-        int totalSlices;
-
-        try
-        {
-            totalBytes = Files.size(file);
-            totalSlices = (int) ((totalBytes + bufferSize - 1) / bufferSize);
-        }
-        catch (java.io.IOException e)
-        {
-            Log.error("sendTransmitFile: Unable to read file size; {}", e.getLocalizedMessage());
-            return;
-        }
-
-        if (totalBytes > MAX_TRANSMIT_FILE_SIZE)
-        {
-            // 26.1 客户端 malilib PacketSplitter 重组上限 16MB（DEFAULT_MAX_RECEIVE_SIZE），超限会被静默丢弃——
-            // 服务端前置门禁：发 TransmitCancel + 明确提示，不截断、不静默
-            CompoundTag cancel = new CompoundTag();
-            cancel.putLong("SliceKey", sessionKey);
-            cancel.putString("Task", "Litematic-TransmitCancel");
-            ServuxLitematicaHandler.getInstance().encodeServerData(player, ServuxLitematicaPacket.ResponseC2SStart(cancel));
-            Log.error("sendTransmitFile: file '{}' is {} bytes, exceeds the 26.1 client reassembly limit of {} bytes; refusing",
-                    file.getFileName().toString(), totalBytes, MAX_TRANSMIT_FILE_SIZE);
-            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§cLitematic transmit: file exceeds the 16MB client limit."));
-            return;
-        }
-
-        output.putString("Task", "Litematic-TransmitStart");
-        output.putString("FileName", file.getFileName().toString());
-        output.store("FileType", FileType.CODEC, this.schematicType);
-        output.putLong("SliceKey", sessionKey);
-        output.putInt("TotalSlices", totalSlices);
-        output.putLong("TotalSize", totalBytes);
-
-        if (nbtIn != null && !nbtIn.isEmpty())
-        {
-            output.put("PlacementData", nbtIn);
-        }
-
-        ServuxLitematicaHandler.getInstance().encodeServerData(player, ServuxLitematicaPacket.ResponseC2SStart(output));
-
-        // File Stream
-        output.putLong("SliceKey", sessionKey);
-        byte[] buffer = new byte[bufferSize];
-        int currentSlice = 0;
-
-        try (java.io.InputStream is = Files.newInputStream(file))
-        {
-            int bytesRead = 0;
-            output.putString("Task", "Litematic-TransmitData");
-
-            while ((bytesRead = is.read(buffer, 0, bufferSize)) != -1)
-            {
-                output.remove("Slice");
-                output.remove("Size");
-                output.remove("Data");
-                // ★ 修复 servux 原版 bug：原版误写 totalSlices（总片数），
-                //   客户端 SchematicBuffer.receiveSlice 要求 number ∈ [0, totalSlices)，
-                //   写 totalSlices 会越界被丢弃 → 客户端永远 Received:0。应为当前片号 currentSlice。
-                output.putInt("Slice", currentSlice);
-                output.putInt("Size", bytesRead);
-
-                byte[] correctedData = new byte[bytesRead];
-                System.arraycopy(buffer, 0, correctedData, 0, bytesRead);
-                output.putByteArray("Data", correctedData);
-                ServuxLitematicaHandler.getInstance().encodeServerData(player, ServuxLitematicaPacket.ResponseC2SStart(output));
-                currentSlice++;
-            }
-        }
-        catch (Exception err)
-        {
-            output = new CompoundTag();
-            output.putLong("SliceKey", sessionKey);
-            output.putString("Task", "Litematic-TransmitCancel");
-            ServuxLitematicaHandler.getInstance().encodeServerData(player, ServuxLitematicaPacket.ResponseC2SStart(output));
-            Log.error("sliceForServux: Exception reading file; {}", err.getLocalizedMessage());
-            return;
-        }
-
-        // End Slice
-        output.remove("Slice");
-        output.remove("Size");
-        output.remove("Data");
-
-        output.putString("Task", "Litematic-TransmitEnd");
-        ServuxLitematicaHandler.getInstance().encodeServerData(player, ServuxLitematicaPacket.ResponseC2SStart(output));
-    }
+    // S2C 文件投递 sendTransmitFile 已删（2026-09）：26.1 stock 客户端 handleBulkData 的 Transmit 分流
+    // 整块注释（帧被静默丢弃，上游未实现接收端），上游同方法 @Deprecated(forRemoval=true) 零调用点——
+    // 死信链随唯一调用点（/servux litematic transmit）一并移除；C2S 上传侧 receiveFileTransmit（下方）
+    // 属活超集保留。恢复投递走 git revert 本 commit。
 
     public static @Nullable Pair<LitematicaSchematic, CompoundTag> receiveFileTransmit(CompoundTag nbt, ServerPlayer player)
     {

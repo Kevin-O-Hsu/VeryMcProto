@@ -25,7 +25,7 @@
 
 每个被移植的 Mod 独占一个目录单元；原版 Fabric 实现统一存放在 `OriginImpl/` 下用于逐行对照（本地参考，已 gitignore，不入库；**1.21.11 与 26.1 双版本并存**，masa 系全部为 sakura-ryoko 维护的 `LTS/<版本>` 分支；JEI 侧**按线分叉**——26.1 线对照最上游 `OriginImpl/JustEnoughItems-26.1/`（mezz，分支 `26.1`，2026-09 起正式更换），1.21.11 旧线沿用 `OriginImpl/JEIRecipeBridge-1.21.11/`（Mrbysco）。**三个移植目标在 26.1 线全部实现并通过服务端实机验证**：
 
-- **Servux**（`mod/servux/`，对照 `OriginImpl/servux-LTS-26.1/`）—— masa 开发的服务端协议 Mod，为 masa 的客户端 Mod（**MiniHUD / Litematica / Tweakeroo**）提供**服务端→客户端的数据投递与协议**，通过自定义网络通道（`servux:*`）下发：世界元数据、出生点、天气、TPS/MobCap、结构边界框、Litematica 投影投递/粘贴、实体与方块实体 NBT 查询、EasyPlace 服务端放置协议等。5 通道 + schematic（粘贴/投递）+ EasyPlace + **task 组 Fill/Delete/Paste**（`scheduler/` 五类：TaskScheduler + LitematicaTask 基类 + FillDeleteTask + PasteTask + InfoHudTaskSync，受理→分 tick 执行→InfoHud 状态同步；paste 为上游 TaskPasteSchematicPerChunkDirect 形态——vanillaTickTime+60ms 动态预算、type 16 进度/完成帧；26.1 wire：协议版本 3/2/2/3/2、DataTag 载体、UNREGISTER_REPLY；type 15 客户端 TODO 故不发送、type 17 上游同源忽略）。
+- **Servux**（`mod/servux/`，对照 `OriginImpl/servux-LTS-26.1/`）—— masa 开发的服务端协议 Mod，为 masa 的客户端 Mod（**MiniHUD / Litematica / Tweakeroo**）提供**服务端→客户端的数据投递与协议**，通过自定义网络通道（`servux:*`）下发：世界元数据、出生点、天气、TPS/MobCap、结构边界框、Litematica 投影粘贴、实体与方块实体 NBT 查询、EasyPlace 服务端放置协议等。5 通道 + schematic（粘贴）+ EasyPlace + **task 组 Fill/Delete/Paste**（`scheduler/` 五类：TaskScheduler + LitematicaTask 基类 + FillDeleteTask + PasteTask + InfoHudTaskSync，受理→分 tick 执行→InfoHud 状态同步；paste 为上游 TaskPasteSchematicPerChunkDirect 形态——vanillaTickTime+60ms 动态预算、type 16 进度/完成帧；26.1 wire：协议版本 3/2/2/3/2、DataTag 载体、UNREGISTER_REPLY；type 15 客户端 TODO 故不发送、type 17 上游同源忽略）。
 - **JEI 服务端协议**（`mod/jei/`，对照最上游 `OriginImpl/JustEnoughItems-26.1/`（mezz 分支 `26.1` = JEI 29.37.0 / MC 26.1.2 / Java 25——原 Mrbysco/JEIRecipeBridge 已停更且只做过 1.21.11 的配方同步切面，2026-09 起弃用为其参考地位））—— **完整 JEI 协议**三层：① 配方同步层：`fabric:recipe_sync`（Fabric API `fabric-recipe-api-v1` wire，RegisterChannel 触发——对齐上游 `canSend(player)` 门控）+ `neoforge:recipe_content`（join + brand 触发，wire 参考 Mrbysco 26.1 目录）+ NeoForge tag 表补发；② `jei:*` 自有通道 10 条（8 C2S：`request_cheat_permission` / `give_item_stack` / `delete_player_item` / `set_hotbar_item_stack` / `recipe_transfer_with_result` / `recipe_transfer_counted_with_result` / legacy `recipe_transfer` / legacy `recipe_transfer_counted`；2 S2C：`cheat_permission` / `recipe_transfer_result`）——**客户端功能门禁 `isJeiOnServer()` = 服务端声明过 `jei:delete_player_item` 通道（`ChannelManager` 成对注册），与 brand 无关**；③ 服务端行为：cheat 权限三切面（Op=权限级 2 / Give=`minecraft.command.give` / Creative）+ `BasicRecipeTransferHandlerServer` 配方转移算法逐行移植。协议详情见 [`docs/30-jei-protocol.md`](docs/30-jei-protocol.md)。
 - **Syncmatica**（`mod/syncmatica/`，对照 `OriginImpl/syncmatica-LTS-26.1/`）—— **投影共享**协议 Mod：服务端作中央仓库存储 `.litematic`，多玩家上传/下载/协同修改放置位置。单物理通道 `syncmatica:main` + 18 逻辑 PacketType + Exchange 会话层（请求-应答状态机）+ 文件存储 + JSON 持久化 + 配额/调试服务。与 Servux（单向广播）根本不同——**双向、有状态、多玩家共享**。26.1 wire 零变化（但 `modifyState` 锁表有两处本地修复：CHM null 语义翻译 + null placement 守卫——迁移引入 NPE 链 + 上游原生缺陷，勿随模板回退，见 docs/21 §5.4）。
 
@@ -173,7 +173,7 @@ Paper 的 **plugin messaging channel（`namespace:path` 命名）直接映射到
 | `servux:entity_data` | `entity_data` | 2 | Entities：方块实体/实体 NBT 查询 |
 | `servux:tweaks` | `tweaks_data` | 2 | Tweaks：实体/方块实体 NBT（与 Entities 同模式） |
 | `servux:structures` | `structure_bounding_boxes` | 3 | Structures：结构边界框（周期扫描区块） |
-| `servux:litematics` | `litematic_data` | 2 | Litematics：投影投递/粘贴/批量实体 |
+| `servux:litematics` | `litematic_data` | 2 | Litematics：投影粘贴/批量实体 |
 
 **26.1 wire 三大变化**（对照 `OriginImpl/*-LTS-26.1` 客户端源码逐字实证）：
 1. **MOD_STRING 硬门禁**：客户端校验 `servux.startsWith("servux-fabric-<精确上游MC id>")`（`MOD_TYPE` 恒 "fabric"），故我方 `ServuxReference.MOD_TYPE = "fabric"` 伪装 + `mcVersion` 必须用精确补丁号 26.1.2；1.21.11 时代的 "paper" 三段式会被四通道全部静默拒绝。
@@ -191,7 +191,7 @@ Paper 的 **plugin messaging channel（`namespace:path` 命名）直接映射到
 - `PacketSplitter`（`framework/network/PacketSplitter.java`）分片常量：
   - S2C：`MAX_TOTAL_PER_PACKET_S2C = 32_000`，`MAX_PAYLOAD_PER_PACKET_S2C = 31_995`（留余量给 VarInt 头，防御客户端 32767 上限）
   - 我方接收上限：`DEFAULT_MAX_RECEIVE_SIZE_S2C = 64MB`（`receive` 默认用它；C2S 上传如 litematic 粘贴同走此路径，单物理通道不分方向。原版 C2S 专用常量 `MAX_TOTAL_PER_PACKET_C2S` / `MAX_PAYLOAD_PER_PACKET_C2S` / `DEFAULT_MAX_RECEIVE_SIZE_C2S` 已删——零引用死代码）
-  - **26.1 客户端（malilib）重组上限降为 16MB**（1.21.11 为 128MB）——两级服务端门禁：① S2C 文件投递入口（`LitematicaSchematic.MAX_TRANSMIT_FILE_SIZE`，量文件字节；超限 TransmitCancel + 明确提示，不截断不静默）；② 框架分片入口（`PacketSplitter.MAX_REASSEMBLY_SIZE_S2C`，量 DataTag 帧总长 = 首包 VarInt expectedSize，与客户端严格 `>` 同源；`send` 入口超限整帧拒发 + warn 日志 log-and-drop，零分片发出——RecipeManager 全量帧 / BulkEntityReply / Structures 全量帧等全部 S2C 分片大帧覆盖；上游无此预检，我方增强，勿随模板回退）
+  - **26.1 客户端（malilib）重组上限降为 16MB**（1.21.11 为 128MB）——服务端门禁（框架分片入口 `PacketSplitter.MAX_REASSEMBLY_SIZE_S2C`，量 DataTag 帧总长 = 首包 VarInt expectedSize，与客户端严格 `>` 同源；`send` 入口超限整帧拒发 + warn 日志 log-and-drop，零分片发出——RecipeManager 全量帧 / BulkEntityReply / Structures 全量帧等全部 S2C 分片大帧覆盖；上游无此预检，我方增强，勿随模板回退）。曾并存的文件字节级门禁（`LitematicaSchematic.MAX_TRANSMIT_FILE_SIZE`）随 S2C 投递死信链删除（见 §6）
 - 大包（Recipe / Litematic 投影 / Structures / 批量实体）必须走 `PacketSplitter` 分片。Syncmatica 文件分片**不复用 `PacketSplitter`**，自写 stop-and-wait（`BUFFER_SIZE=16384`，每片确认）。详见 [`docs/02-network-protocol.md`](docs/02-network-protocol.md) §分片与 [`docs/21-syncmatica-protocol.md`](docs/21-syncmatica-protocol.md) §6。
 
 **C2S 接收命门**：Paper 原版服务端对未注册的 custom payload 会**踢玩家**（"Invalid payload"）。plugin messaging 注册的通道由 Paper 内置路由、不踢人——这正是用 `Messenger.registerIncomingPluginChannel` 接收 C2S 的理由。**握手机制命门**：configuration phase 期间 `sendPluginMessage` 会静默丢弃，客户端收不到。框架用 `PlayerRegisterChannelEvent`（客户端声明通道 = 装了对应 mod = configuration phase 已完成）作为可靠信号，在 `IDataProvider.onPlayerRegisterChannel` / syncmatica `onPlayerRegisterChannel` 重发 metadata / 发起握手。**但该补发范式对 minihud structures 无效**——其客户端 metadata 接受窗口是单次的（进服开门 → 首个 `%20` tick 关门，`DataStorage.java:288/:804`），只能靠首个 C2S REGISTER 的**即时回复**建立连接；这正是上文「同通道 C2S 证明兜底」存在的理由（进服首回复不再被 Paper 门控吞掉）。已知限制：REGISTER 回复 RTT 超过客户端剩余窗口时仍需手动 toggle，与上游 Fabric servux 同源。
@@ -251,20 +251,20 @@ Servux 共 **26 个 Mixin + 2 个 AccessWidener 字段**；Syncmatica 共 **5 �
 
 - 各 Provider 内部权限节点保持原版命名（如 `servux.provider.hud_data` / `.weather` / `.seed` / `.logger` / `.paste`）。
 
-### 6. 投影粘贴 / 文件投递 —— 已实现（Servux schematic 子系统）
+### 6. 投影粘贴 —— 已实现；S2C 文件投递 —— 已移除（Servux schematic 子系统）
 
-Litematica 投影子系统（`mod/servux/schematic/`，约 8000 行）已移植完成并实测通过：
+Litematica 投影子系统（`mod/servux/schematic/`，约 8000 行）已移植完成，投影粘贴实测通过：
 
 - **粘贴**（C2S，2026-09-08 任务化——上游 TaskPasteSchematicPerChunkDirect 形态，见 docs/09 §26.1.6）：客户端上传 `.litematic` → `ServuxLitematicaHandler` 经 `PacketSplitter.receive` 重组 → `handleBulkData` 分流（`LitematicaPaste` 走 `LitematicsDataProvider.handleClientPasteRequest`；`Litematic-Transmit*` 走 `LitematicaSchematic.receiveFileTransmit` 落盘 + 粘贴）→ 创建 `PasteTask` 登记 `TaskScheduler` 分 tick 执行 → 逐 chunk `SchematicPlacingUtils.placeToWorldWithinChunk`（真实 `setBlock` + 方块实体 + 实体放置，含 ReplaceMode / PasteLayerBehavior / LayerRange / Interval / 三忽略布尔；vanillaTickTime+60ms 动态预算 + type 16 进度/完成帧，完成帧清除客户端 InfoHud renderer）。需创造模式 + paste 权限。
-- **文件投递**（S2C）：`/servux litematic transmit <file> [player]` 加载 `schematics/*.litematic` 通过 `servux:litematics` 通道投递给客户端。
+- **文件投递**（S2C，⛔ **已移除 2026-09**）：26.1 stock 客户端 `handleBulkData` 的 Transmit 分流整块注释（无接收端，投递帧被静默丢弃），上游 `sendTransmitFile` 亦 `@Deprecated(forRemoval)` 零调用点——死信链（`/servux litematic transmit` 命令 + `sendTransmitFile` + 文件字节级 16MB 门禁）已物理删除，恢复走 git revert。C2S 侧 `Litematic-Transmit*` 接收路由为我方超集保留（客户端上传触发点同被上游注释，`LitematicsDataProvider:479-484` 声明）。
 - 逐阶段记录见 [`docs/11-schematic-migration-plan.md`](docs/11-schematic-migration-plan.md)（历史移植蓝图）与 [`docs/05-schematic-system.md`](docs/05-schematic-system.md)。
 
 **移植方法**：照抄原版纯算法（BitArray/Palette/Container/几何/transmit）+ NMS 直连（`BlockState`/`CompoundTag`/`NbtIo`/`ServerLevel`）；仅 3 类强制降级——`SchematicConversionMaps`（DataFixer，`readFromNBT(enableFixers=false)` 守卫下零影响）、`IMixinWorldTickScheduler`（保存投影读 tick，粘贴不需要）、`WorldUtils`（Mixin → no-op，靠 `setBlock` 的 flags 控制邻居更新）。`LitematicaSchematic` 因 `selection↔placement↔schematic↔PositionUtils` 四元循环依赖，用**桩版**（移除引用未移植类的方法 + 准确注释）分阶段引入、逐步回填。
 
 **实战教训（维护必读）**：
 
-1. **协议字段语义必须对照客户端源码确认，不能只看服务端瞎猜客户端行为。** 例：`sendTransmitFile` 的 `Slice` 字段 servux 原版写 `totalSlices`（总片数），但 litematica `SchematicBuffer.receiveSlice` 要求 `number ∈ [0, totalSlices)`——写 `totalSlices` 必然越界被丢弃。读了 litematica 源码才定位。
-2. **原版里未被调用的公开 API 可能是含 bug 的死代码。** `sendTransmitFile` 在原版无调用点，其 `Slice=totalSlices` bug 从未触发；照抄会原样继承。凡照抄「原版无调用点的方法」，务必对照客户端验证字段语义。
+1. **协议字段语义必须对照客户端源码确认，不能只看服务端瞎猜客户端行为。** 例：曾照抄的 `sendTransmitFile`（2026-09 已随 S2C 死信链删除）`Slice` 字段 servux 原版写 `totalSlices`（总片数），但 litematica `SchematicBuffer.receiveSlice` 要求 `number ∈ [0, totalSlices)`——写 `totalSlices` 必然越界被丢弃。读了 litematica 源码才定位。
+2. **原版里未被调用的公开 API 可能是含 bug 的死代码——甚至整条链路都不可达。** `sendTransmitFile` 在原版无调用点，其 `Slice=totalSlices` bug 从未触发；照抄后我方激活了它，最终实证 26.1 客户端接收端本身整块注释（上游 `@Deprecated(forRemoval)`），死信链于 2026-09 物理删除。凡照抄「原版无调用点的方法」，务必先对照客户端确认接收端是否存在，再验证字段语义。
 3. **PacketSplitter 连续流不会串台**（源码 + 实测确认）：malilib `PacketSplitter.receive` 收齐即 `READING_SESSIONS.remove(key)`，litematica `ServuxLitematicaHandler` 每流新生成 readingSessionKey、收齐重置——连续多个独立分包流各自独立重组，**不需要**分 tick / 延迟发送这类 workaround。
 4. **SLF4J → JUL logger 适配**：原版 `Servux.LOGGER.warn/error/info("...{}...", args)`（SLF4J 占位符）→ Paper JUL 不支持 `{}` 多参重载，用 `mod/servux/util/Log.java` shim 机械替换。
 5. **可选依赖类隔离**：PacketEvents 等 `compileOnly`/`softdepend` 依赖，其类引用必须隔离到独立引导类（`EasyPlaceBootstrap`），用反射加载 + `catch(Throwable)`——`try/catch` 抓不到方法解析阶段的类加载失败。
@@ -284,7 +284,7 @@ Litematica 投影子系统（`mod/servux/schematic/`，约 8000 行）已移植�
   - **syncmatica**：`OriginImpl/syncmatica-LTS-26.1/`。
   - **JEI**（26.1 线，**按线分叉**）：`OriginImpl/JustEnoughItems-26.1/`（最上游 mezz/JustEnoughItems 分支 `26.1`，clone 命令 `git clone --depth 1 --branch 26.1 https://github.com/mezz/JustEnoughItems.git`——**此后 JEI 侧更新一律以最上游为准**；协议权威文件：`Common/src/main/java/mezz/jei/common/network/packets/*` + `common/transfer/*` + `common/util/ServerCommandUtil.java` + `fabric/config/ServerConfig.java`）。fabric:recipe_sync wire 的真权威是 Fabric API `fabric-recipe-api-v1`（github FabricMC/fabric 分支 26.1）。ver/1.21.11 旧线仍对照 `OriginImpl/JEIRecipeBridge-1.21.11/`（Mrbysco）——**jei 模块跨线 cherry-pick 禁止，一律手工重写**（两线上游/包结构/协议面均不同源）。`JEIRecipeBridge-26.1/` 保留仅作 neoforge:recipe_content 层 wire 参考。
   - 另有 `itemscroller-LTS-*`（客户端参考）与 `packetevents-2.0`（EasyPlace 依赖对照）。
-  - ⚠️ 原版里**未被调用的公开 API**（如 `LitematicaSchematic.sendTransmitFile`）可能是**未经验证的死代码**、含字段语义 bug——照抄后必须对照客户端源码验证（见 §6 教训 2；26.1 上游仍带 `Slice=totalSlices` bug，我方 `currentSlice` 修复**禁止随模板回退**）。
+  - ⚠️ 原版里**未被调用的公开 API**（典型例：`LitematicaSchematic.sendTransmitFile`）可能是**未经验证的死代码**、含字段语义 bug——照抄后必须对照客户端源码验证接收端存在性与字段语义（见 §6 教训 2）。**跨线注意**：26.1 线 `sendTransmitFile` 死信链已整体删除（stock 26.1 客户端 `handleBulkData` Transmit 分流整块注释、上游自身 `@Deprecated(forRemoval)`），`currentSlice` 修复随之消亡；**ver/1.21.11 线 S2C 投递路径仍活，该线 `currentSlice` 修复仍存在且禁止随模板回退**。
 
 ---
 

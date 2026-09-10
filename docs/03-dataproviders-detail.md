@@ -14,7 +14,7 @@
 | `EntitiesDataProvider` | `servux:entity_data` | 1 | 方块实体/实体 NBT 查询（含玩家背包过滤） | NMS `saveWithFullMetadata` / `saveWithoutId` | 中 |
 | `TweaksDataProvider` | `servux:tweaks` | 1 | tweak 元数据 + NBT 查询（复用 Entities 逻辑） | 同上 | 低 |
 | `StructureDataProvider` | `servux:structures` | **2** | 原版结构边界框 | **纯 NMS**（`ChunkAccess.getAllReferences`/`StructureStart.createTag`） | **高** |
-| `LitematicsDataProvider` | `servux:litematics` | 1 | 投影投递/粘贴/批量实体 | NMS（投影系统见 [05](05-schematic-system.md)） | 高 |
+| `LitematicsDataProvider` | `servux:litematics` | 2 | 投影粘贴/批量实体（S2C 投递已删） | NMS（投影系统见 [05](05-schematic-system.md)） | 高 |
 
 ---
 
@@ -307,7 +307,7 @@ Identifier type = BuiltInRegistries.STRUCTURE_TYPE.getKey(structure.type());    
 | 方块实体查询 | C2S(pos)→S2C | `onBlockEntityRequest` → `be.saveWithFullMetadata`；BE 不存在不回复（同 Entities）；入口名册门（未注册静默） |
 | 实体查询 | C2S(entityId)→S2C | `onEntityRequest` → 实体 NBT；仅查他人时剥离背包（同 Entities）；入口名册门 |
 | 批量实体查询（大包） | C2S(chunkX,Z,minY,maxY)→S2C | `onBulkEntityRequest` → 区块内全部 TileEntities + Entities（详见 §5.2） |
-| 投影文件投递（C2S 上传） | C2S 分片→S2C 应答 | 四阶段（Start/Data/End/Cancel），见 [05](05-schematic-system.md) §传输协议 |
+| 投影上传（C2S，四阶段路由保留） | C2S 分片→重组 | 四阶段（Start/Data/End/Cancel）路由为我方超集保留——对 stock 26.1 客户端不可达（客户端上传触发点上游注释），活主路 LitematicaPaste，见 [05](05-schematic-system.md) §传输协议 |
 | 粘贴请求 | C2S→执行 | `handleClientPasteRequest` → PasteTask 任务化粘贴（需创造模式 + paste 权限；实体 UUID/ID 撞车重排见 §5.4） |
 
 ### 5.2 `onBulkEntityRequest`（对齐上游 `:542-644`）

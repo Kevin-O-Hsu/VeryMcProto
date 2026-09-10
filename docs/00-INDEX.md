@@ -3,7 +3,7 @@
 > 本目录是 **VeryMcProto**（Fabric 协议 Mod → Paper 插件移植，当前 26.1.2 线）的全部技术文档。
 >
 > **三个协议 mod 全部已完整实现并实测通过**：
-> - **Servux**（masa 服务端协议）—— 5 数据通道 + schematic（投影投递/粘贴）+ EasyPlace。
+> - **Servux**（masa 服务端协议）—— 5 数据通道 + schematic（投影粘贴；S2C 文件投递死信链已删——26.1 客户端无接收端）+ EasyPlace。
 > - **JEI 服务端协议**（最上游 mezz/JustEnoughItems 26.1，2026-09 起更换）—— 完整三层：配方同步（fabric/neoforge 双腿）+ jei:* 自有 10 通道（cheat 给/删/热键栏 + 配方转移）+ 服务端行为层。
 > - **Syncmatica**（投影共享中央仓库）—— 单通道 + Exchange 会话层 + 文件存储 + JSON 持久化（实现说明见 20–24）。
 >

@@ -28,7 +28,7 @@ Servux 用的是 **Mojang 在 1.20.2+ 引入的原版 `CustomPacketPayload`** �
 | `servux:entity_data` | 2 | `EntitiesDataProvider`（entity_data） | `ServuxEntitiesPacket` | MiniHUD / Tweakeroo | 方块实体 & 实体 NBT 查询（含玩家背包权限过滤——仅查他人时剥离） |
 | `servux:tweaks` | 2 | `TweaksDataProvider`（tweaks_data） | `ServuxTweaksPacket` | Tweakeroo | NBT 查询（潜影盒堆叠未实现，见 [04](04-mixin-analysis.md)） |
 | `servux:structures` | **3** | `StructureDataProvider`（structure_bounding_boxes） | `ServuxStructuresPacket` | MiniHUD | 原版结构边界框（村庄/神殿/要塞…；按客户端 `max_receive_s2c` 能力条目级分批） |
-| `servux:litematics` | 2 | `LitematicsDataProvider`（litematic_data） | `ServuxLitematicaPacket` | **Litematica** | Litematica 投影投递 / 粘贴 / 批量实体数据 |
+| `servux:litematics` | 2 | `LitematicsDataProvider`（litematic_data） | `ServuxLitematicaPacket` | **Litematica** | Litematica 投影粘贴 / 批量实体数据（S2C 投递已删——26.1 客户端无接收端） |
 
 > **配置 provider**：`ConfigProvider`（逻辑名 `servux_main`，`DataProviderBase` 元信息 channel 标记为 `servux:main`，但 `registerHandler` 是 NO-OP——**不注册网络通道、不下发网络包**），承载全局 settings（permission_level / easy_place / debug 等），走 `/servux` 命令与 `servux.json` 持久化。
 
@@ -151,7 +151,7 @@ public static final int MAX_REASSEMBLY_SIZE_S2C = 16_777_216;       // 26.1 客�
 >
 > **Structures 条目级分批**（对齐上游 `sendStructures :565-604`，在上述字节分片**之下**的业务层）：register 时读客户端申报 `tags.max_receive_s2c`（TAG_INT，默认 16MB）存名册 entry；发送时总量 + 4096 padding ≤ 上限单帧，否则逐条累计 `>=` 即 flush 多次 `STRUCTURES_DATA_START` 帧（首条无条件入列、空条目跳过、收尾 flush——纯函数 `splitStructuresBySize` 配单测）。每业务帧仍走 PacketSplitter 字节分片（两层叠加）；客户端按帧合并非替换。26.1 四客户端无该字段发送点，恒走默认值（机制层对齐、真实环境不可观测）。
 
-> **send 入口 16MB 门禁**（26.1 客户端重组上限预检）：被检量 = DataTag 帧化后 buffer 的 `writerIndex()`（= 4 + GZIP 压缩长 = 首包 VarInt 下发、客户端 `expectedSize` 读取的同一个数，三方同源）；超限（严格 `>`，恰好相等放行）在分片循环前**整帧拒发**（零分片发出——超限帧发出去会被客户端销毁重组 session 并抛异常，后续分片还会以垃圾 expectedSize 重建残留会话污染下一帧）+ warn 日志（log-and-drop，有意不限频：唯一重复源 Structures 周期重发上界 ≈ 每名已注册玩家 12 条/分钟，随数据缩量自停）。覆盖全部 S2C 分片大帧：HUD RecipeManager 全量帧、Litematics BulkEntityReply、Structures 全量帧三活跃点 + Entities/Tweaks 两死分支。**上游 servux 26.1 无此预检——我方增强，勿随上游模板回退**。与 `LitematicaSchematic.MAX_TRANSMIT_FILE_SIZE`（文件投递门禁）数值相同但**量纲不同**（那边量文件字节），禁合并；量纲缝隙：贴 16MiB 下方的文件可过文件门禁、其 START 帧仍可能撞本门禁（TransmitStart 后中止、仅日志）——非回归（无门禁时该帧直接销毁客户端 session）。裁分依据详见 [09](09-DELIVERY.md)。
+> **send 入口 16MB 门禁**（26.1 客户端重组上限预检）：被检量 = DataTag 帧化后 buffer 的 `writerIndex()`（= 4 + GZIP 压缩长 = 首包 VarInt 下发、客户端 `expectedSize` 读取的同一个数，三方同源）；超限（严格 `>`，恰好相等放行）在分片循环前**整帧拒发**（零分片发出——超限帧发出去会被客户端销毁重组 session 并抛异常，后续分片还会以垃圾 expectedSize 重建残留会话污染下一帧）+ warn 日志（log-and-drop，有意不限频：唯一重复源 Structures 周期重发上界 ≈ 每名已注册玩家 12 条/分钟，随数据缩量自停）。覆盖全部 S2C 分片大帧：HUD RecipeManager 全量帧、Litematics BulkEntityReply、Structures 全量帧三活跃点 + Entities/Tweaks 两死分支。**上游 servux 26.1 无此预检——我方增强，勿随上游模板回退**。曾并存的文件字节级门禁（`LitematicaSchematic.MAX_TRANSMIT_FILE_SIZE`）随 S2C 投递死信链删除（2026-09，26.1 客户端无接收端）——本门禁是现存唯一 16MB 服务端预检，覆盖全部 S2C 分片帧。历史两级裁分论述见 [09](09-DELIVERY.md) §26.1。
 
 > ⚠️ **移植核心风险点**：Bukkit plugin messaging 单包硬上限是 `Messenger.MAX_MESSAGE_SIZE = 32768`（32 KiB），**远小于** S2C 的 1 MiB。详见 [07](07-migration-architecture.md) §网络层 · 字节限制方案。若 Paper 端全程走 plugin messaging，S2C 分片常量须改为 ≤32760。
 

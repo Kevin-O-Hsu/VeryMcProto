@@ -41,15 +41,15 @@ public class PacketSplitter
 
     // 接收端缓冲上限。receive 默认用此（C2S 上传——如 servux litematic 粘贴——也走同一 receive 路径：
     // plugin messaging 单物理通道不分方向）。原版另有 C2S 专用常量，但本实现 C2S/S2C 共用一通道，
-    // 故只保留一个接收上限（C2S 专用死常量已删——见 docs/TECH_DEBT_AUDIT F006）。DoS 防护最后防线。
+    // 故只保留一个接收上限（C2S 专用死常量已删）。DoS 防护最后防线。
     public static final int DEFAULT_MAX_RECEIVE_SIZE_S2C = 67_108_864;
 
     // 26.1 客户端重组上限预检：malilib【客户端侧】同名常量（DEFAULT_MAX_RECEIVE_SIZE_S2C = 16777216，注意与上方
     // 我方接收侧 64MB 常量同名不同源、方向相反），客户端重组时严格 > 比较即销毁 session 抛异常；恰好相等放行。
     // 1.21.11 线客户端为 128MB——回流 ver/1.21.11 时须同步改值。
     // 被检量 = DataTag 帧化后 buffer 的 writerIndex（4 + GZIP 压缩长），与首包 VarInt 下发 / 客户端 expectedSize
-    // 读取三方同源。与 LitematicaSchematic.MAX_TRANSMIT_FILE_SIZE（文件投递入口门禁）数值相同但源头不同——
-    // 那边量的是文件字节数，禁合并：贴 16MiB 下方的文件可过文件门禁、其 START 帧仍可能撞本门禁（见 docs/09）。
+    // 读取三方同源。曾并存文件字节级门禁（LitematicaSchematic.MAX_TRANSMIT_FILE_SIZE）构成两级防护，随 S2C
+    // 投递死信链删除（26.1 客户端无接收端）一并移除——本常量是现存唯一 16MB 服务端预检，覆盖全部 S2C 分片帧。
     public static final int MAX_REASSEMBLY_SIZE_S2C = 16_777_216;
 
     /** 会话过期阈值（ms）——溯上游 servux/malilib {@code STALE_TIMEOUT_MS = 10000}。 */

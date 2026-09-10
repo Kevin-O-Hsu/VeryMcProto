@@ -1,6 +1,7 @@
 # 11 · Litematica 投影子系统移植蓝图（文件投递 + 投影粘贴）
 
-> ✅ **schematic 子系统已完整移植并实测通过**（文件投递 + 投影粘贴全功能，详见 [05](05-schematic-system.md)）；本文档作为历史逐阶段蓝图保留（P0–P9 文件清单 + 降级点 + 编译门），不再代表待办工作。
+> ✅ **schematic 子系统已完整移植**（投影粘贴实测通过，详见 [05](05-schematic-system.md)）。**S2C 文件投递死信链已于 2026-09 删除**——26.1 stock 客户端 `handleBulkData` 的 Transmit 分流整块注释（无接收端，帧被静默丢弃），上游 `sendTransmitFile` 亦 `@Deprecated(forRemoval)` 零调用点；下文涉及文件投递（S2C）的章节为历史蓝图记录，不代表现存功能。C2S 投影粘贴为活主路。
+> 本文作为历史逐阶段蓝图保留（P0–P9 文件清单 + 降级点 + 编译门），不再代表待办工作。
 > 原版对照见 [`05-schematic-system.md`](05-schematic-system.md)；测试见 [`10`](10-testing-guide.md)。
 > 原版源码根：`OriginImpl/servux-LTS-1.21.11/src/main/java/fi/dy/masa/servux/`（下文简写为 `ORIGIN/`）。
 > Paper 实现包根：`src/main/java/verymc/top/veryMcProto/mod/servux/`（下文简写为 `PAPER/`）。

@@ -12,6 +12,12 @@ import verymc.top.veryMcProto.mod.servux.util.data.FileType;
 
 public class SchematicBuffer
 {
+    /**
+     * 客户端 TransmitStart 四阶段协议的切片大小约定（16KiB）。仅协议文档价值：对端按此切片上传，
+     * 本类 C2S 接收侧（receiveSlice/writeFile）不校验也不消费它；服务端 S2C 发送侧唯一消费者
+     * sendTransmitFile 已随 26.1 死信链删除（客户端无接收端）——常量保留作 wire 约定记载，
+     * 与 syncmatica 的 UploadExchange.BUFFER_SIZE 无关。
+     */
     public static final int BUFFER_SIZE = 16384;
     private final String name;
     private final FileType type;

@@ -19,7 +19,7 @@ servux 共 5 条通道，对应 **3 个 masa 客户端 mod**。映射关系由�
 | `servux:structures` | 2 | **MiniHUD** (`ServuxStructuresHandler`) | 结构边界框渲染 | ✅ 已验证 |
 | `servux:entity_data` | 1 | **MiniHUD** (`ServuxEntitiesHandler`) | 实体 / 方块实体 NBT 查询 | ✅ 已验证 |
 | `servux:tweaks` | 1 | **Tweakeroo** (`ServuxTweaksHandler`) | NBT 查询（潜影盒堆叠未实现） | ✅ 已验证 |
-| `servux:litematics` | 1 | **Litematica** (`ServuxLitematicaHandler`) + Tweakeroo | NBT 查询 + **批量区块 NBT 拉取** + 投影传输/粘贴 | ✅ 已验证 |
+| `servux:litematics` | 1 | **Litematica** (`ServuxLitematicaHandler`) + Tweakeroo | NBT 查询 + **批量区块 NBT 拉取** + 投影粘贴 | ✅ 已验证 |
 
 > **itemscroller 不碰任何 servux 通道**（源码无 `servux` namespace 引用），无需测试。
 >
@@ -126,8 +126,14 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 2. **批量区块 NBT 拉取** ⭐（黄金验证点）：`requestServuxBulkEntityData(chunkPos, minY, maxY)`
    （`EntityDataManager.java:679`）—— **保存投影（Save Schematic）时**，对该区域每个区块请求
    全部方块实体 + 实体的完整 NBT。响应 `BulkEntityReply`（`TileEntities` + `Entities` + `chunkX/Z`）。
-3. **投影文件传输**（服务器→客户端投递 .litematic）：`Litematic-TransmitStart/Data/End`。**✅ 已实现**（schematic 子系统已移植；`/servux litematic transmit <file> [player]` 触发投递）
-4. **投影粘贴**（C2S 上传投影让服务端放置）：`handleClientPasteRequest`。**✅ 已实现**（客户端上传 → `SchematicBufferManager` 组装 → `createFromFile` → `pasteTo` 写世界；需创造模式 + paste 权限）
+3. **投影文件传输**（服务器→客户端投递 .litematic）：**⛔ 已移除（26.1 不可达）**——stock 26.1 客户端
+   `handleBulkData` 的 Transmit 分流整块注释（上游未实现接收端，一切帧坠入仅认 `BulkEntityReply` 的
+   `handleBulkEntityData` 被静默丢弃），上游服务端 `sendTransmitFile` 亦 `@Deprecated(forRemoval)` 零调用点。
+   服务端死信链（`/servux litematic transmit` + `sendTransmitFile`）已物理删除，恢复走 git revert。
+4. **投影粘贴**（C2S 上传投影让服务端放置）：`LitematicaPaste` 批量路由。**✅ 已实现**（客户端上传 → 重组 →
+   `LitematicsDataProvider.handleClientPasteRequest` 加载 `SchematicPlacement` → 创建 `PasteTask` 登记调度器
+   分 tick 写世界（type 16 进度/完成帧）；需创造模式 + paste 权限。Transmit 四阶段上传分流对 stock 26.1
+   客户端同样不可达——客户端 `sliceForServux` 调用点整段注释，我方接收路由属协议面超集保留）
 
 > 我们的插件 `LitematicsDataProvider.onBulkEntityRequest` 在响应批量请求时会向玩家**聊天框**发送
 > `Litematics bulk reply: <世界> <区块> TE=<方块实体数> E=<实体数> (<耗时>ms)`——**这是最直观的验证信号**。
@@ -177,8 +183,8 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 | 功能 | 状态 | 表现 |
 |---|---|---|
-| 投影文件传输（服务器投递投影给客户端） | ✅ 已实现 | `/servux litematic transmit <file>` → `sendTransmitFile` 16KiB 分片投递（schematic 子系统已移植，见 [11](11-schematic-migration-plan.md)） |
-| 投影粘贴（客户端上传投影让服务端放置） | ✅ 已实现 | 客户端 Litematica 上传 → `receiveFileTransmit` 组装 → `pasteTo` 写世界（创造模式 + paste 权限）。详见 [11](11-schematic-migration-plan.md) |
+| 投影文件传输（服务器投递投影给客户端） | ⛔ 已移除 | 26.1 stock 客户端无接收端（Transmit 分流整块注释，帧被静默丢弃；上游同源死路 `@Deprecated(forRemoval)`）——服务端死信链已删，见 [05](05-schematic-system.md) §3 |
+| 投影粘贴（客户端上传投影让服务端放置） | ✅ 已实现 | 客户端 `LitematicaPaste` 批量路由上传 → `handleClientPasteRequest` → `PasteTask` 分 tick 写世界（创造模式 + paste 权限）。详见 [09](09-DELIVERY.md) §5.5 |
 | 单个 / 批量 NBT 查询 | ✅ 已实现 | 上述测试 A / B 覆盖 |
 
 ---
@@ -284,8 +290,8 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 | 功能 | 所属通道 | 降级表现 |
 |---|---|---|
-| 投影文件传输（服务器→客户端投递投影） | litematics | ✅ 已实现（`/servux litematic transmit`） |
-| 投影粘贴（C2S 上传放置） | litematics | ✅ 已实现（客户端上传 → pasteTo） |
+| 投影文件传输（服务器→客户端投递投影） | litematics | ⛔ 已移除（26.1 客户端无接收端，死信链已删——上游 Transmit 分流注释 + `@Deprecated(forRemoval)` 同源死路） |
+| 投影粘贴（C2S 上传放置） | litematics | ✅ 已实现（`LitematicaPaste` 路由 → `PasteTask` 分 tick 写世界） |
 | 服务端潜影盒堆叠行为 | tweaks | ⛔ 不可能实现（已删代码） |
 | EasyPlace（Tweakeroo 服务端配合放置） | servux_main | ✅ 已实现（PacketEvents）；调试 `/servux set servux_main:debug_log true` 看 `EasyPlace in/out` 日志 |
 | UpdateSuppression | — | 省略 |

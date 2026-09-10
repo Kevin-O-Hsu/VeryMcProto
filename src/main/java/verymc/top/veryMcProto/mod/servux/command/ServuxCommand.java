@@ -17,7 +17,6 @@ import verymc.top.veryMcProto.mod.servux.ServuxDebug;
 import verymc.top.veryMcProto.framework.settings.IServuxSetting;
 import verymc.top.veryMcProto.mod.servux.dataproviders.ConfigProvider;
 import verymc.top.veryMcProto.mod.servux.dataproviders.LitematicsDataProvider;
-import verymc.top.veryMcProto.mod.servux.schematic.LitematicaSchematic;
 
 /**
  * /servux 命令（mod 层）。移植自原版 {@code ServuxCommand}（Brigadier）→ Bukkit {@link CommandExecutor}/{@link TabCompleter}。
@@ -217,16 +216,19 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
     /**
      * /servux litematic —— Litematica 投影管理（mod 层）。
      * <ul>
-     *   <li>{@code list} —— 列出 schematics/ 目录的 .litematic 文件；</li>
-     *   <li>{@code transmit <file> [player]} —— 加载服务端投影并通过 servux:litematics 通道投递给客户端。</li>
+     *   <li>{@code list} —— 列出 schematics/ 目录的 .litematic 文件。</li>
      * </ul>
      * 权限：{@code servux.command}（已在 onCommand 检查）+ litematic_data provider 启用。
+     * <p>S2C 文件投递（transmit 子命令）已移除：26.1 stock 客户端 {@code handleBulkData} 的
+     * Transmit 分流整块注释（上游未实现接收端，一切帧坠入仅认 BulkEntityReply 的
+     * {@code handleBulkEntityData} 被静默丢弃），上游服务端 {@code sendTransmitFile} 亦
+     * {@code @Deprecated(forRemoval=true)} 零调用点——死信链于 2026-09 物理删除，恢复走 git revert。
      */
     private void handleLitematic(CommandSender sender, String[] args)
     {
         LitematicsDataProvider prov = LitematicsDataProvider.INSTANCE;
         if (!prov.isEnabled()) { sender.sendMessage("§clitematic_data provider 未启用（/servux enable litematic_data）"); return; }
-        if (args.length < 2) { sender.sendMessage("§e/servux litematic <list|transmit <file> [player]>"); return; }
+        if (args.length < 2) { sender.sendMessage("§e/servux litematic list"); return; }
 
         switch (args[1].toLowerCase())
         {
@@ -242,27 +244,8 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
                 }
                 catch (Exception e) { sender.sendMessage("§c读取目录失败: " + e.getMessage()); }
             }
-            case "transmit" ->
-            {
-                if (args.length < 3) { sender.sendMessage("§e/servux litematic transmit <file> [player]"); return; }
-                if (!(sender instanceof org.bukkit.entity.Player) && args.length < 4)
-                {
-                    sender.sendMessage("§c控制台需指定目标玩家: /servux litematic transmit <file> <player>");
-                    return;
-                }
-                org.bukkit.entity.Player target = args.length >= 4 ? org.bukkit.Bukkit.getPlayerExact(args[3]) : (org.bukkit.entity.Player) sender;
-                if (target == null) { sender.sendMessage("§c玩家不在线: " + (args.length >= 4 ? args[3] : "")); return; }
-
-                String fileName = args[2];
-                LitematicaSchematic schematic = LitematicaSchematic.createFromFile(prov.getTransmitDir(), fileName);
-                if (schematic == null) { sender.sendMessage("§c加载投影失败（文件不存在或格式错误）: " + fileName); return; }
-
-                long sessionKey = net.minecraft.util.RandomSource.create(net.minecraft.util.Util.getMillis()).nextLong();
-                net.minecraft.server.level.ServerPlayer nmsTarget = verymc.top.veryMcProto.framework.nms.Nms.toNms(target);
-                schematic.sendTransmitFile(new net.minecraft.nbt.CompoundTag(), sessionKey, nmsTarget);
-                sender.sendMessage("§a投递投影 §b" + fileName + " §a→ §f" + target.getName());
-            }
-            default -> sender.sendMessage("§e/servux litematic <list|transmit <file> [player]>");
+            // S2C transmit 死信链已删（26.1 客户端无接收端，见类头 javadoc 注记）——26.1 线仅保留 list。
+            default -> sender.sendMessage("§e/servux litematic list");
         }
     }
     private void handleDebug(CommandSender sender, String[] args)
@@ -358,7 +341,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
             }
             else if (sub.equals("litematic"))
             {
-                for (String s : List.of("list", "transmit"))
+                for (String s : List.of("list"))
                 {
                     if (s.startsWith(typed)) { out.add(s); }
                 }
