@@ -218,7 +218,7 @@ verymc.top.veryMcProto/
 
 ### 26.1.4 实机验证记录（Paper 26.1.2 + Java 25，2026-09-08）
 
-- `./gradlew build`：23/23 单测全绿（PacketSplitter 3 + FeatureSet 4 + LitematicaBitArray 10 + **DataTagIo 6**——2026-09-08 时点快照，当时全库仅此 4 类；现行 18 测试类 / 110 用例，以 `./gradlew test` 实跑为准），产物 `VeryMcProto-26.1.2-b1.jar`（Mojang 映射，无 reobf）。
+- `./gradlew build`：23/23 单测全绿（PacketSplitter 3 + FeatureSet 4 + LitematicaBitArray 10 + **DataTagIo 6**——2026-09-08 时点快照，当时全库仅此 4 类；现行 19 测试类 / 113 用例，以 `./gradlew test` 实跑为准），产物 `VeryMcProto-26.1.2-b1.jar`（Mojang 映射，无 reobf）。
 - `./gradlew runServer`（`JAVA_HOME=F:\jdk` zulu25.0.4.1）：`Starting minecraft server version 26.1.2` → 插件 `v26.1.2-b1` 加载+启用（api-version '1.21' 接受）→ servux / jei_recipe_bridge / syncmatica 三模块注册 → `框架就绪` → `Done (12.334s)`，无 ERROR/SEVERE；PacketEvents 缺席时 EasyPlace 优雅降级日志正常。（历史记录：jei_recipe_bridge 后于 2026-09 上游重做为 jei 模块，见 docs/30。）
 - 旧 1.21.11 测试世界保护：`run/server.properties` `level-name=world26` 隔离（旧 world/ 未被触碰），6 个共享配置 `.pre261.bak` 备份，packetevents jar 移出 plugins。
 - **客户端互通冒烟（26.1 Fabric 客户端，用户侧最终验收）**：服务端侧已全部验证；协议常量/载体均经客户端源码逐字钉死，但最终裁决需要真实 26.1.2 客户端连服冒烟（HUD 握手 + litematics 握手，docs/10 流程）——无头环境无法运行模组客户端。

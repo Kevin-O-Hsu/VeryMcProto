@@ -54,7 +54,7 @@ public class ConfigProvider extends DataProviderBase
 
     protected ConfigProvider()
     {
-        super("servux_main",
+        super(DataProviderManager.ALWAYS_ENABLED_PROVIDER,
                 Identifier.fromNamespaceAndPath("servux", "main"),
                 1, 0, ServuxReference.MOD_ID + ".main",
                 "The Servux Main configuration data provider");

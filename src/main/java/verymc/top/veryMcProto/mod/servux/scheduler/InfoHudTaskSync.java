@@ -30,7 +30,7 @@ public final class InfoHudTaskSync
     private InfoHudTaskSync() { }
 
     /**
-     * 进度帧：最近优先的前 10 个区块条目（上游 TaskBase.updateInfoHudLinesPendingChunks:162-173——
+     * 进度帧：最近优先的前 10 个区块条目（servux 上游 TaskBase.updateInfoHudLinesPendingChunks:149-178，核心段 :162-173——
      * 模板条目从不入列，仅 nextChunk 真实坐标；每条目 n=任务名、rc=待处理总数，客户端标题由
      * getFirst() 的 n/rc 合成，坐标行守卫 rc>0 && cx!=-1）。
      *

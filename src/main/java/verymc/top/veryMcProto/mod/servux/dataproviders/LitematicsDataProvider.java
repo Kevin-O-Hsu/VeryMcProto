@@ -3,7 +3,6 @@ package verymc.top.veryMcProto.mod.servux.dataproviders;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.function.Predicate;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -39,6 +38,7 @@ import verymc.top.veryMcProto.mod.servux.schematic.placement.SchematicPlacement;
 import verymc.top.veryMcProto.mod.servux.schematic.selection.Box;
 import verymc.top.veryMcProto.mod.servux.util.ReplaceBehavior;
 import verymc.top.veryMcProto.mod.servux.util.PasteLayerBehavior;
+import verymc.top.veryMcProto.mod.servux.util.EntityUtils;
 import verymc.top.veryMcProto.mod.servux.util.LayerRange;
 import org.apache.commons.lang3.tuple.Pair;
 import verymc.top.veryMcProto.mod.servux.schematic.transmit.SchematicBufferManager;
@@ -70,9 +70,6 @@ public class LitematicsDataProvider extends DataProviderBase
 {
     public static final LitematicsDataProvider INSTANCE = new LitematicsDataProvider();
     protected static final ServuxLitematicaHandler HANDLER = ServuxLitematicaHandler.getInstance();
-
-    /** 非玩家实体过滤器（替代原版 EntityUtils.NOT_PLAYER）。 */
-    private static final Predicate<Entity> NOT_PLAYER = entity -> entity.getType() != EntityType.PLAYER;
 
     protected final CompoundTag metadata = new CompoundTag();
 
@@ -351,7 +348,7 @@ public class LitematicsDataProvider extends DataProviderBase
             // 区块 AABB（替代原版 PositionUtils.createEnclosingAABB）
             AABB bb = new AABB(pos1.getX(), pos1.getY(), pos1.getZ(), pos2.getX() + 1, pos2.getY() + 1, pos2.getZ() + 1);
             Iterable<BlockPos> teSet = chunk.getBlockEntitiesPos();
-            List<Entity> entities = world.getEntities((Entity) null, bb, NOT_PLAYER);
+            List<Entity> entities = world.getEntities((Entity) null, bb, EntityUtils.NOT_PLAYER);
 
             for (BlockPos tePos : teSet)
             {

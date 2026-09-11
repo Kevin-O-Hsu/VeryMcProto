@@ -22,7 +22,7 @@
 /servux set <provider:setting|setting> <value>   修改 setting（纯内存——持久化需 /servux save，上游语义）
 /servux enable <provider>                        启用 provider（如 hud_data）——扩展子命令，即时落盘
 /servux disable <provider>                       停用 provider——扩展子命令，即时落盘
-/servux search <keyword>                         搜索 setting（空格分词 AND；命中名/注释/provider 名任一；大小写敏感）
+/servux search <keyword>                         搜索 setting（空格分词 AND；命中名/注释/provider 名任一；大小写敏感；零命中回「无匹配的设置: <关键词>」（上游 search.none 形态），非空先报计数与关键词再列条目（search.results 形态））
 /servux reload                                   从 servux.json 重读配置
 /servux save                                     当前配置写入 servux.json
 /servux debug ...                                调试开关（见 §1.2）
@@ -180,7 +180,7 @@ commands:
 
 按 Provider 分段，每段承载该 Provider 的 settings。**每个键都可用 `/servux set <provider:key> <value>` 修改**（免手编）。int 范围记法 `[min..max] default`。
 
-顶层另有 **`DataProviderToggles`** 段——6 个布尔键 = Provider 逻辑名，即各 Provider 的启用开关；`/servux enable|disable <provider>` 即时写入此段（`servux_main` 恒启用、永不可停用）：
+顶层另有 **`DataProviderToggles`** 段——6 个布尔键 = Provider 逻辑名，即各 Provider 的启用开关；`/servux enable|disable <provider>` 即时写入此段（`servux_main` 恒启用、永不可停用——`/servux disable servux_main` 被命令层拒绝、配置加载期亦强制启用）：
 
 ```jsonc
 "DataProviderToggles": {

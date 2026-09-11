@@ -136,7 +136,8 @@ network/JeiServerPlayHandler   IPluginServerPlayHandler 实现（每通道一实
 network/JeiPacketSender        S2C NMS DiscardedPayload 直发
 network/RecipeSyncJoinOrderer  fabric 腿进服时序整形（netty 出站扣包-等证据-放行，§5.2）
 network/JeiServerPacketContext C2S 处理上下文（player + config + 回包）
-network/payload/*      10 个包类（record 化镜像上游；legacy/ 2 个）
+network/payload/*      9 文件 = 8 现代 wire 包类 + 1 抽象基类（AbstractRecipeTransferPacket；类形态逐字段镜像上游）
+network/payload/legacy/*  2 个 legacy 包类——wire 包口径共 10，对应 JeiReference 的 10 条 jei:* 通道
 transfer/*             TransferOperation + BasicRecipeTransferHandlerServer
 cheat/*                Cheats（权限纯函数 + 给/删/热键栏语义）+ GiveMode
 recipesync/*           Fabric/Neoforge payload + RecipeSyncService（双触发）

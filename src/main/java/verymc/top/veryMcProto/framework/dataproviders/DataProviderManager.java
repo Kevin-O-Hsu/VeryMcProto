@@ -46,7 +46,7 @@ public class DataProviderManager
     /** 配置文件名（当前 servux 专属默认值）。 */
     private static final String CONFIG_FILE_NAME = "servux.json";
     /** 永不禁用的 provider 逻辑名（提供配置管理入口；当前 servux 专属）。 */
-    private static final String ALWAYS_ENABLED_PROVIDER = "servux_main";
+    public static final String ALWAYS_ENABLED_PROVIDER = "servux_main";
     /** 首次启动默认禁用的 provider 逻辑名（本版无此 provider，保留兼容配置语义）。 */
     private static final String DISABLED_BY_DEFAULT_PROVIDER = "debug_data";
 
@@ -104,6 +104,15 @@ public class DataProviderManager
 
     public boolean setProviderEnabled(IDataProvider provider, boolean enabled)
     {
+        // servux_main 永不被禁用（提供配置管理）——本重载为全部启停入口的总闸（String 重载与配置
+        // 读取期共用必经）；仅拦停用方向，启用提升仍由 readFromConfig 的 ALWAYS_ENABLED 分支完成
+        //（enabled 字段默认 false 的唯一提升路径，互补而非冗余）
+        if (!enabled && ALWAYS_ENABLED_PROVIDER.equals(provider.getName()))
+        {
+            FrameworkDebug.log("provider", "setProviderEnabled: 拒绝停用 " + provider.getName() + "（ALWAYS_ENABLED）");
+            return false;
+        }
+
         boolean wasEnabled = provider.isEnabled();
 
         if (FrameworkDebug.isOn("provider"))

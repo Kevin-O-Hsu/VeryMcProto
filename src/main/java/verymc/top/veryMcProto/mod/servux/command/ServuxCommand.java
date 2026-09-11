@@ -175,6 +175,12 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
     private void handleToggle(CommandSender sender, String[] args, boolean enable)
     {
         if (args.length < 2) { sender.sendMessage("§e/servux " + (enable ? "enable" : "disable") + " <provider>"); return; }
+        // servux_main 恒启用（ALWAYS_ENABLED）：命令层前置拒绝，manager 总闸（setProviderEnabled）双保险
+        if (!enable && args[1].equalsIgnoreCase(DataProviderManager.ALWAYS_ENABLED_PROVIDER))
+        {
+            sender.sendMessage("§cservux_main 为配置主通道，永不可停用");
+            return;
+        }
         boolean ok = DataProviderManager.INSTANCE.setProviderEnabled(args[1].toLowerCase(), enable);
         if (ok)
         {
@@ -194,16 +200,22 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
         String query = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
         String[] searchParts = query.split(" ");
 
-        sender.sendMessage("§6匹配的设置:");
+        List<IServuxSetting<?>> matches = new ArrayList<>();
         for (var p : DataProviderManager.INSTANCE.getAllProviders())
         {
             for (IServuxSetting<?> s : p.getSettings())
             {
-                if (matchesSearch(s, searchParts))
-                {
-                    sender.sendMessage(" §7- §f" + s.qualifiedName() + " §8= " + s.valueToString(s.getValue()));
-                }
+                if (matchesSearch(s, searchParts)) { matches.add(s); }
             }
+        }
+
+        // 对齐上游两态派发（servux ServuxCommand:95-104）：空 → search.none（带 query）、
+        // 非空 → search.results（计数 + query）再列条目
+        if (matches.isEmpty()) { sender.sendMessage("§7无匹配的设置: " + query); return; }
+        sender.sendMessage("§6匹配的设置 (" + matches.size() + "): " + query);
+        for (IServuxSetting<?> s : matches)
+        {
+            sender.sendMessage(" §7- §f" + s.qualifiedName() + " §8= " + s.valueToString(s.getValue()));
         }
     }
 
@@ -345,6 +357,8 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
             {
                 for (var p : DataProviderManager.INSTANCE.getAllProviders())
                 {
+                    // disable 不补全 servux_main——handleToggle 前置拒绝，不提供必拒候选
+                    if (sub.equals("disable") && p.getName().equalsIgnoreCase(DataProviderManager.ALWAYS_ENABLED_PROVIDER)) { continue; }
                     if (p.getName().toLowerCase().startsWith(typed)) { out.add(p.getName()); }
                 }
             }
