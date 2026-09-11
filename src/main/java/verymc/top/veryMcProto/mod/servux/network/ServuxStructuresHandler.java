@@ -21,13 +21,11 @@ import verymc.top.veryMcProto.mod.servux.util.nbt.DataTagIo;
 
 /**
  * Structures 通道收发 Handler（mod 层）。移植自原版 {@code ServuxStructuresHandler}（去 Fabric + networkHandler 形参）。
- * 通道 servux:structures，协议版本 2。
+ * 通道 servux:structures，协议版本 {@value ServuxStructuresPacket#PROTOCOL_VERSION}。
  *
  * <p>收（C2S）：{@link #receivePlayPayload} 还原 {@link ServuxStructuresPacket} → {@link #decodeServerData} 分发：
  * <ul>
- *   <li>{@code PACKET_C2S_STRUCTURES_REGISTER/UNREGISTER} → {@link StructureDataProvider} 注册/注销；</li>
- *   <li>{@code PACKET_C2S_REQUEST_SPAWN_METADATA} → 跨通道转发 {@link HudDataProvider#refreshSpawnMetadata}
- *       （原版如此：spawn/天气元数据由 HUD provider 生成，但客户端可能经 structures 通道请求）。</li>
+ *   <li>{@code PACKET_C2S_STRUCTURES_REGISTER/UNREGISTER} → {@link StructureDataProvider} 注册/注销</li>
  * </ul>
  *
  * <p>发（S2C）：{@link #encodeServerData} 普通包走 {@link #sendPlayPayload}（plugin messaging）；

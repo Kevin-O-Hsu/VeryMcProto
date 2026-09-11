@@ -20,7 +20,7 @@ import verymc.top.veryMcProto.mod.servux.util.nbt.DataTagIo;
  * Tweaks 通道收发 Handler（mod 层）。移植自原版 {@code ServuxTweaksHandler}（去 Fabric + networkHandler 形参 +
  * 去 {@code <T extends CustomPacketPayload>} 泛型，框架 {@link IPluginServerPlayHandler} 无泛型）。
  *
- * <p>通道 servux:tweaks（{@link ServuxReference#CHANNEL_TWEAKS}），协议版本 1。
+ * <p>通道 servux:tweaks（{@link ServuxReference#CHANNEL_TWEAKS}），协议版本 {@value ServuxTweaksPacket#PROTOCOL_VERSION}。
  * 收 C2S（metadata / block entity / entity 请求）→ 分发到 {@link TweaksDataProvider}；
  * 发 S2C 响应（plugin messaging，大包走 {@link verymc.top.veryMcProto.framework.network.PacketSplitter}）。
  */

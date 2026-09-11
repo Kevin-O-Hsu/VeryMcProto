@@ -112,7 +112,7 @@ public enum Type {
 
 ```java
 public interface IServerPayloadData {
-    int getVersion();      // PROTOCOL_VERSION（HUD=2, Entities=1, ...）
+    int getVersion();      // PROTOCOL_VERSION（各通道真值见 §2 通道总表）
     int getPacketType();   // 子消息 type id
     int getTotalSize();    // 估算字节数（用于诊断日志）
     boolean isEmpty();

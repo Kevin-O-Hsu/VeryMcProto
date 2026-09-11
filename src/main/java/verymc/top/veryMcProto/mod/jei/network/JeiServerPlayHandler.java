@@ -145,8 +145,10 @@ public final class JeiServerPlayHandler implements IPluginServerPlayHandler
         }
         catch (Exception e)
         {
+            // 单行 +e 拼接（同 ProtocolChannel C2S 热路径形态）：每包可控路径防刷屏，
+            // 且 toString() 恒非 null——getMessage() 在 NPE 时为 null，只剩「...: null」零信息
             Reference.logger().warning("[JEI] C2S 处理失败 " + channel + " ← "
-                    + player.getName().getString() + ": " + e.getMessage());
+                    + player.getName().getString() + ": " + e);
         }
     }
 }

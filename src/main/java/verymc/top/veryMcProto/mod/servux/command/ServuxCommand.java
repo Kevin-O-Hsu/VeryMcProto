@@ -202,18 +202,6 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
     }
 
     /**
-     * /servux debug —— 调试宏开关热切换（运行时即时生效，无需重编译/reload）。
-     *
-     * <p>用法（<b>master 总开关</b>与<b>分类</b>是两个正交维度，各管各的）：
-     * <ul>
-     *   <li>{@code /servux debug} / {@code status} —— 查看状态；</li>
-     *   <li>{@code /servux debug on|off} —— <b>总开关</b>死活（仅 master，<b>不碰分类</b>）；</li>
-     *   <li>{@code /servux debug cat all|none} —— 全开/清空<b>分类</b>；</li>
-     *   <li>{@code /servux debug cat <name>} —— 切换单个分类（lifecycle/handshake/network/packet/tick/permission/provider/config）。</li>
-     * </ul>
-     * <p>命令切换<b>即时持久化</b>到 {@code servux.json}（master + 分类各自独立保存），重启后完全恢复。
-     */
-    /**
      * /servux litematic —— Litematica 投影管理（mod 层）。
      * <ul>
      *   <li>{@code list} —— 列出 schematics/ 目录的 .litematic 文件。</li>
@@ -248,6 +236,19 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
             default -> sender.sendMessage("§e/servux litematic list");
         }
     }
+
+    /**
+     * /servux debug —— 调试宏开关热切换（运行时即时生效，无需重编译/reload）。
+     *
+     * <p>用法（<b>master 总开关</b>与<b>分类</b>是两个正交维度，各管各的）：
+     * <ul>
+     *   <li>{@code /servux debug} / {@code status} —— 查看状态；</li>
+     *   <li>{@code /servux debug on|off} —— <b>总开关</b>死活（仅 master，<b>不碰分类</b>）；</li>
+     *   <li>{@code /servux debug cat all|none} —— 全开/清空<b>分类</b>；</li>
+     *   <li>{@code /servux debug cat <name>} —— 切换单个分类（lifecycle/handshake/network/packet/tick/permission/provider/config/easyplace/schematic）。</li>
+     * </ul>
+     * <p>命令切换<b>即时持久化</b>到 {@code servux.json}（master + 分类各自独立保存），重启后完全恢复。
+     */
     private void handleDebug(CommandSender sender, String[] args)
     {
         if (args.length < 2)
@@ -255,7 +256,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
             sender.sendMessage("§6调试状态: §f" + ServuxDebug.statusLine());
             sender.sendMessage("§7用法: §f/servux debug <on|off|status>§7 —— master 总开关 / 状态");
             sender.sendMessage("§7用法: §f/servux debug cat <all|none|分类名>§7 —— 分类（master 与分类正交，两者皆开才输出）");
-            sender.sendMessage("§7分类: §flifecycle handshake network packet tick permission provider config easyplace");
+            sender.sendMessage("§7分类: §flifecycle handshake network packet tick permission provider config easyplace schematic");
             return;
         }
 

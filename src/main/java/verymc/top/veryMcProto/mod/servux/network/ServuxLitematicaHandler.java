@@ -25,7 +25,7 @@ import org.apache.commons.lang3.tuple.Pair;
 /**
  * Litematics 通道收发 Handler（mod 层）。移植自原版 {@code ServuxLitematicaHandler}（去 Fabric + networkHandler 形参）。
  *
- * <p>通道 servux:litematics，协议版本 1。收 C2S（metadata / block entity / entity / 批量 / 投影投递分片）
+ * <p>通道 servux:litematics，协议版本 {@value ServuxLitematicaPacket#PROTOCOL_VERSION}。收 C2S（metadata / block entity / entity / 批量 / 投影投递分片）
  * → 分发到 {@link LitematicsDataProvider}；发 S2C 响应（plugin messaging，大包走 PacketSplitter）。
  *
  * <p><b>投影上传 / 粘贴</b>：客户端上传的投影 NBT（{@code PACKET_C2S_NBT_RESPONSE_DATA} 分片）走 PacketSplitter.receive 重组，

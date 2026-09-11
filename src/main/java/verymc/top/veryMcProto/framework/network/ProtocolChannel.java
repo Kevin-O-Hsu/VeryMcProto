@@ -4,7 +4,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
-import java.util.logging.Level;
 
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -75,8 +74,11 @@ public final class ProtocolChannel
             }
             catch (Exception e)
             {
-                // 带堆栈：NPE 的 getMessage() 为 null，此前线上只见「处理 C2S 失败: null」无法定位
-                Reference.logger().log(Level.WARNING, "ProtocolChannel[" + channelId + "] 处理 C2S 失败", e);
+                // 单行防刷屏：本 catch 是每包 C2S 解码热路径，恶意客户端畸形包可无限触发，
+                // 全堆栈 log() 会每包一整栈刷屏。"+ e" 拼接走 toString() 恒非 null——NPE 的
+                // getMessage() 为 null，此前线上只见「处理 C2S 失败: null」无法定位。
+                // 范式边界：每包热路径用本形态；低频失败路径（unregister/NMS 兜底等）维持单行 getMessage()。
+                Reference.logger().warning("ProtocolChannel[" + channelId + "] 处理 C2S 失败: " + e);
             }
         }
     };

@@ -29,7 +29,7 @@ public class ServuxModule implements ModModule
     @Override
     public void onRegister(DataProviderManager manager)
     {
-        // framework 层调试日志注入（F001 解耦）：framework/ 不再硬绑 ServuxDebug，改为由首个采用
+        // framework 层调试日志注入（解耦）：framework/ 不再硬绑 ServuxDebug，改为由首个采用
         // 框架的 mod 在此注入自己的 DebugSystem 实例。运行时 framework 网络层等日志仍走
         // ServuxDebug.SYS，受 /servux debug 控制——行为与解耦前完全一致。
         FrameworkDebug.bind(ServuxDebug.SYS);

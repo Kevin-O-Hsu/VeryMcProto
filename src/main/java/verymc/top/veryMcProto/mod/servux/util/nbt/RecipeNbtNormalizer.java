@@ -27,8 +27,9 @@ public class RecipeNbtNormalizer
     /**
      * 规范化配方 NBT 树的 ingredients 混合列表（原地替换，返回同一 CompoundTag 引用）。
      *
-     * @param recipe ()
-     * @return ()
+     * @param recipe Recipe.CODEC encodeStart 产出的配方 NBT 根节点（非 CompoundTag 原样返回）
+     * @return 规范化后的同一引用——混合列表已同构化（裸 StringTag 包成单元素 ListTag）；
+     *         已同构 / 无 ingredients / 非 CompoundTag 的树原样返回，wire 逐字节不变
      */
     public static Tag normalizeIngredients(Tag recipe)
     {

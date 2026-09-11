@@ -18,7 +18,7 @@ import verymc.top.veryMcProto.mod.servux.util.nbt.DataTagIo;
 
 /**
  * Entities 通道收发 Handler（mod 层）。移植自原版 {@code ServuxEntitiesHandler}（去 Fabric + networkHandler 形参）。
- * 通道 servux:entity_data，协议版本 1。收 C2S（metadata / block entity / entity 请求）→ 分发到
+ * 通道 servux:entity_data，协议版本 {@value ServuxEntitiesPacket#PROTOCOL_VERSION}。收 C2S（metadata / block entity / entity 请求）→ 分发到
  * {@link EntitiesDataProvider}；发 S2C 响应（plugin messaging，大包走 PacketSplitter）。
  */
 public class ServuxEntitiesHandler implements IPluginServerPlayHandler

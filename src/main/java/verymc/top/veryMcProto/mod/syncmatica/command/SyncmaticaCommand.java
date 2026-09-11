@@ -179,7 +179,7 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
      *   <li>{@code /syncmatica debug} / {@code status} —— 查看状态；</li>
      *   <li>{@code /syncmatica debug on|off} —— 总开关死活（仅 master，不碰分类）；</li>
      *   <li>{@code /syncmatica debug cat all|none} —— 全开/清空分类；</li>
-     *   <li>{@code /syncmatica debug cat <name>} —— 切换单个分类（lifecycle/handshake/network/packet/exchange）。</li>
+     *   <li>{@code /syncmatica debug cat <name>} —— 切换单个分类（lifecycle/handshake/network/packet/exchange/data）。</li>
      * </ul>
      * <p>诊断 syncmatica 不可用：先 {@code /syncmatica debug on}，再 {@code /syncmatica debug cat all}（或单独 handshake/network/packet），
      * 观察握手链路：声明通道 → tryStartHandshake → init 推 REGISTER_VERSION → 客户端回版本 → FeatureSet → CONFIRM_USER → broadcastTargets。
@@ -193,7 +193,7 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
             sender.sendMessage("§7用法: §f/syncmatica debug <on|off|status>§7 —— master 总开关 / 状态");
             sender.sendMessage("§7用法: §f/syncmatica debug cat <all|none|分类名>§7 —— 分类（master 与分类正交，两者皆开才输出）");
             sender.sendMessage("§7用法: §f/syncmatica debug s2c <nms|msg>§7 —— S2C 路径（NMS 直发 / plugin messaging）");
-            sender.sendMessage("§7分类: §flifecycle handshake network packet exchange");
+            sender.sendMessage("§7分类: §flifecycle handshake network packet exchange data");
             return;
         }
 
@@ -238,7 +238,7 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
                 sender.sendMessage("§7当前: §f" + SyncmaticaDebug.statusLine());
                 context.saveConfiguration();
             }
-            default -> sender.sendMessage("§c未知子命令: " + sub + " §7(on/off/cat/status)");
+            default -> sender.sendMessage("§c未知子命令: " + sub + " §7(on/off/cat/status/s2c)");
         }
     }
 

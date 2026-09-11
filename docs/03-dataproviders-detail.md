@@ -57,7 +57,7 @@ CompoundTag metadata:
 > （`HudDataProvider.java:425-431`）发送**过滤后的副本**：无 `share_seed`/seed 权限时 worldSeed
 > 键不出现。此为已声明的安全增强偏离，与上游行为不同属有意为之。
 
-### 1.3 出生点数据（`refreshSpawnMetadata`，`:510-537`）
+### 1.3 出生点数据（`refreshSpawnMetadata`，`:490-510`）
 
 ```
 spawnDimension, spawnPosX/Y/Z
@@ -66,9 +66,9 @@ spawnDimension, spawnPosX/Y/Z
 > 对齐上游 `:581-598`：spawn 帧仅上述键，**不含** id/servux/version 冗余键（客户端
 > minihud `receiveSpawnMetadata` 按键读取，多余键无害但属 wire 偏离，已删）。
 - 采集：`spawnPos`（`GlobalPos`）由 `MixinMinecraftServer.prepareLevels` / `MixinServerWorld.setRespawnData` 在出生点变化时回填 `HudDataProvider.setSpawnPos`。
-- 种子：`server.overworld().getSeed()`（`checkWorldSeed`，`:725`）。
+- 种子：`server.overworld().getSeed()`（`checkWorldSeed`，`:652-659`）。
 
-### 1.4 天气数据（`refreshWeatherData`，`:539-577`）
+### 1.4 天气数据（`refreshWeatherData`，`:512-539`）
 
 ```
 SetRaining=<int>, isRaining=<bool>        (降雨剩余 tick，不下雨则只 isRaining=false)
@@ -80,7 +80,7 @@ SetClear=<int>                            (晴天剩余 tick，>-1 时)
 - 采集：`MixinServerWorld.advanceWeatherCycle @INVOKE(setRaining)` → `tickWeather(clearTime, rainTime, thunderTime, isRaining, isThunder)` 缓存当前天气计时。
 - **Paper 迁移**：可监听 `WeatherChangeEvent` / 读 `World#getWeatherDuration` 等 API（难度低）。
 
-### 1.5 配方数据（`refreshRecipeManager`，`:579-614`）—— 大包，走分包
+### 1.5 配方数据（`refreshRecipeManager`，`:541-591`）—— 大包，走分包
 
 ```
 CompoundTag:
@@ -90,6 +90,10 @@ CompoundTag:
 ```
 - 采集：`player.level().recipeAccess().getRecipes()` → 对每个 `RecipeHolder`，用 `Recipe.CODEC.encodeStart(NbtOps.INSTANCE, recipeEntry.value())` 序列化。
 - **Paper 迁移**：`Recipe.CODEC` + `NbtOps` 是 NMS，paperweight 可直连；或遍历 Bukkit `Bukkit.recipeIterator()` 自行拼装（保真度略低）。**必须走 PacketSplitter 分包**（配方表常超 1MiB，且需防御客户端 32767 解码上限）。
+
+#### 1.5.1 RecipeNbtNormalizer——混合 ingredients wire 兼容层
+
+`mod/servux/util/nbt/RecipeNbtNormalizer.java`（`HudDataProvider.java:574` 在 `Recipe.CODEC` encode 之后、入 ListTag 之前调用）。26.1 wire 病灶：ingredient 元素域为「单物品 → 裸 StringTag（compactListCodec 单元素裸出）；多物品/tag → ListTag」，两者混装的 ingredients 列表（全量普查恰 66 条 vanilla 配方）在 `ListTag.write` 逐元素写出时被包装为 `{"": x}` Compound 并按 TAG_Compound(10) 上线；malilib 客户端读端（ListData.read，同构语法，全库无解包逻辑）两分支皆拒 → DFU 报 `List is too short: 0, expected range [1-9]`（即 minihud HudDataManager 的 66 条刷屏报错）。本层把混合列表内裸 StringTag 包成单元素 ListTag → 整表同构 → wire 不再包装，客户端解码成功且物品集语义等价（真 vanilla jar + 真数据包配方离线逐字验证）。不变式：已同构（全串/全列表）/ 无 ingredients / 非 CompoundTag 的树**原样返回、wire 逐字节不变**（同构短路）；调用点外裹 `catch(Throwable)` 异常回退原树——兼容层失败不阻断配方下发。7 个单测钉守卫（`RecipeNbtNormalizerTest`，含病灶层字节断言与幂等性用例）。
 
 ### 1.6 DataLogger 子系统（TPS / MobCap）⭐
 
@@ -283,7 +287,7 @@ Identifier type = BuiltInRegistries.STRUCTURE_TYPE.getKey(structure.type());    
 
 ### 4.3 黑白名单 + 过期刷新
 
-- `shouldSendStructure(id)`：`structure_whitelist_enabled` / `structure_blacklist_enabled` 过滤（`:524-538`）。
+- `shouldSendStructure(id)`：`structure_whitelist_enabled` / `structure_blacklist_enabled` 过滤（`:514-526`）。
 - tick（默认 `update_interval`）：对每个注册玩家，刷新其"已观察但超时"的区块结构（`Timeout` 机制，`:290-356`）。
 
 ### 4.4 settings
