@@ -144,7 +144,11 @@ public class LitematicsDataProvider extends DataProviderBase
         }
         catch (java.io.IOException err)
         {
+            // 对齐上游 :159-163 fail-fast：目录不可用即抛——继续返回不存在的路径只会让故障延迟暴露到
+            // 落盘深处。调用方异常承接：C2S 路径（LitematicaSchematic/SchematicBufferManager）由
+            // ProtocolChannel 外层 catch(Exception) 记日志中止本次传输；命令路径由 ServuxCommand onCommand catch。
             verymc.top.veryMcProto.Reference.logger().severe("getTransmitDir(): failed: " + err.getMessage());
+            throw new RuntimeException(err);
         }
         return dir;
     }
@@ -431,13 +435,13 @@ public class LitematicsDataProvider extends DataProviderBase
         if (!this.hasPermission(player) || !this.hasPermissionsForPaste(player))
         {
             ServuxDebug.log(ServuxDebug.Cat.PERMISSION, "litematic_data: 拒绝粘贴 from " + player.getName().getString() + "（权限不足）");
-            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§cLitematics paste: insufficient permissions."));
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(MSG_PASTE_INSUFFICIENT));
             return;
         }
         if (!player.isCreative())
         {
             ServuxDebug.log(ServuxDebug.Cat.PERMISSION, "litematic_data: 拒绝粘贴 from " + player.getName().getString() + "（非创造模式）");
-            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§cLitematics paste: creative mode required."));
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(MSG_PASTE_CREATIVE_REQUIRED));
             return;
         }
 
@@ -492,12 +496,12 @@ public class LitematicsDataProvider extends DataProviderBase
 
         if (!this.hasPermission(player) || !this.hasPermissionsForPaste(player))
         {
-            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§cLitematics paste: insufficient permissions."));
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(MSG_PASTE_INSUFFICIENT));
             return;
         }
         if (!player.isCreative())
         {
-            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§cLitematics paste: creative mode required."));
+            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(MSG_PASTE_CREATIVE_REQUIRED));
             return;
         }
 
@@ -550,6 +554,10 @@ public class LitematicsDataProvider extends DataProviderBase
     private static final String MSG_BULK_INSUFFICIENT = "§cServux: Insufficient Permissions for the Litematic Bulk NBT Data Request operation.§r";
     private static final String MSG_BULK_CHUNK_NOT_LOADED = "§cServux: Bulk NBT Data Request Error loading Chunk located at %s§r";
     private static final String MSG_BULK_ACKNOWLEDGE = "Servux: Bulk NBT Data from world §d%s§r for chunk §e%s§r, [TE: §a%d§r, E: §a%d§r] delivered in §b%d §fms.";
+
+    /** paste 组拒绝文案（上游 en_us.json:132/:134 原文——键名拼写 insufficent 为上游原始拼写，勿"纠正"）。 */
+    private static final String MSG_PASTE_CREATIVE_REQUIRED = "§cServux: Creative Mode is required for the Litematic paste operation.§r";
+    private static final String MSG_PASTE_INSUFFICIENT = "§cServux: Insufficient Permissions for the Litematic paste operation.§r";
 
     /**
      * TASK_REQUEST（type 14）受理：权限 → 创造模式 → Boxes/FillState 解析 → 登记 TaskScheduler。

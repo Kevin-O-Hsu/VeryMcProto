@@ -6,6 +6,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.network.FriendlyByteBuf;
 import org.bukkit.entity.Player;
+import javax.annotation.Nullable;
 import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaDebug;
 import verymc.top.veryMcProto.mod.syncmatica.Feature;
 import verymc.top.veryMcProto.mod.syncmatica.communication.exchange.Exchange;
@@ -77,6 +78,10 @@ public class ServerCommunicationManager extends CommunicationManager
 
     public void onPlayerJoin(final ExchangeTarget newPlayer)
     {
+        // join 必废弃同 UUID 陈旧 target（上游 Mixin 每连接新建的等价语义）：onPlayerLeave 的 removes
+        // 因 exchange 关闭链异常未达（或 quit 事件缺失）时，旧 target 实例可能仍挂在 broadcastTargets
+        // 持续接收广播（包发往死连接）——targets 的 put 本就覆盖，broadcastTargets 不自愈故显式清。
+        broadcastTargets.removeIf(t -> t.getPlayerId().equals(newPlayer.getPlayerId()));
         targets.put(newPlayer.getPlayerId(), newPlayer);
         context.getPlayerIdentifierProvider().updateName(newPlayer.getPlayerId(), newPlayer.getPlayer().getName());
         SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] onPlayerJoin: 注册 target " + newPlayer.getPersistentName()
@@ -148,17 +153,26 @@ public class ServerCommunicationManager extends CommunicationManager
     {
         SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] onPlayerLeave: " + oldPlayer.getPersistentName()
                 + "（关闭其 exchange 链 + 移出 targets/broadcastTargets）");
-        final Collection<Exchange> potentialMessageTarget = oldPlayer.getExchanges();
-        if (potentialMessageTarget != null)
+        // exchange 关闭链（close/handleExchange）可能抛异常，removes 必须 finally 保终执行——否则陈旧
+        // target 残留，getOrCreateTarget(computeIfAbsent) 会复用死 Player 引用、broadcastTargets 持续对
+        // 死连接发广播。异常照旧上抛（由 SyncmaticaModule.onQuit 外层 catch 记日志），仅清理时机不受影响。
+        try
         {
-            for (final Exchange target : potentialMessageTarget)
+            final Collection<Exchange> potentialMessageTarget = oldPlayer.getExchanges();
+            if (potentialMessageTarget != null)
             {
-                target.close(false);
-                handleExchange(target);
+                for (final Exchange target : potentialMessageTarget)
+                {
+                    target.close(false);
+                    handleExchange(target);
+                }
             }
         }
-        broadcastTargets.remove(oldPlayer);
-        targets.remove(oldPlayer.getPlayerId());
+        finally
+        {
+            broadcastTargets.remove(oldPlayer);
+            targets.remove(oldPlayer.getPlayerId());
+        }
     }
 
     /**
@@ -362,11 +376,20 @@ public class ServerCommunicationManager extends CommunicationManager
         }
     }
 
-    public void addPlacement(final ExchangeTarget t, final ServerPlacement placement)
+    /**
+     * 注册 placement 并对全部已握手客户端（broadcastTargets）广播 metadata（上游 :256-275）。
+     *
+     * @param t 发起方 target；控制台路径传 {@code null}（上游 fromExistingPlayer(null) 在 playerMap
+     *          非空时自身 NPE——不复刻该缺陷，null 仅跳过"已存在"分支对 origin 的取消通知）
+     */
+    public void addPlacement(@Nullable final ExchangeTarget t, final ServerPlacement placement)
     {
         if (context.getSyncmaticManager().getPlacement(placement.getId()) != null)
         {
-            cancelShare(t, placement);
+            if (t != null)
+            {
+                cancelShare(t, placement);
+            }
             return;
         }
         context.getSyncmaticManager().addPlacement(placement);

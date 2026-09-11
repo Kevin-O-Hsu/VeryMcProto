@@ -96,8 +96,8 @@
 | `save` | `admin` | `context.saveConfiguration()`——把当前 quota/debug 配置 + 调试 master/分类写入 `syncmatica-config.json` |
 | `reload` | `admin` | `context.loadConfiguration()`——从 `syncmatica-config.json` 重读配置 |
 | `enable` / `disable` | `admin` | **软禁用/启用协议**：调 `context.resumeProtocol()`/`suspendProtocol()`。**不重启插件**，只切换协议处理开关；enable 会 `reconnectOnlinePlayers()`（在线玩家重新握手），disable 中断进行中的传输但**不踢玩家**（通道保留） |
-| `load` | `load` | peek `syncmatics/` 目录下所有 `<hash>.litematic`（**文件名须为 UUID**），未注册的逐个建 `ServerPlacement`（owner=发送方玩家，origin=玩家脚下）并 `addPlacement` 广播 |
-| `load <file>` | `load_each` | 加载指定单个 `<file>.litematic` |
+| `load` | `load` | peek `syncmatics/` 目录下所有 `<hash>.litematic`（**文件名须为 UUID**），未注册的逐个建 `ServerPlacement`（owner=发送方玩家，origin=玩家脚下）并 `addPlacement` 广播——**控制台执行同样广播**（在线已握手客户端即时可见，2026-09 修复；此前 console 分支仅注册、客户端需重进服重新握手） |
+| `load <file>` | `load_each` | 加载指定单个 `<file>.litematic`。load 成功/计数消息广播持 `syncmatica.command.admin` 权限的全体玩家与控制台（≈ 上游 `sendSuccess(true)`），执行者不持权则补直发 |
 | `debug [...]` | `debug` | 调试日志宏开关热切换（见 §2.3） |
 
 > **Tab 补全**：一级 `status/save/reload/enable/disable/load/debug`；`load <file>` 列目录内未注册文件（去 `.litematic` 后缀）；`debug <on/off/cat/status/s2c>`；`debug s2c <nms/msg>`；`debug cat <all/none/分类名>`。

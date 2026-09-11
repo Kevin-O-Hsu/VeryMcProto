@@ -57,7 +57,7 @@ CompoundTag metadata:
 > （`HudDataProvider.java:425-431`）发送**过滤后的副本**：无 `share_seed`/seed 权限时 worldSeed
 > 键不出现。此为已声明的安全增强偏离，与上游行为不同属有意为之。
 
-### 1.3 出生点数据（`refreshSpawnMetadata`，`:490-510`）
+### 1.3 出生点数据（`refreshSpawnMetadata`，`:490-517`）
 
 ```
 spawnDimension, spawnPosX/Y/Z
@@ -65,6 +65,8 @@ spawnDimension, spawnPosX/Y/Z
 ```
 > 对齐上游 `:581-598`：spawn 帧仅上述键，**不含** id/servux/version 冗余键（客户端
 > minihud `receiveSpawnMetadata` 按键读取，多余键无害但属 wire 偏离，已删）。
+> 发送门 = 名册门 + **每次刷新 hasPermission 复检**（对齐上游 `:572-576`，2026-09 补齐——
+> 注册后权限被收回的玩家不再拉到 spawn 帧；此前仅 register 时查一次）。
 - 采集：`spawnPos`（`GlobalPos`）由 `MixinMinecraftServer.prepareLevels` / `MixinServerWorld.setRespawnData` 在出生点变化时回填 `HudDataProvider.setSpawnPos`。
 - 种子：`server.overworld().getSeed()`（`checkWorldSeed`，`:652-659`）。
 
@@ -254,6 +256,10 @@ CompoundTag (发给单个玩家，按其观察的区块):
   // 原版结构 NBT 形如：
   // { id:"minecraft:village", ChunkX, ChunkZ, BB:[minX,minY,minZ,maxX,maxY,maxZ], Pieces:[...] }
 ```
+
+**发送门**（对齐上游 `sendStructures :540-549`，2026-09 补齐）：`isEnabled + isPlayerRegistered
++ hasPermission` 三门早退（先门后解析）。tick/register 调用方本已有等价门禁包抄，属结构加固
+（防未来新增调用点绕过）；tick 侧撤权即除名与 16MB 分批门禁不变。
 
 **按客户端能力分批发送**（对齐上游 `sendStructures :565-604`）：register 时读
 `tags.max_receive_s2c`（TAG_INT，默认 16MB——26.1 客户端重组上限同源）存入名册 entry；

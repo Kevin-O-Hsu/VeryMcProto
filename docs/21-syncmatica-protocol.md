@@ -322,6 +322,13 @@ putPositionData(placement, buf, client)            // §4.2
 >
 > 两条 NPE 曾均被 `ProtocolChannel` 的 `catch(Exception)` 吞成零信息日志（NPE 的 `getMessage()` 为 null），
 > 该 catch 已改为带堆栈输出。单测 `ModifyStateTest` 固化上述锁语义契约（5 用例，修复前全部 NPE 失败）。
+>
+> 🔧 **addPlacement null target 守卫（勿随模板回退，2026-09）**：`addPlacement(@Nullable t, placement)`
+> 的"已存在"分支对 `t == null` 跳过 `cancelShare`（对 origin 的取消通知）——上游 `cancelShare:274` 裸
+> `source.sendPacket` 对 null 即 NPE，且其 console 路径 `fromExistingPlayer(null)` 在 playerMap 非空时
+> 必崩（上游自带缺陷，不复刻）。null 语义 = 控制台 `/syncmatica load`（无发起方 target）：注册 + 对
+> broadcastTargets 广播照走，仅跳过取消通知。同时 `onPlayerLeave` 的 removes 已 try/finally 化、
+> `onPlayerJoin` 先清同 UUID 陈旧 broadcastTargets 项（上游 Mixin 每连接新建的 Bukkit 等价）。
 
 ### 5.5 客户端 Exchange（服务端需回应的包）
 

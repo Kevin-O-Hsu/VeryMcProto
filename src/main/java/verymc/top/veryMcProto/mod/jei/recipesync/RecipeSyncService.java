@@ -9,6 +9,7 @@ import io.netty.buffer.Unpooled;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.protocol.common.ClientboundUpdateTagsPacket;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.TagNetworkSerialization;
@@ -47,11 +48,22 @@ public final class RecipeSyncService
         RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), server.registryAccess());
         try
         {
-            // 单遍 O(R)：按 serializer 身份聚合（IdentityHashMap——serializer 无 equals 语义，身份即语义）
+            // 单遍 O(R)：按 serializer 身份聚合（IdentityHashMap——serializer 无 equals 语义，身份即语义）。
+            // minecraft 命名空间过滤（对齐上游 JustEnoughItems.java(fabric):38-48 :40）：上游遍历
+            // RECIPE_SERIALIZER 注册表仅同步 minecraft 命名空间的 serializer（JEI 自有 jei:jei_shaped 等
+            // 被排除）——此处按 registry key 反查实现等价语义；key==null（未注册 serializer）跳过不放行
+            //（上游按 registry 遍历天然不含未注册项）。
             Map<RecipeSerializer<?>, List<RecipeHolder<?>>> grouped = new IdentityHashMap<>();
+            int vanillaRecipes = 0;
             for (RecipeHolder<?> holder : recipeMap.values())
             {
+                Identifier serializerKey = BuiltInRegistries.RECIPE_SERIALIZER.getKey(holder.value().getSerializer());
+                if (serializerKey == null || !serializerKey.getNamespace().equals("minecraft"))
+                {
+                    continue;
+                }
                 grouped.computeIfAbsent(holder.value().getSerializer(), k -> new ArrayList<>()).add(holder);
+                vanillaRecipes++;
             }
 
             List<FabricRecipeSyncPayload.Entry> entries = new ArrayList<>(grouped.size());
@@ -74,7 +86,8 @@ public final class RecipeSyncService
             buffer.getBytes(0, bytes);
             JeiPacketSender.send(player, JeiReference.CHANNEL_FABRIC_RECIPE_SYNC, bytes);
             Reference.logger().info("[JEI] fabric 配方同步 → " + player.getName().getString()
-                    + "（" + recipeMap.values().size() + " 配方 / " + entries.size() + " 组 / " + bytes.length + " 字节）");
+                    + "（" + vanillaRecipes + "/" + recipeMap.values().size() + " 配方（minecraft 命名空间）/ "
+                    + entries.size() + " 组 / " + bytes.length + " 字节）");
         }
         finally
         {

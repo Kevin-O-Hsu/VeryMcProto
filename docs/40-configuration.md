@@ -22,7 +22,7 @@
 /servux set <provider:setting|setting> <value>   修改 setting（纯内存——持久化需 /servux save，上游语义）
 /servux enable <provider>                        启用 provider（如 hud_data）——扩展子命令，即时落盘
 /servux disable <provider>                       停用 provider——扩展子命令，即时落盘
-/servux search <keyword>                         模糊搜索 setting 名
+/servux search <keyword>                         搜索 setting（空格分词 AND；命中名/注释/provider 名任一；大小写敏感）
 /servux reload                                   从 servux.json 重读配置
 /servux save                                     当前配置写入 servux.json
 /servux debug ...                                调试开关（见 §1.2）
@@ -70,6 +70,8 @@
 ```
 
 > 投影的**上传 / 下载 / 修改 / 删除全部走协议 Exchange**（客户端侧操作）；命令只负责把本地文件注册为 placement 并广播。`[admin]` 需 `syncmatica.command.admin`，`[load]` 需 `syncmatica.command.load`，`[load_each]` 需 `syncmatica.command.load_each`，`[debug]` 需 `syncmatica.command.debug`。
+>
+> **load 广播语义**（对齐上游 `sendSuccess(..., true)`，2026-09 修复）：控制台执行 `load` 同样对在线已握手客户端即时广播 REGISTER_METADATA（此前仅注册不广播、客户端需重进服）；load 成功/计数消息广播给持 `syncmatica.command.admin` 权限的全体玩家与控制台（≈ vanilla OP 广播位），执行者若不持该权限则补直发保证回执；"No file"/"Failed to peek" 类提示仍仅回执行者（上游对应 `sendSuccess(..., false)`）。
 
 **`/syncmatica debug`**（独立于 `/servux debug` 的 `SyncmaticaDebug` 引擎）：
 

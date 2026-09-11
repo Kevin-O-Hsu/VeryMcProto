@@ -16,7 +16,7 @@ schematic/
 ├── conversion/SchematicConversionMaps.java  老版本数据转换
 ├── container/                        ★ 纯算法压缩：BitArray + Palette + Container
 ├── placement/                        SchematicPlacement / SubRegionPlacement（旋转/镜像/定位 + 粘贴）
-├── selection/                        Box / AreaSelection / BoxSliced / SelectionManager（几何）
+├── selection/                        Box / AreaSelection（几何）
 └── transmit/                         ★ 纯 Java 分片：SchematicBuffer / SchematicBufferManager
 ```
 
@@ -213,7 +213,7 @@ CompoundTag nbt = DataTagIo.readTag(fullPacket);   // [int32 大端 压缩长][G
 
 ## 5. 几何系统：`Box` / `AreaSelection`（★纯 Java）
 
-> `selection/Box.java`（224 行）+ `AreaSelection.java`（447 行）+ `BoxSliced.java` 等。
+> `selection/Box.java`（224 行）+ `AreaSelection.java`（447 行）。上游的 `BoxSliced` / `SelectionManager` / `SelectionMode` / `AreaSelectionSimple` 为零引用死代码，已于 2026-09 物理删除。
 
 ```java
 // Box —— 两角点 + 尺寸
@@ -227,7 +227,6 @@ class AreaSelection {
 ```
 - `Box.toVanilla()` → NMS `BoundingBox`（min/max 角）。
 - `AreaSelection.getEffectiveOrigin()` / `moveEntireSelectionTo` / `moveSelectedElement`。
-- `BoxSliced`：在某轴上切片（Litematica 逐层渲染用）。
 
 > **可移植性**：仅依赖 `BlockPos`/`Vec3i`/`Direction`/`BoundingBox`（NMS 值类型），逻辑纯，照抄。
 
@@ -262,7 +261,7 @@ class AreaSelection {
 |---|---|---|---|
 | `LitematicaBitArray` | 113 | ✅ 无 | **照抄** |
 | `SchematicBuffer` / `Manager` | 154+143 | ✅ 无 | **照抄** |
-| `Box` / `AreaSelection` / `BoxSliced` | ~700 | 值类型 | **照抄** |
+| `Box` / `AreaSelection` | ~700 | 值类型 | **照抄**（上游 BoxSliced/SelectionManager/SelectionMode/AreaSelectionSimple 零引用死代码已删） |
 | `SchematicMetadata` / `SchematicSchema` | ~380 | 值类型 | **照抄** |
 | `LitematicaBlockStateContainer` | 195 | `RegistryAccess`（解析 palette） | 照抄 + registry 改参数传入 |
 | `Palette`（Linear/HashMap） | ~280 | `BlockState` + `CrudeIncrementalIntIdentityHashBiMap` | 照抄（保留 NMS `BlockState`） |

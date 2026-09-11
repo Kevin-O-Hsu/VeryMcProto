@@ -491,6 +491,13 @@ public class HudDataProvider extends DataProviderBase
     {
         if (!this.isPlayerRegistered(player) || !this.isEnabled() || data == null) { return; }
 
+        // 对齐上游 :572-576：每次刷新重查权限（注册后撤权的玩家不再拉到 spawn 帧——坐标/维度 + 条件种子）
+        if (!this.hasPermission(player))
+        {
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud refreshSpawnMetadata 拒绝 " + player.getName().getString() + " (权限不足)");
+            return;
+        }
+
         GlobalPos spawnPos = this.getSpawnPos();
         CompoundTag nbt = new CompoundTag();
 

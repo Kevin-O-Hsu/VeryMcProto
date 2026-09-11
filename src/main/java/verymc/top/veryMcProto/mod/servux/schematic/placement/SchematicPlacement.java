@@ -9,11 +9,13 @@ import verymc.top.veryMcProto.mod.servux.schematic.LitematicaSchematic;
 import verymc.top.veryMcProto.mod.servux.schematic.placement.SubRegionPlacement.RequiredEnabled;
 import verymc.top.veryMcProto.mod.servux.schematic.selection.Box;
 import verymc.top.veryMcProto.mod.servux.util.*;
+import verymc.top.veryMcProto.mod.servux.util.data.Constants;
 import verymc.top.veryMcProto.mod.servux.util.nbt.NbtUtils;
 import verymc.top.veryMcProto.mod.servux.util.position.PositionUtils;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
@@ -67,6 +69,11 @@ public class SchematicPlacement
             for (String entry : tags.getCompoundOrEmpty("SubRegions").keySet())
             {
                 CompoundTag compound = tags.getCompoundOrEmpty("SubRegions").getCompoundOrEmpty(entry);
+                // 对齐上游 :1210：缺 Pos(TAG_INT_ARRAY) 的坏条目整条跳过——null origin 会穿透到
+                // getSubRegionBoxes → PositionUtils.getTransformedBlockPos 解引用才 NPE，本方法 catch 拦不住。
+                // 26.1 CompoundTag 无 contains(String,int) 双参重载，用仓内惯用法 get().getId() 判型（同 LitematicaSchematic:669）
+                Tag posTag = compound.get("Pos");
+                if (compound.isEmpty() || posTag == null || posTag.getId() != Constants.NBT.TAG_INT_ARRAY) { continue; }
                 origin = NbtUtils.readBlockPosFromIntArray(compound, "Pos");
                 name = compound.getStringOr("Name", "?");
                 SubRegionPlacement sub = new SubRegionPlacement(origin, name);
@@ -98,6 +105,9 @@ public class SchematicPlacement
             for (String entry : tags.getCompoundOrEmpty("SubRegions").keySet())
             {
                 CompoundTag compound = tags.getCompoundOrEmpty("SubRegions").getCompoundOrEmpty(entry);
+                // 对齐上游 :1258：缺 Pos(TAG_INT_ARRAY) 的坏条目整条跳过（同另一重载 :1210 守卫）
+                Tag posTag = compound.get("Pos");
+                if (compound.isEmpty() || posTag == null || posTag.getId() != Constants.NBT.TAG_INT_ARRAY) { continue; }
                 origin = NbtUtils.readBlockPosFromIntArray(compound, "Pos");
                 name = compound.getStringOr("Name", "?");
                 SubRegionPlacement sub = new SubRegionPlacement(origin, name);

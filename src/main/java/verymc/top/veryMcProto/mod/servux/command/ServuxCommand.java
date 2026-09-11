@@ -1,6 +1,7 @@
 package verymc.top.veryMcProto.mod.servux.command;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -187,18 +188,42 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
     private void handleSearch(CommandSender sender, String[] args)
     {
         if (args.length < 2) { sender.sendMessage("§e/servux search <关键词>"); return; }
-        String q = args[1].toLowerCase();
+
+        // 对齐上游 configSearch（ServuxCommand:111-133）：空格分词 AND + 三臂匹配 + 大小写敏感
+        // （上游无 toLowerCase 归一）。Bukkit args 重组回 Brigadier 单串语义。
+        String query = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
+        String[] searchParts = query.split(" ");
+
         sender.sendMessage("§6匹配的设置:");
         for (var p : DataProviderManager.INSTANCE.getAllProviders())
         {
             for (IServuxSetting<?> s : p.getSettings())
             {
-                if (s.qualifiedName().toLowerCase().contains(q))
+                if (matchesSearch(s, searchParts))
                 {
                     sender.sendMessage(" §7- §f" + s.qualifiedName() + " §8= " + s.valueToString(s.getValue()));
                 }
             }
         }
+    }
+
+    /**
+     * 上游三臂匹配（ServuxCommand:119-131）：name / comment / provider 名任一 contains 即该词命中，
+     * 全部词命中才保留（AND）。comment 臂降级说明：Paper 服务端无 lang 资产，settings 构造不传
+     * comment 时 {@code comment().getString()} 返回翻译键字符串
+     * （servux.config.&lt;provider&gt;.&lt;name&gt;.comment）而非注释文本——上游 Fabric 服务端
+     * 加载 en_us 后为真实注释，此为已声明平台差异（根治需 settings 全量传 comment，后续工单）。
+     */
+    private static boolean matchesSearch(IServuxSetting<?> setting, String[] searchParts)
+    {
+        for (String part : searchParts)
+        {
+            if (setting.name().contains(part)) { continue; }
+            if (setting.comment().getString().contains(part)) { continue; }
+            if (setting.dataProvider().getName().contains(part)) { continue; }
+            return false;
+        }
+        return true;
     }
 
     /**

@@ -29,7 +29,7 @@ public boolean isJeiOnServer() {
 
 `canSend` 检查的是**服务端是否在 vanilla register 机制中声明过该通道**。Paper 侧的等价物 = `ChannelManager.register`（incoming + outgoing 成对注册，servux 五通道同款范式）。
 
-- **声明全 8 条 C2S 通道**（`JeiReference.C2S_CHANNELS`）：少一条 = 客户端对该包 `canSend=false` 永不发送（cheat/transfer 对应功能静默退网，无任何报错——排错成本极高）。
+- **声明全 8 条 C2S 通道**（`JeiReference.C2S_CHANNELS`）：少一条 = 客户端对该包 `canSend=false` 永不发送（cheat/transfer 对应功能静默退网，无任何报错——排错成本极高）。**与上游的有意差异（2026-09 声明）**：上游 `ServerNetworkHandler:38-46` serverbound 注册 9 条，第 9 条 `PacketCheatPermission`（`jei:cheat_permission`）为**误注册的纯 S2C 类型**——它 `extends PlayToClientPacket`、已在 clientbound 正确注册、且 serverbound 无任何 receiver（`:48-55` 仅前 8 条）；上游 clientbound 侧对称地误注册 2 条 legacy 纯 C2S 类型。我方 8 条为正确收敛，不复刻误注册（惰性无行为影响：真实 JEI 客户端永不发送该 C2S）。
 - **brand 无关**：`isSameModLoader()`（server brand == "fabric"）只影响客户端"配方同步缺失"警告文案分支（`JeiStarter.verifyClientRecipes`），**不门控任何功能**。Paper brand = "Paper" 时客户端最多多一条黄/红字提示，前提是没有收到配方同步。
 - **vanilla 客户端无害**：收到含 jei:* 的 REGISTER 声明会被原样忽略（`fabric:recipe_sync` 出站声明先例已在生产环境长跑）。
 - **R3 硬约束**：`/jei disable` 只在 handler 内丢包，**通道永不注销**——注销 incoming 后客户端后续 C2S 会命中 Paper 未注册通道踢人（"Invalid payload"）。
@@ -96,8 +96,8 @@ VarInt entryCount
 └ 每 entry: Identifier(serializer id) + VarInt(n) + n × [ResourceKey<Recipe> + serializer.streamCodec(recipe)]
 ```
 
-- **触发**：`PlayerRegisterChannelEvent(fabric:recipe_sync)`——对齐上游 `RecipeSyncImpl.sendRecipes` 的 `canSend(player)` 门控（只发给声明过能收的客户端；Fabric API 客户端注册 receiver 即声明；vanilla 零打扰）。分组为单遍 O(R)（IdentityHashMap 按 serializer 身份聚合）。该声明同时是**进服时序整形器**的"证据到达"信号（§5.2）。
-- **接收端**：Fabric API 展平排序 → `ClientRecipeSynchronizedEvent` → JEI `setClientSyncedRecipes`。read 端对未知 serializer 抛 `SkipPacketDecoderException`——Paper 配方恒 vanilla 序列化器，JEI 客户端 main entrypoint 已全量标记，无过滤对象。
+- **触发**：`PlayerRegisterChannelEvent(fabric:recipe_sync)`——对齐上游 `RecipeSyncImpl.sendRecipes` 的 `canSend(player)` 门控（只发给声明过能收的客户端；Fabric API 客户端注册 receiver 即声明；vanilla 零打扰）。分组为单遍 O(R)（IdentityHashMap 按 serializer 身份聚合）+ **minecraft 命名空间过滤**（2026-09 补齐，对齐上游 `JustEnoughItems.java(fabric):38-48`：按 `RECIPE_SERIALIZER` registry key 的 namespace 判定，仅同步 `minecraft` 序列化器——JEI 自有 `jei:jei_shaped` 等被上游排除；`getKey()==null`（未注册）跳过不放行）。该声明同时是**进服时序整形器**的"证据到达"信号（§5.2）。
+- **接收端**：Fabric API 展平排序 → `ClientRecipeSynchronizedEvent` → JEI `setClientSyncedRecipes`。read 端对未知 serializer 抛 `SkipPacketDecoderException`——Paper 现状配方恒 vanilla 序列化器（过滤恒全量放行），但自定义 serializer 一旦出现即被服务端过滤拦下，不会到达客户端触发跳包。
 - **未实现（有意）**：C2S `fabric:recipe_sync/supported_serializers`（configuration phase 支持集协商）——① 该 payload 受客户端 `canSend` 门控（服务端须先在 config 相位 S2C 声明该通道才发；Paper 不发 config S2C register → 该 C2S 在 Paper 上物理不可达，实证见 §5.2）；② 不声明该通道 → 客户端 `canSend=false` → 根本不发送 → 行为安全。**若上游后续让协商结果影响行为需重估**。
 
 ### 5.2 进服时序整形（`network/RecipeSyncJoinOrderer`）——JEI 警告根因与修复
@@ -125,7 +125,7 @@ recipes:    VarInt(count) + RecipeHolder.STREAM_CODEC 列表
 - **32767** = 客户端对**未知通道** custom payload 的 discarded 解码上限（超过断连）——对发给 vanilla/未装 mod 客户端的任意通道成立，servux 的 PacketSplitter 32000 分片防的就是它。
 - **已知通道不受此限**：Fabric API 把 `fabric:recipe_sync` 注册为 64MB large payload（客户端 codec + mixin 提限）。我方单包直发给 Fabric API 客户端安全（26.1.2 实机验证，配方表全量 >1MiB 场景）。
 - jei:* S2C 恒小包（几十字节）；C2S 每帧 ≤32767 字节（vanilla 未知通道 `DiscardedPayload` 解码上限，超限在 netty 解码期拒绝、到不了插件代码）。
-- **包长只限字节流，不限列表声明容量**（2026-09 修复记录：修复前转移包列表解码把声明 count 直达 `ArrayList` 构造容量——5 字节 VarInt 可声明 2^31，GB 级预分配的 `OutOfMemoryError` 是 Error，穿透全部 catch(Exception)，可达主线程）。现行防护：列表预分配容量按 vanilla 26.1.2 `ByteBufCodecs.collection(...)` decode 同源的 `Math.min(count, 65536)` 封顶（`AbstractRecipeTransferPacket.MAX_INITIAL_LIST_CAPACITY`）——超大声明在元素循环内字节耗尽 fail-fast、负数由 ArrayList 构造器抛 IAE，均被 `JeiServerPlayHandler` 逐包 catch(Exception) 记日志丢弃、连接保持（`RecipeTransferListBoundTest` 回归覆盖）。
+- **包长只限字节流，不限列表声明容量**（2026-09 修复记录：修复前转移包列表解码把声明 count 直达 `ArrayList` 构造容量——5 字节 VarInt 可声明 2^31，GB 级预分配的 `OutOfMemoryError` 是 Error，穿透全部 catch(Exception)，可达主线程）。现行防护：列表预分配容量按 vanilla 26.1.2 `ByteBufCodecs.collection(...)` decode 同源的 `Math.min(count, 65536)` 封顶（`AbstractRecipeTransferPacket.MAX_INITIAL_LIST_CAPACITY`）——超大声明在元素循环内字节耗尽 fail-fast、负数由 ArrayList 构造器抛 IAE，均被 `JeiServerPlayHandler` 逐包 catch(Exception) 记日志丢弃、连接保持（`RecipeTransferListBoundTest` 回归覆盖）。**已声明的平台级对照差异（2026-09 升格）**：上游畸形 C2S 在 Fabric API/vanilla 协议层解码（STREAM_CODEC 于 netty 层执行），异常即断连；我方 C2S 经 plugin messaging 裸字节进入、解码发生在 handler 内，逐包 catch 记日志丢弃、连接保持——属 plugin messaging 路径的结构性设计（排错靠 `[JEI] C2S 处理失败` 日志而非客户端断连），非疏漏。
 
 ## 7. 模块结构（`mod/jei/`，自管形态——黄金模板 syncmatica）
 

@@ -13,11 +13,13 @@ import net.minecraft.world.level.ChunkPos;
  * <p>对照上游 {@code scheduler/info_hud/InfoHudSync.java:46-78 + InfoHudSyncChunks.java:38-72}（v3 极简合并）。
  * 线格式（客户端读端 litematica {@code InfoHudSync.onReceiveInfoSync:85-122} 实证）：
  * <ul>
- *   <li>进度帧：{@code {InfoHudComplete:false, InfoHudSync:[{Type:"REMAINING_CHUNKS", Data:[{n,rc,cx,cz}×≤10]}]}}；</li>
+ *   <li>进度帧：{@code {InfoHudComplete:false, InfoHudSync:[{Type:"REMAINING_CHUNKS", Data:[{n,rc,cx,cz}×≤10]}]}}，
+ *       每条目均为<b>真实区块坐标</b>——上游 TaskBase:165 的 {@code Entry(title,total,-1,-1)} 仅作
+ *       {@code nextChunk} 模板从不入列（:172 只 addInfo 真实条目），无 cx=-1 标题条目；客户端标题行
+ *       由 getFirst() 条目的 n/rc 合成（InfoHudSyncChunks:73-91），rc = 待处理区块总数、n = 任务名；</li>
  *   <li>完成帧：<b>仅</b> {@code {InfoHudComplete:true}}、不带 InfoHudSync 键（客户端缺键回空列表，安全）；</li>
  *   <li>{@code Type} 字面量必须是枚举常量名 {@value #TYPE_REMAINING_CHUNKS}——客户端
- *       {@code InfoHudSyncType.valueOf} 无容错，未知值直接抛异常（B 轮实证，单测断言锁死）；</li>
- *   <li>条目首行为标题行（cx=-1，客户端跳过坐标渲染），rc = 待处理区块<b>总数</b>，n = 任务名。</li>
+ *       {@code InfoHudSyncType.valueOf} 无容错，未知值直接抛异常（B 轮实证，单测断言锁死）。</li>
  * </ul>
  */
 public final class InfoHudTaskSync
@@ -28,7 +30,9 @@ public final class InfoHudTaskSync
     private InfoHudTaskSync() { }
 
     /**
-     * 进度帧：标题行（cx=-1）+ 最近优先的前 10 个区块坐标（上游 TaskBase.updateInfoHudLinesPendingChunks:162-173）。
+     * 进度帧：最近优先的前 10 个区块条目（上游 TaskBase.updateInfoHudLinesPendingChunks:162-173——
+     * 模板条目从不入列，仅 nextChunk 真实坐标；每条目 n=任务名、rc=待处理总数，客户端标题由
+     * getFirst() 的 n/rc 合成，坐标行守卫 rc>0 && cx!=-1）。
      *
      * @param title 任务名（"Fill" / "Delete"）
      * @param sortedPending 已按最近优先排序的待处理区块列表
@@ -38,8 +42,6 @@ public final class InfoHudTaskSync
         ListTag dataList = new ListTag();
         int total = sortedPending.size();
         int maxLines = Math.min(total, 10);
-
-        dataList.add(entryToData(title, total, -1, -1));
 
         for (int i = 0; i < maxLines; ++i)
         {

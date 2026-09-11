@@ -21,7 +21,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <ul>
  *   <li>Box 线格式 = 客户端 {@code Box.CODEC}（RecordCodecBuilder: pos1/pos2 = BlockPos.CODEC，malilib DataOps
  *       INT_STREAM → IntArrayTag[x,y,z]，name = string）——B 轮字节码级实证；</li>
- *   <li>type 16 进度/完成帧（InfoHudTaskSync 组包 ↔ litematica InfoHudSync 读端对偶）；</li>
+ *   <li>type 16 进度/完成帧（InfoHudTaskSync 组包 ↔ litematica InfoHudSync 读端对偶）：Data 每条目均为
+ *       真实区块坐标——上游 TaskBase:165 模板从不入列，无 cx=-1 标题条目（2026-09 修正：曾自创标题行
+ *       占 maxLines 一位致客户端少渲染 1 条坐标行）；</li>
  *   <li>{@code Type} 字面量必须为枚举常量名 "REMAINING_CHUNKS"（客户端 valueOf 无容错，未知值抛异常）。</li>
  * </ul>
  */
@@ -86,17 +88,18 @@ class TaskGroupTest
         assertTrue(InfoHudTaskSync.isRemainingChunksType(entry),
                 "Type 必须为枚举常量名 REMAINING_CHUNKS，实际: " + entry.getStringOr("Type", ""));
 
-        // Data：标题行（cx=-1）+ 每区块一行（cx/cz = 区块坐标），rc = 待处理总数
+        // Data：每条目 = 真实区块行（无 cx=-1 标题条目——上游 TaskBase:165 模板从不入列），
+        // 首条目即首个区块：客户端标题由 getFirst() 的 n/rc 合成（InfoHudSyncChunks:73-91）
         ListTag data = entry.getListOrEmpty("Data");
-        assertEquals(1 + pending.size(), data.size());
-        CompoundTag titleRow = data.getCompoundOrEmpty(0);
-        assertEquals("Fill", titleRow.getStringOr("n", ""));
-        assertEquals(pending.size(), titleRow.getIntOr("rc", -1));
-        assertEquals(-1, titleRow.getIntOr("cx", 0));
-        assertEquals(-1, titleRow.getIntOr("cz", 0));
-        CompoundTag firstChunkRow = data.getCompoundOrEmpty(1);
+        assertEquals(pending.size(), data.size());
+        CompoundTag firstChunkRow = data.getCompoundOrEmpty(0);
+        assertEquals("Fill", firstChunkRow.getStringOr("n", ""));
+        assertEquals(pending.size(), firstChunkRow.getIntOr("rc", -1));
         assertEquals(100, firstChunkRow.getIntOr("cx", -999));
         assertEquals(200, firstChunkRow.getIntOr("cz", -999));
+        CompoundTag secondChunkRow = data.getCompoundOrEmpty(1);
+        assertEquals(-5, secondChunkRow.getIntOr("cx", -999));
+        assertEquals(7, secondChunkRow.getIntOr("cz", -999));
     }
 
     @org.junit.jupiter.api.Test
@@ -111,7 +114,7 @@ class TaskGroupTest
         CompoundTag frame = InfoHudTaskSync.progressFrame("Delete", pending);
         ListTag data = frame.getListOrEmpty("InfoHudSync").getCompoundOrEmpty(0).getListOrEmpty("Data");
 
-        assertEquals(11, data.size(), "标题行 + 最多 10 个区块坐标行");
+        assertEquals(10, data.size(), "最多 10 个区块条目（无标题行占位——上游 wire 形状）");
         assertEquals(25, data.getCompoundOrEmpty(0).getIntOr("rc", -1), "rc = 待处理总数（非展示行数）");
         assertEquals("Delete", data.getCompoundOrEmpty(0).getStringOr("n", ""));
     }
