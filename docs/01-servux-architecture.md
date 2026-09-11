@@ -256,7 +256,7 @@ Servux 用一套**自定义事件总线**（`event/*Handler` 单例 + `interface
 ## 9. i18n / 日志 / Reference
 
 - **`Reference`**（`Reference.java`）：`MOD_ID="servux"`、`MC_VERSION`、`MOD_STRING`（协议握手里的 `servux` 字段值，形如 `servux-fabric-1.21.11-0.9.4`）、`DEV_DEBUG`、`DEFAULT_CONFIG_DIR`（= `FabricLoader.getConfigDir()`）。
-  > **移植**：`MOD_STRING` 要改成 Paper 版标识（如 `servux-paper-1.21.11-x.y.z`）；`DEFAULT_CONFIG_DIR` = `plugin.getDataFolder()`。
+  > **移植**：`MOD_STRING` 必须保持 fabric 前缀伪装——`servux-fabric-<精确上游 MC 版本>-<插件版本>`（`MOD_TYPE` 恒 `"fabric"`；26.1 客户端按 `startsWith("servux-fabric-<精确上游id>")` 硬门禁，`"paper"` 前缀会被四通道静默拒绝）；`DEFAULT_CONFIG_DIR` = `plugin.getDataFolder()`。
 - **i18n**（`util/i18n/` + `util/i18nLang.java`）：`servux.*` 翻译键，读 `assets/servux/lang/*.json`。
   > **移植**：Paper 插件用自带 lang 文件或直接硬编码中文/英文消息；masa 客户端不关心服务端消息语言。
 - **日志**（`util/log/AnsiLogger`）：带 ANSI 颜色的日志器。

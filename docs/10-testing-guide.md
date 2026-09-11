@@ -151,8 +151,8 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 **预期（成功判据）—— 三处任一可见即通过**：
 
 - ✅ 服务端日志：`[DBG/PACKET] C2S litematics ← <玩家> type=PACKET_C2S_METADATA_REQUEST`
-- ✅ 服务端日志：`[DBG/HANDSHAKE] litematic sendMetadata → <玩家> ok=true servux=servux-paper-... ver=1`
-- ✅ 客户端日志（`.minecraft/logs/latest.log`）：`LitematicDataChannel: joining Servux version servux-paper-...`
+- ✅ 服务端日志：`[DBG/HANDSHAKE] litematic sendMetadata → <玩家> ok=true servux=servux-fabric-26.1.2-b3 ver=2`
+- ✅ 客户端日志（`.minecraft/logs/latest.log`）：`LitematicDataChannel: joining Servux version servux-fabric-26.1.2-b3`
 
 **若失败**：服务端只有 C2S 没有 `ok=true` 的 S2C → 握手回程丢包，查 §7 排错。
 
@@ -275,11 +275,11 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 | 通道 | 客户端期望（`PROTOCOL_VERSION`） | 我们下发 |
 |---|---|---|
-| hud_metadata | 2 | 2（`ServuxHudPacket.PROTOCOL_VERSION`） |
-| entity_data | 1 | 1 |
-| structures | 2 | 2 |
-| tweaks | 1 | 1 |
-| litematics | 1 | 1 |
+| hud_metadata | 3 | 3（`ServuxHudPacket.PROTOCOL_VERSION`） |
+| entity_data | 2 | 2 |
+| structures | 3 | 3 |
+| tweaks | 2 | 2 |
+| litematics | 2 | 2 |
 
 ---
 

@@ -143,7 +143,7 @@ public static final int MAX_PAYLOAD_PER_PACKET_S2C = MAX_TOTAL_PER_PACKET_S2C - 
 public static final int DEFAULT_MAX_RECEIVE_SIZE_S2C = 67_108_864;  // 64 MiB（接收端缓冲上限；receive 默认用它）
 public static final int MAX_REASSEMBLY_SIZE_S2C = 16_777_216;       // 26.1 客户端重组上限预检（send 入口严格 >，恰好相等放行）
 // 原版另有 MAX_TOTAL_PER_PACKET_C2S / MAX_PAYLOAD_PER_PACKET_C2S / DEFAULT_MAX_RECEIVE_SIZE_C2S
-// 三个 C2S 专用常量，但本实现 C2S/S2C 共用单物理通道，C2S 常量全代码库零引用——已在 F006 删除。
+// 三个 C2S 专用常量，但本实现 C2S/S2C 共用单物理通道，C2S 常量全代码库零引用——已删除。
 // C2S 上传（servux litematic 粘贴）的 receive 也走 DEFAULT_MAX_RECEIVE_SIZE_S2C（64MB）。
 ```
 

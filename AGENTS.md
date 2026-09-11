@@ -57,7 +57,7 @@
 
 **当前状态**（2026-09，以上游版本清单为准）：
 - 上游最新 release **26.2**，snapshot **26.3-pre-3**（26.3 将近）。
-- **`dev → main` 承载 26.1 线（26.1.2）**：26.1 全量迁移已完成（构建面 Java 25 / 新 dev-bundle 格式 / reobf 废除、协议面 DataTag 载体 + 版本常量 + 硬门禁对齐、NMS 漂移 39 处修复），`./gradlew build` 23/23 单测全绿，Paper 26.1.2 实机起服验证通过。
+- **`dev → main` 承载 26.1 线（26.1.2）**：26.1 全量迁移已完成（构建面 Java 25 / 新 dev-bundle 格式 / reobf 废除、协议面 DataTag 载体 + 版本常量 + 硬门禁对齐、NMS 漂移 39 处修复），`./gradlew build` 18 个测试类 / 110 个单测全绿，Paper 26.1.2 实机起服验证通过。
 - **1.21.11 是旧版本**：`ver/1.21.11` + `ver/1.21.11-dev` 维护对已从 `main`（tag `v1.21.11-b1`）冻结切出。
 - 适配 26.2 属后续工作（冻结 ver/26.1.2 对 → dev 升 mcVersion + bundle → NMS/协议漂移核对，见「升级 Minecraft 版本」）。
 
@@ -141,7 +141,7 @@ gradle.properties（mcVersion=26.1.2 · buildNumber=3）          ← 唯一改�
 | mod | 包结构 | 装配方式 |
 |---|---|---|
 | **servux** | `app/ServuxModule`、`command/`、`dataproviders/`（6 Provider）、`network/`（5 Handler+Packet）、`easyplace/`、`loggers/`、`schematic/`（container/selection/placement/transmit）、`util/` | `ServuxModule.onRegister(DataProviderManager)` 注册 6 Provider + 反射加载 EasyPlace |
-| **jei** | `app/JeiModule`、`JeiReference`、`network/`（JeiServerPlayHandler + JeiPacketSender + RecipeSyncJoinOrderer（fabric 腿进服时序整形——netty 出站扣住 UpdateRecipesPacket、等 play register 证据后放行，复刻上游 PlayerListMixin 时序，见 docs/30 §5.3）+ `payload/` 10 包类 + `legacy/`）、`transfer/`（TransferOperation + BasicRecipeTransferHandlerServer）、`cheat/`（Cheats + GiveMode）、`recipesync/`（Fabric/Neoforge 双 payload + RecipeSyncService）、`config/JeiConfiguration`、`command/JeiCommand` | `JeiModule.enable(plugin)`（**自管**——仿 syncmatica：ChannelManager 注册 8 条 jei:* C2S + Messenger 出站声明配方通道 + RegisterChannel/Join/AsyncConfigure 监听；onDisable 调 `JeiModule.disable()`） |
+| **jei** | `app/JeiModule`、`JeiReference`、`network/`（JeiServerPlayHandler + JeiPacketSender + RecipeSyncJoinOrderer（fabric 腿进服时序整形——netty 出站扣住 UpdateRecipesPacket、等 play register 证据后放行，复刻上游 PlayerListMixin 时序，见 docs/30 §5.2）+ `payload/` 10 包类 + `legacy/`）、`transfer/`（TransferOperation + BasicRecipeTransferHandlerServer）、`cheat/`（Cheats + GiveMode）、`recipesync/`（Fabric/Neoforge 双 payload + RecipeSyncService）、`config/JeiConfiguration`、`command/JeiCommand` | `JeiModule.enable(plugin)`（**自管**——仿 syncmatica：ChannelManager 注册 8 条 jei:* C2S + Messenger 出站声明配方通道 + RegisterChannel/Join/AsyncConfigure 监听；onDisable 调 `JeiModule.disable()`） |
 | **syncmatica** | `app/SyncmaticaModule`、`SyncmaticaContext`、`communication/`（+`exchange/`）、`data/`（+`litematica/`）、`extended_core/`、`network/`、`service/`、`util/` | `SyncmaticaModule.enable(plugin)`（**不走 DataProviderManager**——Exchange 会话模型，自管通道注册 + 玩家监听） |
 
 主类 `VeryMcProto.onEnable()`：初始化框架（ChannelManager / DataProviderManager / LifecycleBridge）→ 依次注册 servux / jei / syncmatica 三个模块 → 注册 `/servux` `/jei` `/syncmatica` 命令。所有装配均包 try-catch，任何模块失败只记录日志、降级跳过，绝不影响服务端启动。

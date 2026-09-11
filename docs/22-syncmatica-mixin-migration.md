@@ -139,7 +139,7 @@ ServerPlayHandler.getInstance().registerServerPlayHandler(handler);  // → Chan
 Paper 下 `PlayerJoinEvent` 时客户端 codec **尚未就绪**，立即推 `REGISTER_VERSION` 会握手失败并残留 exchange。**已落地双保险**（`SyncmaticaModule.enable` 注册的 listener）：
 
 1. **主路径**：`PlayerJoinEvent` → `getOrCreateTarget` + `onPlayerJoin`（仅登记）→ `runTaskLater(40t)`（2s，等 configuration phase 完成、客户端 codec 就绪）→ **`tryStartHandshake`**（`ServerCommunicationManager`，幂等：已在 `broadcastTargets` 或已有进行中 `VersionHandshakeServer` 则跳过）。
-2. **兜底/加速**：`PlayerRegisterChannelEvent`（channel == `syncmatica:main`）→ 立即 `tryStartHandshake`（旧式 MC|Register 协商；1.21 Fabric 客户端经 `PayloadTypeRegistry.playS2C()` 声明通道**通常不触发**此事件，故仅作加速/兜底）。
+2. **兜底/主力**：`PlayerRegisterChannelEvent`（channel == `syncmatica:main`）→ 立即 `tryStartHandshake`（26.1 实测：Fabric 客户端进服后**会触发**本事件，但时序可晚于 40t 主路径探针 0~2s+——主路径被守卫拦截（声明未达）时，本路径是声明晚到场景的握手发起主力）。
 
 `tryStartHandshake` 幂等，两路径安全共存。`/syncmatica enable`（恢复协议）对在线玩家走同一 40t 延迟握手路径（`SyncmaticaModule.reconnectOnlinePlayers`）。
 

@@ -147,6 +147,8 @@ Servux Provider 权限不走 Bukkit permission `default`，由 `framework.permis
 | `servux.provider.structure_bounding_boxes` | `structure_bounding_boxes:permission_level`（默认 0） | Structures 基础 |
 | `servux.provider.litematic_data` | `litematic_data:permission_level`（默认 0） | Litematics 基础（上传/粘贴） |
 | `servux.provider.litematic_data.paste` | `litematic_data:permission_level_paste`（默认 0） | **粘贴**投影到世界（另需创造模式） |
+| `servux.provider.litematic_data.task.fill` | `litematic_data:permission_level_tasks`（默认 0） | Fill task 受理（须同时过基础节点 + 创造模式） |
+| `servux.provider.litematic_data.task.delete` | `litematic_data:permission_level_tasks`（默认 0） | Delete task 受理（须同时过基础节点 + 创造模式） |
 
 > `nbt_query_override` 关闭时，Entities NBT 查询**回退原版权限 `minecraft.command.data`**（等级 2），与原版 `/data` 命令权限对齐。
 
@@ -175,6 +177,19 @@ commands:
 ### 3.1 `servux.json`
 
 按 Provider 分段，每段承载该 Provider 的 settings。**每个键都可用 `/servux set <provider:key> <value>` 修改**（免手编）。int 范围记法 `[min..max] default`。
+
+顶层另有 **`DataProviderToggles`** 段——6 个布尔键 = Provider 逻辑名，即各 Provider 的启用开关；`/servux enable|disable <provider>` 即时写入此段（`servux_main` 恒启用、永不可停用）：
+
+```jsonc
+"DataProviderToggles": {
+  "servux_main": true,               // 恒 true（ALWAYS_ENABLED，永不可停用）
+  "hud_data": true,
+  "entity_data": true,
+  "tweaks_data": true,
+  "structure_bounding_boxes": true,
+  "litematic_data": true
+}
+```
 
 #### `servux_main`（`servux:main`）
 
@@ -244,9 +259,12 @@ commands:
 |---|---|---|---|
 | `permission_level` | int [0..4] | 0 | 基础权限（上传/粘贴） |
 | `permission_level_paste` | int [0..4] | 0 | 粘贴到世界的权限 |
+| `permission_level_tasks` | int [0..4] | 0 | task 组（Fill/Delete）受理权限等级（节点 `.task.fill` / `.task.delete`，见 §2.2） |
+| `player_task_feedback` | bool | false | task 完成/中断聊天反馈 |
 | `fix_rail_rotations` | bool | true | 粘贴时修复铁轨朝向 |
 | `fix_stairs_mirror` | bool | true | 粘贴时修复楼梯镜像 |
 | `fix_chest_mirror` | bool | true | 粘贴时修复箱子镜像 |
+| `deduplicate_schematic_entities` | bool | false | 粘贴实体去重：false = 撞车重排开（id/UUID 与世界撞车时改派新值）；true = 跳过重排（依赖原版 UUID 唯一性拒绝重复实体） |
 
 ### 3.2 `jei.json`
 
@@ -287,7 +305,7 @@ commands:
 
 ```
 plugins/VeryMcProto/
-├── servux.json                 Servux 全局配置（6 个 Provider 段）
+├── servux.json                 Servux 全局配置（DataProviderToggles + 6 个 Provider settings 段）
 ├── jei.json                    JEI 配置（enabled + cheat 三开关；迁移旧 jei-recipe-bridge.json）
 ├── syncmatica-config.json      Syncmatica 配置（quota / debug / debugLog 段）
 ├── placements.json             Syncmatica placement 元数据持久化（+ .bak / .new 原子写）
@@ -331,11 +349,11 @@ S2C 路径排查：`/syncmatica debug s2c`（查看）→ `/syncmatica debug s2c
 
 | 症状 | 看哪里 |
 |---|---|
-| 客户端进服但收不到数据 | 查 Provider 是否启用（`/servux info` 查该 Provider 任一 setting / `/servux debug cat provider`）；查 `permission_level`；开 `handshake` 分类看握手是否成功（客户端侧先确认 `entityDataSync` 开关已开——`not_enabled` 是客户端本地开关未开，与服务端无关，见 [`10`](10-testing-guide.md) §2） |
+| 客户端进服但收不到数据 | 查 Provider 是否启用（看 `servux.json` 顶层 `DataProviderToggles` 段 / 开 `/servux debug cat provider` 看生命周期日志——`/servux info` 只回显 setting 现值/默认值，不含启用状态）；查 `permission_level`；开 `handshake` 分类看握手是否成功（客户端侧先确认 `entityDataSync` 开关已开——`not_enabled` 是客户端本地开关未开，与服务端无关，见 [`10`](10-testing-guide.md) §2） |
 | 大投影粘贴 / 上传失败 | 查客户端是否因 32,767 字节断连；开 `network`/`packet` 看分片（字节限制教义见 [`09`](09-DELIVERY.md)） |
 | EasyPlace 无反应 | 确认服务器装了 PacketEvents 插件（`softdepend`）；开 `easyplace` 分类 |
 | Syncmatica 客户端连不上 | 默认 NMS 直发；`/syncmatica debug s2c` 确认路径；开 `handshake` 看握手链 |
-| JEI 配方不同步 | `/jei` 确认 `enabled`；fabric 腿要求客户端声明 `fabric:recipe_sync`（任何 Fabric-API 客户端都会）；进服时序整形器（`RecipeSyncJoinOrderer`）必须出现在 pipeline——缺失/安装失败会降级为旧时序（警告 + 客户端本地配方）；注意只影响**之后**进服的玩家（详见 [`30`](30-jei-protocol.md) §5.3） |
+| JEI 配方不同步 | `/jei` 确认 `enabled`；fabric 腿要求客户端声明 `fabric:recipe_sync`（任何 Fabric-API 客户端都会）；进服时序整形器（`RecipeSyncJoinOrderer`）必须出现在 pipeline——缺失/安装失败会降级为旧时序（警告 + 客户端本地配方）；注意只影响**之后**进服的玩家（详见 [`30`](30-jei-protocol.md) §5.2） |
 
 > Servux / Syncmatica 各通道的逐步实测步骤见 [`10`](10-testing-guide.md) 与 [`24`](24-syncmatica-testing-guide.md)。
 

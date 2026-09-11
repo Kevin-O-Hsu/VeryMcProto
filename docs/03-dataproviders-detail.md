@@ -10,17 +10,17 @@
 
 | Provider | 通道(网络名) | 协议版本 | 主要采集数据 | Paper 数据来源 | 迁移难度 |
 |---|---|---|---|---|---|
-| `HudDataProvider` | `servux:hud_metadata` | **2** | 元数据/出生点/天气/配方/TPS·MobCap | 大部分 Bukkit API；TPS/MobCap 需 NMS | 中 |
-| `EntitiesDataProvider` | `servux:entity_data` | 1 | 方块实体/实体 NBT 查询（含玩家背包过滤） | NMS `saveWithFullMetadata` / `saveWithoutId` | 中 |
-| `TweaksDataProvider` | `servux:tweaks` | 1 | tweak 元数据 + NBT 查询（复用 Entities 逻辑） | 同上 | 低 |
-| `StructureDataProvider` | `servux:structures` | **2** | 原版结构边界框 | **纯 NMS**（`ChunkAccess.getAllReferences`/`StructureStart.createTag`） | **高** |
+| `HudDataProvider` | `servux:hud_metadata` | **3** | 元数据/出生点/天气/配方/TPS·MobCap | 大部分 Bukkit API；TPS/MobCap 需 NMS | 中 |
+| `EntitiesDataProvider` | `servux:entity_data` | 2 | 方块实体/实体 NBT 查询（含玩家背包过滤） | NMS `saveWithFullMetadata` / `saveWithoutId` | 中 |
+| `TweaksDataProvider` | `servux:tweaks` | 2 | tweak 元数据 + NBT 查询（复用 Entities 逻辑） | 同上 | 低 |
+| `StructureDataProvider` | `servux:structures` | **3** | 原版结构边界框 | **纯 NMS**（`ChunkAccess.getAllReferences`/`StructureStart.createTag`） | **高** |
 | `LitematicsDataProvider` | `servux:litematics` | 2 | 投影粘贴/批量实体（S2C 投递已删） | NMS（投影系统见 [05](05-schematic-system.md)） | 高 |
 
 ---
 
 ## 1. `HudDataProvider`（配 MiniHUD）⭐ 最核心
 
-> 原版：`dataproviders/HudDataProvider.java`（795 行）。协议通道 `servux:hud_metadata`，协议版本 **2**。
+> 原版：`dataproviders/HudDataProvider.java`（795 行）。协议通道 `servux:hud_metadata`，协议版本 **3**。
 
 ### 1.1 回应的 4 类请求 + 1 类主动推送（packetType）
 
@@ -172,7 +172,7 @@ for (ServerLevel world : server.getAllLevels()) {                       // Paper
 
 ## 2. `EntitiesDataProvider`（配 MiniHUD/Tweakeroo 的实体查询）
 
-> 原版：`dataproviders/EntitiesDataProvider.java`（300 行）。协议通道 `servux:entity_data`，协议版本 1。
+> 原版：`dataproviders/EntitiesDataProvider.java`（300 行）。协议通道 `servux:entity_data`，协议版本 2。
 
 ### 2.1 回应请求
 
@@ -216,12 +216,12 @@ if (entity.getType() == EntityType.PLAYER && !entity.getUUID().equals(player.get
 
 ## 3. `TweaksDataProvider`（配 Tweakeroo）
 
-> 原版：`dataproviders/TweaksDataProvider.java`（373 行）。协议通道 `servux:tweaks`，协议版本 1。
+> 原版：`dataproviders/TweaksDataProvider.java`（373 行）。协议通道 `servux:tweaks`，协议版本 2。
 
 ### 3.1 元数据（`:176-199`）
 
 ```
-name="tweaks_data", id="servux:tweaks", version=1, servux=<MOD_STRING>
+name="tweaks_data", id="servux:tweaks", version=2, servux=<MOD_STRING>
 ```
 
 ### 3.2 NBT 查询（复用 Entities 逻辑）
@@ -238,7 +238,7 @@ name="tweaks_data", id="servux:tweaks", version=1, servux=<MOD_STRING>
 
 ## 4. `StructureDataProvider`（配 MiniHUD 的结构边界框）⭐ 高难度
 
-> 原版：`dataproviders/StructureDataProvider.java`（557 行）。协议通道 `servux:structures`，协议版本 **2**。
+> 原版：`dataproviders/StructureDataProvider.java`（557 行）。协议通道 `servux:structures`，协议版本 **3**。
 
 ### 4.1 数据内容
 
@@ -296,7 +296,7 @@ Identifier type = BuiltInRegistries.STRUCTURE_TYPE.getKey(structure.type());    
 
 ## 5. `LitematicsDataProvider`（配 Litematica）⭐ 大模块
 
-> 原版：`dataproviders/LitematicsDataProvider.java`（424 行）。协议通道 `servux:litematics`，协议版本 1。
+> 原版：`dataproviders/LitematicsDataProvider.java`（424 行）。协议通道 `servux:litematics`，协议版本 2。
 > 投影数据结构与传输协议详见 [05-schematic-system.md](05-schematic-system.md)。本节只列协议操作。
 
 ### 5.1 提供的操作（packetType / Task）

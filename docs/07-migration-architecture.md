@@ -56,7 +56,7 @@ verymc.top.veryMcProto/
 └── mod/                          ★ 协议 mod 层（每个被移植的 Fabric 协议 mod 一个目录单元）
     ├── servux/                   app/ServuxModule + command/ + dataproviders/（6 Provider）+ network/（5 Handler+Packet）
     │                             + easyplace/ + loggers/ + scheduler/（task 组五类）+ schematic/ + util/
-    ├── jei/                      app/JeiModule + network/（含 RecipeSyncJoinOrderer）+ payload/ + transfer/ + cheat/
+    ├── jei/                      app/JeiModule + network/（含 RecipeSyncJoinOrderer；payload/ 为其子包、含 legacy/ 子层）+ transfer/ + cheat/
     │                             + recipesync/ + config/ + command/
     └── syncmatica/               app/SyncmaticaModule + communication/（+exchange/）+ data/（+litematica/）
                                   + extended_core/ + network/ + service/ + util/
