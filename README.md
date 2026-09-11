@@ -17,18 +17,11 @@ Servux ✅  ·  JEI ✅  ·  Syncmatica ✅   (all three targets fully implement
 - [3. Requirements](#3-requirements)
 - [4. Installation](#4-installation)
 - [5. Architecture](#5-architecture)
-- [6. Commands](#6-commands)
-- [7. Permissions](#7-permissions)
-- [8. Configuration](#8-configuration)
-- [9. Data Layout](#9-data-layout)
-- [10. Feature Matrix](#10-feature-matrix)
-- [11. Network Protocol](#11-network-protocol)
-- [12. Debugging](#12-debugging)
-- [13. Compatibility Testing](#13-compatibility-testing)
-- [14. Developers](#14-developers)
-- [15. Docs Index](#15-docs-index)
-- [16. FAQ](#16-faq)
-- [17. Credits](#17-credits)
+- [6. Feature Matrix](#6-feature-matrix)
+- [7. Docs & Guides](#7-docs--guides)
+- [8. FAQ](#8-faq)
+- [9. Credits](#9-credits)
+- [License](#license)
 
 ---
 
@@ -40,8 +33,8 @@ Servux ✅  ·  JEI ✅  ·  Syncmatica ✅   (all three targets fully implement
 
 Why this is necessary:
 
-- The server-side parts of these protocol mods rely heavily on **NMS internals** (`NaturalSpawner.SpawnState`, `ServerTickRateManager`, `ChunkAccess.getAllReferences()`, `StructureStart.createTag()`, `Recipe.CODEC` + `NbtOps`, `BlockEntity.saveWithFullMetadata()`, etc.) — unreachable via the pure Paper API.
-- They use **Mojang's vanilla `CustomPacketPayload`** mechanism (Fabric's `ServerPlayNetworking` is merely a registration wrapper around this vanilla mechanism). Paper's plugin messaging channels map directly to vanilla custom payload channels, and S2C large packets can be sent via NMS `ClientboundCustomPayloadPacket` to bypass plugin messaging size limits.
+- The server-side parts of these protocol mods rely heavily on **NMS internals** — unreachable via the pure Paper API (see the [FAQ](#8-faq)).
+- They use **Mojang's vanilla `CustomPacketPayload`** mechanism; Paper's plugin messaging channels map directly onto it, and S2C large packets can go via NMS `ClientboundCustomPayloadPacket`.
 - Server-side cooperative features (e.g. EasyPlace) use Mixin in the original; Paper has no Mixin runtime, so an equivalent is implemented via **PacketEvents**.
 
 This project uses **paperweight `userdev`** to reference fully-deobfuscated Mojang NMS at dev time. **Since MC 26.1 Paper no longer supports remapping plugins to Spigot mappings** (Mojang removed server obfuscation), the build artifact is the **Mojang-mapped jar itself** — standard Paper 26.1+ loads it directly. **It depends on no server patch / Mixin / private fork.**
@@ -50,61 +43,21 @@ This project uses **paperweight `userdev`** to reference fully-deobfuscated Moja
 
 ## 2. Protocol Mods
 
-|  Mod                    |  Client Mod                                   |  Nature                                                                 |  Status  |
-| ----------------------- | --------------------------------------------- | ----------------------------------------------------------------------- | -------- |
-|  **Servux**             |  masa's **MiniHUD / Litematica / Tweakeroo**  |  Server→client **one-way broadcast** (6 providers)                      |  ✅ Full  |
-|  **JEI**                |  **JEI** (mezz/JustEnoughItems 26.1)          |  **Full server protocol**: recipe sync + cheat + recipe transfer        |  ✅ Full  |
-|  **Syncmatica**         |  **endte syncmatica**                         |  **Bidirectional, stateful, multi-player shared** schematic repository  |  ✅ Full  |
+| Mod | Client Mod | Nature | Status |
+| --- | --- | --- | --- |
+| **Servux** | masa's **MiniHUD / Litematica / Tweakeroo** | Server→client **one-way broadcast** (6 providers over `servux:*` channels) | ✅ Full |
+| **JEI** | **JEI** (mezz/JustEnoughItems 26.1) | **Full server protocol**: recipe sync + cheat + recipe transfer (`fabric:recipe_sync` / `neoforge:recipe_content` + 10 `jei:*` channels) | ✅ Full |
+| **Syncmatica** | **endte syncmatica** | **Bidirectional, stateful, multi-player shared** schematic repository (`syncmatica:main` + 18 PacketTypes + Exchange sessions) | ✅ Full |
 
-### 1. Servux
+**Servux** delivers world metadata / spawn / weather / TPS / MobCap, structure bounding boxes, entity & block-entity NBT queries, and Litematica schematic paste (C2S upload + server-side paste). EasyPlace (Tweakeroo precise placement) is served via PacketEvents. The S2C file-transmit path was removed — the stock 26.1 client has no receiver for it.
 
-A server-side protocol mod that delivers data to masa's client mods (MiniHUD / Litematica / Tweakeroo) via `servux:*` custom channels:
+**JEI**: recipe sync (loader-level channels, join-time packet ordering via `RecipeSyncJoinOrderer`), the `jei:*` cheat/transfer channels with a server-side permission model, and the line-by-line ported `BasicRecipeTransferHandlerServer`.
 
-- **World metadata** (difficulty/weather/spawn point/seed), **TPS / MobCap** periodic logging
-- **Structure bounding boxes** (periodic chunk scanning; rendered by the structure debugger / MiniHUD)
-- **Litematica schematic paste** (C2S receives client uploads and pastes them into the world; S2C transmit removed — the stock 26.1 client has no receiver for it, see docs/05 §3)
-- **Entity / block-entity NBT query** (client selects, server returns full NBT)
-- **EasyPlace** server-side precise placement protocol (Tweakeroo cooperation; implemented via PacketEvents)
+**Syncmatica**: the server acts as a central `.litematic` repository; players upload / download / collaboratively modify placements through Exchange request-acknowledgement sessions, with JSON persistence and upload quotas.
 
-**6 channels** (the network channel name ≠ the provider logical name; source-verified in `ServuxReference.java`):
+> 26.1 introduced hard client-side gates (protocol versions must match exactly; the `servux` handshake string must start with `servux-fabric-<exact upstream MC id>`), a new DataTag NBT wire carrier, and a 16MB client reassembly cap. All of this is implemented and documented in [`docs/09-DELIVERY.md`](docs/09-DELIVERY.md) §26.1.
 
-|  Channel (network name)  |  Provider (logical name)     |  Protocol version  |  Purpose                                                                                                                        |
-| ------------------------ | ---------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-|  `servux:main`           |  `servux_main`               |  —                 |  **Config main channel** (ConfigProvider; **permanently enabled**; **sends no network packets**; only carries global settings)  |
-|  `servux:hud_metadata`   |  `hud_data`                  |  3                 |  HUD: world metadata / spawn point / weather / TPS / MobCap / recipes                                                           |
-|  `servux:entity_data`    |  `entity_data`               |  2                 |  Entities: block-entity / entity NBT query                                                                                      |
-|  `servux:tweaks`         |  `tweaks_data`               |  2                 |  Tweaks: entity / block-entity NBT (same pattern as Entities)                                                                   |
-|  `servux:structures`     |  `structure_bounding_boxes`  |  3                 |  Structures: structure bounding boxes (periodic chunk scan)                                                                     |
-|  `servux:litematics`     |  `litematic_data`            |  2                 |  Litematics: schematic paste / bulk entities (S2C transmit removed)                                                                         |
-
-> **26.1 wire changes** (vs 1.21.11, all verified against the LTS/26.1 client sources): protocol versions bumped as above; the `servux` handshake field is now a **hard gate** on the client — it must start with `servux-fabric-<exact upstream MC id>` (e.g. `servux-fabric-26.1.2-b3`), so the server impersonates `fabric`; most business packets switched their NBT carrier from vanilla `writeNbt` to the **malilib DataTag wire format** (`[int32 BE compressed length][GZIP'd named-root NBT stream]`, see `DataTagIo`); the C2S `transactionId` VarInt prefix was removed; Structures dropped types 10/11/12 (spawn/weather now HUD-only); new `UNREGISTER_REPLY` types (HUD=9 / Entities=7 / Tweaks=7 / Litematics=8); the malilib client reassembly cap dropped **128MB → 16MB** (server-side 16MB frame guard in `PacketSplitter.send`; the per-file transmit gate was removed with the S2C transmit dead path). The Litematica **task group (types 14-17, Fill/Delete via servux) is implemented**: `TASK_REQUEST` → per-tick budgeted server-side fill/delete with InfoHud status sync (`REMAINING_CHUNKS` frames) and completion frames (see docs/09 §26.1.5; type 15 stays encodable-but-unsent since the client's receiver is TODO'd upstream, and type 17 is upstream-identically ignored).
-
-### 2. JEI (full server protocol, upstream = mezz/JustEnoughItems `26.1` branch)
-
-Since 2026-09 the upstream is **mezz/JustEnoughItems** itself (JEI 29.37.0 / MC 26.1.2; the former Mrbysco/JEIRecipeBridge reference is discontinued and only ever covered the recipe-sync slice on 1.21.11). Three layers:
-
-- **Recipe sync layer** (S2C, loader-level wire):
-  - Fabric client → `fabric:recipe_sync` (Fabric API `fabric-recipe-api-v1` wire; triggered when the client declares the channel — mirrors upstream's `canSend(player)` gating; vanilla clients get nothing, not even a chat message). A join-time packet orderer (`network/RecipeSyncJoinOrderer`, a netty outbound interceptor installed at the end of the configuration phase) holds the vanilla `ClientboundUpdateRecipesPacket` until that declaration arrives, so the payload always lands **before** it — replicating upstream `PlayerListMixin`'s injection point and eliminating the "This Paper server does not provide recipes to JEI" warning (details: docs/30 §5.3)
-  - NeoForge client → `neoforge:recipe_content` + tag table (triggered on join by client brand — preserved proven behavior)
-  - Sent directly via NMS `ClientboundCustomPayloadPacket` (recipe packs routinely exceed 1MiB; the channel is a client-registered known channel with a 64MB upstream cap, so the single-packet direct send is safe)
-- **`jei:*` channel layer** (10 channels, loader-agnostic):
-  - 8 C2S: `request_cheat_permission` / `give_item_stack` / `delete_player_item` / `set_hotbar_item_stack` / `recipe_transfer_with_result` / `recipe_transfer_counted_with_result` / legacy `recipe_transfer` / legacy `recipe_transfer_counted`
-  - 2 S2C: `cheat_permission` / `recipe_transfer_result`
-  - The client's feature gate `isJeiOnServer()` checks whether the **server declared** `jei:delete_player_item` etc. (channel registration via `ChannelManager`, brand-independent) — with all channels declared, cheat give/delete/hotbar-set and network recipe transfer unlock on Paper
-- **Server behavior layer**: cheat permission model (three switches: op level 2 / `minecraft.command.give` / creative mode, defaults op=true, creative=true, give=false) + `BasicRecipeTransferHandlerServer` ported line-by-line (slot validation, complete-set rollback, failure receipts — no half-applied state)
-
-Protocol details: [docs/30-jei-protocol.md](docs/30-jei-protocol.md).
-
-### 3. Syncmatica
-
-Fundamentally different from Servux (one-way broadcast):
-
-- The **server acts as a central repository** storing `.litematic` files; **multiple players** can upload / download / collaboratively modify placement positions.
-- **Bidirectional and stateful**: a single physical channel `syncmatica:main` + **18 logical PacketTypes** + an **Exchange session layer** (request-acknowledgement state machine).
-- File storage + JSON persistence + **upload quota / debug** services.
-- On handshake, both sides exchange a **FeatureSet** to negotiate the optional-field encoding of metadata / position packets.
-
-**Feature enum** (negotiated on handshake): `CORE` `FEATURE` `MODIFY` `MESSAGE` `QUOTA` `DEBUG` `CORE_EX` `VERSION` `DISPLAY_NAME`. This server advertises the **full FeatureSet** (combined with `MOD_VERSION=26.1.2-b3` — the `-b` build suffix never matches the legacy version regex — to trigger FEATURE exchange so both sides encode with the full set).
+Protocol deep-dives: [docs/02](docs/02-network-protocol.md) (Servux network) · [docs/21](docs/21-syncmatica-protocol.md) (Syncmatica) · [docs/30](docs/30-jei-protocol.md) (JEI).
 
 ---
 
@@ -112,21 +65,21 @@ Fundamentally different from Servux (one-way broadcast):
 
 ### Server
 
-|  Item      |  Requirement                                                                                                               |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------- |
-|  Server    |  **Paper 26.1.2** (`api-version: '26.1.2'`; standard Paper, no patch / fork needed)                                        |
-|  Java      |  **25**                                                                                                                    |
-|  Optional  |  **PacketEvents 2.13.0** (only for EasyPlace; if absent, EasyPlace is gracefully skipped — other features are unaffected)  |
+| Item | Requirement |
+| --- | --- |
+| Server | **Paper 26.1.2** (`api-version: '26.1.2'`; standard Paper, no patch / fork needed) |
+| Java | **25** |
+| Optional | **PacketEvents 2.13.0** (only for EasyPlace; if absent it is gracefully skipped — everything else is unaffected) |
 
 ### Client
 
-|  Feature family                                                              |  Client must install                                                         |
-| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-|  All of Servux (HUD / structures / NBT query / schematic paste / EasyPlace)  |  **MiniHUD** + **Litematica** + **Tweakeroo** (the masa suite, 26.1 LTS)     |
-|  JEI recipe sync + cheat + recipe transfer                                  |  **JEI** (mezz/JustEnoughItems, 26.1 line)                                    |
-|  Schematic sharing                                                           |  **Syncmatica** (endte client, 26.1 LTS)                                     |
+| Feature family | Client must install |
+| --- | --- |
+| All of Servux (HUD / structures / NBT query / schematic paste / EasyPlace) | **MiniHUD** + **Litematica** + **Tweakeroo** (the masa suite, 26.1 LTS) |
+| JEI recipe sync + cheat + recipe transfer | **JEI** (mezz/JustEnoughItems, 26.1 line) |
+| Schematic sharing | **Syncmatica** (endte client, 26.1 LTS) |
 
-> The client version must match the server's **MC 26.1 line (26.1.2)**. The client is the "receiving end" of these features; every protocol field semantic and packet-reassembly behavior is verified against the client source (see `OriginImpl/` for litematica / malilib / syncmatica).
+> The client version must match the server's **MC 26.1 line (26.1.2)**. The client is the "receiving end" of these protocols; every field semantic and reassembly behavior is verified against the client sources.
 
 ---
 
@@ -135,9 +88,7 @@ Fundamentally different from Servux (one-way broadcast):
 1. Get `VeryMcProto-26.1.2-b3.jar` from the project Releases page, or build it with `./gradlew build` (the Mojang-mapped artifact loads directly on standard Paper 26.1+ — no reobf step exists anymore).
 2. Drop it into the server's `plugins/` directory.
 3. **(Optional, only for EasyPlace)** Install the PacketEvents plugin.
-4. With PacketEvents installed, EasyPlace is enabled automatically; without it, it is skipped automatically.
-5. Restart / `/restart` the server.
-6. Players join and install the corresponding client Fabric mods — handshake is automatic.
+4. Restart the server; players join with the corresponding client Fabric mods — handshake is automatic.
 
 On startup the console shows:
 
@@ -151,6 +102,8 @@ On startup the console shows:
 ```
 
 > **Defensive design**: the three mods are assembled each inside its own try-catch; any one failing only logs and degrades gracefully — **it never blocks server startup** and never affects the other mods.
+
+Commands (`/servux`, `/syncmatica`, `/jei`), permission nodes (incl. LuckPerms recipes), every config key of `servux.json` / `jei.json` / `syncmatica-config.json`, the on-disk data layout, and a troubleshooting table live in **[`docs/40-configuration.md`](docs/40-configuration.md)**.
 
 ---
 
@@ -166,536 +119,60 @@ verymc.top.veryMcProto
 │   ├── dataproviders/     Provider registry / scheduler / config hub (used by Servux)
 │   ├── event/             Bukkit event → Provider lifecycle bridge (ServerLoad/Join/Quit/Respawn/RegisterChannel + tick)
 │   ├── debug/             Generic debug logging engine (independent instances per mod; master + category orthogonal; persisted)
-│   ├── permission/        Permission utility (replaces fabric-permissions-api)
-│   ├── reflect/           NMS reflection utility (cached + defensive; degrades to defaults on version drift)
-│   ├── nms/               Bukkit ↔ NMS conversion
-│   ├── settings/          Servux config-option system (Bool/Int/String/StringList/List)
-│   └── util/              JSON / string utilities (Gson pretty + atomic tmp/move write)
+│   ├── permission/ reflect/ nms/ settings/ util/   permission utility, NMS reflection, conversions, config system, JSON utils
 └── mod/                   Protocol-mod layer (each ported Fabric protocol mod occupies one directory unit)
-    ├── servux/            Servux (app/command/dataproviders/network/easyplace/loggers/schematic/util)
+    ├── servux/            Servux (app/command/dataproviders/network/easyplace/loggers/schematic/scheduler/util)
     ├── jei/               JEI full server protocol (recipe sync + jei:* channels)
     └── syncmatica/        Syncmatica (communication/exchange/data/litematica/service/...)
 ```
 
-**Assembly order** (`VeryMcProto.onEnable`): initialize the framework (`ChannelManager` / `DataProviderManager` / `LifecycleBridge`) → register `servux` → `jei` → `syncmatica` in turn → register the `/servux` `/jei` `/syncmatica` commands.
+**Assembly** (`VeryMcProto.onEnable`): initialize the framework → register `servux` → `jei` → `syncmatica` → register the three commands; every step is individually try-catch guarded.
 
-**Key replacements (Fabric → Paper), one-liners**:
+The full Fabric→Paper replacement map (lifecycle hooks → Bukkit events, `ServerPlayNetworking` → plugin messaging + NMS direct send, Mixin → reflection/PacketEvents/omission, etc.), the degradation matrix and the feasibility argument are in [`docs/07-migration-architecture.md`](docs/07-migration-architecture.md).
 
-- `ModInitializer.onInitialize()` → `JavaPlugin.onEnable()`
-- Mixin lifecycle hooks → **Bukkit events** (`ServerLoadEvent` / `PlayerJoinEvent` / `PlayerQuitEvent` / `PlayerRespawnEvent` / `PlayerRegisterChannelEvent`) + BukkitRunnable tick scheduling
-- Mixin / AccessWidener (none on Paper) → **reflection / Bukkit events / PacketEvents / degraded omission**
-- Fabric `ServerPlayNetworking` → **Paper `Messenger` (plugin messaging) + NMS `ClientboundCustomPayloadPacket` direct send**
-- `fabric-permissions-api` → `framework.permission.Perms` (op-level mapping)
-
-> **Original implementation archive**: `OriginImpl/` holds the original Fabric sources of every ported mod (servux / litematica / malilib / syncmatica / **JustEnoughItems-26.1 (mezz, the JEI upstream since 2026-09)** / tweakeroo / minihud / itemscroller / packetevents; plus JEIRecipeBridge-{1.21.11,26.1} as the old-line reference and the neoforge-layer wire reference) for line-by-line comparison — **in case of divergence, the real source wins**.
+> **Maintainers & AI assistants**: read **[`AGENTS.md`](AGENTS.md)** first — it is the canonical repo guide (architecture, branch/version model, core design constraints, working conventions).
+>
+> **Original implementation archive**: `OriginImpl/` holds the original Fabric sources of every ported mod for line-by-line comparison — **in case of divergence, the real source wins**.
 
 ---
 
-## 6. Commands
+## 6. Feature Matrix
 
-### `/servux`
+The original Servux has **26 Mixins + 2 AccessWideners**; Syncmatica has **5 server-side Mixins**. Paper has no Mixin runtime, so each is handled per the table below (full matrix: [docs/07](docs/07-migration-architecture.md) §4):
 
-**Permissions**: per-subcommand nodes aligned with upstream — root `servux.commands` (default: op) + `servux.commands.<sub>` for each of `reload`/`save`/`set`/`info`/`list` (`search` reuses `.list`); extension subcommands `enable`/`disable`/`debug`/`litematic` have their own nodes. The legacy single node `servux.command` is kept as a parent that auto-inherits the whole new tree (existing grants keep working).
-
-```
-/servux                                          Show usage
-/servux list [provider]                          List all settings with current values (upstream configList form; values shorter than 10 chars shown inline); optional provider filter
-/servux info <provider:setting|setting>          Show a setting's current value + default
-/servux set <provider:setting|setting> <value>   Modify a setting (in-memory only — persist via /servux save, upstream semantics)
-/servux enable <provider>                        Enable a provider (e.g. hud_data) — extension subcommand, persists immediately
-/servux disable <provider>                       Disable a provider — extension subcommand, persists immediately
-/servux search <keyword>                         Fuzzy-search setting names
-/servux reload                                   Reload config from servux.json
-/servux save                                     Write current config to servux.json
-/servux debug ...                                Debug toggles (see below)
-/servux litematic ...                            Litematica schematic management (see below)
-```
-
-- A **setting's qualified name** is `<provider-logical-name>:<setting-name>`, e.g. `hud_data:share_seed`, `servux_main:permission_level`; the provider prefix can be omitted when unambiguous.
-- Provider logical names are in the [channel table in §2](#1-servux): `servux_main` / `hud_data` / `entity_data` / `tweaks_data` / `structure_bounding_boxes` / `litematic_data`.
-- `servux_main` (the config main channel) **can never be disabled**; the other 5 can be `enable`d/`disable`d.
-
-**`/servux debug`** — debug logging hot-toggle (runtime-immediate, persisted to `servux.json` immediately):
-
-```
-/servux debug                  Show current debug state
-/servux debug on|off           Master switch on/off (master only; does not touch categories)
-/servux debug status           Show state
-/servux debug cat all|none     Enable all / clear all categories
-/servux debug cat <name>       Toggle a single category
-```
-
-> **Master and categories are two orthogonal dimensions; both must be on for output.** Category values: `lifecycle` `handshake` `network` `packet` `tick` `permission` `provider` `config` `easyplace`.
-
-**`/servux litematic`** — server-side schematic file management (requires the `litematic_data` provider enabled):
-
-```
-/servux litematic list                          List .litematic files under schematics/
-```
-
-> S2C transmit was **removed** (2026-09): the stock 26.1 client's `handleBulkData` Transmit branch is fully commented out upstream (no receiver, frames silently dropped) and upstream's `sendTransmitFile` is `@Deprecated(forRemoval)` with zero call sites. Files live in `plugins/VeryMcProto/schematics/`.
+| Feature | Handling | Status |
+| --- | --- | --- |
+| Protocol data collection (reading private fields) | **Reflection / direct NMS access** | ✅ |
+| Collection triggers / lifecycle | **Bukkit events + tick scheduling** | ✅ |
+| **EasyPlace** (Tweakeroo precise placement) | **PacketEvents intercepts `PLAYER_BLOCK_PLACEMENT` + replays `BlockItem.place` side effects** | ✅ needs PacketEvents |
+| **Mirror fixes** (chest/rail/stairs) | **Inlined fixes on paste** (`fix_chest_mirror` / `fix_rail_rotations` / `fix_stairs_mirror`) | ✅ (rail/stairs may be less perfect than Mixin) |
+| **Fill/Delete via servux tasks** (26.1 new) | `PACKET_C2S_TASK_REQUEST` group (types 14-17): per-tick budgeted fill/delete + InfoHud status sync | ✅ (26.1+) |
+| **UpdateSuppression** | ⛔ **Omitted** (no Paper equivalent) | ❌ |
+| **Shulker-box stacking** | ⛔ **Impossible + all code removed** (see [FAQ](#8-faq)) | ❌ |
+| Debug (`SharedConstants.IS_RUNNING_IN_IDE`) | Omitted | — |
 
 ---
 
-### `/syncmatica`
+## 7. Docs & Guides
 
-**Permission**: `syncmatica.command` (default: **true** — all players can use the base command)
+**Start with [`docs/00-INDEX.md`](docs/00-INDEX.md)** — the full doc map and suggested reading order (Chinese). Quick pointers:
 
-```
-/syncmatica                                     Show usage
-/syncmatica status                              Module state (protocol on/off + debug + config file)   [admin]
-/syncmatica save                                Save config to syncmatica-config.json                  [admin]
-/syncmatica reload                              Reload from syncmatica-config.json                     [admin]
-/syncmatica enable                              Enable the protocol (online players re-handshake)      [admin]
-/syncmatica disable                             Soft-disable the protocol (channel kept, no kicks)     [admin]
-/syncmatica load                                Register all unloaded .litematic under syncmatics/ as placements  [load]
-/syncmatica load <file>                         Register a single .litematic as a placement             [load + load_each]
-/syncmatica debug ...                           Debug toggles (see below)                               [debug]
-```
-
-> Upload / download / modify / delete of placements **all go through protocol exchanges** (client-side actions); the command only registers a local file as a placement and broadcasts it. `[admin]` requires `syncmatica.command.admin`, `[load]` requires `syncmatica.command.load`, `[load_each]` requires `syncmatica.command.load_each`, `[debug]` requires `syncmatica.command.debug`.
-
-**`/syncmatica debug`** (uses syncmatica's own `SyncmaticaDebug`; independent from `/servux debug`):
-
-```
-/syncmatica debug                  Show state
-/syncmatica debug on|off           Master switch
-/syncmatica debug status           Show state
-/syncmatica debug cat all|none     Enable all / clear all categories
-/syncmatica debug cat <name>       Toggle a single category (lifecycle handshake network packet exchange)
-/syncmatica debug s2c              Show current S2C send path
-/syncmatica debug s2c nms|msg      Switch S2C path (NMS direct / plugin messaging) — diagnostic toggle, not persisted
-```
-
-> S2C defaults to **NMS `DiscardedPayload` direct send** (the pure Fabric syncmatica client is only reachable via NMS direct send; the plugin-messaging wire is unreachable, verified by testing). `/syncmatica debug s2c msg` temporarily switches to plugin messaging for comparison/troubleshooting.
-
----
-
-### `/jei`
-
-**Permission**: `jei.command` (default: op)
-
-```
-/jei                (or /jei status)  Show module + cheat-switch state
-/jei enable         Enable the module (recipe sync + jei:* interactions for subsequent joiners)
-/jei disable        Disable the module (channels stay registered — no kicks; in-flight C2S silently dropped)
-```
-
-> **Scope of effect**: only affects interactions **afterward** (recipe syncs for new joiners; new C2S packets are dropped). Channels are never unregistered on disable — unregistering would make later client packets hit an unregistered channel and get the player kicked. The three cheat switches live in `jei.json` (file-managed, same as upstream's `jei-server.properties`; no command toggles).
-
----
-
-## 7. Permissions
-
-### 7.1 Command Permissions
-
-|  Permission node                 |  default   |  Purpose                                              |
-| -------------------------------- | ---------- | ----------------------------------------------------- |
-|  `servux.commands`               |  op        |  `/servux` root (Bukkit approximation of upstream level 4) |
-|  `servux.commands.reload/save/set/info/list` |  op |  Upstream per-subcommand nodes (`search` reuses `.list`) |
-|  `servux.commands.enable/disable/debug/litematic` |  op |  Extension subcommands (no upstream counterpart) |
-|  `servux.command`                |  op        |  Legacy single node — kept as parent auto-inheriting the new tree |
-|  `jei.command`                   |  op        |  `/jei status\|enable\|disable`                       |
-|  `syncmatica.command`            |  **true**  |  Base `/syncmatica` command (incl. `load`)            |
-|  `syncmatica.command.admin`      |  op        |  `/syncmatica save\|reload\|enable\|disable\|status`  |
-|  `syncmatica.command.load`       |  **true**  |  `/syncmatica load` (bulk load)                       |
-|  `syncmatica.command.load_each`  |  **true**  |  `/syncmatica load <file>` (single load)              |
-|  `syncmatica.command.debug`      |  op        |  `/syncmatica debug`                                  |
-
-### 7.2 Provider Permissions (Runtime)
-
-Servux provider permissions do not use the Bukkit permission `default`; instead they are decided at runtime by `framework.permission.Perms` based on the **`permission_level` setting + op level**. **`Perms.check(player, node, level)` semantics**:
-
-1. If the player is **explicitly granted / denied** the Bukkit permission node (`isPermissionSet`, e.g. set by LuckPerms / a permission attachment), **that result wins**;
-2. Otherwise, `level <= 0` → **allow everyone**;
-3. Otherwise, it falls back to the **op binary** (`isOp()` true passes, satisfying all `level >= 1` management-class settings).
-
-> So `permission_level` effectively only distinguishes "0 = everyone / ≥1 = op only". **To differentiate levels (e.g. grant level 2 but not level 3), use LuckPerms to explicitly grant the corresponding permission node.**
-
-**Base nodes** look like `servux.provider.<provider-logical-name>`; refined nodes append a suffix to the base:
-
-|  Permission node                                             |  Governing setting (level source)                               |  Controls                                                       |
-| ------------------------------------------------------------ | --------------------------------------------------------------- | --------------------------------------------------------------- |
-|  `servux.main.admin`                                         |  `servux_main:permission_level_admin` (default 3)               |  ConfigProvider admin operations                                |
-|  `servux.main.easy_place`                                    |  `servux_main:permission_level_easy_place` (default 0)          |  EasyPlace placement                                            |
-|  `servux.provider.hud_data`                                  |  `hud_data:permission_level` (default 0)                        |  HUD metadata delivery                                          |
-|  `servux.provider.hud_data.weather`                          |  `hud_data:weather_permission_level` (default 0)                |  Weather data                                                   |
-|  `servux.provider.hud_data.seed`                             |  `hud_data:seed_permission_level` (default 2)                   |  Seed data                                                      |
-|  `servux.provider.hud_data.logger`                           |  `hud_data:logger_permission_level` (default 0)                 |  Loggers master toggle                                          |
-|  `servux.provider.hud_data.logger.tps`                       |  `hud_data:logger_permission_level`                             |  TPS logger                                                     |
-|  `servux.provider.hud_data.logger.mob_caps`                  |  `hud_data:logger_permission_level`                             |  MobCap logger                                                  |
-|  `servux.provider.entity_data`                               |  `entity_data:permission_level` (default 0)                     |  Entities base                                                  |
-|  `servux.provider.entity_data.nbt_query_override`            |  `entity_data:nbt_query_permission_level` (default 2)           |  NBT query override permission                                  |
-|  `servux.provider.entity_data.nbt_allow_player_inventory`    |  `entity_data:player_inventory_permission_level` (default 2)    |  Query a player's inventory                                     |
-|  `servux.provider.entity_data.nbt_allow_player_ender_items`  |  `entity_data:player_ender_items_permission_level` (default 2)  |  Query a player's ender chest                                   |
-|  `servux.provider.tweaks_data`                               |  `tweaks_data:permission_level` (default 0)                     |  Tweaks base                                                    |
-|  `servux.provider.structure_bounding_boxes`                  |  `structure_bounding_boxes:permission_level` (default 0)        |  Structures base                                                |
-|  `servux.provider.litematic_data`                            |  `litematic_data:permission_level` (default 0)                  |  Litematics base (upload/paste)                             |
-|  `servux.provider.litematic_data.paste`                      |  `litematic_data:permission_level_paste` (default 0)            |  **Paste** a schematic into the world (requires creative mode)  |
-
-> When `nbt_query_override` is off, the Entities NBT query **falls back to the vanilla permission `minecraft.command.data`** (level 2), aligning with the vanilla `/data` command permission.
-
-### 7.3 LuckPerms Examples
-
-Grant seed access (default is op-only):
-
-```yaml
-commands:
-  - "lp user <player> permission set servux.provider.hud_data.seed true"
-```
-
-Grant paste access to a non-op:
-
-```yaml
-commands:
-  - "lp user <player> permission set servux.provider.litematic_data.paste true"
-```
-
----
-
-## 8. Configuration
-
-All config is **JSON** (Gson pretty + atomic tmp/move write), located under `plugins/VeryMcProto/`.
-
-### 8.1 `servux.json`
-
-Segmented by provider; each segment holds that provider's settings. **Every key can also be changed via `/servux set <provider:key> <value>`** (no need to hand-edit). Type notation: `int` ranges are written `[min..max] default`.
-
-#### `servux_main` (`servux:main`)
-
-The config main channel — permanently enabled, and sends no network packets (only carries global settings).
-
-|  key                             |  type        |  default  |  description                                           |
-| -------------------------------- | ------------ | --------- | ------------------------------------------------------ |
-|  `permission_level`              |  int [0..4]  |  0        |  Base permission level (0 = everyone)                  |
-|  `permission_level_admin`        |  int [0..4]  |  3        |  Admin-operation permission level                      |
-|  `permission_level_easy_place`   |  int [0..4]  |  0        |  EasyPlace permission level                            |
-|  `easy_place_validator_enabled`  |  bool        |  true     |  EasyPlace placement validator                         |
-|  `default_language`              |  string      |  `en_us`  |  Default language                                      |
-|  `debug_log`                     |  bool        |  false    |  Debug master switch                                   |
-|  `debug_categories`              |  string[]    |  `[]`     |  Enabled debug categories (orthogonal to `debug_log`)  |
-
-#### `hud_data` (`servux:hud_metadata`)
-
-|  key                         |  type           |  default               |  description                                             |
-| ---------------------------- | --------------- | ---------------------- | -------------------------------------------------------- |
-|  `permission_level`          |  int [0..4]     |  0                     |  HUD base permission                                     |
-|  `update_interval`           |  int [20..300]  |  40                    |  HUD push interval (ticks)                               |
-|  `share_weather_status`      |  bool           |  false                 |  Whether to deliver weather                              |
-|  `weather_permission_level`  |  int [0..4]     |  0                     |  Weather-data permission                                 |
-|  `share_seed`                |  bool           |  false                 |  Whether to deliver the world seed                       |
-|  `seed_permission_level`     |  int [0..4]     |  2                     |  Seed-data permission                                    |
-|  `loggers_enabled`           |  bool           |  false                 |  Whether loggers are enabled (TPS/MobCap periodic data)  |
-|  `loggers_enable_list`       |  string[]       |  `["tps","mob_caps"]`  |  Enabled logger types                                    |
-|  `logger_permission_level`   |  int [0..4]     |  0                     |  Loggers-data permission                                 |
-
-#### `entity_data` (`servux:entity_data`)
-
-|  key                                    |  type        |  default  |  description                                                                                |
-| --------------------------------------- | ------------ | --------- | ------------------------------------------------------------------------------------------- |
-|  `permission_level`                     |  int [0..4]  |  0        |  Base permission                                                                            |
-|  `nbt_query_override`                   |  bool        |  false    |  Enable standalone NBT-query permission (otherwise falls back to `minecraft.command.data`)  |
-|  `nbt_query_permission_level`           |  int [0..4]  |  2        |  NBT-query permission                                                                       |
-|  `fix_allay_gathering`                  |  bool        |  true     |  Fix Allay gathering NBT                                                                    |
-|  `nbt_allow_player_inventory`           |  bool        |  true     |  Allow querying a player's inventory                                                        |
-|  `nbt_allow_player_ender_items`         |  bool        |  true     |  Allow querying a player's ender chest                                                      |
-|  `player_inventory_permission_level`    |  int [0..4]  |  2        |  Inventory-query permission                                                                 |
-|  `player_ender_items_permission_level`  |  int [0..4]  |  2        |  Ender-chest-query permission                                                               |
-
-#### `tweaks_data` (`servux:tweaks`)
-
-|  key                 |  type            |  default  |  description            |
-| -------------------- | ---------------- | --------- | ----------------------- |
-|  `permission_level`  |  int [0..4]      |  0        |  Base permission        |
-|  `update_interval`   |  int [40..1200]  |  120      |  Push interval (ticks)  |
-
-> ⛔ The original `stackable_shulkers` / `stackable_shulkers_count` / `stackable_shulkers_fix` **have been removed** — shulker-box stacking is impossible without Mixin on Paper (see the [fallback matrix](#10-feature-matrix)); keeping it would make the client's Tweakeroo enable stacking rendering while the server doesn't cooperate → inconsistency.
-
-#### `structure_bounding_boxes` (`servux:structures`)
-
-|  key                             |  type            |  default                          |  description                     |
-| -------------------------------- | ---------------- | --------------------------------- | -------------------------------- |
-|  `permission_level`              |  int [0..4]      |  0                                |  Base permission                 |
-|  `structures_blacklist_enabled`  |  bool            |  false                            |  Enable structure blacklist      |
-|  `structures_whitelist_enabled`  |  bool            |  false                            |  Enable structure whitelist      |
-|  `structures_blacklist`          |  string[]        |  `["minecraft:buried_treasure"]`  |  Blacklisted structure IDs       |
-|  `structures_whitelist`          |  string[]        |  `[]`                             |  Whitelisted structure IDs       |
-|  `update_interval`               |  int [1..1200]   |  40                               |  Scan interval (ticks)           |
-|  `timeout`                       |  int [40..1200]  |  600                              |  Structure-scan timeout (ticks)  |
-
-#### `litematic_data` (`servux:litematics`)
-
-|  key                       |  type        |  default  |  description                         |
-| -------------------------- | ------------ | --------- | ------------------------------------ |
-|  `permission_level`        |  int [0..4]  |  0        |  Base permission (upload/paste)  |
-|  `permission_level_paste`  |  int [0..4]  |  0        |  Paste-into-world permission         |
-|  `fix_rail_rotations`      |  bool        |  true     |  Fix rail orientation on paste       |
-|  `fix_stairs_mirror`       |  bool        |  true     |  Fix stairs mirroring on paste       |
-|  `fix_chest_mirror`        |  bool        |  true     |  Fix chest mirroring on paste        |
-
-### 8.2 `jei.json`
-
-|  key                          |  type  |  default  |  description                                                                                              |
-| ----------------------------- | ------ | --------- | ---------------------------------------------------------------------------------------------------------- |
-|  `enabled`                    |  bool  |  true     |  Module master switch — recipe sync + jei:* interactions (toggled by `/jei enable\|disable`)               |
-|  `cheatModeEnabledForOp`      |  bool  |  true     |  Cheat allowed for permission level 2 (op) players                                                        |
-|  `cheatModeEnabledForCreative`|  bool  |  true     |  Cheat allowed for creative-mode players                                                                  |
-|  `cheatModeEnabledForGive`    |  bool  |  false    |  Cheat allowed for players with the `/give` permission (`minecraft.command.give`)                          |
-
-Defaults mirror upstream `jei-server.properties`. On first start, if the legacy `jei-recipe-bridge.json` exists, its `enabled` value is migrated (no silent re-enable of a deliberately disabled server). A missing / corrupt file is rebuilt from defaults and persisted.
-
-### 8.3 `syncmatica-config.json`
-
-Segmented by service (each service is a sub-object); **prefer managing via `/syncmatica` commands** over hand-editing:
-
-```jsonc
-{
-  "quota": {                       // upload-quota service
-    "enabled": false,              // whether upload byte-quota is enabled (default off)
-    "limit": 40000000              // per-player upload byte cap (default ~40MB; progress is not persisted, resets on restart)
-  },
-  "debug": {
-    "doPacketLogging": false       // send/receive packet logging (default off)
-  },
-  "debugLog": {                    // SyncmaticaDebug runtime snapshot (master + categories; /syncmatica debug persists immediately)
-    "master": false,
-    "categories": []
-  }
-}
-```
-
-> Quota constrains only `DownloadExchange` (player uploads); `UploadExchange` (player downloads) is not checked.
-
----
-
-## 9. Data Layout
-
-```
-plugins/VeryMcProto/
-├── servux.json                 Servux global config (6 provider segments)
-├── jei.json                    JEI config (enabled + three cheat switches; migrates legacy jei-recipe-bridge.json)
-├── syncmatica-config.json      Syncmatica config (quota / debug / debugLog segments)
-├── placements.json             Syncmatica placement-metadata persistence (+ .bak / .new atomic write)
-├── syncmatics/                 Syncmatica .litematic central repository (player upload / download / share)
-│   └── <hash-uuid>.litematic   Filename = hash UUID (/syncmatica load identifies files by this)
-└── schematics/                 Servux schematic upload (paste) directory
-    └── *.litematic             Written by receiveFileTransmit (client uploads); listed by /servux litematic list
-```
-
-> `schematics/` and `syncmatics/` are created automatically on first access. On server shutdown (`onDisable`), `placements.json` is atomically saved by `SyncmaticManager` (backup → current ← incoming); on startup it is read, and corrupt entries are skipped one-by-one via try/catch and rewritten with corrections.
-
----
-
-## 10. Feature Matrix
-
-The original Servux has **26 Mixins + 2 AccessWideners**; Syncmatica has **5 server-side Mixins**. Paper has no Mixin runtime, so each is handled per the table below:
-
-|  Feature                                            |  Original impl                                   |  This project's handling                                                                                 |  Status                                          |
-| --------------------------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-|  Protocol data collection (reading private fields)  |  Mixin `@Accessor` / AccessWidener               |  **Reflection / direct NMS access**                                                                      |  ✅                                               |
-|  Collection triggers / lifecycle                    |  Mixin `@Inject` hooks                           |  **Bukkit events + tick scheduling**                                                                     |  ✅                                               |
-|  **EasyPlace** (Tweakeroo server cooperation)       |  Mixin altering placement logic                  |  **PacketEvents intercepts `PLAYER_BLOCK_PLACEMENT` + manually replays `BlockItem.place` side effects**  |  ✅ needs PacketEvents                            |
-|  **Mirror fixes** (chest/rail/stairs)               |  Mixin                                           |  **Inlined fixes on paste** (`fix_chest_mirror` / `fix_rail_rotations` / `fix_stairs_mirror`)            |  ✅ (rail/stairs may be less perfect than Mixin)  |
-|  **UpdateSuppression**                              |  Mixin adding interface to `Level`/`LevelChunk`  |  ⛔ **Omitted** (no Paper equivalent)                                                                     |  ❌                                               |
-|  **Shulker-box stacking**                           |  Mixin altering a global NMS method              |  ⛔ **Impossible + all code removed**                                                                     |  ❌                                               |
-|  **Fill/Delete via servux tasks** (26.1 new)        |  `PACKET_C2S_TASK_REQUEST` group (types 14-17)   |  ✅ **Implemented** (per-tick budgeted fill/delete + InfoHud status sync; see docs/09 §26.1.5) |  ✅ (26.1+) |
-|  Debug (`SharedConstants.IS_RUNNING_IN_IDE`)        |  Mixin                                           |  Omitted                                                                                                 |  —                                               |
-
-### EasyPlace Details
-
-`EasyPlaceListener` intercepts the vanilla `PLAYER_BLOCK_PLACEMENT`, cancels the packet, then calls `PlacementHandler.applyPlacementProtocolV3` to decode the precise state and manually replays `BlockItem.place` side effects (`setBlock` / `setPlacedBy` / placement sound / item shrink / ack). **PacketEvents class references are isolated in `EasyPlaceBootstrap`** (reflective load + `catch(Throwable)` fallback) — without the packetevents plugin installed, EasyPlace is gracefully skipped and the other channels are completely unaffected.
-
-> ⚠️ **Why shulker-box stacking is impossible**: it alters a global NMS method's behavior; Paper has no Mixin and no equivalent (reflection can't change a method's return value; Bukkit events always fail given `maxStackSize=1`; setting the `MAX_STACK_SIZE` component pollutes serialization). Therefore `TweaksDataProvider` **does not deliver** `stackingShulkers` metadata — otherwise Tweakeroo on the client would enable stacking rendering while the server doesn't cooperate → inconsistency.
-
----
-
-## 11. Network Protocol
-
-> This is the cornerstone of the entire port. See [`docs/02-network-protocol.md`](docs/02-network-protocol.md) and [`docs/09-DELIVERY.md`](docs/09-DELIVERY.md) for details.
-
-### S2C Paths
-
-|  Mod                    |  S2C path                                                                                                              |  Notes                                                                    |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-|  **Servux**             |  plugin messaging (`ProtocolChannel.send` → `player.sendPluginMessage`)                                                |  Large packets split by `PacketSplitter`                                  |
-|  **JEI**                |  **NMS `ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes))` direct send** (`JeiPacketSender`)            |  Recipe packs exceed 1MiB (known-channel 64MB cap makes single-packet safe); `jei:*` C2S via `ChannelManager` |
-|  **Syncmatica**         |  defaults to **NMS `DiscardedPayload` direct send** (`S2C_VIA_NMS=true`; builds a `[Identifier][body]` compound body)  |  `/syncmatica debug s2c msg` switches to plugin messaging for comparison  |
-
-### Byte Limits
-
-- Bukkit `Messenger.MAX_MESSAGE_SIZE` = 1,048,576 (~1MiB) — the plugin-messaging API no longer rejects at 32KiB (old docs claiming 32768 are outdated).
-- **The real S2C bottleneck is the vanilla client's 32,767-byte decode limit on `ClientboundCustomPayload`** — exceeding it disconnects the client.
-- `PacketSplitter` split constants: **S2C `MAX_PAYLOAD_PER_PACKET_S2C = 31,995`** (leaves headroom for the VarInt header, defending the client's 32,767 limit); server receive cap `DEFAULT_MAX_RECEIVE_SIZE_S2C = 64MB`. **Since 26.1 the malilib client's reassembly cap is 16MB** (was 128MB) — `PacketSplitter.send` enforces a server-side 16MB frame guard (the per-file transmit gate was removed with the S2C transmit dead path).
-- **Since 26.1, servux business packets carry their NBT in the malilib DataTag wire format** (`[int32 BE compressed length][GZIP'd named-root NBT stream]` — implemented byte-compatibly via NMS `NbtIo` in `DataTagIo`); metadata (types 1/2) stays vanilla NBT, splitter slices stay raw bytes.
-- Large packets (Recipe / Litematic schematics / Structures / bulk entities) must be split by `PacketSplitter`. **Syncmatica file-splitting does not reuse `PacketSplitter`**; it implements its own stop-and-wait (`BUFFER_SIZE=16384`, per-chunk ack).
-
-### C2S & Handshake
-
-- The vanilla Paper server **kicks the player** on an unregistered custom payload ("Invalid payload"). This plugin receives C2S via `Messenger.registerIncomingPluginChannel` — registered channels are routed by Paper internally and do not kick.
-- **Handshake pitfall**: during the configuration phase, `sendPluginMessage` is silently dropped. The framework uses **`PlayerRegisterChannelEvent`** (the client declaring a channel = it has the corresponding mod = configuration phase complete) as a reliable signal to resend metadata / initiate the handshake in `IDataProvider.onPlayerRegisterChannel` / syncmatica `onPlayerRegisterChannel`.
-
----
-
-## 12. Debugging
-
-Each mod has an **independent debug engine** (master switch + orthogonal categories; both must be on for output); toggles persist immediately and fully survive restart.
-
-### Servux
-
-```
-/servux debug on                 Master on
-/servux debug cat all            All categories on (or individually lifecycle/handshake/network/...)
-```
-
-Categories: `lifecycle` `handshake` `network` `packet` `tick` `permission` `provider` `config` `easyplace`.
-
-### Syncmatica
-
-```
-/syncmatica debug on
-/syncmatica debug cat all        Categories: lifecycle handshake network packet exchange
-```
-
-Diagnosing syncmatica not working: `on` then `cat all` (or individually `handshake`/`network`/`packet`), and watch the handshake chain: declare channel → `tryStartHandshake` → init pushes `REGISTER_VERSION` → client replies with version → `FeatureSet` → `CONFIRM_USER` → `broadcastTargets`.
-
-S2C-path troubleshooting: `/syncmatica debug s2c` (inspect) → `/syncmatica debug s2c nms|msg` (switch).
-
-### JEI
-
-No independent debug engine; check state via `/jei status` and watch server logs (fabric leg logs on channel-declaration trigger, neoforge leg on join).
-
-### Symptom Lookup
-
-|  Symptom                                 |  Where to look                                                                                                                          |
-| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-|  Client connects but receives nothing    |  Check provider enabled (`/servux info` on a setting of that provider / `/servux debug cat provider`); check `permission_level`; enable the `handshake` category to see whether handshake succeeded  |
-|  Large schematic paste / upload fails  |  Check for the client 32,767 disconnect; enable `network`/`packet` to inspect splitting                                                 |
-|  EasyPlace does nothing                  |  Confirm PacketEvents plugin is installed (`softdepend`); enable the `easyplace` category                                               |
-|  Syncmatica client can't connect         |  Defaults to NMS direct send; confirm with `/syncmatica debug s2c`; enable `handshake` to inspect the chain                             |
-|  JEI recipes don't sync                  |  Confirm `enabled` via `/jei`; fabric leg requires the client to declare `fabric:recipe_sync` (any Fabric-API client does); the join orderer (`RecipeSyncJoinOrderer`) must appear in the pipeline — a missing/failed install degrades to the legacy timing (warning + client-local recipes); note it only affects players joining **afterward** |
-
----
-
-## 13. Compatibility Testing
-
-See [`docs/10-testing-guide.md`](docs/10-testing-guide.md) (Servux) and [`docs/24-syncmatica-testing-guide.md`](docs/24-syncmatica-testing-guide.md) (Syncmatica).
-
-### Channel–Mod Mapping
-
-|  Channel                |  MiniHUD                     |  Litematica                  |  Tweakeroo                      |
-| ----------------------- | ---------------------------- | ---------------------------- | ------------------------------- |
-|  `servux:hud_metadata`  |  ✅ HUD info                  |  —                           |  —                              |
-|  `servux:structures`    |  ✅ Structure bounding boxes  |  —                           |  —                              |
-|  `servux:entity_data`   |  ✅ NBT query                 |  —                           |  —                              |
-|  `servux:tweaks`        |  —                           |  —                           |  ✅ NBT query                    |
-|  `servux:litematics`    |  —                           |  ✅ Schematic paste           |  —                              |
-|  EasyPlace              |  —                           |  ✅ Precise placement         |  ✅ Triggers placement protocol  |
-
-### Test Points
-
-1. Install the matching masa mods on the client; after joining, enable their debug (e.g. MiniHUD's `debugMessages`) and observe the handshake.
-2. HUD: check whether world info/TPS/MobCap refresh and whether structure bounding boxes render.
-3. NBT query: with MiniHUD/Tweakeroo, select an entity/block-entity and check whether NBT is returned.
-4. Schematic: paste-upload from within Litematica (S2C transmit removed — the stock 26.1 client has no receiver; `/servux litematic list` to inspect uploaded files).
-5. Syncmatica: handshake → upload → download → modify placement → restart to verify persistence → multi-player collaboration.
-
----
-
-## 14. Developers
-
-### Build
-
-```bash
-./gradlew build        # Produce the Mojang-mapped jar (loads directly on standard Paper 26.1+)
-./gradlew runServer    # Start a local 26.1.2 test server (2G heap)
-./gradlew test         # Pure-function unit tests (PacketSplitter/FeatureSet/LitematicaBitArray/DataTagIo)
-```
-
-> **JDK note**: MC 26.1+ requires **Java 25**. The Gradle toolchain is set to 25 and resolves automatically: the `foojay-resolver-convention` plugin (in `settings.gradle.kts`) downloads a JDK 25 if none is detected, and a local `~/.gradle/gradle.properties` can point `org.gradle.java.installations.paths` at an existing non-standard install. Gradle wrapper is 9.7.1.
-
-**Build chain**: paperweight `userdev` 2.0.0-beta.23 + `paperDevBundle("26.1.2.build.74-stable")` (new `<mc>.build.<N>-stable` naming since 26.1; fully-deobfuscated Mojang NMS at dev time — Mojang removed server obfuscation, so **there is no reobf step anymore**: the artifact is the Mojmap jar and Paper 26.1+ loads it directly). Reflection uses **Mojang names** (unchanged convention).
-
-**Optional dependency**: PacketEvents `compileOnly("com.github.retrooper:packetevents-spigot:2.13.0")` + `plugin.yml: softdepend: [packetevents]` (class references isolated in `EasyPlaceBootstrap`).
-
-> Working on this repo with an AI assistant (or onboarding as a maintainer)? Read **[`AGENTS.md`](AGENTS.md)** first — it is the canonical guide covering the architecture, branch/version model, core design constraints, and working conventions.
-
-### NMS Constraints
-
-- **`CompoundTag`**: `getBoolean/getInt/...` return `Optional`/`OptionalInt`; use `getBooleanOr/getIntOr` or `.orElse()`; `putXxx` returns `void` (not chainable).
-- **`FriendlyByteBuf`**: the core of protocol-body encoding (`writeVarInt`/`writeNbt`/`readNbt`).
-- **`CustomPacketPayload`**: `record Payload(...) implements CustomPacketPayload` + `static Type<Payload> ID` + `static StreamCodec<FriendlyByteBuf, Payload> CODEC`.
-- **`Identifier`**: `Identifier.fromNamespaceAndPath("servux","hud_metadata")` (= Mojang `ResourceLocation`).
-- **`DiscardedPayload`**: the NMS direct-send custom-payload carrier (`new DiscardedPayload(Identifier, byte[])`).
-
-### Add a Servux Provider
-
-1. Add a class under `mod/servux/dataproviders/` (`extends DataProviderBase`), declaring its settings.
-2. Add the corresponding Handler + Packet under `mod/servux/network/` (channel codec + byte layout).
-3. Add the channel constant in `ServuxReference`.
-4. Register it in `ServuxModule.onRegister`.
-5. See [`docs/03-dataproviders-detail.md`](docs/03-dataproviders-detail.md).
-
-### Add a Protocol Mod
-
-1. Implement `ModModule` under `mod/<newmod>/` (or self-managed assembly like syncmatica).
-2. Register it in `VeryMcProto.onEnable`.
-3. Add commands / permissions in `plugin.yml`.
-
-### Versioning & Branch Model
-
-Plugin version = **`<MC version>-b<build number>`** — currently `26.1.2-b3` (the 26.1 line's exact upstream patch id; required by the 26.1 client MOD_STRING hard gate). The **single source of truth** is `gradle.properties` (`mcVersion` / `buildNumber`): Gradle derives `version` from it, injects it into `plugin.yml` / the jar name / `version.properties`, and `Reference.MC_VERSION` / `Reference.PLUGIN_VERSION` (hence every protocol handshake string such as `servux-fabric-26.1.2-b3`) read it back from `version.properties`. Never hardcode a version anywhere else.
-
-| Branch | Purpose |
+| Doc | Content |
 | --- | --- |
-| `dev` | **Daily development line for the latest MC version** — features and in-version fixes land here as plain commits. |
-| `main` | **Stable release line for the latest MC version** — receives merges from `dev` only, no direct commits. |
-| `ver/<X>-dev` (e.g. `ver/1.21.11-dev`) | **Maintenance dev line for an old MC version X** — bug fixes for the frozen version land here. |
-| `ver/<X>` | **Stable release line for an old MC version X** — receives merges from `ver/<X>-dev` only. |
+| [`AGENTS.md`](AGENTS.md) | **Canonical repo guide** — architecture, branch/version model, core constraints, conventions |
+| [`docs/02-network-protocol.md`](docs/02-network-protocol.md) ⭐ | Core network protocol: `CustomPacketPayload`, `PacketSplitter`, channels, byte layouts |
+| [`docs/07-migration-architecture.md`](docs/07-migration-architecture.md) ⭐ | Fabric→Paper architecture comparison, degradation matrix, feasibility |
+| [`docs/09-DELIVERY.md`](docs/09-DELIVERY.md) ⭐ | Delivery / byte limits + the authoritative 26.1 migration record (§26.1) |
+| [`docs/40-configuration.md`](docs/40-configuration.md) | **Ops reference**: commands, permissions, config keys, data layout, troubleshooting |
+| [`docs/10`](docs/10-testing-guide.md) / [`docs/24`](docs/24-syncmatica-testing-guide.md) | Client compatibility testing (Servux / Syncmatica) |
+| [`docs/20–24`](docs/20-syncmatica-architecture.md) | Syncmatica implementation notes (architecture / protocol / migration / overview / testing) |
+| [`docs/30-jei-protocol.md`](docs/30-jei-protocol.md) ⭐ | Full JEI protocol |
 
-Lifecycle (example: `main` is on MC 26.2, upstream drops 26.3):
-
-1. **Freeze**: cut `ver/26.2` + `ver/26.2-dev` from `main` (== the last 26.2 release — a clean freeze point; never cut from `dev`, which is about to carry 26.3 work).
-2. **Follow upstream**: on `dev`, bump `mcVersion=26.3` + the dev bundle and adapt to NMS drift; from then on `dev → main` carries all 26.3 development.
-3. **Maintain the old line**: fix 26.2 bugs on `ver/26.2-dev`, merge into `ver/26.2`, bump `buildNumber` **on that branch** (its build counter increments independently).
-4. **Forward-port**: a bug fixed on an old line that also exists in the new version gets cherry-picked / ported back to `dev`.
-
-While a version is current (not yet frozen), its fixes go straight through `dev → main` — no `ver/*` pair exists for the current version; the pair is created only at the moment a newer MC version arrives.
-
-**Before any development session**, query the Mojang version manifest — `https://launchermeta.mojang.com/mc/game/version_manifest_v2.json` (read `latest.release` / `latest.snapshot`; cross-check Paper at `https://api.papermc.io/v2/projects/paper`) — to see where upstream is. If upstream has moved past the line you are on, that line is old: its work belongs on `ver/<X>-dev`, and `dev` is due for an upgrade pass.
-
-**Current status** (2026-09): upstream latest release is **26.2** (snapshot `26.3-pre-3`). `dev → main` carries the **26.1 line (26.1.2)** — the full 26.1 migration landed (build/toolchain, DataTag wire format, protocol v3/v2 bumps, NMS drift). `ver/1.21.11` + `ver/1.21.11-dev` are the frozen 1.21.11 maintenance pair, cut from `main` at tag `v1.21.11-b1`.
-
-Release flow (in-version): on the active dev line (`dev` or `ver/<X>-dev`), bump `buildNumber` → commit → merge into the matching release line (`main` or `ver/<X>`) → `./gradlew build` → tag `v<version>` (e.g. `v1.21.11-b1`).
-
-### Upgrade Minecraft
-
-1. Freeze the old version first: cut the `ver/<old MC version>` + `ver/<old MC version>-dev` pair from `main` (the last release of the old version).
-2. On `dev`, bump `mcVersion` in `gradle.properties` and align the paperweight dev bundle (26.1+ format: `paperweight.paperDevBundle("<mc>.build.<N>-stable")`), plus the Java toolchain, the paperweight / run-paper plugin versions and (if needed) the Gradle wrapper.
-3. Re-run `./gradlew build` so paperweight re-applies the new bundle; fix the compile-driven NMS drift (26.1 measured: `ChunkPos` became a record — `x()/z()/pack()/unpack()/containing()`; weather moved to `ServerLevel.getWeatherData()`; `displayClientMessage` → `sendSystemMessage`).
-4. Re-verify every reflection point in [`docs/04-mixin-analysis.md`](docs/04-mixin-analysis.md) against NMS field / method-signature drift, and re-check the **client-side protocol gates** (protocol versions, MOD_STRING prefix, carrier format — see docs/09 §26.1) against the new `OriginImpl/<mods>-LTS/<new version>` sources.
+Building from source: `./gradlew build` (Mojang-mapped jar) · `./gradlew test` · `./gradlew runServer` — JDK 25 resolves automatically via the foojay toolchain plugin. Everything else a developer needs (NMS constraints, versioning & branch model, upgrade runbook) lives in [`AGENTS.md`](AGENTS.md).
 
 ---
 
-## 15. Docs Index
-
-**Strongly recommended to start with [`docs/00-INDEX.md`](docs/00-INDEX.md)** for the full doc map and suggested reading order.
-
-|  Doc                                                                         |  Content                                                                                                |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-|  [`docs/01-servux-architecture.md`](docs/01-servux-architecture.md)          |  Original architecture overview: startup flow, `DataProviderManager`, lifecycle, config system          |
-|  [`docs/02-network-protocol.md`](docs/02-network-protocol.md) ⭐              |  **Core network protocol**: `CustomPacketPayload`, `PacketSplitter` splitting, 6 channels, byte layout  |
-|  [`docs/03-dataproviders-detail.md`](docs/03-dataproviders-detail.md)        |  The 6 providers' data contents + collection (TPS/MobCap) + permission nodes                            |
-|  [`docs/04-mixin-analysis.md`](docs/04-mixin-analysis.md)                    |  Itemized list of 26 Mixins + 2 AccessWideners and their migration destinations                         |
-|  [`docs/05-schematic-system.md`](docs/05-schematic-system.md) ⭐              |  Litematica schematic system: BitArray/Palette/Selection/Placement (+ C2S transmit routing)                             |
-|  [`docs/06-fabric-vs-paper.md`](docs/06-fabric-vs-paper.md)                  |  Fabric ↔ Paper framework-diff comparison table                                                         |
-|  [`docs/07-migration-architecture.md`](docs/07-migration-architecture.md) ⭐  |  **Complete migration plan**: architecture / network layer / data collection / fallback matrix          |
-|  [`docs/09-DELIVERY.md`](docs/09-DELIVERY.md)                                |  Delivery / byte-limit deep dive (with the client 32767 limit evidence)                                 |
-|  [`docs/10-testing-guide.md`](docs/10-testing-guide.md)                      |  Servux client compatibility testing                                                                    |
-|  `docs/20–24`                                                                |  Complete Syncmatica implementation notes (architecture / protocol / Mixin migration / plan / testing)  |
-
----
-
-## 16. FAQ
+## 8. FAQ
 
 **Q: Why must we use paperweight / NMS instead of the pure Paper API?**
 A: Data collection depends heavily on NMS internals (`NaturalSpawner.SpawnState`, `ServerTickRateManager`, `ChunkAccess.getAllReferences()`, `StructureStart.createTag()`, `Recipe.CODEC` + `NbtOps`, `BlockEntity.saveWithFullMetadata()`); the network layer reuses vanilla `FriendlyByteBuf` / `CompoundTag`; and JEI/Syncmatica large-packet S2C relies on NMS `ClientboundCustomPayloadPacket`. The pure Paper API cannot reach these.
@@ -710,19 +187,19 @@ A: ⛔ No. The former alters a global NMS method (no Mixin / no equivalent on Pa
 A: EasyPlace is skipped automatically (`EasyPlaceBootstrap` reflective load + `catch(Throwable)` fallback); all other Servux channels, JEI, and Syncmatica are completely unaffected.
 
 **Q: What's the difference between `permission_level` 2 and 3?**
-A: Under pure Bukkit op there is **no difference** (both go through the `isOp()` binary). To differentiate levels, use LuckPerms to explicitly grant the corresponding permission node (see [§7.2](#72-provider-permissions-runtime)).
+A: Under pure Bukkit op there is **no difference** (both go through the `isOp()` binary). To differentiate levels, use LuckPerms to explicitly grant the corresponding permission node (see [docs/40](docs/40-configuration.md) §2).
 
 **Q: What does pasting a schematic require?**
 A: The player needs creative mode + the `servux.provider.litematic_data.paste` permission (governed by `litematic_data:permission_level_paste`, default 0 = everyone).
 
 ---
 
-## 17. Credits
+## 9. Credits
 
 This project is a Paper protocol-layer port of the following Fabric protocol mods — full credit to the original authors and the maintainers who keep them alive:
 
 - **Servux** — originally by **masa** ([`maruohon/servux`](https://github.com/maruohon/servux)); now maintained by **sakura-ryoko** ([`sakura-ryoko/servux`](https://github.com/sakura-ryoko/servux)). The server-side protocol implementation delivering data to MiniHUD / Litematica / Tweakeroo.
-- **Litematica / malilib / MiniHUD / Tweakeroo / Item Scroller** — originally by **masa** (`maruohon/*`); now maintained by **sakura-ryoko** since masa retired from active development — the 1.21.11 LTS builds all live under sakura-ryoko:
+- **Litematica / malilib / MiniHUD / Tweakeroo / Item Scroller** — originally by **masa** (`maruohon/*`); now maintained by **sakura-ryoko** since masa retired from active development — the 26.1 LTS builds all live under sakura-ryoko:
   - [`sakura-ryoko/litematica`](https://github.com/sakura-ryoko/litematica) · [`sakura-ryoko/malilib`](https://github.com/sakura-ryoko/malilib) · [`sakura-ryoko/minihud`](https://github.com/sakura-ryoko/minihud) · [`sakura-ryoko/tweakeroo`](https://github.com/sakura-ryoko/tweakeroo) · [`sakura-ryoko/itemscroller`](https://github.com/sakura-ryoko/itemscroller)
   - These are the client-side receivers of the protocols.
 - **Syncmatica** — originally by **endte** ([`End-Tech/syncmatica`](https://github.com/End-Tech/syncmatica)); now maintained by **sakura-ryoko** ([`sakura-ryoko/syncmatica`](https://github.com/sakura-ryoko/syncmatica)). The shared schematic central repository.
@@ -731,13 +208,10 @@ This project is a Paper protocol-layer port of the following Fabric protocol mod
 
 ### References
 
-- [Paper dev docs](https://docs.papermc.io/paper/dev/)
-- [Paper plugin messaging](https://docs.papermc.io/paper/dev/plugin-messaging/)
-- [PaperWeight guide](https://github.com/PaperMC/paperweight)
-- [Minecraft Protocol Wiki](https://wiki.vg/Protocol) (`Custom Payload` packet structure)
-- [Fabric networking docs](https://docs.fabricmc.net/develop/networking)
+- [Paper dev docs](https://docs.papermc.io/paper/dev/) · [plugin messaging](https://docs.papermc.io/paper/dev/plugin-messaging/) · [PaperWeight guide](https://github.com/PaperMC/paperweight)
+- [Minecraft Protocol Wiki](https://wiki.vg/Protocol) (`Custom Payload` packet structure) · [Fabric networking docs](https://docs.fabricmc.net/develop/networking)
 - [FabricMC Discussion #4430](https://github.com/orgs/FabricMC/discussions/4430) (Spigot/Paper ↔ Fabric custom-channel evidence)
-- Sister project **VeryMcBot** (paperweight userdev + NMS reflection paradigm reference)
+- Full link registry: [`docs/references.md`](docs/references.md)
 
 ---
 

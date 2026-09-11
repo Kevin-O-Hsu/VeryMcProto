@@ -7,7 +7,7 @@ package verymc.top.veryMcProto.framework.debug;
  * {@link verymc.top.veryMcProto.framework.event.LifecycleBridge} / {@link verymc.top.veryMcProto.framework.permission.Perms}
  * / {@link verymc.top.veryMcProto.framework.dataproviders.DataProviderManager} / IPluginServerPlayHandler）
  * 不再直接 {@code import} 某个 mod 的 DebugSystem 实例（原硬绑 {@code mod.servux.ServuxDebug}，
- * 违背"framework 与 mod 解耦"——见 docs/TECH_DEBT_AUDIT F001）。本门面持一个
+ * 违背"framework 与 mod 解耦"——历史技术债已清偿）。本门面持一个
  * {@link DebugSystem} 引用，由采用框架的协议 mod 在 {@code onRegister} 时 {@link #bind} 注入
  * 自己的实例。
  *

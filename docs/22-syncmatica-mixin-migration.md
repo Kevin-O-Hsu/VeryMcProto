@@ -1,9 +1,9 @@
 # 22 · Syncmatica Mixin 分析与 Paper 迁移实现记录
 
 > **文档定位**：syncmatica（投影共享）**迁移已完成**，本文是 Mixin → Paper 迁移的【已落地实现记录】，非方案/建议。
-> 对应实现代码：`src/main/java/verymc/top/veryMcProto/mod/syncmatica/`（实际包结构见 §10）。
+> 对应实现代码：`src/main/java/verymc/top/veryMcProto/mod/syncmatica/`（实际包结构见 [20](20-syncmatica-architecture.md) §2）。
 > 原版根目录：`OriginImpl/syncmatica-LTS-26.1/src/main/java/ch/endte/syncmatica/`（含 `mixin/` 9 个服务端/客户端 Mixin + `litematica_mixin/` 10 个 GUI Mixin——26.1 树计数与 1.21.11 相同）。
-> 相关：架构见 [20](20-syncmatica-architecture.md)；协议字段见 [21](21-syncmatica-protocol.md)；实施记录见 [23](23-syncmatica-implementation-plan.md)；测试见 [24](24-syncmatica-testing-guide.md)；项目总览见 [../CLAUDE.md](../CLAUDE.md)。
+> 相关：架构见 [20](20-syncmatica-architecture.md)；协议字段见 [21](21-syncmatica-protocol.md)；实现总览见 [23](23-syncmatica-implementation-plan.md)；测试见 [24](24-syncmatica-testing-guide.md)；项目权威说明见 [../AGENTS.md](../AGENTS.md)。
 
 ---
 
@@ -101,7 +101,7 @@ ServerPlayHandler.getInstance().registerServerPlayHandler(handler);  // → Chan
 | `@Unique operateComms(Consumer)` | — | 懒加载 comManager + null 安全 | **直接持有 comManager 引用**（Paper 恒已 init，无 Consumer 包装） |
 | `@Unique getExchangeTarget()` | — | 懒加载 `new ExchangeTarget(handler)` | **`Map<UUID, ExchangeTarget> targets`**（`getOrCreateTarget`，§4.4） |
 
-> 原版注释「FAPI networking 太慢注册 receiver，所以直接 Mixin 截包」。Paper 的 `Messenger` 通道映射即原版 custom payload（与 Servux 一致，见 [CLAUDE.md](../CLAUDE.md) §1），`byte[]` 即 `FriendlyByteBuf` 裸字节——**单一 handler 收全部 `syncmatica:main` 包，不需要 mixin 截包**。
+> 原版注释「FAPI networking 太慢注册 receiver，所以直接 Mixin 截包」。Paper 的 `Messenger` 通道映射即原版 custom payload（与 Servux 一致，见 [../AGENTS.md](../AGENTS.md) §1 网络层命门），`byte[]` 即 `FriendlyByteBuf` 裸字节——**单一 handler 收全部 `syncmatica:main` 包，不需要 mixin 截包**。
 
 ### 2.4 MixinServerCommonNetworkHandler —— 兜底包路由（冗余）
 
@@ -273,7 +273,7 @@ public ExchangeTarget getOrCreateTarget(Player player) {
 | `syncmatica.command.load_each` | **true** | `/syncmatica load <file>` |
 | `syncmatica.command.debug` | **op** | `/syncmatica debug`（调试日志宏开关，syncmatica 独立状态） |
 
-> 与 Servux 权限迁移同构（[CLAUDE.md](../CLAUDE.md) §5）。
+> 与 Servux 权限迁移同构（[../AGENTS.md](../AGENTS.md) §5 权限系统）。
 
 ---
 
@@ -361,57 +361,9 @@ Gson 回调式配置实现。读时 try/catch 任何异常并设 `wasError=true`
 
 ---
 
-## 10. 实际包结构（已落地）
+## 10. 实际包结构（唯一权威在 [20](20-syncmatica-architecture.md) §2）
 
-`src/main/java/verymc/top/veryMcProto/mod/syncmatica/` 全树（44 个 Java 文件）：
-
-```
-verymc.top.veryMcProto.mod.syncmatica/
-├── Feature.java                            ← 9 枚举（照抄）
-├── SyncmaticaContext.java                  ← Context 容器（去客户端分支；protocolEnabled 软禁用）
-├── SyncmaticaReference.java                ← 常量（MOD_VERSION=插件版本 / NETWORK_ID / 文件名常量）
-├── app/
-│   └── SyncmaticaModule.java               ← 启停入口（主类 onEnable/onDisable 调用；Bukkit 事件 listener）
-├── command/
-│   └── SyncmaticaCommand.java              ← Bukkit CommandExecutor（load_all/load_each + status/save/reload/enable/disable/debug）
-├── communication/
-│   ├── CommunicationManager.java           ← 抽象基类（onPacket/metadata 编解码/exchange 调度）
-│   ├── ExchangeTarget.java                 ← 持 Player；S2C 默认 NMS DiscardedPayload 直发
-│   ├── FeatureSet.java                     ← 照抄
-│   ├── MessageType.java                    ← 照抄
-│   ├── ServerCommunicationManager.java     ← 服务端（onPlayerJoin/Leave/handle/handleExchange + tryStartHandshake + targets Map + suspendAll）
-│   └── exchange/
-│       ├── Exchange.java / AbstractExchange.java    ← 照抄（含 checkUUID peek）
-│       ├── VersionHandshakeServer.java                ← 照抄
-│       ├── FeatureExchange.java                       ← 照抄
-│       ├── DownloadExchange.java / UploadExchange.java ← 照抄（16KB stop-and-wait 分片 + MD5）
-│       └── ModifyExchangeServer.java                  ← 照抄
-├── data/
-│   ├── FileStorage.java                    ← 照抄（去 isServer 分支；litematicFolder 注入；恒 hash 命名）
-│   ├── IFileStorage.java                   ← 照抄
-│   ├── LocalLitematicState.java            ← 照抄
-│   ├── ServerPlacement.java                ← 照抄（去 matList 字段；+ correctMetadataFromPeek）
-│   ├── ServerPosition.java                 ← 照抄
-│   ├── SyncmaticManager.java               ← 照抄（saveServer 原子写 .new→.bak→current；loadServer peek 修正）
-│   └── litematica/                         ← 从 litematica/schematic/ 照抄（peek 用）
-│       ├── FileType.java / Schema.java / SchematicMetadata.java / SchematicSchema.java
-├── extended_core/                          ← 照抄
-│   ├── PlayerIdentifier.java / PlayerIdentifierProvider.java
-│   └── SubRegionData.java / SubRegionPlacementModification.java
-├── network/
-│   ├── PacketType.java                     ← 18 枚举（照抄）
-│   └── SyncmaticaHandler.java              ← IPluginServerPlayHandler 实现（receivePlayPayload → onPacket；encodeWithSplitter 空）
-├── service/
-│   ├── AbstractService.java / IService.java / IServiceConfiguration.java ← 照抄
-│   ├── JsonConfiguration.java              ← 照抄（hadError 机制）
-│   ├── DebugService.java                   ← 照抄 + 修正拼写/默认值 bug
-│   └── QuotaService.java                   ← 照抄（progress 不持久化；senderName 解耦）
-└── util/
-    ├── StringTools.java
-    ├── SyncmaticaDebug.java                ← mod 独立调试门面（6 分类，持久化到 debugLog 段）
-    ├── SyncmaticaLog.java                  ← JUL shim（SLF4J → JUL）
-    └── SyncmaticaUtil.java                 ← createChecksum MD5→UUID / litematicPeek / backupAndReplace
-```
+实际包结构全树（44 个 Java 文件）与逐文件迁移标注（照抄/修正/差异）已**并入 [20](20-syncmatica-architecture.md) §2** 成唯一带标注树——本文不再重复维护树本体，避免两树漂移。
 
 > 与 Servux 共享 `framework/network`（`ChannelManager` / `ServerPlayHandler` / `IPluginServerPlayHandler` / `FriendlyByteBufs`）、`framework/debug/DebugSystem`、`framework/nms/Nms`、`framework/util`。**未新增 framework 类**。
 
@@ -448,4 +400,4 @@ verymc.top.veryMcProto.mod.syncmatica/
 
 ---
 
-> **相关**：架构与本质差异见 [20](20-syncmatica-architecture.md)；协议字段与 Exchange 状态机见 [21](21-syncmatica-protocol.md)；阶段实施记录见 [23](23-syncmatica-implementation-plan.md)；客户端兼容测试见 [24](24-syncmatica-testing-guide.md)；项目总览与核心约束见 [../CLAUDE.md](../CLAUDE.md)；原版权威源码见 `OriginImpl/syncmatica-LTS-26.1/`。
+> **相关**：架构与本质差异见 [20](20-syncmatica-architecture.md)；协议字段与 Exchange 状态机见 [21](21-syncmatica-protocol.md)；实现总览见 [23](23-syncmatica-implementation-plan.md)；客户端兼容测试见 [24](24-syncmatica-testing-guide.md)；项目权威说明见 [../AGENTS.md](../AGENTS.md)；原版权威源码见 `OriginImpl/syncmatica-LTS-26.1/`。

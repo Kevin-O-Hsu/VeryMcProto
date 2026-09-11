@@ -12,7 +12,7 @@
   （Paper 侧版本可用 https://api.papermc.io/v2/projects/paper 交叉核对。）
 - **分支**：当前 MC 版本的开发一律在 `dev` 分支提交，完成后合入 `main`（= 最新 MC 稳定发布线）。旧 MC 版本冻结为 `ver/<X>` + `ver/<X>-dev` 维护对：修 Bug 在 `ver/<X>-dev`，验证后合入 `ver/<X>`。详见下文「分支模型与版本系统」。
 - **版本**：插件版本 = `<mcVersion>-b<buildNumber>`（当前 `26.1.2-b3`——26.1 线的精确上游补丁号，26.1 客户端 MOD_STRING 硬门禁要求）。**唯一来源是 `gradle.properties`**——发版只需在 dev 上 `buildNumber` +1，**任何源码、plugin.yml、文档中都不得手写版本号**（注入链路见下文）。
-- **语言与风格**：注释、日志、文档用中文；与现有代码一致（中文 javadoc、常量类 + 源码实证注释）。
+- **语言与风格**：注释、日志、文档用中文；与现有代码一致（中文 javadoc、常量类 + 源码实证注释）。**唯一例外 `README.md`**：面向国际受众（GitHub/Modrinth 门面）保持英文，且为瘦身门面——命令/权限/配置/排错等运维内容一律指向 `docs/40-configuration.md`，不在 README 重复维护。
 - **文档同步强制**：本仓库的**每一个改动**，改的时候都必须同步更改对应的文档——受影响的 [`docs/`](docs/) 篇章、`README.md`、`AGENTS.md` 等；没有合适文档可承载时**新建文档**（放 `docs/` 并在 [`docs/00-INDEX.md`](docs/00-INDEX.md) 登记索引）。文档更新与代码改动落在**同一个 commit**，禁止"先合代码、事后补文档"。
 - **协议字段语义**改动前必须对照 `OriginImpl/` 下的客户端源码（litematica / malilib / syncmatica 是协议接收端），**不要凭服务端代码猜客户端行为**。26.1 起客户端还带协议版本 + MOD_STRING 前缀**硬门禁**（不匹配即整通道静默退网），协议常量必须与 `OriginImpl/*-LTS-26.1` 逐字对齐。
 - **禁止引入 Mixin / AccessWidener / 服务端 patch 依赖**——Paper 无 Mixin 运行时，替代方案见核心约束 §2。
@@ -257,7 +257,7 @@ Litematica 投影子系统（`mod/servux/schematic/`，约 8000 行）已移植�
 
 - **粘贴**（C2S，2026-09-08 任务化——上游 TaskPasteSchematicPerChunkDirect 形态，见 docs/09 §26.1.6）：客户端上传 `.litematic` → `ServuxLitematicaHandler` 经 `PacketSplitter.receive` 重组 → `handleBulkData` 分流（`LitematicaPaste` 走 `LitematicsDataProvider.handleClientPasteRequest`；`Litematic-Transmit*` 走 `LitematicaSchematic.receiveFileTransmit` 落盘 + 粘贴）→ 创建 `PasteTask` 登记 `TaskScheduler` 分 tick 执行 → 逐 chunk `SchematicPlacingUtils.placeToWorldWithinChunk`（真实 `setBlock` + 方块实体 + 实体放置，含 ReplaceMode / PasteLayerBehavior / LayerRange / Interval / 三忽略布尔；实体位置修复族——Pos 全实体重写目标坐标 / 悬挂类 TileX/Y/Z+block_pos / leash+home_pos 偏移 / Display|Leashable 补 tick，逐字对齐上游 SchematicPlacingUtils:446-513+:562-565；vanillaTickTime+60ms 动态预算 + type 16 进度/完成帧，完成帧清除客户端 InfoHud renderer）。需创造模式 + paste 权限。
 - **文件投递**（S2C，⛔ **已移除 2026-09**）：26.1 stock 客户端 `handleBulkData` 的 Transmit 分流整块注释（无接收端，投递帧被静默丢弃），上游 `sendTransmitFile` 亦 `@Deprecated(forRemoval)` 零调用点——死信链（`/servux litematic transmit` 命令 + `sendTransmitFile` + 文件字节级 16MB 门禁）已物理删除，恢复走 git revert。C2S 侧 `Litematic-Transmit*` 接收路由为我方超集保留（客户端上传触发点同被上游注释，`LitematicsDataProvider:479-484` 声明）。
-- 逐阶段记录见 [`docs/11-schematic-migration-plan.md`](docs/11-schematic-migration-plan.md)（历史移植蓝图）与 [`docs/05-schematic-system.md`](docs/05-schematic-system.md)。
+- 技术细节见 [`docs/05-schematic-system.md`](docs/05-schematic-system.md) 与 [`docs/09-DELIVERY.md`](docs/09-DELIVERY.md) §26.1.5/§26.1.6（历史移植蓝图 docs/06、08、11 与 docs/research/ 迁移笔记已于 2026-09 删除，见 git 历史）。
 
 **移植方法**：照抄原版纯算法（BitArray/Palette/Container/几何/transmit）+ NMS 直连（`BlockState`/`CompoundTag`/`NbtIo`/`ServerLevel`）；仅 3 类强制降级——`SchematicConversionMaps`（DataFixer，`readFromNBT(enableFixers=false)` 守卫下零影响）、`IMixinWorldTickScheduler`（保存投影读 tick，粘贴不需要）、`WorldUtils`（Mixin → no-op，靠 `setBlock` 的 flags 控制邻居更新）。`LitematicaSchematic` 因 `selection↔placement↔schematic↔PositionUtils` 四元循环依赖，用**桩版**（移除引用未移植类的方法 + 准确注释）分阶段引入、逐步回填。
 
@@ -298,20 +298,18 @@ Litematica 投影子系统（`mod/servux/schematic/`，约 8000 行）已移植�
 | [`docs/03-dataproviders-detail.md`](docs/03-dataproviders-detail.md) | 5 个数据 Provider（+配置主通道）的协议数据内容 + 数据采集（含 `loggers` TPS/MobCap）+ 权限节点 |
 | [`docs/04-mixin-analysis.md`](docs/04-mixin-analysis.md) | 26 Mixin + 2 AccessWidener 逐项清单、分类、迁移去向 |
 | [`docs/05-schematic-system.md`](docs/05-schematic-system.md) ⭐ | Litematica 投影系统：BitArray/Palette/Container/Selection/Placement/Transmit + 传输协议 |
-| [`docs/06-fabric-vs-paper.md`](docs/06-fabric-vs-paper.md) | Fabric ↔ Paper 框架差异对照表 |
-| [`docs/07-migration-architecture.md`](docs/07-migration-architecture.md) ⭐ | **完整迁移技术方案**：架构设计、网络层/数据采集/降级矩阵、可行性验证 |
-| [`docs/08-implementation-plan.md`](docs/08-implementation-plan.md) | 历史实施步骤（阶段划分 + 任务拆解） |
-| [`docs/09-DELIVERY.md`](docs/09-DELIVERY.md) | 投递/字节限制专题（含客户端 32767 上限实证） |
+| [`docs/07-migration-architecture.md`](docs/07-migration-architecture.md) ⭐ | **Fabric → Paper 架构对照与降级矩阵**：目标架构、网络层/数据采集迁移、降级矩阵、可行性验证、逐域对照（原 06 已并入 §7） |
+| [`docs/09-DELIVERY.md`](docs/09-DELIVERY.md) | 投递/字节限制专题（含客户端 32767 上限实证）+ 与原版差异/降级 + **26.1 迁移实录（§26.1 权威）** |
 | [`docs/10-testing-guide.md`](docs/10-testing-guide.md) | **Servux 客户端兼容测试**：5 通道↔3 mod 映射、测试步骤、排错流程 |
-| [`docs/11-schematic-migration-plan.md`](docs/11-schematic-migration-plan.md) | schematic 子系统历史移植蓝图（P0-P9） |
 | **Syncmatica 实现说明**（文档 20–24） | 投影共享中央仓库：单通道 + Exchange 会话层 + 文件存储（**已完整实现**） |
 | [`docs/20-syncmatica-architecture.md`](docs/20-syncmatica-architecture.md) | 实际架构 + **与 Servux 本质差异对比表** + Exchange 会话模型 + framework 复用边界 |
 | [`docs/21-syncmatica-protocol.md`](docs/21-syncmatica-protocol.md) ⭐ | 单通道 `[Identifier][body]` 包体、18 PacketType、Feature 协商、metadata 字段表、Exchange 状态机、stop-and-wait 分片 |
-| [`docs/22-syncmatica-mixin-migration.md`](docs/22-syncmatica-mixin-migration.md) ⭐ | 5 Mixin→Bukkit 已落地映射、网络层/持久化/权限/命令迁移实现、降级矩阵、实际包结构 |
-| [`docs/23-syncmatica-implementation-plan.md`](docs/23-syncmatica-implementation-plan.md) | 实现总览：文件清单 + 完成状态 |
+| [`docs/22-syncmatica-mixin-migration.md`](docs/22-syncmatica-mixin-migration.md) ⭐ | 5 Mixin→Bukkit 已落地映射、网络层/持久化/权限/命令迁移实现、降级矩阵（包结构唯一权威在 docs/20 §2） |
+| [`docs/23-syncmatica-implementation-plan.md`](docs/23-syncmatica-implementation-plan.md) | 实现总览：关键决策 + 完成状态（包结构见 docs/20 §2） |
 | [`docs/24-syncmatica-testing-guide.md`](docs/24-syncmatica-testing-guide.md) | **Syncmatica 客户端兼容测试**：握手/分享/下载/修改/持久化/多玩家步骤 + 排错 |
 | [`docs/30-jei-protocol.md`](docs/30-jei-protocol.md) ⭐ | **JEI 完整协议**：12 通道 wire 逐字段、通道声明契约、cheat 权限模型、配方转移算法、尺寸模型、上游源码索引 |
-| [`docs/references.md`](docs/references.md) | 参考资源链接 |
+| [`docs/40-configuration.md`](docs/40-configuration.md) | **运维参考（docs 内唯一权威）**：三 mod 命令、权限节点 + LuckPerms 示例、配置文件全键、数据布局、排错速查 |
+| [`docs/references.md`](docs/references.md) | 参考资源链接（全仓库唯一登记处） |
 
 ---
 

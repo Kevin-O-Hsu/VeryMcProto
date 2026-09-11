@@ -1,4 +1,4 @@
-# 客户端兼容测试指南
+# 10 · Servux 客户端兼容测试指南
 
 > 本文档把「插件移植」转化为「实测验证」。基于 `OriginImpl/` 下 masa 全家桶
 > （minihud / tweakeroo / litematica）**客户端源码的逐行分析**，给出每个 servux 通道对应的
@@ -15,11 +15,11 @@ servux 共 5 条通道，对应 **3 个 masa 客户端 mod**。映射关系由�
 
 | 通道 | 协议版本 | 客户端 Mod（声明源） | 功能 | 当前状态 |
 |---|---|---|---|---|
-| `servux:hud_metadata` | 2 | **MiniHUD** (`ServuxHudHandler`) | spawn / seed / 天气 / TPS / MobCap HUD | ✅ 已验证 |
-| `servux:structures` | 2 | **MiniHUD** (`ServuxStructuresHandler`) | 结构边界框渲染 | ✅ 已验证 |
-| `servux:entity_data` | 1 | **MiniHUD** (`ServuxEntitiesHandler`) | 实体 / 方块实体 NBT 查询 | ✅ 已验证 |
-| `servux:tweaks` | 1 | **Tweakeroo** (`ServuxTweaksHandler`) | NBT 查询（潜影盒堆叠未实现） | ✅ 已验证 |
-| `servux:litematics` | 1 | **Litematica** (`ServuxLitematicaHandler`) + Tweakeroo | NBT 查询 + **批量区块 NBT 拉取** + 投影粘贴 | ✅ 已验证 |
+| `servux:hud_metadata` | 3 | **MiniHUD** (`ServuxHudHandler`) | spawn / seed / 天气 / TPS / MobCap HUD | ✅ 已验证 |
+| `servux:structures` | 3 | **MiniHUD** (`ServuxStructuresHandler`) | 结构边界框渲染 | ✅ 已验证 |
+| `servux:entity_data` | 2 | **MiniHUD** (`ServuxEntitiesHandler`) | 实体 / 方块实体 NBT 查询 | ✅ 已验证 |
+| `servux:tweaks` | 2 | **Tweakeroo** (`ServuxTweaksHandler`) | NBT 查询（潜影盒堆叠未实现） | ✅ 已验证 |
+| `servux:litematics` | 2 | **Litematica** (`ServuxLitematicaHandler`) + Tweakeroo | NBT 查询 + **批量区块 NBT 拉取** + 投影粘贴 | ✅ 已验证 |
 
 > **itemscroller 不碰任何 servux 通道**（源码无 `servux` namespace 引用），无需测试。
 >
@@ -84,7 +84,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
   /servux debug cat packet            # 切换数据包分类（收发 / 分片）
   /servux debug off                   # 关闭 master 总开关（不碰分类）
   ```
-  完整分类见 `framework/debug/Debug.java` 的 `Cat` 枚举：`lifecycle / handshake / network / packet / tick / permission / provider / config`。
+  完整分类见 `mod/servux/ServuxDebug.java` 的 `Cat` 枚举（10 值）：`lifecycle / handshake / network / packet / tick / permission / provider / config / easyplace / schematic`。
 - **持久化**：编辑 `run/plugins/VeryMcProto/servux.json`，设 `servux_main.debug_log: true`，重启。
 
 > 开启后日志形如：`[DBG/HANDSHAKE] litematic sendMetadata → Steve ok=true servux=servux-fabric-26.1.2-b3 ver=2`（MOD_TYPE=fabric 伪装 + 精确补丁版本——26.1 客户端硬门禁要求，见 docs/09 §26.1.2；litematics 协议版本 2）。

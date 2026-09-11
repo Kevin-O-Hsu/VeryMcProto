@@ -2,7 +2,7 @@
 
 > **状态**：syncmatica（投影共享）已 100% 完整实现并实测通过。本文是【已实现说明】——所有协议字段、收发路径、Exchange 状态机、分片机制均已落地，对应代码在 `src/main/java/verymc/top/veryMcProto/mod/syncmatica/`。
 > **原版对照**：`OriginImpl/syncmatica-LTS-26.1/src/main/java/ch/endte/syncmatica/`（逐行对照的权威实现；26.1 wire 零变化，自 1.21.11 迁移）。
-> **相关文档**：架构总览 [20](20-syncmatica-architecture.md)；Mixin→Bukkit 映射与降级 [22](22-syncmatica-mixin-migration.md)；实施记录 [23](23-syncmatica-implementation-plan.md)；测试 [24](24-syncmatica-testing-guide.md)；项目总览 [../CLAUDE.md](../CLAUDE.md)。
+> **相关文档**：架构总览 [20](20-syncmatica-architecture.md)；Mixin→Bukkit 映射与降级 [22](22-syncmatica-mixin-migration.md)；实现总览 [23](23-syncmatica-implementation-plan.md)；测试 [24](24-syncmatica-testing-guide.md)；项目权威说明 [../AGENTS.md](../AGENTS.md)。
 > **字段语义对照**：syncmatica 是双端 mod，同仓库的 `communication/ClientCommunicationManager.java` + 各 `*Client` Exchange 即协议接收端。本文所有字段顺序均已对照客户端 `receiveMetaData` / `receivePositionData` 确认一致。
 
 ---

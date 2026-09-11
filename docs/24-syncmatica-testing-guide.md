@@ -4,7 +4,7 @@
 >
 > **代码定位**：`src/main/java/verymc/top/veryMcProto/mod/syncmatica/`（命令 `command/SyncmaticaCommand.java`、配置 `SyncmaticaReference.java`、握手 `communication/exchange/VersionHandshakeServer.java`、上传/下载 `UploadExchange.java`/`DownloadExchange.java`、持久化 `data/SyncmaticManager.java`、配额 `service/QuotaService.java`、调试 `service/DebugService.java` + `util/SyncmaticaDebug.java`）；权限注册 `src/main/resources/plugin.yml`；客户端对照 `OriginImpl/syncmatica-LTS-26.1/`。
 >
-> **关联文档**：实施蓝图 [23](23-syncmatica-implementation-plan.md)；架构/协议/迁移 [20](20-syncmatica-architecture.md)/[21](21-syncmatica-protocol.md)/[22](22-syncmatica-mixin-migration.md)；姊妹（Servux 客户端测试）[10](10-testing-guide.md)；项目总览 [../CLAUDE.md](../CLAUDE.md)。
+> **关联文档**：实现总览 [23](23-syncmatica-implementation-plan.md)；架构/协议/迁移 [20](20-syncmatica-architecture.md)/[21](21-syncmatica-protocol.md)/[22](22-syncmatica-mixin-migration.md)；姊妹（Servux 客户端测试）[10](10-testing-guide.md)；项目权威说明 [../AGENTS.md](../AGENTS.md)。
 
 ---
 
@@ -415,7 +415,7 @@ DownloadExchange: close(true)（取消包 CANCEL_LITEMATIC）
 
 ## 14. 结果记录表
 
-每次实测填写，归档到 `docs/research/` 或提交记录：
+每次实测填写，记录到提交信息（历史迁移笔记已删除，见 git 历史）：
 
 | 日期 | 构建 commit | 测试场景 (§) | 客户端版本 | 结果 | 日志/截图 | 备注 |
 |---|---|---|---|---|---|---|
@@ -433,4 +433,4 @@ DownloadExchange: close(true)（取消包 CANCEL_LITEMATIC）
 
 ---
 
-> **回到上层**：[00-INDEX.md](00-INDEX.md) · [CLAUDE.md](../CLAUDE.md)
+> **回到上层**：[00-INDEX.md](00-INDEX.md) · [../AGENTS.md](../AGENTS.md)

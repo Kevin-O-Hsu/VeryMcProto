@@ -153,7 +153,7 @@ public static final int MAX_REASSEMBLY_SIZE_S2C = 16_777_216;       // 26.1 客�
 
 > **send 入口 16MB 门禁**（26.1 客户端重组上限预检）：被检量 = DataTag 帧化后 buffer 的 `writerIndex()`（= 4 + GZIP 压缩长 = 首包 VarInt 下发、客户端 `expectedSize` 读取的同一个数，三方同源）；超限（严格 `>`，恰好相等放行）在分片循环前**整帧拒发**（零分片发出——超限帧发出去会被客户端销毁重组 session 并抛异常，后续分片还会以垃圾 expectedSize 重建残留会话污染下一帧）+ warn 日志（log-and-drop，有意不限频：唯一重复源 Structures 周期重发上界 ≈ 每名已注册玩家 12 条/分钟，随数据缩量自停）。覆盖全部 S2C 分片大帧：HUD RecipeManager 全量帧、Litematics BulkEntityReply、Structures 全量帧三活跃点 + Entities/Tweaks 两死分支。**上游 servux 26.1 无此预检——我方增强，勿随上游模板回退**。曾并存的文件字节级门禁（`LitematicaSchematic.MAX_TRANSMIT_FILE_SIZE`）随 S2C 投递死信链删除（2026-09，26.1 客户端无接收端）——本门禁是现存唯一 16MB 服务端预检，覆盖全部 S2C 分片帧。历史两级裁分论述见 [09](09-DELIVERY.md) §26.1。
 
-> ⚠️ **移植核心风险点**：Bukkit plugin messaging 单包硬上限是 `Messenger.MAX_MESSAGE_SIZE = 32768`（32 KiB），**远小于** S2C 的 1 MiB。详见 [07](07-migration-architecture.md) §网络层 · 字节限制方案。若 Paper 端全程走 plugin messaging，S2C 分片常量须改为 ≤32760。
+> ⚠️ **字节限制教义（26.1 真值）**：Bukkit `Messenger.MAX_MESSAGE_SIZE` = 1048576（~1MiB，1.21.x 起——旧文档称 32768 已过时）；**真正的 S2C 瓶颈是原版客户端对 `ClientboundCustomPayload`（未知通道 discarded 解码）的 32767 字节解码上限**。详见 [07](07-migration-architecture.md) §2.2 与 [09](09-DELIVERY.md) §4。我方 S2C 分片常量 32000/31995 即为防御 32767。
 
 ### 5.3 发送逻辑（切片）
 
@@ -212,7 +212,7 @@ private static class ReadingSession {
 - `READING_SESSIONS`：`Map<Long, ReadingSession>`，按 `long key` 索引。
 - `key`：旧版 MC 用 `Pair`，新版被移除；Sakura 改成**预共享的随机 long session key**（`Random.create(Util.getMeasuringTimeMs()).nextLong()`），可随握手包下发或接收端自行生成。**移植时需为每个分片流维护一份 session key 映射**（Fabric 端 HUD 在 `ServuxHudHandler.readingSessionKeys: Map<UUID, Long>`）。
 
-**移植要点**：`PacketSplitter` 是**纯算法 + NMS `FriendlyByteBuf`/`Unpooled`**，可近乎照抄；唯一改动是 §5.2 的分片常量（受 plugin messaging 32KiB 限制）和 §5.4 的 session key 存储。
+**移植要点**：`PacketSplitter` 是**纯算法 + NMS `FriendlyByteBuf`/`Unpooled`**，可近乎照抄；唯一改动是 §5.2 的分片常量（防御客户端 32767 解码上限）和 §5.4 的 session key 存储。
 
 ---
 

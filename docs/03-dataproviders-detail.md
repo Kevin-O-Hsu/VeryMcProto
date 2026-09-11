@@ -89,7 +89,7 @@ CompoundTag:
   ]
 ```
 - 采集：`player.level().recipeAccess().getRecipes()` → 对每个 `RecipeHolder`，用 `Recipe.CODEC.encodeStart(NbtOps.INSTANCE, recipeEntry.value())` 序列化。
-- **Paper 迁移**：`Recipe.CODEC` + `NbtOps` 是 NMS，paperweight 可直连；或遍历 Bukkit `Bukkit.recipeIterator()` 自行拼装（保真度略低）。**必须走 PacketSplitter 分包**（配方表常 > 32KiB）。
+- **Paper 迁移**：`Recipe.CODEC` + `NbtOps` 是 NMS，paperweight 可直连；或遍历 Bukkit `Bukkit.recipeIterator()` 自行拼装（保真度略低）。**必须走 PacketSplitter 分包**（配方表常超 1MiB，且需防御客户端 32767 解码上限）。
 
 ### 1.6 DataLogger 子系统（TPS / MobCap）⭐
 

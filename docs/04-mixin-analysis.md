@@ -100,7 +100,7 @@
 | `MixinMinecraftServer` | `MinecraftServer` | `@Inject("tickServer" @RETURN ordinal=1)` tickProviders；`prepareLevels` setSpawnPos；`runServer` onServerStarting/Started；`reloadResources` Pre/Post；`stopServer` Pre/Post | 全部生命周期 + tick 调度 | **B**：`ServerLoadEvent` + `BukkitRunnable` tick + reload/stop 钩 |
 | `MixinPlayerManager` | `PlayerList` | `@Inject`：`canPlayerLogin`(onClientConnect) / `placeNewPlayer`(join) / `respawn`(respawn) / `op`+`deop`(op/deop) / `remove`(leave) | 玩家事件 | **B**：`AsyncPlayerPreLoginEvent`/`PlayerJoinEvent`/`PlayerRespawnEvent`/op 变更/`PlayerQuitEvent` |
 
-> `MixinMinecraftServer` 与 `MixinPlayerManager` 是**生命周期层的心脏**。Paper 上用 Bukkit 事件 1:1 替换（映射见 [01](01-servux-architecture.md) §10 与 [06](06-fabric-vs-paper.md) §生命周期）。
+> `MixinMinecraftServer` 与 `MixinPlayerManager` 是**生命周期层的心脏**。Paper 上用 Bukkit 事件 1:1 替换（映射见 [01](01-servux-architecture.md) §10 与 [07](07-migration-architecture.md) §7.2 生命周期）。
 
 ---
 

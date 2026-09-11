@@ -118,7 +118,7 @@ public void receiveSlice(int number, Slice slice) {       // 乱序安全
 
 ### 2.2 第二级：`PacketSplitter`（网络层，~1MiB/包）
 
-> 见 [02](02-network-protocol.md) §5。每个 16KiB slice 装进一个 Payload，若该 Payload 仍超网络单包上限（S2C 1MiB / plugin messaging 32KiB），再由 PacketSplitter 切。
+> 见 [02](02-network-protocol.md) §5。每个 16KiB slice 装进一个 Payload，若该 Payload 仍超网络单包上限，再由 PacketSplitter 切（26.1 线该两级形态仅为对端 C2S 上传约定——我方接收侧仅重组，见 §2.3 注记；S2C 发送侧死信链已删）。
 
 ### 2.3 两级分包示意
 
@@ -131,7 +131,7 @@ Litematic 文件 (5 MiB)
   └─ Slice[319] ─▶ ...
 ```
 
-> **Paper 迁移**：两级分包**全可照抄**（纯 Java）。唯一改动：第二级的 PacketSplitter 分片常量受 plugin messaging 32KiB 限制（见 [02](02-network-protocol.md) §5.2 / [07](07-migration-architecture.md)）。
+> **Paper 迁移**：两级分包**全可照抄**（纯 Java）。唯一改动：第二级的 PacketSplitter 分片常量防御客户端 32767 解码上限（见 [02](02-network-protocol.md) §5.2 / [07](07-migration-architecture.md) §2.2）。
 >
 > **方向注记（2026-09 后）**：上图为上游四阶段协议的两级分包形态。26.1 线我方 **S2C 发送侧死信链已删**（客户端无接收端，见 §3）；16KiB 切片（`SchematicBuffer.BUFFER_SIZE`）现为对端 C2S 上传约定，我方接收侧仅重组、不切片。
 
@@ -278,5 +278,5 @@ class AreaSelection {
 
 - 投影传输走 `servux:litematics` 通道（[03](03-dataproviders-detail.md) §Litematics）。
 - 大上传 = 客户端 16KiB 切片（SchematicBuffer 约定）→ 我方 PacketSplitter 重组（[02](02-network-protocol.md) §5）；S2C 发送侧死链已删（见 §3 注记），26.1 线我方仅重组不切片。
-- Paper 端若 plugin messaging 限制 32KiB：每个 16KiB slice 仍在限制内，**单 slice 不会再触发 PacketSplitter 二次分包**（16KiB < 32KiB），反而简化——但仍保留 PacketSplitter 作为保险（应对极端情况）。
+- 每个 16KiB slice 远小于客户端 32767 解码上限与 Bukkit 1MiB Messenger 上限，**单 slice 不会触发 PacketSplitter 二次分包**，反而简化——但仍保留 PacketSplitter 作为保险（应对极端情况）。
 - session key（`SliceKey`）需在插件侧维护 `Map<UUID, Long>` 映射，与原版 `SchematicBufferManager.playerMap` 一致。

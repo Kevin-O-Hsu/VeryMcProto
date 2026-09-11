@@ -114,7 +114,7 @@ public class ServerCommunicationManager extends CommunicationManager
         // ★ canSend 客户端声明守卫：未声明不发探针（对齐上游 ServerPlayNetworking.canSend 语义）。
         // 拦截三态：vanilla 客户端（永不声明，本次连接零 syncmatica 包）/ mod 客户端声明未达
         //（由 onPlayerRegisterChannel 兜底再发起）/ 退出重进的陈旧 target（旧连接的声明集合残留，
-        // 既有竞态——见 docs 残留声明，拦截或有界瞬态，均不创建 exchange）。
+        // 既有竞态——见 docs/22 §3.1 握手双保险命门，拦截或有界瞬态，均不创建 exchange）。
         if (!target.getPlayer().getListeningPluginChannels().contains(SyncmaticaReference.NETWORK_ID.toString()))
         {
             SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] tryStartHandshake: 拦截 " + target.getPersistentName()

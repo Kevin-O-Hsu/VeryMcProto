@@ -70,10 +70,5 @@ OriginImpl/
 # -------- AI 编码助手（本地会话/配置，不入库） --------
 .zcode/
 
-# -------- 一次性审计快照（不入库） --------
-# TECH_DEBT_AUDIT.md 是 2026-07-02 的一次性技术债审计快照（点时态文档，
-# 随代码演进失真），不入库；今后如再生成同类快照同样仅留本地。
-docs/TECH_DEBT_AUDIT.md
-
 # -------- 说明：以下【不忽略】，须保留 --------
 #   - gradle/wrapper/gradle-wrapper.jar  （gradlew 依赖，必须入库）

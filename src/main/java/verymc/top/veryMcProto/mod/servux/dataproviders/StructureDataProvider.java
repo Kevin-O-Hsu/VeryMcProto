@@ -50,7 +50,7 @@ import verymc.top.veryMcProto.mod.servux.util.PlayerDimensionPosition;
  *
  * <p><b>采集触发</b>：原版用 Mixin {@code MixinServerChunkLoadingManager.markChunkPendingToSend}
  * → {@code onStartedWatchingChunk(player, chunk)} 精确触发区块结构采集。Paper 无此 Mixin，
- * 改为<b>周期扫描</b>：每 {@code update_interval}（默认 100t）对每个 enabled 且 registered 的玩家，
+ * 改为<b>周期扫描</b>：每 {@code update_interval}（默认 40t）对每个 enabled 且 registered 的玩家，
  * 遍历其 view distance 范围区块，采集结构 NBT 并全量重发（去重由客户端 ListTag 合并处理）。
  *
  * <p><b>采集 API</b>（paperweight dev bundle 直连，不需反射，照原版调用）：

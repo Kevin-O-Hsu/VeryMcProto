@@ -1,7 +1,7 @@
 # 01 · Servux 原版架构总览
 
 > 原版根目录：`OriginImpl/servux-LTS-1.21.11/src/main/java/fi/dy/masa/servux/`
-> 相关：网络协议见 [02](02-network-protocol.md)；各 Provider 数据内容见 [03](03-dataproviders-detail.md)；Mixin 触发点见 [04](04-mixin-analysis.md)；差异对照见 [06](06-fabric-vs-paper.md)。
+> 相关：网络协议见 [02](02-network-protocol.md)；各 Provider 数据内容见 [03](03-dataproviders-detail.md)；Mixin 触发点见 [04](04-mixin-analysis.md)；架构对照与降级矩阵见 [07](07-migration-architecture.md)。
 
 ---
 
@@ -69,7 +69,7 @@ JVM 加载 Mod
   └─ DataProviderManager.onCaptureImmutable(immutable)  // @Local 捕获 RegistryAccess.Frozen
 ```
 
-> **移植要点**：上述所有"由 Mixin 触发"的节点，在 Paper 上改用 **Bukkit 事件 + 调度器**等价触发，详见 [06](06-fabric-vs-paper.md) §生命周期 与 [07](07-migration-architecture.md) §生命周期迁移。
+> **移植要点**：上述所有"由 Mixin 触发"的节点，在 Paper 上改用 **Bukkit 事件 + 调度器**等价触发，详见 [07](07-migration-architecture.md) §7.2 生命周期。
 
 ---
 
@@ -231,7 +231,7 @@ Servux 用一套**自定义事件总线**（`event/*Handler` 单例 + `interface
   - `/servux info <setting>` / `/servux list [provider]` / `/servux search <query>` → 查看
   - 启停 provider 经 `DataProviderManager.setProviderEnabled`
 
-> **移植要点**：Paper 用 `plugin.yml` 注册命令别名 + `CommandExecutor`/`TabCompleter`，或 Paper 的 Brigadier（`LifecycleEvent`/`PaperCommandManager`）。命令权限对接 Bukkit 权限。详见 [06](06-fabric-vs-paper.md) §命令。
+> **移植要点**：Paper 用 `plugin.yml` 注册命令别名 + `CommandExecutor`/`TabCompleter`，或 Paper 的 Brigadier（`LifecycleEvent`/`PaperCommandManager`）。命令权限对接 Bukkit 权限。详见 [07](07-migration-architecture.md) §7.6 命令。
 >
 > **我方对齐状态（26.1 线）**：权限树已对齐上游 `:41-90`——根节点 `servux.commands`（上游 requires level 4 的 Bukkit 近似，default: op）+ 每子命令独立节点 `servux.commands.<sub>`（search 复用 `.list`；旧单节点 `servux.command` 经 plugin.yml children 映射自动继承）；`list` 列全部 settings 现值（含上游"值 <10 字符才显示"怪癖）、`list <provider>` 过滤；`set` 纯内存 + 显式 `/servux save` 落盘（enable/disable/debug/litematic 为我方扩展子命令，保留切换即时落盘）。
 

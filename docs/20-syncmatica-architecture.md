@@ -2,7 +2,7 @@
 
 > **状态**：syncmatica（投影共享）已在 Paper 26.1.2 上完整实现，所有协议路径（握手 / 分享 / 下载 / 修改 / 删除 / 持久化 / 多玩家广播 / 软禁用）均经实测（26.1 wire 零变化，自 1.21.11 迁移后行为不变）。
 > **本文描述实际架构**，对应代码 `src/main/java/verymc/top/veryMcProto/mod/syncmatica/`；原版对照 `OriginImpl/syncmatica-LTS-26.1/`（下文简写 ORIGIN/）。
-> 相关文档：网络协议与 Exchange 状态机见 [21](21-syncmatica-protocol.md)；Mixin 分析与迁移方案见 [22](22-syncmatica-mixin-migration.md)；实施计划见 [23](23-syncmatica-implementation-plan.md)；测试见 [24](24-syncmatica-testing-guide.md)。同步阅读 [../CLAUDE.md](../CLAUDE.md) 与本项目 Servux 移植文档（[01](01-servux-architecture.md)～[11](11-schematic-migration-plan.md)）——syncmatica 与 Servux 共享同一套 `framework/network` 网络框架。
+> 相关文档：网络协议与 Exchange 状态机见 [21](21-syncmatica-protocol.md)；Mixin 分析与迁移方案见 [22](22-syncmatica-mixin-migration.md)；实现总览见 [23](23-syncmatica-implementation-plan.md)；测试见 [24](24-syncmatica-testing-guide.md)。同步阅读 [../AGENTS.md](../AGENTS.md)（项目权威说明）与本项目 Servux 系列文档（[01](01-servux-architecture.md)–[05](05-schematic-system.md)、[09](09-DELIVERY.md)）——syncmatica 与 Servux 共享同一套 `framework/network` 网络框架。
 
 ---
 
@@ -35,64 +35,68 @@
 
 ---
 
-## 2. 实际包结构（mod/syncmatica/ 全树）
+## 2. 实际包结构（mod/syncmatica/ 全树 · 含逐文件迁移标注）
+
+> 全树 **44 个 Java 文件**；`←` 注释 = 架构角色 + **迁移处置**（照抄/修正/差异——自原版逐文件对照得出）。本树是 syncmatica 包结构的**唯一权威**（原 [22](22-syncmatica-mixin-migration.md) §10 全树已并入此处，不再两处维护）。
 
 ```
 mod/syncmatica/
-├── SyncmaticaContext.java         ← ★ 领域根容器：聚合 files/comMan/synMan/quota/debug + 配置 + 生命周期
+├── SyncmaticaContext.java         ← ★ 领域根容器：聚合 files/comMan/synMan/quota/debug + 配置 + 生命周期（迁移：去客户端分支；protocolEnabled 软禁用）
 ├── SyncmaticaReference.java       ← 常量（MOD_ID / NETWORK_ID / 文件名 / MOD_VERSION=插件版本（26.1.2-b3 式））
-├── Feature.java                   ← 9 个 Feature 枚举（协议特性协商，见 §5.3）
+├── Feature.java                   ← 9 个 Feature 枚举（协议特性协商，见 §5.3）（照抄）
 │
 ├── app/
-│   └── SyncmaticaModule.java      ← ★ 装配入口（单例）：enable/disable + 双保险握手 + 玩家监听
+│   └── SyncmaticaModule.java      ← ★ 装配入口（单例）：enable/disable + 双保险握手 + 玩家监听（Bukkit 事件 listener，替代原版 5 个服务端 Mixin）
 │
 ├── network/                       ← 【传输层】单通道 handler + 18 PacketType
-│   ├── SyncmaticaHandler.java     ← 实现 IPluginServerPlayHandler：解析 [Identifier][body] → onPacket
-│   └── PacketType.java            ← 18 个逻辑消息类型（含 request_download / mesage 拼写陷阱）
+│   ├── SyncmaticaHandler.java     ← 实现 IPluginServerPlayHandler：解析 [Identifier][body] → onPacket（encodeWithSplitter 空）
+│   └── PacketType.java            ← 18 个逻辑消息类型（照抄；⚠️ request_download / mesage 拼写照抄原版）
 │
 ├── communication/                 ← 【会话层】Exchange 多步请求-应答状态机
 │   ├── CommunicationManager.java       ← 抽象基类：onPacket 派发 + metadata/position 编解码 + exchange 调度
-│   ├── ServerCommunicationManager.java ← ★ 服务端实现：onPlayerJoin/Leave + handle(4 类一次性请求) + handleExchange(广播)
-│   ├── ExchangeTarget.java             ← 「一个连接」的抽象：持 Player + ongoingExchanges 列表 + FeatureSet + sendPacket（NMS DiscardedPayload 直发）
-│   ├── FeatureSet.java                 ← Feature 集合序列化（\n 分隔字符串）
-│   ├── MessageType.java                ← SUCCESS/INFO/WARNING/ERROR（MESSAGE 包用）
+│   ├── ServerCommunicationManager.java ← ★ 服务端实现：onPlayerJoin/Leave + handle(4 类一次性请求) + handleExchange(广播) + tryStartHandshake + targets Map + suspendAll
+│   ├── ExchangeTarget.java             ← 「一个连接」的抽象：持 Player + ongoingExchanges 列表 + FeatureSet + sendPacket（S2C 默认 NMS DiscardedPayload 直发）
+│   ├── FeatureSet.java                 ← Feature 集合序列化（\n 分隔字符串）（照抄）
+│   ├── MessageType.java                ← SUCCESS/INFO/WARNING/ERROR（MESSAGE 包用）（照抄）
 │   └── exchange/
-│       ├── Exchange.java               ← 接口
-│       ├── AbstractExchange.java       ← ★ 状态机基类：finished/success 状态 + checkUUID peek
-│       ├── VersionHandshakeServer.java ← 进服握手：版本 → Feature 协商 → CONFIRM_USER 全量下发
-│       ├── FeatureExchange.java        ← Feature 协商抽象基类（FEATURE_REQUEST / FEATURE）
-│       ├── DownloadExchange.java       ← 接收文件方：REQUEST → 收 SEND 分片 → 回 RECEIVED → 校验 MD5
-│       ├── UploadExchange.java         ← 发送文件方：收 REQUEST/RECEIVED → 发 SEND 分片 → 发 FINISHED
-│       └── ModifyExchangeServer.java   ← 修改锁：MODIFY_REQUEST → ACCEPT 占锁 → MODIFY_FINISH 应用 + 广播
+│       ├── Exchange.java               ← 接口（照抄）
+│       ├── AbstractExchange.java       ← ★ 状态机基类：finished/success 状态 + checkUUID peek（照抄）
+│       ├── VersionHandshakeServer.java ← 进服握手：版本 → Feature 协商 → CONFIRM_USER 全量下发（照抄）
+│       ├── FeatureExchange.java        ← Feature 协商抽象基类（FEATURE_REQUEST / FEATURE）（照抄）
+│       ├── DownloadExchange.java       ← 接收文件方：REQUEST → 收 SEND 分片 → 回 RECEIVED → 校验 MD5（照抄；上传配额检查在此）
+│       ├── UploadExchange.java         ← 发送文件方：收 REQUEST/RECEIVED → 发 SEND 分片 → 发 FINISHED（照抄；16KB stop-and-wait）
+│       └── ModifyExchangeServer.java   ← 修改锁：MODIFY_REQUEST → ACCEPT 占锁 → MODIFY_FINISH 应用 + 广播（照抄）
 │
 ├── data/                          ← 【数据层】placement 注册表 + 文件存储 + 持久化
-│   ├── ServerPlacement.java          ← ★ 核心数据模型：一个投影放置的全部元数据（纯 JSON 序列化）
-│   ├── SyncmaticManager.java         ← placement 注册表：Map<UUID,ServerPlacement> + loadServer/saveServer（原子写）
-│   ├── IFileStorage.java / FileStorage.java  ← 投影文件存储：<hash>.litematic 内容寻址 + LocalLitematicState 判定
-│   ├── LocalLitematicState.java      ← 4 态枚举：NO_LOCAL / DESYNC / DOWNLOADING / PRESENT
-│   ├── ServerPosition.java           ← origin 坐标（BlockPos + dimensionId）
-│   └── litematica/                   ← 投影文件 peek（SchematicMetadata / SchematicSchema / Schema / FileType）
+│   ├── ServerPlacement.java          ← ★ 核心数据模型：一个投影放置的全部元数据（纯 JSON 序列化）（照抄；去 matList 死字段 + correctMetadataFromPeek）
+│   ├── SyncmaticManager.java         ← placement 注册表：Map<UUID,ServerPlacement> + loadServer/saveServer（照抄；saveServer 原子写 .new→.bak→current；loadServer peek 修正）
+│   ├── IFileStorage.java / FileStorage.java  ← 投影文件存储：<hash>.litematic 内容寻址 + LocalLitematicState 判定（照抄；去 isServer 分支；恒 hash 命名）
+│   ├── LocalLitematicState.java      ← 4 态枚举：NO_LOCAL / DESYNC / DOWNLOADING / PRESENT（照抄）
+│   ├── ServerPosition.java           ← origin 坐标（BlockPos + dimensionId）（照抄）
+│   └── litematica/                   ← 投影文件 peek（照抄自原版 litematica/schematic/；SchematicMetadata/SchematicSchema/Schema/FileType；Schema 版本表 2026-09-10 补齐 SCHEMA_26_1_RC1(4783, "26.1-rc-1")）
 │
-├── extended_core/                 ← CORE_EX feature 的扩展数据
+├── extended_core/                 ← CORE_EX feature 的扩展数据（照抄）
 │   ├── PlayerIdentifier.java            ← 玩家标识（uuid + bufferedName），MISSING_PLAYER 占位
 │   ├── PlayerIdentifierProvider.java    ← uuid→PlayerIdentifier 归一化 map（内存级）
 │   ├── SubRegionData.java               ← 子区域修改集合（isModified + Map<name, Modification>）
 │   └── SubRegionPlacementModification.java ← 单个子区域覆盖（name/position/rotation/mirror）
 │
 ├── service/                       ← 【服务层】可配置的横切服务
-│   ├── IService / AbstractService / IServiceConfiguration / JsonConfiguration  ← 抽象 + Gson 配置回调
-│   ├── QuotaService.java          ← 每玩家上传字节配额（DownloadExchange 查询）
-│   └── DebugService.java          ← 收发包计数日志（与 SyncmaticaDebug 联动持久化）
+│   ├── IService / AbstractService / IServiceConfiguration / JsonConfiguration  ← 抽象 + Gson 配置回调（照抄，含 hadError 机制）
+│   ├── QuotaService.java          ← 每玩家上传字节配额（DownloadExchange 查询）（照抄；progress 不持久化；senderName 解耦）
+│   └── DebugService.java          ← 收发包计数日志（照抄 + 修正原版 doPackageLogging→doPacketLogging 拼写/默认值 bug；与 SyncmaticaDebug 联动持久化）
 │
 ├── command/
-│   └── SyncmaticaCommand.java     ← /syncmatica 命令树（load / save / reload / enable / disable / debug ...）
+│   └── SyncmaticaCommand.java     ← /syncmatica 命令树（load_all/load_each + status/save/reload/enable/disable/debug）
 │
 └── util/
     ├── SyncmaticaUtil.java        ← MD5→UUID（createChecksum）+ litematicPeek + backupAndReplace（原子写）+ 文件名消毒
     ├── StringTools.java           ← 字符串工具
     ├── SyncmaticaLog.java         ← JUL 日志门面（替代原版 SLF4J）
-    └── SyncmaticaDebug.java       ← 分类调试日志（与 config 的 "debugLog" 段持久化）
+    └── SyncmaticaDebug.java       ← 分类调试日志（6 分类：lifecycle/handshake/network/packet/exchange/data；与 config 的 "debugLog" 段持久化）
 ```
+
+> 与 Servux 共享 `framework/network`（`ChannelManager` / `ServerPlayHandler` / `IPluginServerPlayHandler` / `FriendlyByteBufs`）、`framework/debug/DebugSystem`、`framework/nms/Nms`、`framework/util`。**未新增 framework 类**。
 
 **核心四层**：
 

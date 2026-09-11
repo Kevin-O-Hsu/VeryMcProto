@@ -9,62 +9,7 @@
 
 ## 1. 实际包结构（`mod/syncmatica/`）
 
-```
-mod/syncmatica/
-├── Feature.java                    # 9 个协议特性枚举（CORE / DISPLAY_NAME / CORE_EX / VERSION / MODIFY …）
-├── SyncmaticaContext.java          # 容器：聚合 files / comMan / synMan / quota / debugService / playerIdentifierProvider / fs
-├── SyncmaticaReference.java        # 常量：MOD_ID / NETWORK_ID / MOD_VERSION / LITEMATIC_SUBDIR / CONFIG_FILE_NAME / PLACEMENTS_FILE_NAME
-├── app/
-│   └── SyncmaticaModule.java       # 装配入口（单例 enable(plugin) / disable；注册通道 + 玩家监听 + 双保险握手）
-├── communication/
-│   ├── CommunicationManager.java       # 包派发 + metadata/position 编解码 + downloadState/modifyState 状态表
-│   ├── ServerCommunicationManager.java # 服务端 4 类一次性请求处理 + 握手管理 + broadcastTargets
-│   ├── ExchangeTarget.java             # 玩家连接封装 + ongoingExchanges + FeatureSet + sendPacket（NMS 直发）
-│   ├── FeatureSet.java                 # Feature 集合 + 版本默认集映射（"0.1"→{CORE}）
-│   ├── MessageType.java                # SUCCESS / INFO / WARNING / ERROR
-│   └── exchange/
-│       ├── Exchange.java               # 会话接口（6 方法）
-│       ├── AbstractExchange.java       # 状态机基类（finished/success + close/succeed/checkUUID）
-│       ├── VersionHandshakeServer.java # 版本握手（REGISTER_VERSION → FEATURE → CONFIRM_USER）
-│       ├── FeatureExchange.java        # Feature 协商
-│       ├── UploadExchange.java         # 文件上传（服务端发送，stop-and-wait 16KB/片）
-│       ├── DownloadExchange.java       # 文件下载（服务端接收 + MD5 校验 + 配额检查）
-│       └── ModifyExchangeServer.java   # 放置修改（占锁防并发）
-├── data/
-│   ├── IFileStorage.java
-│   ├── FileStorage.java                # 内容寻址 .litematic 存储（<hash>.litematic 天然去重）
-│   ├── LocalLitematicState.java        # 4 态枚举（NO_LOCAL / PRESENT / DOWNLOADING / DESYNC）
-│   ├── ServerPlacement.java            # 放置元数据全字段 + Feature 条件字段 + toJson/fromJson + peek 修正
-│   ├── ServerPosition.java             # 原点坐标（BlockPos + dimensionId）
-│   ├── SyncmaticManager.java           # placement 注册表 + placements.json 原子写（backupAndReplace）
-│   └── litematica/                     # peek 元数据读取/修正（服务端用文件 peek 校正 metadata）
-│       ├── FileType.java
-│       ├── Schema.java
-│       ├── SchematicMetadata.java
-│       └── SchematicSchema.java
-├── extended_core/
-│   ├── PlayerIdentifier.java
-│   ├── PlayerIdentifierProvider.java
-│   ├── SubRegionData.java
-│   └── SubRegionPlacementModification.java
-├── network/
-│   ├── PacketType.java                 # 18 逻辑消息枚举（⚠️ request_download / mesage 拼写照抄原版）
-│   └── SyncmaticaHandler.java          # C2S 收发 + [Identifier][body] 解析 + 软禁用门控
-├── service/
-│   ├── IService.java
-│   ├── AbstractService.java
-│   ├── IServiceConfiguration.java
-│   ├── JsonConfiguration.java          # Gson 配置（try/catch + hadError 机制）
-│   ├── DebugService.java               # 逐包日志（修正原版 doPackageLogging→doPacketLogging + 默认值统一 false）
-│   └── QuotaService.java               # 上传配额（progress Map，默认关闭 / 40MB）
-├── command/
-│   └── SyncmaticaCommand.java          # /syncmatica 命令树（status/save/reload/enable/disable/load/debug）
-└── util/
-    ├── StringTools.java
-    ├── SyncmaticaDebug.java            # 调试分类 trace（master + 分类正交，持久化到 syncmatica-config.json）
-    ├── SyncmaticaLog.java              # JUL 日志 shim
-    └── SyncmaticaUtil.java             # backupAndReplace 原子写等工具
-```
+实际包结构全树（44 个 Java 文件）与逐文件迁移标注的**唯一权威**见 [20](20-syncmatica-architecture.md) §2（含与 Servux 共享的 framework 边界注记）——本文不再重复维护树本体，避免多树漂移。
 
 ---
 
