@@ -235,7 +235,7 @@ load: POSTWORLD
 |---|---|---|
 | 客户端 32767 字节解码上限（未知通道） | S2C 大包断连 | `PacketSplitter` S2C 分片 32000/31995；已知通道大包走 NMS 直发（§2.2） |
 | 客户端未装对应 Mod（如无 MiniHUD） | 发包失败/无响应 | `MAX_FAILURES` 计数 + invalid 玩家标记；`PlayerRegisterChannelEvent` + C2S 主动请求自愈 |
-| `MOD_STRING` 协议握手字段 | 客户端版本协商 | **26.1 真值 `servux-fabric-<mcVersion>-b<buildNumber>`（当前 `servux-fabric-26.1.2-b3`）**——`MOD_TYPE` 恒 `"fabric"` 伪装，26.1 客户端 `startsWith("servux-fabric-<精确上游id>")` 硬门禁，1.21.11 时代的 `"paper"` 前缀会被四通道静默拒绝；协议版本用 26.1 真值 3/2/2/3/2（见 [09](09-DELIVERY.md) §26.1.2） |
+| `MOD_STRING` 协议握手字段 | 客户端版本协商 | **26.1 真值 `servux-fabric-<mcVersion>-b<buildNumber>`（当前 `servux-fabric-26.1.2-b4`）**——`MOD_TYPE` 恒 `"fabric"` 伪装，26.1 客户端 `startsWith("servux-fabric-<精确上游id>")` 硬门禁，1.21.11 时代的 `"paper"` 前缀会被四通道静默拒绝；协议版本用 26.1 真值 3/2/2/3/2（见 [09](09-DELIVERY.md) §26.1.2） |
 | NMS 签名随版本漂移 | 升级 MC 时编译失败 | 反射点集中在 `framework/reflect/`；升级按 [04](04-mixin-analysis.md) 反射点清单 + [../AGENTS.md](../AGENTS.md) §4 NMS 约束核对 |
 | Structures 周期扫描性能 | 玩家多时 CPU 占用 | 限扫描频率（`update_interval` 默认 40t=2s）；只扫 view distance 内；去重缓存 |
 | EasyPlace 依赖 PacketEvents | 未装时功能缺席 | `EasyPlaceBootstrap` 反射加载 + `catch(Throwable)` 优雅跳过，其余通道零影响 |

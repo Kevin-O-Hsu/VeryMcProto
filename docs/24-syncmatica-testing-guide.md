@@ -138,16 +138,16 @@ syncmatica 有**两套独立**调试日志系统，互不替代，需配合开�
 **验证**（服务端日志，`SyncmaticaDebug` HANDSHAKE 分类）：
 
 ```
-[DBG/syncmatica/handshake] VersionHandshakeServer.init: 推 REGISTER_VERSION[服务端版本=26.1.2-b3] → <玩家>
+[DBG/syncmatica/handshake] VersionHandshakeServer.init: 推 REGISTER_VERSION[服务端版本=26.1.2-b4] → <玩家>
 [DBG/syncmatica/handshake] VersionHandshakeServer: 收到客户端 REGISTER_VERSION[版本=<客户端版本>] ← <玩家>
-（服务端 MOD_VERSION="26.1.2-b3" 带 `-b` 后缀，不命中版本正则 → FeatureSet.fromVersionString 返回 null → 触发 FEATURE 交换，双方用全集 FeatureSet）
+（服务端 MOD_VERSION="26.1.2-b4" 带 `-b` 后缀，不命中版本正则 → FeatureSet.fromVersionString 返回 null → 触发 FEATURE 交换，双方用全集 FeatureSet）
 [DBG/syncmatica/handshake] VersionHandshakeServer: fromVersionString 返回 null → requestFeatureSet（FEATURE 交换）
 （FEATURE 交换完成后）
 [DBG/syncmatica/handshake] VersionHandshakeServer.onFeatureSetReceive: 推 CONFIRM_USER[placementCount=N] → <玩家>
 <玩家> 已加入 broadcastTargets（共 N+1 个）
 ```
 
-同时 INFO 级日志：`Syncmatica client joining with local version 26.1.2-b3 and client version <客户端版本>`。
+同时 INFO 级日志：`Syncmatica client joining with local version 26.1.2-b4 and client version <客户端版本>`。
 
 **客户端侧**：进服无报错；Litematica 主菜单的「服务端投影」入口可见（即使列表为空）。
 

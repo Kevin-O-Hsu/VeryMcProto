@@ -42,7 +42,7 @@
 ```
 mod/syncmatica/
 ├── SyncmaticaContext.java         ← ★ 领域根容器：聚合 files/comMan/synMan/quota/debug + 配置 + 生命周期（迁移：去客户端分支；protocolEnabled 软禁用）
-├── SyncmaticaReference.java       ← 常量（MOD_ID / NETWORK_ID / 文件名 / MOD_VERSION=插件版本（26.1.2-b3 式））
+├── SyncmaticaReference.java       ← 常量（MOD_ID / NETWORK_ID / 文件名 / MOD_VERSION=插件版本（26.1.2-b4 式））
 ├── Feature.java                   ← 9 个 Feature 枚举（协议特性协商，见 §5.3）（照抄）
 │
 ├── app/
@@ -176,7 +176,7 @@ VeryMcProto.onDisable
 **关键方法**：
 
 - `startup()` / `shutdown()`：编排各 service 启停 + `synMan` 载入/保存 + 配置读写。
-- `getFeatureSet()`：懒加载 `Arrays.asList(Feature.values())`——声明全集，配合 `MOD_VERSION`=插件版本（`26.1.2-b3` 式，带 `-b` 后缀永不命中版本正则，更不会落入 `"0.1.x"` 兼容分支）触发 FEATURE 交换，使双方用全集编码（MODIFY/DISPLAY_NAME/CORE_EX/VERSION 全开）。
+- `getFeatureSet()`：懒加载 `Arrays.asList(Feature.values())`——声明全集，配合 `MOD_VERSION`=插件版本（`26.1.2-b4` 式，带 `-b` 后缀永不命中版本正则，更不会落入 `"0.1.x"` 兼容分支）触发 FEATURE 交换，使双方用全集编码（MODIFY/DISPLAY_NAME/CORE_EX/VERSION 全开）。
 - `checkPartnerVersion(version)`：**仅拒绝 `"0.0.1"`**，其余全放行——版本兼容性实际靠 FeatureSet 协商。
 - `loadConfiguration()` / `saveConfiguration()`：读/写 `syncmatica-config.json`，按 service 的 `configKey`（`quota` / `debug`）分段装配；额外保存 `SyncmaticaDebug` 状态到顶层 `"debugLog"` 子对象。
 - `suspendProtocol()` / `resumeProtocol()`：软禁用——`suspendAll()` 关闭进行中 exchange + 清空 `broadcastTargets`，但**通道仍注册**（避免 Paper 踢人）；`resumeProtocol()` 仅翻标志，在线玩家重握手由 `SyncmaticaModule.reconnectOnlinePlayers` 负责。

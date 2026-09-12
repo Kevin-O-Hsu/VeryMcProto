@@ -87,7 +87,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
   完整分类见 `mod/servux/ServuxDebug.java` 的 `Cat` 枚举（10 值）：`lifecycle / handshake / network / packet / tick / permission / provider / config / easyplace / schematic`。
 - **持久化**：编辑 `run/plugins/VeryMcProto/servux.json`，设 `servux_main.debug_log: true`，重启。
 
-> 开启后日志形如：`[DBG/HANDSHAKE] litematic sendMetadata → Steve ok=true servux=servux-fabric-26.1.2-b3 ver=2`（MOD_TYPE=fabric 伪装 + 精确补丁版本——26.1 客户端硬门禁要求，见 docs/09 §26.1.2；litematics 协议版本 2）。
+> 开启后日志形如：`[DBG/HANDSHAKE] litematic sendMetadata → Steve ok=true servux=servux-fabric-26.1.2-b4 ver=2`（MOD_TYPE=fabric 伪装 + 精确补丁版本——26.1 客户端硬门禁要求，见 docs/09 §26.1.2；litematics 协议版本 2）。
 
 ### 3.2 服务端：确认权限（当前默认全员可用）
 
@@ -151,8 +151,8 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 **预期（成功判据）—— 三处任一可见即通过**：
 
 - ✅ 服务端日志：`[DBG/PACKET] C2S litematics ← <玩家> type=PACKET_C2S_METADATA_REQUEST`
-- ✅ 服务端日志：`[DBG/HANDSHAKE] litematic sendMetadata → <玩家> ok=true servux=servux-fabric-26.1.2-b3 ver=2`
-- ✅ 客户端日志（`.minecraft/logs/latest.log`）：`LitematicDataChannel: joining Servux version servux-fabric-26.1.2-b3`
+- ✅ 服务端日志：`[DBG/HANDSHAKE] litematic sendMetadata → <玩家> ok=true servux=servux-fabric-26.1.2-b4 ver=2`
+- ✅ 客户端日志（`.minecraft/logs/latest.log`）：`LitematicDataChannel: joining Servux version servux-fabric-26.1.2-b4`
 
 **若失败**：服务端只有 C2S 没有 `ok=true` 的 S2C → 握手回程丢包，查 §7 排错。
 

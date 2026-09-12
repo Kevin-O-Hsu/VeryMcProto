@@ -4,7 +4,7 @@
 > The client still uses the original Fabric mods; the server swaps from "Fabric server + server-side mod" to "standard Paper server + this plugin", with identical protocol behavior.
 
 ```
-Paper 26.1.2 · Java 25 · paperweight userdev · Version 26.1.2-b3
+Paper 26.1.2 · Java 25 · paperweight userdev · Version 26.1.2-b4
 Servux ✅  ·  JEI ✅  ·  Syncmatica ✅   (all three targets fully implemented; server-side verified on 26.1.2)
 ```
 
@@ -85,7 +85,7 @@ Protocol deep-dives: [docs/02](docs/02-network-protocol.md) (Servux network) · 
 
 ## 4. Installation
 
-1. Get `VeryMcProto-26.1.2-b3.jar` from the project Releases page, or build it with `./gradlew build` (the Mojang-mapped artifact loads directly on standard Paper 26.1+ — no reobf step exists anymore).
+1. Get `VeryMcProto-26.1.2-b4.jar` from the project Releases page, or build it with `./gradlew build` (the Mojang-mapped artifact loads directly on standard Paper 26.1+ — no reobf step exists anymore).
 2. Drop it into the server's `plugins/` directory.
 3. **(Optional, only for EasyPlace)** Install the PacketEvents plugin.
 4. Restart the server; players join with the corresponding client Fabric mods — handshake is automatic.

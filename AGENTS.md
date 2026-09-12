@@ -11,7 +11,7 @@
   - 上游已越过本线版本 → 该版本属旧线：当前版本的活走 `ver/<X>-dev`，同时提醒用户启动 `dev` 的升级适配（见分支模型「生命周期」）。
   （Paper 侧版本可用 https://api.papermc.io/v2/projects/paper 交叉核对。）
 - **分支**：当前 MC 版本的开发一律在 `dev` 分支提交，完成后合入 `main`（= 最新 MC 稳定发布线）。旧 MC 版本冻结为 `ver/<X>` + `ver/<X>-dev` 维护对：修 Bug 在 `ver/<X>-dev`，验证后合入 `ver/<X>`。详见下文「分支模型与版本系统」。
-- **版本**：插件版本 = `<mcVersion>-b<buildNumber>`（当前 `26.1.2-b3`——26.1 线的精确上游补丁号，26.1 客户端 MOD_STRING 硬门禁要求）。**唯一来源是 `gradle.properties`**——发版只需在 dev 上 `buildNumber` +1，**任何源码、plugin.yml、文档中都不得手写版本号**（注入链路见下文）。
+- **版本**：插件版本 = `<mcVersion>-b<buildNumber>`（当前 `26.1.2-b4`——26.1 线的精确上游补丁号，26.1 客户端 MOD_STRING 硬门禁要求）。**唯一来源是 `gradle.properties`**——发版只需在 dev 上 `buildNumber` +1，**任何源码、plugin.yml、文档中都不得手写版本号**（注入链路见下文）。
 - **语言与风格**：注释、日志、文档用中文；与现有代码一致（中文 javadoc、常量类 + 源码实证注释）。**唯一例外 `README.md`**：面向国际受众（GitHub/Modrinth 门面）保持英文，且为瘦身门面——命令/权限/配置/排错等运维内容一律指向 `docs/40-configuration.md`，不在 README 重复维护。
 - **文档同步强制**：本仓库的**每一个改动**，改的时候都必须同步更改对应的文档——受影响的 [`docs/`](docs/) 篇章、`README.md`、`AGENTS.md` 等；没有合适文档可承载时**新建文档**（放 `docs/` 并在 [`docs/00-INDEX.md`](docs/00-INDEX.md) 登记索引）。文档更新与代码改动落在**同一个 commit**，禁止"先合代码、事后补文档"。
 - **协议字段语义**改动前必须对照 `OriginImpl/` 下的客户端源码（litematica / malilib / syncmatica 是协议接收端），**不要凭服务端代码猜客户端行为**。26.1 起客户端还带协议版本 + MOD_STRING 前缀**硬门禁**（不匹配即整通道静默退网），协议常量必须与 `OriginImpl/*-LTS-26.1` 逐字对齐。
@@ -68,18 +68,18 @@
 版本格式 **`<MC版本>-b<构建号>`**（如 `1.21.11-b1`）；MC 未来改日期式命名（如 `26.1`）时自动成为 `26.1-b1`，无需改格式。
 
 ```
-gradle.properties（mcVersion=26.1.2 · buildNumber=3）          ← 唯一改动点
+gradle.properties（mcVersion=26.1.2 · buildNumber=4）          ← 唯一改动点
    │  build.gradle.kts: version = "$mcVersion-b$buildNumber"
    ▼
 ├─ plugin.yml（version: '${version}' 展开）                      → /version、Paper 插件列表
-├─ jar 文件名 VeryMcProto-26.1.2-b3.jar（26.1 起无 -reobf 产物）
+├─ jar 文件名 VeryMcProto-26.1.2-b4.jar（26.1 起无 -reobf 产物）
 └─ version.properties（mcVersion/version 双键，processResources 展开）
        │  Reference 类加载时 Properties.load 读回
        ▼
    Reference.MC_VERSION / Reference.PLUGIN_VERSION（框架级常量）
-       ├─ ServuxReference.MOD_STRING   = "servux-fabric-26.1.2-b3"（MOD_TYPE 伪装 fabric：
+       ├─ ServuxReference.MOD_STRING   = "servux-fabric-26.1.2-b4"（MOD_TYPE 伪装 fabric：
        │    26.1 客户端 startsWith("servux-fabric-<精确上游id>") 硬门禁，"paper" 会被四通道拒绝）
-       ├─ SyncmaticaReference.MOD_VERSION = "26.1.2-b3"（-b 后缀永不命中
+       ├─ SyncmaticaReference.MOD_VERSION = "26.1.2-b4"（-b 后缀永不命中
        │    FeatureSet.fromVersionString 的 ^\d+(\.\d+){2,4}$ 正则 → 恒触发 FEATURE 交换）
        └─ （JEI 无版本握手支腿——26.1 线完整协议重做时删除：
             jei 协议无 MOD_STRING/版本协商字段，服务端检测走通道声明 jei:delete_player_item）
