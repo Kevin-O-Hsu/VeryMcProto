@@ -120,11 +120,12 @@ verymc.top.veryMcProto/
 - 黑白名单 setting 保留；timeout 简化为周期全量刷新。
 - **性能注记**：周期扫描遍历玩家 view distance 内区块，玩家多时有 CPU 占用——默认 `update_interval=40t`（2s）+ 只扫 view distance 内 + 去重。
 
-### 5.5 Litematics（servux:litematics，协议版本 2）—— ✅ 全功能（含投影粘贴；S2C 投递已移除）
+### 5.5 Litematics（servux:litematics，协议版本 2）—— ✅ 全功能（含投影粘贴；C2S/S2C 文件传输已移除）
 - **元数据握手 / 方块实体 NBT 查询 / 实体 NBT 查询 / 批量实体查询（onBulkEntityRequest）**：✅ 实现（复用 Entities 的 `NbtView` + `be.saveWithFullMetadata` / `entity.saveWithoutId` + 玩家背包/末影箱权限过滤；批量查询拼 ListTag 走 PacketSplitter 分包）。
-- **协议帧（toPacket/fromPacket）**：✅ 照抄原版（四阶段 TransmitStart/Data/End/Cancel 帧定义保留作 C2S 接收路由 + SliceKey + CHANNEL_ID=servux:litematics + 协议版本 2）。
-- **投影粘贴（C2S 上传 .litematic，任务化）**：✅ **已实现**（schematic 子系统 `mod/servux/schematic/` 全套移植，详见 [05](05-schematic-system.md)）。客户端上传分片经 `ServuxLitematicaHandler` 重组 → `handleBulkData` 分流：`Litematic-Transmit*` 走 `LitematicaSchematic.receiveFileTransmit` 落盘到 `schematics/` + 粘贴（**该分流对 stock 26.1 客户端不可达**——客户端 `sliceForServux` 调用点整段注释，我方接收路由属协议面超集保留）；活主路 `LitematicaPaste` 走 `LitematicsDataProvider.handleClientPasteRequest` 加载 `SchematicPlacement` 后创建 `PasteTask`（上游 TaskPasteSchematicPerChunkDirect 形态）登记 TaskScheduler 分 tick 粘贴（含 ReplaceMode / PasteLayerBehavior / LayerRange / Interval / 三个忽略布尔，type 16 进度/完成帧随任务下发，需创造模式 + paste 权限）——同步 `pasteTo` 直放已随上游注释停用删除（2026-09-08，见 §26.1.6）。
+- **协议帧（toPacket/fromPacket）**：✅ 照抄原版（SliceKey + CHANNEL_ID=servux:litematics + 协议版本 2；四阶段 Transmit* 帧定义已随 C2S 接收链移除，wire 历史记载见 [05](05-schematic-system.md) §3.1）。
+- **投影粘贴（C2S 上传 .litematic，任务化）**：✅ **已实现**（schematic 子系统 `mod/servux/schematic/` 全套移植，详见 [05](05-schematic-system.md)）。客户端上传分片经 `ServuxLitematicaHandler` 重组 → 重组完成后无条件走 `LitematicsDataProvider.handleClientPasteRequest`（上游 0.10.7 `:201` 同构；Task 门控在 Provider——非 `LitematicaPaste` 静默忽略）加载 `SchematicPlacement` 后创建 `PasteTask`（上游 TaskPasteSchematicPerChunkDirect 形态）登记 TaskScheduler 分 tick 粘贴（含 ReplaceMode / PasteLayerBehavior / LayerRange / Interval / 三个忽略布尔，type 16 进度/完成帧随任务下发，需创造模式 + paste 权限）——同步 `pasteTo` 直放已随上游注释停用删除（2026-09-08，见 §26.1.6）。
 - **S2C 文件投递命令**：⛔ **已移除（2026-09）**——26.1 stock 客户端 `handleBulkData` 的 Transmit 分流整块注释（无接收端，帧被静默丢弃），上游 `sendTransmitFile` 亦 `@Deprecated(forRemoval)` 零调用点。死信链（`/servux litematic transmit` 命令 + `sendTransmitFile` + 文件字节级 16MB 门禁）已物理删除，恢复走 git revert。
+- **C2S 文件接收**（`Litematic-Transmit*` → `receiveFileTransmit` 落盘）：⛔ **已移除（2026-10·安全修复）**——客户端可控 `FileName` 直达 `Path.of`/`dir.resolve` 无包含性检查，构成**路径穿越任意写/删/读回**原语（上游安全公告漏洞同源；另有 `new Slice[客户端控长]` 的 OOM 向量），上游 0.10.7 同判禁用该实验性接收功能、修复版 stock 客户端亦不再发送上传帧。整链物理删除（handler 分流 + `receiveFileTransmit` + `SchematicBuffer`/`SchematicBufferManager` + `createFromFile`/`fileFromDirAndName` + `handleClientPasteRequestPair`），恢复走 git revert。
 - **降级点**（schematic 边缘能力，不影响粘贴主链路）：从世界选区创建/采集投影（保存侧）、Sponge/Vanilla structure 格式导入、DataFixer 旧版转换——servux 服务端只消费现成 .litematic，这些原版保存/转换 API 保留签名返回默认值。（逐文件迁移笔记属历史文档，已删除，见 git 历史。）
 
 ---
@@ -197,7 +198,7 @@ verymc.top.veryMcProto/
    - 幸存者：**Structures 通道包帧全程 vanilla/裸字节**（metadata writeNbt、STRUCTURE_DATA raw）——仅 START 重组整体为 DataTag。
 4. **C2S 变化**：
    - `transactionId` 前置 VarInt **整体删除**（请求直读 BlockPos / VarInt entityId / ChunkPos；收端残留吞读会把首字节吃掉 → 全部错位）。
-   - 批量重组体（投影上传）无 type VarInt 前缀，改按 NBT `"Task"` 字符串路由（`LitematicaPaste` / `Litematic-Transmit*`）。
+   - 批量重组体（投影上传）无 type VarInt 前缀，改按 NBT `"Task"` 字符串路由（`LitematicaPaste` / `Litematic-Transmit*`——后者已于 2026-10 随安全修复移除，现存路由仅 `LitematicaPaste`）。
    - 新增 `UNREGISTER_REPLY`：HUD=9、Entities=7、Tweaks=7、Litematics=8——服务端 decode→unregister（我方映射为 provider.removePlayer）。
    - METADATA_REQUEST 语义变为「先 unregister 再 register」（再注册）。
 5. **枚举增删全表**：HUD +`UNREGISTER_REPLY(9)`；Entities/Tweaks 各 +(7)；Litematica +(8) +task 组 `TASK_REQUEST(14)/TASK_RESPONSE(15)/TASK_STATUS_SYNC(16)/TASK_CANCEL(17)`；**Structures 删 10/11/12**（S2C_SPAWN_METADATA / C2S_REQUEST_SPAWN_METADATA / S2C_WEATHER_DATA——spawn/weather 完全收敛到 HUD 通道，我方 HUD provider 本就承载，仅删 Structures 侧残留分支）。
