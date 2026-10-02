@@ -133,15 +133,17 @@ Litematic 文件 (5 MiB)
 
 > **Paper 迁移**：两级分包**全可照抄**（纯 Java）。唯一改动：第二级的 PacketSplitter 分片常量防御客户端 32767 解码上限（见 [02](02-network-protocol.md) §5.2 / [07](07-migration-architecture.md) §2.2）。
 >
-> **方向注记（2026-09 后）**：上图为上游四阶段协议的两级分包形态。26.1 线我方 **S2C 发送侧死信链已删**（客户端无接收端，见 §3）；16KiB 切片（`SchematicBuffer.BUFFER_SIZE`）现为对端 C2S 上传约定，我方接收侧仅重组、不切片。
+> **方向注记（2026-10 后）**：上图为上游四阶段协议的两级分包形态（历史 wire 记载，两侧实现均已移除，见 §3）。16KiB 切片（原 `SchematicBuffer.BUFFER_SIZE`）的 wire 约定记载移至 §3.1。
 
 ---
 
-## 3. 传输协议：四阶段帧（C2S 上传侧）
+## 3. 传输协议：四阶段帧（历史 wire 记载——两侧均已移除）
 
-> 26.1 线现状：**S2C 发送侧（`sendTransmitFile` + `/servux litematic transmit`）死信链已删（2026-09）**——stock 26.1 客户端 `ServuxLitematicaHandler.handleBulkData` 的 Transmit 分流整块注释（一切帧坠入仅认 `BulkEntityReply` 的 `handleBulkEntityData`，静默丢弃无日志），上游服务端同方法 `@Deprecated(forRemoval=true)` 零调用点，且注释块引用 DataTag 迁移前变量名（取消注释无法编译）——服务端无法单方面修复，物理删除死链、恢复走 git revert。**C2S 上传侧为我方激活的协议面超集**（上游 `handleBulkData` 同为注释死路；客户端 `sliceForServux` 调用点也被上游注释，对 stock 客户端不可达），路由完整保留（`LitematicsDataProvider:479-484` 活/死错位声明）。
+> **26.1 线现状**：
+> - **S2C 发送侧**（`sendTransmitFile` + `/servux litematic transmit`）死信链已删（2026-09）——stock 26.1 客户端 `ServuxLitematicaHandler.handleBulkData` 的 Transmit 分流整块注释（帧被静默丢弃无日志），上游服务端同方法 `@Deprecated(forRemoval=true)` 零调用点，物理删除、恢复走 git revert。
+> - **C2S 接收侧**（`Litematic-Transmit*` 分流 → `receiveFileTransmit` 落盘）已于 **2026-10 随安全修复整链移除**：客户端可控 `FileName` 直达 `Path.of`/`dir.resolve` 无包含性检查，构成**路径穿越任意写/删/读回**原语（上游安全公告漏洞同源；另有 `new Slice[客户端控长]` 的 OOM 向量）。上游 0.10.7 同判禁用（分流注释态），修复版 stock 客户端亦不再发送上传帧。重组完成后无条件走 `handleClientPasteRequest`（上游 0.10.7 `:201` 同构），`SchematicBuffer`/`SchematicBufferManager` 物理删除，恢复走 git revert。
 
-### 3.1 四阶段帧定义（两侧共用，保留于 `ServuxLitematicaPacket`）
+### 3.1 四阶段帧定义（历史 wire 记载，已无实现）
 
 ```
 阶段1  TransmitStart:
@@ -153,11 +155,11 @@ Litematic 文件 (5 MiB)
 （异常）TransmitCancel: 取消
 ```
 
-（历史注记：S2C 发送方向曾按此帧表由命令触发 `sendTransmitFile` 16KiB 切片投递并经 `PacketSplitter` 二级分包，2026-09 随 26.1 客户端接收端死路确认后物理删除。）
+（切片大小 wire 约定 **16KiB**——原 `SchematicBuffer.BUFFER_SIZE=16384` 随类删除，其协议文档价值由此节承载：对端按此切片上传；与 syncmatica 的 `UploadExchange.BUFFER_SIZE` 无关。）
 
-### 3.2 客户端→服务端上传（我方激活的超集路由）
+### 3.2 客户端→服务端上传（已移除，2026-10 安全修复）
 
-我方 `ServuxLitematicaHandler.handleBulkData` 按 NBT `"Task"` 字符串路由：`Litematic-Transmit*` → `LitematicaSchematic.receiveFileTransmit` → `SchematicBufferManager.createBuffer` / `receiveSlice` / `finishBuffer` 重组落盘 `schematics/`；粘贴受理 `LitematicsDataProvider.handleClientPasteRequestPair`。**活主路**为 `LitematicaPaste` 批量路由 → `handleClientPasteRequest` → `PasteTask` 分 tick 粘贴（见 [09](09-DELIVERY.md) §5.5）。
+原路由：`ServuxLitematicaHandler.handleBulkData` 按 NBT `"Task"` 字符串分流——`Litematic-Transmit*` → `LitematicaSchematic.receiveFileTransmit` → `SchematicBufferManager.createBuffer`/`receiveSlice`/`finishBuffer` 重组落盘 `schematics/`（**漏洞链**：`FileName` 零净化直达 `dir.resolve`），文件态粘贴受理 `handleClientPasteRequestPair`。**现存唯一活路**：重组完成后无条件 `handleClientPasteRequest`（`LitematicaPaste` Task 门控在 Provider 内，非该 Task 静默忽略）→ `PasteTask` 分 tick 粘贴（见 [09](09-DELIVERY.md) §5.5）。
 
 ### 3.3 序列化字节流（26.1 线格式）
 
@@ -166,7 +168,7 @@ Litematic 文件 (5 MiB)
 ```java
 // 我方 ServuxLitematicaHandler（C2S 重组入口，与 malilib DataTagIo 逐字节兼容）
 CompoundTag nbt = DataTagIo.readTag(fullPacket);   // [int32 大端 压缩长][GZIP(具名根 NBT 流)]
-// 按 nbt.getStringOr("Task", ...) 路由（LitematicaPaste / Litematic-Transmit*）
+// 按 nbt.getStringOr("Task", ...) 路由（现存路由仅 LitematicaPaste——Transmit* 已随安全修复移除）
 ```
 
 ---

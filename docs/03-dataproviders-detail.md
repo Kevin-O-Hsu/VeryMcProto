@@ -317,7 +317,7 @@ Identifier type = BuiltInRegistries.STRUCTURE_TYPE.getKey(structure.type());    
 | 方块实体查询 | C2S(pos)→S2C | `onBlockEntityRequest` → `be.saveWithFullMetadata`；BE 不存在不回复（同 Entities）；入口名册门（未注册静默） |
 | 实体查询 | C2S(entityId)→S2C | `onEntityRequest` → 实体 NBT；仅查他人时剥离背包（同 Entities）；入口名册门 |
 | 批量实体查询（大包） | C2S(chunkX,Z,minY,maxY)→S2C | `onBulkEntityRequest` → 区块内全部 TileEntities + Entities（详见 §5.2） |
-| 投影上传（C2S，四阶段路由保留） | C2S 分片→重组 | 四阶段（Start/Data/End/Cancel）路由为我方超集保留——对 stock 26.1 客户端不可达（客户端上传触发点上游注释），活主路 LitematicaPaste，见 [05](05-schematic-system.md) §传输协议 |
+| 投影粘贴上传 | C2S 分片→重组 | 重组完成后无条件走 `handleClientPasteRequest`（活主路 LitematicaPaste，Task 门控在 Provider 内）——C2S 四阶段文件接收路由（Transmit*）已于 2026-10 随安全修复移除（路径穿越任意写删），见 [05](05-schematic-system.md) §传输协议 |
 | 粘贴请求 | C2S→执行 | `handleClientPasteRequest` → PasteTask 任务化粘贴（需创造模式 + paste 权限；实体 UUID/ID 撞车重排见 §5.4） |
 
 ### 5.2 `onBulkEntityRequest`（对齐上游 `:542-644`）

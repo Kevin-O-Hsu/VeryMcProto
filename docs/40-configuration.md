@@ -313,8 +313,8 @@ plugins/VeryMcProto/
 ├── placements.json             Syncmatica placement 元数据持久化（+ .bak / .new 原子写）
 ├── syncmatics/                 Syncmatica .litematic 中央仓库（上传 / 下载 / 共享）
 │   └── <hash-uuid>.litematic   文件名 = hash UUID（/syncmatica load 按它识别文件）
-└── schematics/                 Servux 投影上传（粘贴）目录
-    └── *.litematic             由 receiveFileTransmit 写入（客户端上传）；/servux litematic list 列出
+└── schematics/                 Servux 投影目录
+    └── *.litematic             26.1 线已无写入方（C2S 接收链 2026-10 随安全修复移除；ver/1.21.11 线仅 op 命令只读发送）；/servux litematic list 列出
 ```
 
 > `schematics/` 与 `syncmatics/` 首次访问时自动创建。停服（`onDisable`）时 `placements.json` 由 `SyncmaticManager` 原子保存（backup → current ← incoming）；启动时读取，损坏条目逐条 try/catch 跳过并修正重写。

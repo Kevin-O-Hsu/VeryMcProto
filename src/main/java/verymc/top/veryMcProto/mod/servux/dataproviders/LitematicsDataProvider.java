@@ -33,15 +33,12 @@ import verymc.top.veryMcProto.mod.servux.network.ServuxLitematicaPacket;
 import verymc.top.veryMcProto.mod.servux.scheduler.FillDeleteTask;
 import verymc.top.veryMcProto.mod.servux.scheduler.PasteTask;
 import verymc.top.veryMcProto.mod.servux.scheduler.TaskScheduler;
-import verymc.top.veryMcProto.mod.servux.schematic.LitematicaSchematic;
 import verymc.top.veryMcProto.mod.servux.schematic.placement.SchematicPlacement;
 import verymc.top.veryMcProto.mod.servux.schematic.selection.Box;
 import verymc.top.veryMcProto.mod.servux.util.ReplaceBehavior;
 import verymc.top.veryMcProto.mod.servux.util.PasteLayerBehavior;
 import verymc.top.veryMcProto.mod.servux.util.EntityUtils;
 import verymc.top.veryMcProto.mod.servux.util.LayerRange;
-import org.apache.commons.lang3.tuple.Pair;
-import verymc.top.veryMcProto.mod.servux.schematic.transmit.SchematicBufferManager;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import verymc.top.veryMcProto.mod.servux.util.nbt.NbtView;
@@ -60,11 +57,12 @@ import verymc.top.veryMcProto.mod.servux.util.nbt.NbtView;
  *   <li>settings：permission_level / paste_permission_level（照抄原版）。</li>
  * </ul>
  *
- * <p><b>投影粘贴 / 投递</b>：客户端上传的 .litematic 经 ServuxLitematicaHandler 重组后，由
- * {@link #handleClientPasteRequest} / {@link #handleClientPasteRequestPair} 加载为 SchematicPlacement 并创建
+ * <p><b>投影粘贴</b>：客户端上传的投影 NBT 经 ServuxLitematicaHandler 重组后由
+ * {@link #handleClientPasteRequest} 加载为 SchematicPlacement 并创建
  * {@link PasteTask}（上游 TaskPasteSchematicPerChunkDirect 形态）登记 TaskScheduler 分 tick 粘贴到世界
- * （含 ReplaceMode / PasteLayerBehavior / LayerRange / Interval / 三个忽略布尔，type 16 进度/完成帧随任务下发）；
- * 文件投递（Transmit*）走 LitematicaSchematic.receiveFileTransmit 落盘到 schematics/。详见 schematic 子系统。
+ * （含 ReplaceMode / PasteLayerBehavior / LayerRange / Interval / 三个忽略布尔，type 16 进度/完成帧随任务下发）。
+ * <b>C2S 文件接收链（Transmit* → receiveFileTransmit 落盘）已于 2026-10 随安全修复整链移除</b>
+ *（路径穿越任意写/删/读回，上游公告漏洞同源；上游 0.10.7 同判禁用）。详见 schematic 子系统。
  */
 public class LitematicsDataProvider extends DataProviderBase
 {
@@ -95,7 +93,6 @@ public class LitematicsDataProvider extends DataProviderBase
     private final List<UUID> invalidPlayers = new ArrayList<>();
     /** 注册名册（上游 registeredPlayers）：C2S REGISTER 版本门禁 + 权限双门通过后入册。 */
     private final List<UUID> registeredPlayers = new ArrayList<>();
-    private final SchematicBufferManager bufferManager = new SchematicBufferManager();
 
     protected LitematicsDataProvider()
     {
@@ -125,9 +122,8 @@ public class LitematicsDataProvider extends DataProviderBase
 
     @Override public IPluginServerPlayHandler getPacketHandler() { return HANDLER; }
 
-    public SchematicBufferManager getBufferManager() { return this.bufferManager; }
-
-    /** Schematic 文件传输目录（plugins/VeryMcProto/schematics/），首次自动创建。移植自原版 getTransmitDir。 */
+    /** Schematic 文件目录（plugins/VeryMcProto/schematics/），首次自动创建。移植自原版 getTransmitDir。
+     * C2S 接收链移除后仅服务命令层只读枚举（/servux litematic list）。 */
     public Path getTransmitDir()
     {
         Path dir = verymc.top.veryMcProto.Reference.plugin().getDataFolder().toPath().resolve("schematics").normalize();
@@ -141,9 +137,8 @@ public class LitematicsDataProvider extends DataProviderBase
         }
         catch (java.io.IOException err)
         {
-            // 对齐上游 :159-163 fail-fast：目录不可用即抛——继续返回不存在的路径只会让故障延迟暴露到
-            // 落盘深处。调用方异常承接：C2S 路径（LitematicaSchematic/SchematicBufferManager）由
-            // ProtocolChannel 外层 catch(Exception) 记日志中止本次传输；命令路径由 ServuxCommand onCommand catch。
+            // 对齐上游 :159-163 fail-fast：目录不可用即抛——继续返回不存在的路径只会让故障延迟暴露。
+            // 调用方异常承接：命令路径由 ServuxCommand onCommand catch（C2S 接收链已随安全修复移除）。
             verymc.top.veryMcProto.Reference.logger().severe("getTransmitDir(): failed: " + err.getMessage());
             throw new RuntimeException(err);
         }
@@ -189,8 +184,7 @@ public class LitematicsDataProvider extends DataProviderBase
 
     /**
      * C2S 注销（UNREGISTER_REPLY）。上游 LitematicsDataProvider.unregister（:230-232）字面移植：
-     * resetFailures + 清传输缓冲（getBufferManager().removePlayer——UNREGISTER_REPLY 是唯一上游
-     * 缓冲清理路径，我方此前零调用，本次随名册恢复闭合）+ 出注册名册；不清 invalid。
+     * resetFailures + 出注册名册；不清 invalid。（上游的清传输缓冲随 C2S 接收链安全修复移除——缓冲已不存在。）
      */
     @Override
     public void unregister(ServerPlayer player)
@@ -201,7 +195,6 @@ public class LitematicsDataProvider extends DataProviderBase
         }
 
         HANDLER.resetFailures(this.getNetworkChannel(), player);
-        this.getBufferManager().removePlayer(player);
         this.registeredPlayers.remove(player.getUUID());
     }
 
@@ -476,49 +469,9 @@ public class LitematicsDataProvider extends DataProviderBase
         }
     }
 
-    /**
-     * Transmit 文件上传路径的粘贴受理（26.1 任务化，对齐上游 handleClientPasteRequestPair:694-754）。
-     *
-     * <p><b>活/死错位声明</b>：26.1 客户端的 Transmit 上传分支整块注释（客户端 SchematicPlacementManager:1178-1183），
-     * 本入口当前实际不可达；但上游保留了同名 Pair 受理（其调用点同为死代码），我方按协议面完整同改保留
-     * ——勿据"上游死代码"裁此分支，亦勿据"不可达"跳过对齐。
-     */
-    public void handleClientPasteRequestPair(ServerPlayer player, Pair<LitematicaSchematic, CompoundTag> schemPair)
-    {
-        if (!this.isPlayerRegistered(player) || !this.isEnabled() ||
-            schemPair == null || schemPair.getLeft() == null || schemPair.getRight() == null || schemPair.getRight().isEmpty())
-        {
-            return;
-        }
-
-        if (!this.hasPermission(player) || !this.hasPermissionsForPaste(player))
-        {
-            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(MSG_PASTE_INSUFFICIENT));
-            return;
-        }
-        if (!player.isCreative())
-        {
-            player.sendSystemMessage(net.minecraft.network.chat.Component.literal(MSG_PASTE_CREATIVE_REQUIRED));
-            return;
-        }
-
-        ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "litematic_data: 执行粘贴(Pair) from " + player.getName().getString());
-        final long timeStart = System.currentTimeMillis();
-        CompoundTag tags = schemPair.getRight();
-        SchematicPlacement placement = SchematicPlacement.createFromNbt(schemPair.getLeft(), tags);
-        ReplaceBehavior replaceMode = ReplaceBehavior.fromStringStatic(tags.getStringOr("ReplaceMode", ReplaceBehavior.NONE.name()));
-        PasteLayerBehavior layerBehavior = PasteLayerBehavior.fromStringStatic(tags.getStringOr("PasteLayerBehavior", PasteLayerBehavior.ALL.name()));
-        LayerRange layerRange = tags.read("RenderLayerRange", LayerRange.CODEC).orElse(null);
-        final boolean changedBlocksOnly = tags.getBooleanOr("ChangedBlocksOnly", false);
-        final boolean ignoreBlocks = tags.getBooleanOr("IgnoreBlocks", false);
-        final boolean ignoreEntities = tags.getBooleanOr("IgnoreEntities", false);
-        final int interval = tags.getIntOr("Interval", 1);
-        ServerLevel level = player.level();
-
-        PasteTask task = new PasteTask(level.getServer(), level, player, placement, timeStart, layerRange,
-                replaceMode, layerBehavior, changedBlocksOnly, ignoreBlocks, ignoreEntities);
-        TaskScheduler.getInstance().scheduleTask(task, interval);
-    }
+    // handleClientPasteRequestPair（Transmit 文件上传路径的粘贴受理）已随 C2S 接收链安全修复移除
+    //（2026-10）：其唯一调用方为 handler 的 Transmit 分流；移除后所有粘贴统一走 handleClientPasteRequest。
+    // 恢复走 git revert 该修复 commit。
 
     @Override public boolean hasPermission(ServerPlayer player) { return Perms.check(player, this.permNode, this.permissionLevel.getValue()); }
 

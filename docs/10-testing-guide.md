@@ -132,8 +132,8 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
    服务端死信链（`/servux litematic transmit` + `sendTransmitFile`）已物理删除，恢复走 git revert。
 4. **投影粘贴**（C2S 上传投影让服务端放置）：`LitematicaPaste` 批量路由。**✅ 已实现**（客户端上传 → 重组 →
    `LitematicsDataProvider.handleClientPasteRequest` 加载 `SchematicPlacement` → 创建 `PasteTask` 登记调度器
-   分 tick 写世界（type 16 进度/完成帧）；需创造模式 + paste 权限。Transmit 四阶段上传分流对 stock 26.1
-   客户端同样不可达——客户端 `sliceForServux` 调用点整段注释，我方接收路由属协议面超集保留）
+   分 tick 写世界（type 16 进度/完成帧）；需创造模式 + paste 权限。原 Transmit 四阶段上传分流已于
+   2026-10 随安全修复整链移除——客户端可控 FileName 路径穿越任意写删，上游 0.10.7 同判禁用）
 
 > 我们的插件 `LitematicsDataProvider.onBulkEntityRequest` 在响应批量请求时会向玩家**聊天框**发送
 > `Litematics bulk reply: <世界> <区块> TE=<方块实体数> E=<实体数> (<耗时>ms)`——**这是最直观的验证信号**。
@@ -183,7 +183,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 | 功能 | 状态 | 表现 |
 |---|---|---|
-| 投影文件传输（服务器投递投影给客户端） | ⛔ 已移除 | 26.1 stock 客户端无接收端（Transmit 分流整块注释，帧被静默丢弃；上游同源死路 `@Deprecated(forRemoval)`）——服务端死信链已删，见 [05](05-schematic-system.md) §3 |
+| 投影文件传输（服务器投递投影给客户端） | ⛔ 已移除 | 26.1 stock 客户端无接收端（Transmit 分流整块注释，帧被静默丢弃；上游同源死路 `@Deprecated(forRemoval)`）——服务端死信链已删；**C2S 接收侧（客户端上传落盘）同判于 2026-10 安全修复移除**（路径穿越任意写删），见 [05](05-schematic-system.md) §3 |
 | 投影粘贴（客户端上传投影让服务端放置） | ✅ 已实现 | 客户端 `LitematicaPaste` 批量路由上传 → `handleClientPasteRequest` → `PasteTask` 分 tick 写世界（创造模式 + paste 权限）。详见 [09](09-DELIVERY.md) §5.5 |
 | 单个 / 批量 NBT 查询 | ✅ 已实现 | 上述测试 A / B 覆盖 |
 
@@ -290,7 +290,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 | 功能 | 所属通道 | 降级表现 |
 |---|---|---|
-| 投影文件传输（服务器→客户端投递投影） | litematics | ⛔ 已移除（26.1 客户端无接收端，死信链已删——上游 Transmit 分流注释 + `@Deprecated(forRemoval)` 同源死路） |
+| 投影文件传输（服务器→客户端投递投影） | litematics | ⛔ 已移除（26.1 客户端无接收端，死信链已删——上游 Transmit 分流注释 + `@Deprecated(forRemoval)` 同源死路；**C2S 接收侧同判 2026-10 安全修复移除**——路径穿越任意写删） |
 | 投影粘贴（C2S 上传放置） | litematics | ✅ 已实现（`LitematicaPaste` 路由 → `PasteTask` 分 tick 写世界） |
 | 服务端潜影盒堆叠行为 | tweaks | ⛔ 不可能实现（已删代码） |
 | EasyPlace（Tweakeroo 服务端配合放置） | servux_main | ✅ 已实现（PacketEvents）；调试 `/servux set servux_main:debug_log true` 看 `EasyPlace in/out` 日志 |

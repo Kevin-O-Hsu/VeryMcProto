@@ -7,7 +7,6 @@ import java.util.*;
 import javax.annotation.Nullable;
 import com.google.common.collect.ImmutableMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -58,7 +57,6 @@ import verymc.top.veryMcProto.mod.servux.util.data.FileType;
 import verymc.top.veryMcProto.mod.servux.util.nbt.NbtUtils;
 import verymc.top.veryMcProto.mod.servux.util.nbt.NbtView;
 import verymc.top.veryMcProto.mod.servux.util.position.PositionUtils;
-import verymc.top.veryMcProto.mod.servux.schematic.transmit.SchematicBufferManager;
 
 public class LitematicaSchematic
 {
@@ -544,76 +542,12 @@ public class LitematicaSchematic
 
     // S2C 文件投递 sendTransmitFile 已删（2026-09）：26.1 stock 客户端 handleBulkData 的 Transmit 分流
     // 整块注释（帧被静默丢弃，上游未实现接收端），上游同方法 @Deprecated(forRemoval=true) 零调用点——
-    // 死信链随唯一调用点（/servux litematic transmit）一并移除；C2S 上传侧 receiveFileTransmit（下方）
-    // 属活超集保留。恢复投递走 git revert 本 commit。
-
-    public static @Nullable Pair<LitematicaSchematic, CompoundTag> receiveFileTransmit(CompoundTag nbt, ServerPlayer player)
-    {
-        SchematicBufferManager manager = LitematicsDataProvider.INSTANCE.getBufferManager();
-        String task = nbt.getStringOr("Task", "");
-        final long key = nbt.getLongOr("SliceKey", -1L);
-
-        if (task.isEmpty() || key == -1L)
-        {
-            Log.error("receiveFileTransmit: Invalid sessionKey or Task received.");
-            return null;
-        }
-
-        switch (task)
-        {
-            case "Litematic-TransmitStart" ->
-            {
-                FileType type = nbt.read("FileType", FileType.CODEC).orElse(FileType.LITEMATICA_SCHEMATIC);
-                String name = nbt.getStringOr("FileName", "default_file");
-                final int totalSlices = nbt.getIntOr("TotalSlices", 1);
-                final long totalSize = nbt.getLongOr("TotalSize", -1L);
-                manager.createBuffer(name, totalSlices, totalSize, type, key, nbt.getCompoundOrEmpty("PlacementData"), player);
-            }
-            case "Litematic-TransmitData" ->
-            {
-                final int slice = nbt.getIntOr("Slice", -1);
-                final int size = nbt.getIntOr("Size", -1);
-                final byte[] data = nbt.getByteArray("Data").orElse(new byte[0]);
-
-                if (slice < 0 || size < 0 || data.length == 0)
-                {
-                    Log.error("receiveFileTransmit: Invalid Slice Data received for session key [{}]", key);
-                    return null;
-                }
-
-                manager.receiveSlice(key, slice, data, size);
-            }
-            case "Litematic-TransmitCancel" ->
-            {
-                Log.warn("receiveFileTransmit: Cancel received for session key [{}]", key);
-                manager.cancelBuffer(key);
-            }
-            case "Litematic-TransmitEnd" ->
-            {
-                final int totalSlices = nbt.getIntOr("TotalSlices", -1);
-                final long totalSize = nbt.getLongOr("TotalSize", -1L);
-                Path dir = LitematicsDataProvider.INSTANCE.getTransmitDir();
-                CompoundTag optional = manager.getOptionalNbt(key);
-                LitematicaSchematic schematic = manager.finishBuffer(key, dir);
-                manager.removePlayer(player);
-
-                if (schematic == null)
-                {
-                    Log.warn("receiveFileTransmit: Failed to create Schematic for finishing session key [{}]", key);
-                    return null;
-                }
-
-                ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "receiveFileTransmit: Received file " + schematic.getFile().toAbsolutePath() + ", [tS: " + totalSlices + ", tB: " + totalSize + "]");
-                return Pair.of(schematic, optional);
-            }
-            default ->
-            {
-                Log.error("receiveFileTransmit: Invalid sessionKey or Task received.");
-            }
-        }
-
-        return null;
-    }
+    // 死信链随唯一调用点（/servux litematic transmit）一并移除。
+    //
+    // C2S 文件接收链（receiveFileTransmit + SchematicBuffer/SchematicBufferManager）已于 2026-10 随安全修复
+    // 整链移除：客户端可控 FileName 直达 Path.of/dir.resolve 无包含性检查，构成路径穿越任意写/删/读回原语
+    //（上游公告漏洞同源；另有 new Slice[客户端控长] 的 OOM 向量）。上游 0.10.7 已禁用该实验性接收分流，
+    // 修复版 stock 客户端亦不再发送上传帧。恢复走 git revert 该修复 commit。
 
     private boolean readFromNBT(CompoundTag nbt, boolean enableFixers) throws CommandSyntaxException
     {
@@ -1222,30 +1156,8 @@ public class LitematicaSchematic
         return NbtUtils.readNbtFromFileAsPath(file);
     }
 
-    public static Path fileFromDirAndName(Path dir, String fileName, FileType schematicType)
-    {
-        if (fileName.endsWith(FILE_EXTENSION) == false && schematicType == FileType.LITEMATICA_SCHEMATIC)
-        {
-            fileName = fileName + FILE_EXTENSION;
-        }
-
-        return dir.resolve(fileName);
-    }
-
-    @Nullable
-    public static LitematicaSchematic createFromFile(Path dir, String fileName)
-    {
-        return createFromFile(dir, fileName, FileType.LITEMATICA_SCHEMATIC);
-    }
-
-    @Nullable
-    public static LitematicaSchematic createFromFile(Path dir, String fileName, FileType schematicType)
-    {
-        Path file = fileFromDirAndName(dir, fileName, schematicType);
-        LitematicaSchematic schematic = new LitematicaSchematic(file, schematicType);
-
-        return schematic.readFromFile(schematicType) ? schematic : null;
-    }
+    // fileFromDirAndName / createFromFile（文件名 → dir.resolve 裸拼装）已随 C2S 接收链安全修复移除
+    //（2026-10）：其唯一调用方为 SchematicBufferManager.finishBuffer 的读回粘贴。恢复走 git revert。
 
     public static class EntityInfo
     {
