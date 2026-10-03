@@ -11,7 +11,7 @@
   - 上游已越过本线版本 → 该版本属旧线：当前版本的活走 `ver/<X>-dev`，同时提醒用户启动 `dev` 的升级适配（见分支模型「生命周期」）。
   （Paper 侧版本可用 https://api.papermc.io/v2/projects/paper 交叉核对。）
 - **分支**：当前 MC 版本的开发一律在 `dev` 分支提交，完成后合入 `main`（= 最新 MC 稳定发布线）。旧 MC 版本冻结为 `ver/<X>` + `ver/<X>-dev` 维护对：修 Bug 在 `ver/<X>-dev`，验证后合入 `ver/<X>`。详见下文「分支模型与版本系统」。
-- **版本**：插件版本 = `<mcVersion>-b<buildNumber>`（当前 `1.21.11-b1`）。**唯一来源是 `gradle.properties`**——发版只需在 dev 上 `buildNumber` +1，**任何源码、plugin.yml、文档中都不得手写版本号**（注入链路见下文）。
+- **版本**：插件版本 = `<mcVersion>-b<buildNumber>`（当前 `1.21.11-b2`）。**唯一来源是 `gradle.properties`**——发版只需在 dev 上 `buildNumber` +1，**任何源码、plugin.yml、文档中都不得手写版本号**（注入链路见下文）。
 - **语言与风格**：注释、日志、文档用中文；与现有代码一致（中文 javadoc、常量类 + 源码实证注释）。
 - **协议字段语义**改动前必须对照 `OriginImpl/` 下的客户端源码（litematica / malilib / syncmatica 是协议接收端），**不要凭服务端代码猜客户端行为**。
 - **禁止引入 Mixin / AccessWidener / 服务端 patch 依赖**——Paper 无 Mixin 运行时，替代方案见核心约束 §2。
@@ -70,15 +70,15 @@ gradle.properties（mcVersion=1.21.11 · buildNumber=1）          ← 唯一改
    │  build.gradle.kts: version = "$mcVersion-b$buildNumber"
    ▼
 ├─ plugin.yml（version: '${version}' 展开）                      → /version、Paper 插件列表
-├─ jar 文件名 VeryMcProto-1.21.11-b1(-reobf).jar
+├─ jar 文件名 VeryMcProto-1.21.11-b2(-reobf).jar
 └─ version.properties（mcVersion/version 双键，processResources 展开）
        │  Reference 类加载时 Properties.load 读回
        ▼
    Reference.MC_VERSION / Reference.PLUGIN_VERSION（框架级常量）
-       ├─ ServuxReference.MOD_STRING   = "servux-paper-1.21.11-b1"（三段式；客户端仅前缀识别）
-       ├─ SyncmaticaReference.MOD_VERSION = "1.21.11-b1"（-b 后缀永不命中
+       ├─ ServuxReference.MOD_STRING   = "servux-paper-1.21.11-b2"（三段式；客户端仅前缀识别）
+       ├─ SyncmaticaReference.MOD_VERSION = "1.21.11-b2"（-b 后缀永不命中
        │    FeatureSet.fromVersionString 的 ^\d+(\.\d+){2,4}$ 正则 → 恒触发 FEATURE 交换）
-       └─ JeiRecipeBridgeModule.getModString() = "jei-recipe-bridge-paper-1.21.11-b1"
+       └─ JeiRecipeBridgeModule.getModString() = "jei-recipe-bridge-paper-1.21.11-b2"
 ```
 
 要点：
