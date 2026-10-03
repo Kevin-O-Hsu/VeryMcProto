@@ -469,7 +469,7 @@ plugins/VeryMcProto/
 ├── syncmatics/                 Syncmatica .litematic central repository (player upload / download / share)
 │   └── <hash-uuid>.litematic   Filename = hash UUID (/syncmatica load identifies files by this)
 └── schematics/                 Servux schematic transmit directory
-    └── *.litematic             Loaded by /servux litematic transmit; written by receiveFileTransmit
+    └── *.litematic             Loaded by /servux litematic transmit (operator-only, containment-guarded); the client-upload receive path (receiveFileTransmit) was removed in 2026-10 as a security fix (path traversal)
 ```
 
 > `schematics/` and `syncmatics/` are created automatically on first access. On server shutdown (`onDisable`), `placements.json` is atomically saved by `SyncmaticManager` (backup → current ← incoming); on startup it is read, and corrupt entries are skipped one-by-one via try/catch and rewritten with corrections.

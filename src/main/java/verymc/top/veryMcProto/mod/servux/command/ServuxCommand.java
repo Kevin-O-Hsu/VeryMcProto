@@ -183,6 +183,14 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
                 if (target == null) { sender.sendMessage("§c玩家不在线: " + (args.length >= 4 ? args[3] : "")); return; }
 
                 String fileName = args[2];
+                // 2026-10 安全修复附带收口：命令文件名先过目录包含性守卫（同类模式——C2S 接收链的
+                // FileName 逃逸已整链移除，此处为命令面同类防御）
+                java.nio.file.Path contained = resolveContained(prov.getTransmitDir(), fileName);
+                if (contained == null)
+                {
+                    sender.sendMessage("§c拒绝：文件名逃逸 schematics 目录（禁止路径分隔符 / .. / 绝对路径）: " + fileName);
+                    return;
+                }
                 LitematicaSchematic schematic = LitematicaSchematic.createFromFile(prov.getTransmitDir(), fileName);
                 if (schematic == null) { sender.sendMessage("§c加载投影失败（文件不存在或格式错误）: " + fileName); return; }
 
@@ -194,6 +202,19 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
             default -> sender.sendMessage("§e/servux litematic <list|transmit <file> [player]>");
         }
     }
+    /**
+     * transmit 命令的目录包含性守卫（2026-10 安全修复附带收口）：命令参数 fileName 拼入 schematics
+     * 目录前做 containment 校验——resolve + normalize 后用 {@code Path.startsWith(Path)}（逐名元素比较；
+     * 严禁字符串前缀——"schematics-evil" 兄弟目录会误过）确认未逃逸基目录，逃逸返回 null 拒绝。
+     * 空名 resolve 得 dir 本身，过守卫后由下游读失败兜底（createFromFile 返回 null → 命令报错）。
+     */
+    static java.nio.file.Path resolveContained(java.nio.file.Path dir, String fileName)
+    {
+        java.nio.file.Path base = dir.toAbsolutePath().normalize();
+        java.nio.file.Path resolved = base.resolve(fileName).normalize();
+        return resolved.startsWith(base) ? resolved : null;
+    }
+
     private void handleDebug(CommandSender sender, String[] args)
     {
         if (args.length < 2)

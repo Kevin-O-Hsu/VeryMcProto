@@ -8,7 +8,6 @@ import java.util.*;
 import javax.annotation.Nullable;
 import com.google.common.collect.ImmutableMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -62,7 +61,6 @@ import verymc.top.veryMcProto.mod.servux.util.nbt.NbtUtils;
 import verymc.top.veryMcProto.mod.servux.util.nbt.NbtView;
 import verymc.top.veryMcProto.mod.servux.util.position.PositionUtils;
 import verymc.top.veryMcProto.mod.servux.schematic.transmit.SchematicBuffer;
-import verymc.top.veryMcProto.mod.servux.schematic.transmit.SchematicBufferManager;
 
 public class LitematicaSchematic
 {
@@ -626,73 +624,11 @@ public class LitematicaSchematic
         ServuxLitematicaHandler.getInstance().encodeServerData(player, ServuxLitematicaPacket.ResponseC2SStart(output));
     }
 
-    public static @Nullable Pair<LitematicaSchematic, CompoundTag> receiveFileTransmit(CompoundTag nbt, ServerPlayer player)
-    {
-        SchematicBufferManager manager = LitematicsDataProvider.INSTANCE.getBufferManager();
-        String task = nbt.getStringOr("Task", "");
-        final long key = nbt.getLongOr("SliceKey", -1L);
-
-        if (task.isEmpty() || key == -1L)
-        {
-            Log.error("receiveFileTransmit: Invalid sessionKey or Task received.");
-            return null;
-        }
-
-        switch (task)
-        {
-            case "Litematic-TransmitStart" ->
-            {
-                FileType type = nbt.read("FileType", FileType.CODEC).orElse(FileType.LITEMATICA_SCHEMATIC);
-                String name = nbt.getStringOr("FileName", "default_file");
-                final int totalSlices = nbt.getIntOr("TotalSlices", 1);
-                final long totalSize = nbt.getLongOr("TotalSize", -1L);
-                manager.createBuffer(name, totalSlices, totalSize, type, key, nbt.getCompoundOrEmpty("PlacementData"), player);
-            }
-            case "Litematic-TransmitData" ->
-            {
-                final int slice = nbt.getIntOr("Slice", -1);
-                final int size = nbt.getIntOr("Size", -1);
-                final byte[] data = nbt.getByteArray("Data").orElse(new byte[0]);
-
-                if (slice < 0 || size < 0 || data.length == 0)
-                {
-                    Log.error("receiveFileTransmit: Invalid Slice Data received for session key [{}]", key);
-                    return null;
-                }
-
-                manager.receiveSlice(key, slice, data, size);
-            }
-            case "Litematic-TransmitCancel" ->
-            {
-                Log.warn("receiveFileTransmit: Cancel received for session key [{}]", key);
-                manager.cancelBuffer(key);
-            }
-            case "Litematic-TransmitEnd" ->
-            {
-                final int totalSlices = nbt.getIntOr("TotalSlices", -1);
-                final long totalSize = nbt.getLongOr("TotalSize", -1L);
-                Path dir = LitematicsDataProvider.INSTANCE.getTransmitDir();
-                CompoundTag optional = manager.getOptionalNbt(key);
-                LitematicaSchematic schematic = manager.finishBuffer(key, dir);
-                manager.removePlayer(player);
-
-                if (schematic == null)
-                {
-                    Log.warn("receiveFileTransmit: Failed to create Schematic for finishing session key [{}]", key);
-                    return null;
-                }
-
-                ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "receiveFileTransmit: Received file " + schematic.getFile().toAbsolutePath() + ", [tS: " + totalSlices + ", tB: " + totalSize + "]");
-                return Pair.of(schematic, optional);
-            }
-            default ->
-            {
-                Log.error("receiveFileTransmit: Invalid sessionKey or Task received.");
-            }
-        }
-
-        return null;
-    }
+    // C2S 文件接收链 receiveFileTransmit 已于 2026-10 随安全修复整链移除：客户端可控 FileName
+    // 直达 Path.of/dir.resolve 无包含性检查，构成路径穿越任意写/删/读回原语（上游公告漏洞同源；
+    // 另有 new Slice[客户端控长] 的 OOM 向量）。上游 0.9.5 已禁用该实验性接收分流，修复版 stock
+    // 客户端亦不再发送上传帧。S2C 发送侧 sendTransmitFile（上方）保留——服务端读本地文件下发，
+    // 文件名来自 op 命令参数非网络输入。恢复走 git revert 该修复 commit。
 
     private boolean readFromNBT(CompoundTag nbt, boolean enableFixers) throws CommandSyntaxException
     {

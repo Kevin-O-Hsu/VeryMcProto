@@ -139,11 +139,12 @@ verymc.top.veryMcProto/
 - NMS 结构采集（paperweight 直连，不需反射）：`ChunkAccess.getAllReferences/getStartForStructure/StructureStart.createTag/StructurePieceSerializationContext.fromLevel`。
 - 黑白名单 setting 保留；timeout 简化为周期全量刷新。
 
-### 5.5 Litematics（servux:litematics，协议版本 1）—— ✅ 全功能（含投影粘贴 / 投递）
+### 5.5 Litematics（servux:litematics，协议版本 1）—— ✅ 全功能（投影粘贴；S2C 投递保留 / C2S 接收已移除）
 - **元数据握手 / 方块实体 NBT 查询 / 实体 NBT 查询 / 批量实体查询（onBulkEntityRequest）**：✅ 实现（复用 Entities 的 `NbtView` + `be.saveWithFullMetadata` / `entity.saveWithoutId` + 玩家背包/末影箱权限过滤；批量查询拼 ListTag 走 PacketSplitter 分包）。
-- **协议帧（toPacket/fromPacket）**：✅ 照抄原版（含四阶段 TransmitStart/Data/End/Cancel + SliceKey + CHANNEL_ID=servux:litematics + 协议版本 1）。
-- **投影文件投递（客户端上传 .litematic）+ 粘贴（pasteTo）**：✅ **已实现**（schematic 子系统 `mod/servux/schematic/` 全套移植，详见 [05](05-schematic-system.md)）。客户端上传分片经 `ServuxLitematicaHandler` 重组 → `handleBulkData` 分流：`Litematic-Transmit*` 走 `LitematicaSchematic.receiveFileTransmit` 落盘到 `schematics/` + 粘贴；`LitematicaPaste` 走 `LitematicsDataProvider.handleClientPasteRequest` 加载 `SchematicPlacement` + `pasteTo` 放置（含 ReplaceMode / PasteLayerBehavior / LayerRange，需创造模式 + paste 权限）。
-- **S2C 文件投递命令**：✅ `/servux litematic transmit <file> [player]` 加载服务端 `schematics/*.litematic` 投递给客户端。
+- **协议帧（toPacket/fromPacket）**：✅ 照抄原版（SliceKey + CHANNEL_ID=servux:litematics + 协议版本 1；四阶段 Transmit* 帧仅 S2C 发送侧仍用，C2S 接收已移除——wire 历史记载见 [05](05-schematic-system.md) §3）。
+- **投影粘贴（C2S 上传投影 NBT）**：✅ **已实现**（schematic 子系统 `mod/servux/schematic/` 全套移植，详见 [05](05-schematic-system.md)）。客户端上传分片经 `ServuxLitematicaHandler` 重组 → 重组完成后无条件走 `LitematicsDataProvider.handleClientPasteRequest`（上游 0.9.5 `:153` 同构；Task 门控在 Provider 内）加载 `SchematicPlacement` + `pasteTo` 放置（含 ReplaceMode / PasteLayerBehavior / LayerRange，需创造模式 + paste 权限）。
+- **C2S 文件接收落盘**（`Litematic-Transmit*` → `receiveFileTransmit`）：⛔ **已移除（2026-10·安全修复）**——客户端可控 `FileName` 直达 `Path.of`/`dir.resolve` 无包含性检查，构成路径穿越任意写/删/读回原语（上游公告漏洞同源；另有 `new Slice[客户端控长]` OOM 向量），上游 0.9.5 同判禁用。整链物理删除（handler 分流 + `receiveFileTransmit` + `SchematicBufferManager`；`SchematicBuffer` 保留仅作 `BUFFER_SIZE` S2C 分片常量），恢复走 git revert。
+- **S2C 文件投递命令**：✅ `/servux litematic transmit <file> [player]` 加载服务端 `schematics/*.litematic` 投递给客户端（文件名为 op 命令参数、经目录包含性守卫 `resolveContained`；**修复版 litematica 客户端 ≥0.26.11 对 Transmit 帧双向静默丢弃——仅旧版客户端可接收**，`currentSlice` 修复禁止随模板回退）。
 - **降级点**（schematic 边缘能力，不影响粘贴主链路）：从世界选区创建/采集投影（保存侧）、Sponge/Vanilla structure 格式导入、DataFixer 旧版转换——servux 服务端只消费现成 .litematic，这些原版保存/转换 API 保留签名返回默认值。迁移笔记见 [`research/01-schematic-algo.md`](research/01-schematic-algo.md) 与 [`02-schematic-world.md`](research/02-schematic-world.md)。
 
 ---

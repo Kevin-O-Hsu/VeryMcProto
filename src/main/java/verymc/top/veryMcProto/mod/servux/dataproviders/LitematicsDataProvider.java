@@ -31,13 +31,10 @@ import verymc.top.veryMcProto.framework.settings.ServuxIntSetting;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
 import verymc.top.veryMcProto.mod.servux.network.ServuxLitematicaHandler;
 import verymc.top.veryMcProto.mod.servux.network.ServuxLitematicaPacket;
-import verymc.top.veryMcProto.mod.servux.schematic.LitematicaSchematic;
 import verymc.top.veryMcProto.mod.servux.schematic.placement.SchematicPlacement;
 import verymc.top.veryMcProto.mod.servux.util.ReplaceBehavior;
 import verymc.top.veryMcProto.mod.servux.util.PasteLayerBehavior;
 import verymc.top.veryMcProto.mod.servux.util.LayerRange;
-import org.apache.commons.lang3.tuple.Pair;
-import verymc.top.veryMcProto.mod.servux.schematic.transmit.SchematicBufferManager;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import verymc.top.veryMcProto.mod.servux.util.nbt.NbtView;
@@ -56,10 +53,11 @@ import verymc.top.veryMcProto.mod.servux.util.nbt.NbtView;
  *   <li>settings：permission_level / paste_permission_level（照抄原版）。</li>
  * </ul>
  *
- * <p><b>投影粘贴 / 投递</b>：客户端上传的 .litematic 经 ServuxLitematicaHandler 重组后，由
- * {@link #handleClientPasteRequest} / {@link #handleClientPasteRequestPair} 加载为 SchematicPlacement
- * 并 pasteTo 放置到世界（含 ReplaceMode / PasteLayerBehavior / LayerRange）；文件投递（Transmit*）走
- * LitematicaSchematic.receiveFileTransmit 落盘到 schematics/。详见 schematic 子系统。
+ * <p><b>投影粘贴</b>：客户端上传的投影 NBT 经 ServuxLitematicaHandler 重组后由
+ * {@link #handleClientPasteRequest} 加载为 SchematicPlacement 并 pasteTo 放置到世界
+ * （含 ReplaceMode / PasteLayerBehavior / LayerRange）。
+ * <b>C2S 文件接收链（Transmit* → receiveFileTransmit 落盘）已于 2026-10 随安全修复整链移除</b>
+ *（路径穿越任意写/删/读回，上游公告漏洞同源；上游 0.9.5 同判禁用）。详见 schematic 子系统。
  */
 public class LitematicsDataProvider extends DataProviderBase
 {
@@ -82,7 +80,6 @@ public class LitematicsDataProvider extends DataProviderBase
     );
 
     private final List<UUID> invalidPlayers = new ArrayList<>();
-    private final SchematicBufferManager bufferManager = new SchematicBufferManager();
 
     protected LitematicsDataProvider()
     {
@@ -112,9 +109,8 @@ public class LitematicsDataProvider extends DataProviderBase
 
     @Override public IPluginServerPlayHandler getPacketHandler() { return HANDLER; }
 
-    public SchematicBufferManager getBufferManager() { return this.bufferManager; }
-
-    /** Schematic 文件传输目录（plugins/VeryMcProto/schematics/），首次自动创建。移植自原版 getTransmitDir。 */
+    /** Schematic 文件目录（plugins/VeryMcProto/schematics/），首次自动创建。移植自原版 getTransmitDir。
+     * C2S 接收链移除后仅服务命令层（list 只读枚举 / transmit 只读发送）。 */
     public Path getTransmitDir()
     {
         Path dir = verymc.top.veryMcProto.Reference.plugin().getDataFolder().toPath().resolve("schematics").normalize();
@@ -340,36 +336,10 @@ public class LitematicsDataProvider extends DataProviderBase
         }
     }
 
-    public void handleClientPasteRequestPair(ServerPlayer player, int transactionId, Pair<LitematicaSchematic, CompoundTag> schemPair)
-    {
-        if (!this.isEnabled()) { return; }
+    // handleClientPasteRequestPair（Transmit 文件上传路径的粘贴受理）已随 C2S 接收链安全修复移除
+    //（2026-10）：其唯一调用方为 handler 的 Transmit 分流；移除后所有粘贴统一走 handleClientPasteRequest。
+    // 恢复走 git revert 该修复 commit。
 
-        if (!this.hasPermission(player) || !this.hasPermissionsForPaste(player))
-        {
-            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§cLitematics paste: insufficient permissions."));
-            return;
-        }
-        if (!player.isCreative())
-        {
-            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§cLitematics paste: creative mode required."));
-            return;
-        }
-
-        if (schemPair.getLeft() != null)
-        {
-            ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "litematic_data: 执行粘贴(Pair) from " + player.getName().getString());
-            long timeStart = System.currentTimeMillis();
-            CompoundTag tags = schemPair.getRight();
-            SchematicPlacement placement = SchematicPlacement.createFromNbt(schemPair.getLeft(), tags);
-            ReplaceBehavior replaceMode = ReplaceBehavior.fromStringStatic(tags.getStringOr("ReplaceMode", ReplaceBehavior.NONE.name()));
-            PasteLayerBehavior layerBehavior = PasteLayerBehavior.fromStringStatic(tags.getStringOr("PasteLayerBehavior", PasteLayerBehavior.ALL.name()));
-            LayerRange layerRange = tags.read("RenderLayerRange", LayerRange.CODEC).orElse(null);
-            placement.pasteTo(player.level(), replaceMode, layerBehavior, layerRange);
-            long timeElapsed = System.currentTimeMillis() - timeStart;
-            player.displayClientMessage(net.minecraft.network.chat.Component.literal(
-                    "§aPasted §b" + placement.getName() + "§r to §d" + player.level().dimension().identifier().toString() + "§r in §a" + timeElapsed + "§rms."), false);
-        }
-    }
 
     @Override public boolean hasPermission(ServerPlayer player) { return Perms.check(player, this.permNode, this.permissionLevel.getValue()); }
 

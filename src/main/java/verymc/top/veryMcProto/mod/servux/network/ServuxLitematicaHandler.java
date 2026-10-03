@@ -19,18 +19,18 @@ import verymc.top.veryMcProto.framework.network.IServerPayloadData;
 import verymc.top.veryMcProto.framework.network.PacketSplitter;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
 import verymc.top.veryMcProto.mod.servux.dataproviders.LitematicsDataProvider;
-import verymc.top.veryMcProto.mod.servux.schematic.LitematicaSchematic;
-import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Litematics 通道收发 Handler（mod 层）。移植自原版 {@code ServuxLitematicaHandler}（去 Fabric + networkHandler 形参）。
  *
- * <p>通道 servux:litematics，协议版本 1。收 C2S（metadata / block entity / entity / 批量 / 投影投递分片）
+ * <p>通道 servux:litematics，协议版本 1。收 C2S（metadata / block entity / entity / 批量 / 投影粘贴分片）
  * → 分发到 {@link LitematicsDataProvider}；发 S2C 响应（plugin messaging，大包走 PacketSplitter）。
  *
- * <p><b>投影上传 / 粘贴</b>：客户端上传的投影 NBT（{@code PACKET_C2S_NBT_RESPONSE_DATA} 分片）走 PacketSplitter.receive 重组，
- * 组装完成后由 {@link #handleBulkData} 分流——Transmit* 走 LitematicaSchematic.receiveFileTransmit 落盘 + 粘贴，
- * 普通 LitematicaPaste 走 LitematicsDataProvider.handleClientPasteRequest 直接粘贴。
+ * <p><b>投影粘贴</b>：客户端上传的投影 NBT（{@code PACKET_C2S_NBT_RESPONSE_DATA} 分片）走 PacketSplitter.receive 重组，
+ * 组装完成后无条件走 LitematicsDataProvider.handleClientPasteRequest 直接粘贴（上游 0.9.5 同构）。
+ * <b>C2S 文件接收链（Litematic-Transmit* → receiveFileTransmit 落盘）已于 2026-10 随安全修复整链移除</b>：
+ * 客户端可控 FileName 直达 Path.of/dir.resolve 无包含性检查，构成路径穿越任意写/删/读回原语（上游公告漏洞同源）；
+ * 修复版 stock 客户端亦不再发送上传帧。恢复走 git revert 该修复 commit。
  */
 public class ServuxLitematicaHandler implements IPluginServerPlayHandler
 {
@@ -104,7 +104,9 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
                     try
                     {
                         this.readingSessionKeys.remove(uuid);
-                        this.handleBulkData(player, fullPacket.readVarInt(), (CompoundTag) fullPacket.readNbt(NbtAccounter.unlimitedHeap()));
+                        // 上游 0.9.5 ServuxLitematicaHandler:139-153 同构：重组完成无条件走 paste 受理
+                        //（Task 门控在 Provider：非 LitematicaPaste 静默忽略）；Transmit* 接收链已随安全修复移除
+                        LitematicsDataProvider.INSTANCE.handleClientPasteRequest(player, fullPacket.readVarInt(), (CompoundTag) fullPacket.readNbt(NbtAccounter.unlimitedHeap()));
                     }
                     catch (Exception e)
                     {
@@ -114,33 +116,6 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
             }
             default -> Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: 无效 packetType " + packet.getPacketType()
                     + " from " + player.getName().getString() + ", size=" + packet.getTotalSize());
-        }
-    }
-
-    /**
-     * 客户端上传的投影 NBT 重组完成后的分流。
-     *
-     * <p>TransmitStart/Data/End/Cancel 走 LitematicaSchematic.receiveFileTransmit（落盘到 schematics/ + 粘贴）；
-     * 普通 LitematicaPaste 走 LitematicsDataProvider.handleClientPasteRequest（加载 + pasteTo 粘贴）。
-     */
-    private void handleBulkData(ServerPlayer player, final int type, CompoundTag nbt)
-    {
-        String task = nbt != null ? nbt.getStringOr("Task", "LitematicaPaste") : "LitematicaPaste";
-
-        switch (task)
-        {
-            // File-Transmit support（客户端上传投影文件）
-            case "Litematic-TransmitStart", "Litematic-TransmitCancel", "Litematic-TransmitData", "Litematic-TransmitEnd" ->
-            {
-                Pair<LitematicaSchematic, CompoundTag> schemPair = LitematicaSchematic.receiveFileTransmit(nbt, player);
-
-                if (schemPair != null && schemPair.getLeft().getFile() != null)
-                {
-                    ServuxDebug.log(ServuxDebug.Cat.PACKET, "handleBulkData(): 收到 litematic " + schemPair.getLeft().getFile().toAbsolutePath().toString() + " from " + player.getName().getString());
-                    LitematicsDataProvider.INSTANCE.handleClientPasteRequestPair(player, type, schemPair);
-                }
-            }
-            default -> LitematicsDataProvider.INSTANCE.handleClientPasteRequest(player, type, nbt);
         }
     }
 

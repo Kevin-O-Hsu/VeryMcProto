@@ -10,6 +10,13 @@ import verymc.top.veryMcProto.mod.servux.util.Log;
 import verymc.top.veryMcProto.mod.servux.ServuxDebug;
 import verymc.top.veryMcProto.mod.servux.util.data.FileType;
 
+/**
+ * S2C 投影分片缓冲常量载体（2026-10 安全修复后）。C2S 接收侧（SchematicBufferManager 重组落盘）
+ * 已随路径穿越任意写/删漏洞修复整链移除——客户端可控 FileName 直达 Path.of/dir.resolve 无包含性检查。
+ * 本类现仅 {@link #BUFFER_SIZE}（16KiB wire 切片约定）服务 {@code LitematicaSchematic.sendTransmitFile}
+ * 的 S2C 发送分片；实例字段与写入逻辑无存续调用方，保留作上游 0.9.5 形态对齐。
+ * 恢复接收链走 git revert 该修复 commit。
+ */
 public class SchematicBuffer
 {
     public static final int BUFFER_SIZE = 16384;

@@ -235,8 +235,9 @@ Servux 共 **26 个 Mixin + 2 个 AccessWidener 字段**；Syncmatica 共 **5 �
 
 Litematica 投影子系统（`mod/servux/schematic/`，约 8000 行）已移植完成并实测通过：
 
-- **粘贴**（C2S）：客户端上传 `.litematic` → `ServuxLitematicaHandler` 经 `PacketSplitter.receive` 重组 → `handleBulkData` 分流（`LitematicaPaste` 走 `LitematicsDataProvider.handleClientPasteRequest`；`Litematic-Transmit*` 走 `LitematicaSchematic.receiveFileTransmit` 落盘 + 粘贴）→ `SchematicPlacement.pasteTo` → `SchematicPlacingUtils.placeToWorldWithinChunk`（真实 `setBlock` + 方块实体 + 实体放置，含 ReplaceMode / PasteLayerBehavior / LayerRange）。需创造模式 + paste 权限。
-- **文件投递**（S2C）：`/servux litematic transmit <file> [player]` 加载 `schematics/*.litematic` 通过 `servux:litematics` 通道投递给客户端。
+- **粘贴**（C2S）：客户端上传 `.litematic` → `ServuxLitematicaHandler` 经 `PacketSplitter.receive` 重组 → 重组完成后无条件走 `LitematicsDataProvider.handleClientPasteRequest`（Task 门控在 Provider 内，非 `LitematicaPaste` 静默忽略）→ `SchematicPlacement.pasteTo` → `SchematicPlacingUtils.placeToWorldWithinChunk`（真实 `setBlock` + 方块实体 + 实体放置，含 ReplaceMode / PasteLayerBehavior / LayerRange）。需创造模式 + paste 权限。
+- **文件投递**（S2C）：`/servux litematic transmit <file> [player]` 加载 `schematics/*.litematic` 通过 `servux:litematics` 通道投递给客户端（文件名来自 op 命令参数非网络输入，命令入口有目录包含性守卫 `resolveContained`；**修复版 litematica 客户端 ≥0.26.11 对 Transmit 帧双向静默丢弃——仅旧版客户端可接收**，该线 `currentSlice` 修复仍存在且禁止随模板回退）。
+- **文件接收**（C2S，⛔ **已移除 2026-10·安全修复**）：客户端可控 `FileName` 直达 `Path.of`/`dir.resolve` 无包含性检查，构成**路径穿越任意写/删/读回**原语（上游公告漏洞同源；另有 `new Slice[客户端控长]` OOM 向量）——`Litematic-Transmit*` 分流 + `receiveFileTransmit` + `SchematicBufferManager` 整链物理删除（`SchematicBuffer` 保留仅作 `BUFFER_SIZE` S2C 分片常量载体），重组完成后无条件走 `handleClientPasteRequest`（上游 0.9.5 `:153` 同构），恢复走 git revert。
 - 逐阶段记录见 [`docs/11-schematic-migration-plan.md`](docs/11-schematic-migration-plan.md)（历史移植蓝图）与 [`docs/05-schematic-system.md`](docs/05-schematic-system.md)。
 
 **移植方法**：照抄原版纯算法（BitArray/Palette/Container/几何/transmit）+ NMS 直连（`BlockState`/`CompoundTag`/`NbtIo`/`ServerLevel`）；仅 3 类强制降级——`SchematicConversionMaps`（DataFixer，`readFromNBT(enableFixers=false)` 守卫下零影响）、`IMixinWorldTickScheduler`（保存投影读 tick，粘贴不需要）、`WorldUtils`（Mixin → no-op，靠 `setBlock` 的 flags 控制邻居更新）。`LitematicaSchematic` 因 `selection↔placement↔schematic↔PositionUtils` 四元循环依赖，用**桩版**（移除引用未移植类的方法 + 准确注释）分阶段引入、逐步回填。

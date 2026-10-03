@@ -126,8 +126,8 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 2. **批量区块 NBT 拉取** ⭐（黄金验证点）：`requestServuxBulkEntityData(chunkPos, minY, maxY)`
    （`EntityDataManager.java:679`）—— **保存投影（Save Schematic）时**，对该区域每个区块请求
    全部方块实体 + 实体的完整 NBT。响应 `BulkEntityReply`（`TileEntities` + `Entities` + `chunkX/Z`）。
-3. **投影文件传输**（服务器→客户端投递 .litematic）：`Litematic-TransmitStart/Data/End`。**✅ 已实现**（schematic 子系统已移植；`/servux litematic transmit <file> [player]` 触发投递）
-4. **投影粘贴**（C2S 上传投影让服务端放置）：`handleClientPasteRequest`。**✅ 已实现**（客户端上传 → `SchematicBufferManager` 组装 → `createFromFile` → `pasteTo` 写世界；需创造模式 + paste 权限）
+3. **投影文件传输**（服务器→客户端投递 .litematic）：`Litematic-TransmitStart/Data/End`。**✅ 服务端已实现**（`/servux litematic transmit <file> [player]` 触发；但**修复版 litematica 客户端 ≥0.26.11 对 Transmit 帧双向静默丢弃——仅旧版客户端可实际接收**）
+4. **投影粘贴**（C2S 上传投影让服务端放置）：`handleClientPasteRequest`。**✅ 已实现**（客户端上传 NBT → 重组 → `handleClientPasteRequest` → `pasteTo` 写世界；需创造模式 + paste 权限。原 C2S 文件落盘链 `SchematicBufferManager` 组装 → `createFromFile` 已于 2026-10 随安全修复移除——路径穿越任意写删）
 
 > 我们的插件 `LitematicsDataProvider.onBulkEntityRequest` 在响应批量请求时会向玩家**聊天框**发送
 > `Litematics bulk reply: <世界> <区块> TE=<方块实体数> E=<实体数> (<耗时>ms)`——**这是最直观的验证信号**。
@@ -177,8 +177,8 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 | 功能 | 状态 | 表现 |
 |---|---|---|
-| 投影文件传输（服务器投递投影给客户端） | ✅ 已实现 | `/servux litematic transmit <file>` → `sendTransmitFile` 16KiB 分片投递（schematic 子系统已移植，见 [11](11-schematic-migration-plan.md)） |
-| 投影粘贴（客户端上传投影让服务端放置） | ✅ 已实现 | 客户端 Litematica 上传 → `receiveFileTransmit` 组装 → `pasteTo` 写世界（创造模式 + paste 权限）。详见 [11](11-schematic-migration-plan.md) |
+| 投影文件传输（服务器投递投影给客户端） | ✅ 服务端已实现 | `/servux litematic transmit <file>` → `sendTransmitFile` 16KiB 分片投递（op 参数 + 目录包含性守卫；**修复版客户端 ≥0.26.11 双向静默丢弃，仅旧版客户端可接收**，见 [11](11-schematic-migration-plan.md)） |
+| 投影粘贴（客户端上传投影让服务端放置） | ✅ 已实现 | 客户端 Litematica 上传 NBT → `handleClientPasteRequest` → `pasteTo` 写世界（创造模式 + paste 权限；C2S 文件落盘链 `receiveFileTransmit` 已于 2026-10 安全修复移除）。详见 [11](11-schematic-migration-plan.md) |
 | 单个 / 批量 NBT 查询 | ✅ 已实现 | 上述测试 A / B 覆盖 |
 
 ---

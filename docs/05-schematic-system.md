@@ -139,7 +139,7 @@ Litematic 文件 (5 MiB)
 
 > `LitematicaSchematic.java:995-1140`（发送）+ 接收端。通过 `servux:litematics` 通道，packetType 用 `*_RESPONSE_*` 系列，`Task` 字段区分阶段。
 
-### 3.1 服务端→客户端发送投影文件
+### 3.1 服务端→客户端发送投影文件（S2C 命令触发，保留）
 
 ```
 阶段1  TransmitStart:
@@ -151,9 +151,11 @@ Litematic 文件 (5 MiB)
 （异常）TransmitCancel: 取消
 ```
 
-### 3.2 客户端→服务端上传投影（反向同理）
+（注：**修复版 litematica 客户端 ≥0.26.11 对 Transmit 帧双向静默丢弃**——S2C 投递仅旧版客户端可接收；FileName 来自 op 命令参数且经目录包含性守卫。）
 
-服务端 `LitematicsDataProvider` 收到 `TransmitStart` → `SchematicBufferManager.createBuffer`；`TransmitData` → `receiveSlice`；`TransmitEnd` → 组装成文件 → `LitematicaSchematic.createFromFile` 加载。
+### 3.2 客户端→服务端上传（已移除，2026-10 安全修复）
+
+原链路：`TransmitStart` → `SchematicBufferManager.createBuffer`；`TransmitData` → `receiveSlice`；`TransmitEnd` → 组装落盘 → `LitematicaSchematic.createFromFile` 加载——客户端可控 `FileName` 直达 `Path.of`/`dir.resolve` 无净化，构成路径穿越任意写/删/读回原语（上游公告漏洞同源），已随安全修复整链移除（上游 0.9.5 同判禁用）。现存唯一上传活路：重组完成后无条件 `handleClientPasteRequest`（`LitematicaPaste` Task 门控在 Provider 内）。
 
 ### 3.3 序列化字节流
 
