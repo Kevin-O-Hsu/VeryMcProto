@@ -11,7 +11,7 @@ import verymc.top.veryMcProto.mod.jei.network.JeiS2CPacket;
 
 /**
  * cheat 权限同步包（S2C，通道 {@code jei:cheat_permission}）。逐字镜像上游
- * {@code mezz.jei.common.network.packets.PacketCheatPermission}（commit ccc16e8）：
+ * {@code mezz.jei.common.network.packets.PacketCheatPermission}（commit f320348）：
  * {@code BOOL hasPermission + List&lt;STRING_UTF8&gt; allowedCheatingMethods}。
  *
  * <p>发送时机与上游一致：① 应答 {@code PacketRequestCheatPermission}；② 玩家尝试 cheat 但无权限时

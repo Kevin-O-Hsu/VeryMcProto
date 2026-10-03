@@ -5,7 +5,7 @@ import net.minecraft.nbt.*;
 /**
  * RecipeManager wire 预处理（servux:hud_metadata 通道专用兼容层）。
  *
- * <p>26.1 wire 病灶：{@code Recipe.CODEC.encodeStart(NbtOps.INSTANCE, ...)} 的 ingredient 元素域为
+ * <p>26.1 wire 病灶（26.2 编译/单测通过，wire 形状随客户端冒烟终验）：{@code Recipe.CODEC.encodeStart(NbtOps.INSTANCE, ...)} 的 ingredient 元素域为
  * 「单物品 → 裸 StringTag（ExtraCodecs.compactListCodec 单元素裸出）；多物品/tag → ListTag」——
  * 两者混装的 ingredients 列表（全量普查恰 66 条 vanilla 配方）在 {@code ListTag.write} 逐元素写出时
  * 被包装为 {@code {"": x}} Compound 并按声明类型 TAG_Compound(10) 上线；malilib 客户端读端

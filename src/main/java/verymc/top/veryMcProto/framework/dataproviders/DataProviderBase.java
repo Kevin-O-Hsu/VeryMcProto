@@ -67,7 +67,7 @@ public abstract class DataProviderBase implements IDataProvider
      * （{@code tags == null || tags.getIntOrDefault("version", -1) < getProtocolVersion()}，
      * 上游 HudDataProvider:411，五 Provider 同构）。
      *
-     * <p>26.1 NMS {@link CompoundTag} 取值 API 为 {@code getIntOr(key, def)}（对应 malilib
+     * <p>26.1+ NMS {@link CompoundTag} 取值 API 为 {@code getIntOr(key, def)}（对应 malilib
      * {@code getIntOrDefault}）。纯函数，供单测（DataProviderVersionGateTest）。
      *
      * @return true = 客户端协议版本过低（或 tags/version 缺失），须拒绝注册

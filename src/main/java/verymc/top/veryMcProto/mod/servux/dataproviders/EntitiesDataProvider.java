@@ -12,6 +12,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
 import verymc.top.veryMcProto.Reference;
@@ -209,7 +210,7 @@ public class EntitiesDataProvider extends DataProviderBase
                 Identifier id = EntityType.getKey(entity.getType());
 
                 // 对齐上游 :251：查询者查自己时保留背包/末影箱（!uuid.equals 才进入剥离判断）
-                if (entity.getType() == EntityType.PLAYER && !entity.getUUID().equals(player.getUUID()))
+                if (entity.getType() == EntityTypes.PLAYER && !entity.getUUID().equals(player.getUUID()))
                 {
                     if (!this.hasPlayerInventoryPermission(player)) { nbt.remove("Inventory"); nbt.put("Inventory", new ListTag()); }
                     if (!this.hasPlayerEnderItemsPermission(player)) { nbt.remove("EnderItems"); nbt.put("EnderItems", new ListTag()); }

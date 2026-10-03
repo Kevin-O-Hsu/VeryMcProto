@@ -3,8 +3,8 @@ package verymc.top.veryMcProto.mod.jei;
 import net.minecraft.resources.Identifier;
 
 /**
- * JEI 模块常量单源（mod 层）。上游 = mezz/JustEnoughItems 26.1 分支（JEI 29.37.0 / MC 26.1.2，
- * {@code OriginImpl/JustEnoughItems-26.1}，commit {@code ccc16e8}）。
+ * JEI 模块常量单源（mod 层）。上游 = mezz/JustEnoughItems 26.2 分支（JEI 30.39.0 / MC 26.2，
+ * {@code OriginImpl/JustEnoughItems-26.2}，commit {@code f320348}）。
  *
  * <p>通道 id 全部逐字镜像上游 {@code mezz.jei.common.network.packets.*} 的
  * {@code CustomPacketPayload.Type} 定义（{@code ModIds.JEI_ID = "jei"}），步骤 0 冻结清单实证。

@@ -17,7 +17,7 @@ import net.minecraft.world.item.crafting.RecipeSerializer;
 
 /**
  * Fabric 客户端配方同步 payload（mod 层，S2C 通道 {@code fabric:recipe_sync}）。
- * wire 权威 = Fabric API 26.1 {@code fabric-recipe-api-v1} 的
+ * wire 权威 = Fabric API 26.2 {@code fabric-recipe-api-v1}（26.1→26.2 wire 不变）的
  * {@code net.fabricmc.fabric.impl.recipe.sync.ClientboundRecipeSyncPayload}（已逐字段核对一致；
  * 历史注：首个 Paper 移植来自 Mrbysco/JEIRecipeBridge 的 1.21.11 线实现；
  * 26.1 线 mezz 重做时已对 Fabric API 上游逐字段重核，非承袭旧码）。

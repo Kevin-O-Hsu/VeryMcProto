@@ -16,7 +16,7 @@ import verymc.top.veryMcProto.mod.jei.transfer.TransferOperation;
  * 配方转移包共用骨架（mod 层）。四个 wire 变体（with_result / counted_with_result / legacy × 2）的
  * 字段与流程同构，差异仅两点：① 操作列表是否带 count；② 是否回执结果——上游以四个独立类表达
  * （{@code PacketRecipeTransferWithResult} / {@code PacketRecipeTransferCountedWithResult} /
- * {@code legacy.PacketRecipeTransfer} / {@code legacy.PacketRecipeTransferCounted}，commit ccc16e8），
+ * {@code legacy.PacketRecipeTransfer} / {@code legacy.PacketRecipeTransferCounted}，commit f320348），
  * 本处以抽象基类收敛公共解码与执行流程，线序逐字段与上游一致。
  *
  * <p>公共线序：{@code List&lt;TransferOperation&gt; + List&lt;VAR_INT&gt; craftingSlots +

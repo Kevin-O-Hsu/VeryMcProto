@@ -20,7 +20,7 @@ import verymc.top.veryMcProto.Reference;
 
 /**
  * 配方转移服务端算法（mod 层）。逐字移植上游 {@code mezz.jei.common.transfer.BasicRecipeTransferHandlerServer}
- * 与其 {@code RecipeTransferUtil.validateSlots}（commit ccc16e8；log4j → JUL shim，泛型风格不变）。
+ * 与其 {@code RecipeTransferUtil.validateSlots}（commit f320348；log4j → JUL shim，泛型风格不变）。
  *
  * <p><b>行为级移植（EasyPlace 同级敏感度）</b>：槽位归属校验（validateSlots）→ 可清空校验 →
  * 需求集计算 → 取物（complete-set 语义含回滚）→ 清格 → 放物 → 余料归包 → {@code broadcastChanges}。

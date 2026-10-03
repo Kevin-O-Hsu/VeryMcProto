@@ -17,7 +17,7 @@ import verymc.top.veryMcProto.mod.jei.network.JeiServerPacketContext;
 import verymc.top.veryMcProto.mod.jei.network.payload.PacketCheatPermission;
 
 /**
- * cheat 服务端语义（mod 层）。逐字移植上游 {@code mezz.jei.common.util.ServerCommandUtil}（commit ccc16e8；
+ * cheat 服务端语义（mod 层）。逐字移植上游 {@code mezz.jei.common.util.ServerCommandUtil}（commit f320348；
  * log4j → JUL shim）。权限三切面对应服务端配置三布尔：
  * creative（创造模式玩家）→ op（{@code Permissions.COMMANDS_GAMEMASTER} = 权限级 2）→ give（{/give} 权限），
  * 短路求值顺序与上游一致。

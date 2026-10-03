@@ -10,6 +10,7 @@ import net.minecraft.util.StringRepresentable;
 import com.google.common.collect.ImmutableList;
 import io.netty.buffer.ByteBuf;
 import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 /**
  * MC 数据版本 ↔ 版本字符串映射表。移植自原版 {@code ORIGIN/util/data/Schema.java}（照抄，仅改 package）。
@@ -24,12 +25,16 @@ public enum Schema implements StringRepresentable
     // TODO --> Add Schema Versions to this as versions get released
     // Minecraft Data Versions
     SCHEMA_FUTURE       (9999, "FUTURE"),
+    SCHEMA_26_3_PR2     (5018, "26.3-pre-2"),
+    SCHEMA_26_3_SS8     (5010, "26.3-snapshot-8"),
+    SCHEMA_26_3_SS4     (5003, "26.3-snapshot-4"),
     SCHEMA_26W14A       (5000, "26w14a"),        // Herd craft April Fools update (Why is this Data Version 5000?)
+    SCHEMA_26_3_SS2     (4999, "26.3-snapshot-2"),
     SCHEMA_26_2         (4903, "26.2"),
-    SCHEMA_26_2_2_PR4   (4897, "26.2-pre-4"),
-    SCHEMA_26_2_2_SS7   (4891, "26.2-snapshot-7"),
-    SCHEMA_26_2_2_SS4   (4887, "26.2-snapshot-4"),
-    SCHEMA_26_2_2_SS1   (4883, "26.2-snapshot-1"),
+    SCHEMA_26_2_PR4     (4897, "26.2-pre-4"),
+    SCHEMA_26_2_SS7     (4891, "26.2-snapshot-7"),
+    SCHEMA_26_2_SS4     (4887, "26.2-snapshot-4"),
+    SCHEMA_26_2_SS1     (4883, "26.2-snapshot-1"),
     SCHEMA_26_1_2       (4790, "26.1.2"),
     SCHEMA_26_1_1       (4788, "26.1.1"),
     SCHEMA_26_1         (4786, "26.1"),
@@ -156,13 +161,13 @@ public enum Schema implements StringRepresentable
     public static final StreamCodec<@NotNull ByteBuf, @NotNull Schema> PACKET_CODEC = new StreamCodec<>()
     {
         @Override
-        public void encode(ByteBuf buf, Schema value)
+        public void encode(@NonNull ByteBuf buf, Schema value)
         {
             ByteBufCodecs.INT.encode(buf, value.schemaId);
         }
 
         @Override
-        public Schema decode(ByteBuf buf)
+        public @NonNull Schema decode(@NonNull ByteBuf buf)
         {
             return Schema.getSchemaByDataVersion(ByteBufCodecs.INT.decode(buf));
         }

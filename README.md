@@ -4,8 +4,8 @@
 > The client still uses the original Fabric mods; the server swaps from "Fabric server + server-side mod" to "standard Paper server + this plugin", with identical protocol behavior.
 
 ```
-Paper 26.1.2 · Java 25 · paperweight userdev · Version 26.1.2-b5
-Servux ✅  ·  JEI ✅  ·  Syncmatica ✅   (all three targets fully implemented; server-side verified on 26.1.2)
+Paper 26.2 · Java 25 · paperweight userdev · Version 26.2-b1
+Servux ✅  ·  JEI ✅  ·  Syncmatica ✅   (all three targets fully implemented; server-side verified on 26.2)
 ```
 
 ---
@@ -27,7 +27,7 @@ Servux ✅  ·  JEI ✅  ·  Syncmatica ✅   (all three targets fully implement
 
 ## 1. What It Is
 
-**VeryMcProto** is a **Paper plugin** that **re-implements the network protocols and data collection expected by several Fabric protocol mods** on a standard Paper 26.1.2 server, so that a "Fabric client + Paper server" combination behaves exactly like a "Fabric client + vanilla Fabric server mod" combination.
+**VeryMcProto** is a **Paper plugin** that **re-implements the network protocols and data collection expected by several Fabric protocol mods** on a standard Paper 26.2 server, so that a "Fabric client + Paper server" combination behaves exactly like a "Fabric client + vanilla Fabric server mod" combination.
 
 > **It is a *protocol-layer port*, not a port of the Fabric mods themselves.** The client keeps using masa's / endte's / JEI's own Fabric mods; our job is to implement on the Paper server the **custom network channels + server→client data delivery + server-side behavior cooperation** they expect.
 
@@ -46,10 +46,10 @@ This project uses **paperweight `userdev`** to reference fully-deobfuscated Moja
 | Mod | Client Mod | Nature | Status |
 | --- | --- | --- | --- |
 | **Servux** | masa's **MiniHUD / Litematica / Tweakeroo** | Server→client **one-way broadcast** (6 providers over `servux:*` channels) | ✅ Full |
-| **JEI** | **JEI** (mezz/JustEnoughItems 26.1) | **Full server protocol**: recipe sync + cheat + recipe transfer (`fabric:recipe_sync` / `neoforge:recipe_content` + 10 `jei:*` channels) | ✅ Full |
+| **JEI** | **JEI** (mezz/JustEnoughItems 26.2) | **Full server protocol**: recipe sync + cheat + recipe transfer (`fabric:recipe_sync` / `neoforge:recipe_content` + 10 `jei:*` channels) | ✅ Full |
 | **Syncmatica** | **endte syncmatica** | **Bidirectional, stateful, multi-player shared** schematic repository (`syncmatica:main` + 18 PacketTypes + Exchange sessions) | ✅ Full |
 
-**Servux** delivers world metadata / spawn / weather / TPS / MobCap, structure bounding boxes, entity & block-entity NBT queries, and Litematica schematic paste (C2S upload + server-side paste). EasyPlace (Tweakeroo precise placement) is served via PacketEvents. The S2C file-transmit path was removed — the stock 26.1 client has no receiver for it.
+**Servux** delivers world metadata / spawn / weather / TPS / MobCap, structure bounding boxes, entity & block-entity NBT queries, and Litematica schematic paste (C2S upload + server-side paste). EasyPlace (Tweakeroo precise placement) is served via PacketEvents. The S2C file-transmit path was removed — the stock 26.1+ client has no receiver for it (re-confirmed on 26.2).
 
 **JEI**: recipe sync (loader-level channels, join-time packet ordering via `RecipeSyncJoinOrderer`), the `jei:*` cheat/transfer channels with a server-side permission model, and the line-by-line ported `BasicRecipeTransferHandlerServer`.
 
@@ -67,25 +67,25 @@ Protocol deep-dives: [docs/02](docs/02-network-protocol.md) (Servux network) · 
 
 | Item | Requirement |
 | --- | --- |
-| Server | **Paper 26.1.2** (`api-version: '26.1.2'`; standard Paper, no patch / fork needed) |
+| Server | **Paper 26.2** (`api-version: '26.2'`, templated from the single version source; standard Paper, no patch / fork needed) |
 | Java | **25** |
-| Optional | **PacketEvents 2.13.0** (only for EasyPlace; if absent it is gracefully skipped — everything else is unaffected) |
+| Optional | **PacketEvents 2.14.0** (only for EasyPlace; if absent it is gracefully skipped — everything else is unaffected) |
 
 ### Client
 
 | Feature family | Client must install |
 | --- | --- |
-| All of Servux (HUD / structures / NBT query / schematic paste / EasyPlace) | **MiniHUD** + **Litematica** + **Tweakeroo** (the masa suite, 26.1 LTS) |
-| JEI recipe sync + cheat + recipe transfer | **JEI** (mezz/JustEnoughItems, 26.1 line) |
-| Schematic sharing | **Syncmatica** (endte client, 26.1 LTS) |
+| All of Servux (HUD / structures / NBT query / schematic paste / EasyPlace) | **MiniHUD** + **Litematica** + **Tweakeroo** (the masa suite, 26.2 LTS) |
+| JEI recipe sync + cheat + recipe transfer | **JEI** (mezz/JustEnoughItems, 26.2 line) |
+| Schematic sharing | **Syncmatica** (endte client, 26.2 LTS) |
 
-> The client version must match the server's **MC 26.1 line (26.1.2)**. The client is the "receiving end" of these protocols; every field semantic and reassembly behavior is verified against the client sources.
+> The client version must match the server's **MC 26.2 line**. The client is the "receiving end" of these protocols; every field semantic and reassembly behavior is verified against the client sources.
 
 ---
 
 ## 4. Installation
 
-1. Get `VeryMcProto-26.1.2-b5.jar` from the project Releases page, or build it with `./gradlew build` (the Mojang-mapped artifact loads directly on standard Paper 26.1+ — no reobf step exists anymore).
+1. Get `VeryMcProto-26.2-b1.jar` from the project Releases page, or build it with `./gradlew build` (the Mojang-mapped artifact loads directly on standard Paper 26.1+ — no reobf step exists anymore).
 2. Drop it into the server's `plugins/` directory.
 3. **(Optional, only for EasyPlace)** Install the PacketEvents plugin.
 4. Restart the server; players join with the corresponding client Fabric mods — handshake is automatic.
@@ -93,7 +93,7 @@ Protocol deep-dives: [docs/02](docs/02-network-protocol.md) (Servux network) · 
 On startup the console shows:
 
 ```
-[VeryMcProto] 启动中 (MC 26.1.2, paper)...
+[VeryMcProto] 启动中 (MC 26.2, paper)...
 [VeryMcProto] 已注册协议 mod: servux
 [VeryMcProto] 已注册协议 mod: jei
 [VeryMcProto] 已注册协议 mod: syncmatica
@@ -162,7 +162,7 @@ The original Servux has **26 Mixins + 2 AccessWideners**; Syncmatica has **5 ser
 | [`AGENTS.md`](AGENTS.md) | **Canonical repo guide** — architecture, branch/version model, core constraints, conventions |
 | [`docs/02-network-protocol.md`](docs/02-network-protocol.md) ⭐ | Core network protocol: `CustomPacketPayload`, `PacketSplitter`, channels, byte layouts |
 | [`docs/07-migration-architecture.md`](docs/07-migration-architecture.md) ⭐ | Fabric→Paper architecture comparison, degradation matrix, feasibility |
-| [`docs/09-DELIVERY.md`](docs/09-DELIVERY.md) ⭐ | Delivery / byte limits + the authoritative 26.1 migration record (§26.1) |
+| [`docs/09-DELIVERY.md`](docs/09-DELIVERY.md) ⭐ | Delivery / byte limits + the authoritative 26.1/26.2 migration records (§26.1/§26.2) |
 | [`docs/40-configuration.md`](docs/40-configuration.md) | **Ops reference**: commands, permissions, config keys, data layout, troubleshooting |
 | [`docs/10`](docs/10-testing-guide.md) / [`docs/24`](docs/24-syncmatica-testing-guide.md) | Client compatibility testing (Servux / Syncmatica) |
 | [`docs/20–24`](docs/20-syncmatica-architecture.md) | Syncmatica implementation notes (architecture / protocol / migration / overview / testing) |
@@ -199,11 +199,11 @@ A: The player needs creative mode + the `servux.provider.litematic_data.paste` p
 This project is a Paper protocol-layer port of the following Fabric protocol mods — full credit to the original authors and the maintainers who keep them alive:
 
 - **Servux** — originally by **masa** ([`maruohon/servux`](https://github.com/maruohon/servux)); now maintained by **sakura-ryoko** ([`sakura-ryoko/servux`](https://github.com/sakura-ryoko/servux)). The server-side protocol implementation delivering data to MiniHUD / Litematica / Tweakeroo.
-- **Litematica / malilib / MiniHUD / Tweakeroo / Item Scroller** — originally by **masa** (`maruohon/*`); now maintained by **sakura-ryoko** since masa retired from active development — the 26.1 LTS builds all live under sakura-ryoko:
+- **Litematica / malilib / MiniHUD / Tweakeroo / Item Scroller** — originally by **masa** (`maruohon/*`); now maintained by **sakura-ryoko** since masa retired from active development — the 26.2 LTS builds all live under sakura-ryoko:
   - [`sakura-ryoko/litematica`](https://github.com/sakura-ryoko/litematica) · [`sakura-ryoko/malilib`](https://github.com/sakura-ryoko/malilib) · [`sakura-ryoko/minihud`](https://github.com/sakura-ryoko/minihud) · [`sakura-ryoko/tweakeroo`](https://github.com/sakura-ryoko/tweakeroo) · [`sakura-ryoko/itemscroller`](https://github.com/sakura-ryoko/itemscroller)
   - These are the client-side receivers of the protocols.
 - **Syncmatica** — originally by **endte** ([`End-Tech/syncmatica`](https://github.com/End-Tech/syncmatica)); now maintained by **sakura-ryoko** ([`sakura-ryoko/syncmatica`](https://github.com/sakura-ryoko/syncmatica)). The shared schematic central repository.
-- **JustEnoughItems (JEI)** — by **mezz** ([`mezz/JustEnoughItems`](https://github.com/mezz/JustEnoughItems), `26.1` branch). **The JEI upstream since 2026-09** — the full server protocol (recipe sync via loader channels + `jei:*` cheat/transfer channels) is ported from it.
+- **JustEnoughItems (JEI)** — by **mezz** ([`mezz/JustEnoughItems`](https://github.com/mezz/JustEnoughItems), `26.2` branch). **The JEI upstream since 2026-09** — the full server protocol (recipe sync via loader channels + `jei:*` cheat/transfer channels) is ported from it.
 - **JEIRecipeBridge** — by **Mrbysco** ([`Mrbysco/JEIRecipeBridge`](https://github.com/Mrbysco/JEIRecipeBridge)). The historical JEI recipe-sync reference (1.21.11 line still uses it; kept in `OriginImpl/` for the neoforge-layer wire reference).
 
 ### References
@@ -223,6 +223,6 @@ This project is licensed under the **GNU Lesser General Public License v3.0 only
 
 ---
 
-<sub>Built for **Paper 26.1.2** · Java 25 · No Mixin / No patch / No private fork</sub>
+<sub>Built for **Paper 26.2** · Java 25 · No Mixin / No patch / No private fork</sub>
 
 <sub>A protocol-layer port: client uses the original Fabric mods; server uses standard Paper + this plugin.</sub>

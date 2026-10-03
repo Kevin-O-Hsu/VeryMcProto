@@ -11,23 +11,23 @@
   - 上游已越过本线版本 → 该版本属旧线：当前版本的活走 `ver/<X>-dev`，同时提醒用户启动 `dev` 的升级适配（见分支模型「生命周期」）。
   （Paper 侧版本可用 https://api.papermc.io/v2/projects/paper 交叉核对。）
 - **分支**：当前 MC 版本的开发一律在 `dev` 分支提交，完成后合入 `main`（= 最新 MC 稳定发布线）。旧 MC 版本冻结为 `ver/<X>` + `ver/<X>-dev` 维护对：修 Bug 在 `ver/<X>-dev`，验证后合入 `ver/<X>`。详见下文「分支模型与版本系统」。
-- **版本**：插件版本 = `<mcVersion>-b<buildNumber>`（当前 `26.1.2-b5`——26.1 线的精确上游补丁号，26.1 客户端 MOD_STRING 硬门禁要求）。**唯一来源是 `gradle.properties`**——发版只需在 dev 上 `buildNumber` +1，**任何源码、plugin.yml、文档中都不得手写版本号**（注入链路见下文）。
+- **版本**：插件版本 = `<mcVersion>-b<buildNumber>`（当前 `26.2-b1`——26.2 线的上游 id；26.2 为无补丁段的干净 release，26.1+ 客户端 MOD_STRING 硬门禁要求精确 id）。**唯一来源是 `gradle.properties`**——发版只需在 dev 上 `buildNumber` +1，**任何源码、plugin.yml、文档中都不得手写版本号**（注入链路见下文）。
 - **语言与风格**：注释、日志、文档用中文；与现有代码一致（中文 javadoc、常量类 + 源码实证注释）。**唯一例外 `README.md`**：面向国际受众（GitHub/Modrinth 门面）保持英文，且为瘦身门面——命令/权限/配置/排错等运维内容一律指向 `docs/40-configuration.md`，不在 README 重复维护。
 - **文档同步强制**：本仓库的**每一个改动**，改的时候都必须同步更改对应的文档——受影响的 [`docs/`](docs/) 篇章、`README.md`、`AGENTS.md` 等；没有合适文档可承载时**新建文档**（放 `docs/` 并在 [`docs/00-INDEX.md`](docs/00-INDEX.md) 登记索引）。文档更新与代码改动落在**同一个 commit**，禁止"先合代码、事后补文档"。
-- **协议字段语义**改动前必须对照 `OriginImpl/` 下的客户端源码（litematica / malilib / syncmatica 是协议接收端），**不要凭服务端代码猜客户端行为**。26.1 起客户端还带协议版本 + MOD_STRING 前缀**硬门禁**（不匹配即整通道静默退网），协议常量必须与 `OriginImpl/*-LTS-26.1` 逐字对齐。
+- **协议字段语义**改动前必须对照 `OriginImpl/` 下的客户端源码（litematica / malilib / syncmatica 是协议接收端），**不要凭服务端代码猜客户端行为**。26.1 起客户端还带协议版本 + MOD_STRING 前缀**硬门禁**（不匹配即整通道静默退网），协议常量必须与 `OriginImpl/*-LTS-26.2` 逐字对齐（26.1→26.2 协议面零变化，已复核）。
 - **禁止引入 Mixin / AccessWidener / 服务端 patch 依赖**——Paper 无 Mixin 运行时，替代方案见核心约束 §2。
 - **可选依赖**（PacketEvents 等 `compileOnly`）的类引用必须隔离到独立引导类 + 反射加载 + `catch(Throwable)`（见核心约束 §6 教训 5）。
 - **构建**：`./gradlew build`（Mojang 映射 jar，26.1 起**无 reobf**）· `./gradlew test`（纯函数单测）· `./gradlew runServer`（本地测试服）。**JDK 25 工具链自动解析**：`settings.gradle.kts` 的 foojay-resolver-convention 插件（探测不到时自动下载）+ 本机 `~/.gradle/gradle.properties` 的 `org.gradle.java.installations.paths` 指向 F:\jdk——IDE / 无 JAVA_HOME 场景直接可用。**配置缓存已开启**：task 配置 lambda 内不得捕获脚本顶层 `val`，用 task 自身的 `providers` 取值。
 
 ## 项目简介
 
-**VeryMcProto** 把 **Fabric 端独特的 Mod Protocol（协议 Mod）** 以纯 Paper 插件形式重新实现。所有实现基于 **Minecraft 26.1 线（26.1.2）**，运行在标准 **Paper 26.1.2** 服务端，不依赖任何服务端 patch / Mixin / 私有 fork。
+**VeryMcProto** 把 **Fabric 端独特的 Mod Protocol（协议 Mod）** 以纯 Paper 插件形式重新实现。所有实现基于 **Minecraft 26.2 线**，运行在标准 **Paper 26.2** 服务端，不依赖任何服务端 patch / Mixin / 私有 fork。
 
-每个被移植的 Mod 独占一个目录单元；原版 Fabric 实现统一存放在 `OriginImpl/` 下用于逐行对照（本地参考，已 gitignore，不入库；**1.21.11 与 26.1 双版本并存**，masa 系全部为 sakura-ryoko 维护的 `LTS/<版本>` 分支；JEI 侧**按线分叉**——26.1 线对照最上游 `OriginImpl/JustEnoughItems-26.1/`（mezz，分支 `26.1`，2026-09 起正式更换），1.21.11 旧线沿用 `OriginImpl/JEIRecipeBridge-1.21.11/`（Mrbysco）。**三个移植目标在 26.1 线全部实现并通过服务端实机验证**：
+每个被移植的 Mod 独占一个目录单元；原版 Fabric 实现统一存放在 `OriginImpl/` 下用于逐行对照（本地参考，已 gitignore，不入库；**1.21.11 / 26.1 / 26.2 三版本并存**（dev 线对照 `*-LTS-26.2`，ver/26.1.2 维护对照 `*-LTS-26.1`，ver/1.21.11 对照 `*-LTS-1.21.11`），masa 系全部为 sakura-ryoko 维护的 `LTS/<版本>` 分支；JEI 侧**按线分叉**——26.2 线对照最上游 `OriginImpl/JustEnoughItems-26.2/`（mezz，分支 `26.2`，2026-10 随线升级），1.21.11 旧线沿用 `OriginImpl/JEIRecipeBridge-1.21.11/`（Mrbysco）。**三个移植目标在 26.2 线全部实现并通过服务端实机验证**：
 
-- **Servux**（`mod/servux/`，对照 `OriginImpl/servux-LTS-26.1/`）—— masa 开发的服务端协议 Mod，为 masa 的客户端 Mod（**MiniHUD / Litematica / Tweakeroo**）提供**服务端→客户端的数据投递与协议**，通过自定义网络通道（`servux:*`）下发：世界元数据、出生点、天气、TPS/MobCap、结构边界框、Litematica 投影粘贴、实体与方块实体 NBT 查询、EasyPlace 服务端放置协议等。5 通道 + schematic（粘贴）+ EasyPlace + **task 组 Fill/Delete/Paste**（`scheduler/` 五类：TaskScheduler + LitematicaTask 基类 + FillDeleteTask + PasteTask + InfoHudTaskSync，受理→分 tick 执行→InfoHud 状态同步；paste 为上游 TaskPasteSchematicPerChunkDirect 形态——vanillaTickTime+60ms 动态预算、type 16 进度/完成帧；26.1 wire：协议版本 3/2/2/3/2、DataTag 载体、UNREGISTER_REPLY；type 15 客户端 TODO 故不发送、type 17 上游同源忽略）。
-- **JEI 服务端协议**（`mod/jei/`，对照最上游 `OriginImpl/JustEnoughItems-26.1/`（mezz 分支 `26.1` = JEI 29.37.0 / MC 26.1.2 / Java 25——原 Mrbysco/JEIRecipeBridge 已停更且只做过 1.21.11 的配方同步切面，2026-09 起弃用为其参考地位））—— **完整 JEI 协议**三层：① 配方同步层：`fabric:recipe_sync`（Fabric API `fabric-recipe-api-v1` wire，RegisterChannel 触发——对齐上游 `canSend(player)` 门控）+ `neoforge:recipe_content`（join + brand 触发，wire 参考 Mrbysco 26.1 目录）+ NeoForge tag 表补发；② `jei:*` 自有通道 10 条（8 C2S：`request_cheat_permission` / `give_item_stack` / `delete_player_item` / `set_hotbar_item_stack` / `recipe_transfer_with_result` / `recipe_transfer_counted_with_result` / legacy `recipe_transfer` / legacy `recipe_transfer_counted`；2 S2C：`cheat_permission` / `recipe_transfer_result`）——**客户端功能门禁 `isJeiOnServer()` = 服务端声明过 `jei:delete_player_item` 通道（`ChannelManager` 成对注册），与 brand 无关**；③ 服务端行为：cheat 权限三切面（Op=权限级 2 / Give=`minecraft.command.give` / Creative）+ `BasicRecipeTransferHandlerServer` 配方转移算法逐行移植。协议详情见 [`docs/30-jei-protocol.md`](docs/30-jei-protocol.md)。
-- **Syncmatica**（`mod/syncmatica/`，对照 `OriginImpl/syncmatica-LTS-26.1/`）—— **投影共享**协议 Mod：服务端作中央仓库存储 `.litematic`，多玩家上传/下载/协同修改放置位置。单物理通道 `syncmatica:main` + 18 逻辑 PacketType + Exchange 会话层（请求-应答状态机）+ 文件存储 + JSON 持久化 + 配额/调试服务。与 Servux（单向广播）根本不同——**双向、有状态、多玩家共享**。26.1 wire 零变化（但 `modifyState` 锁表有两处本地修复：CHM null 语义翻译 + null placement 守卫——迁移引入 NPE 链 + 上游原生缺陷，勿随模板回退，见 docs/21 §5.4）。
+- **Servux**（`mod/servux/`，对照 `OriginImpl/servux-LTS-26.2/`）—— masa 开发的服务端协议 Mod，为 masa 的客户端 Mod（**MiniHUD / Litematica / Tweakeroo**）提供**服务端→客户端的数据投递与协议**，通过自定义网络通道（`servux:*`）下发：世界元数据、出生点、天气、TPS/MobCap、结构边界框、Litematica 投影粘贴、实体与方块实体 NBT 查询、EasyPlace 服务端放置协议等。5 通道 + schematic（粘贴）+ EasyPlace + **task 组 Fill/Delete/Paste**（`scheduler/` 五类：TaskScheduler + LitematicaTask 基类 + FillDeleteTask + PasteTask + InfoHudTaskSync，受理→分 tick 执行→InfoHud 状态同步；paste 为上游 TaskPasteSchematicPerChunkDirect 形态——vanillaTickTime+60ms 动态预算、type 16 进度/完成帧；26.1 起 wire：协议版本 3/2/2/3/2、DataTag 载体、UNREGISTER_REPLY（26.1→26.2 零变化）；type 15 客户端 TODO 故不发送、type 17 上游同源忽略）。
+- **JEI 服务端协议**（`mod/jei/`，对照最上游 `OriginImpl/JustEnoughItems-26.2/`（mezz 分支 `26.2` = JEI 30.39.0 / MC 26.2 / Java 25，服务端协议面 26.1→26.2 逐字节相同；原 Mrbysco/JEIRecipeBridge 已停更，2026-09 起仅为 neoforge:recipe_content 层 wire 参考））—— **完整 JEI 协议**三层：① 配方同步层：`fabric:recipe_sync`（Fabric API `fabric-recipe-api-v1` wire，RegisterChannel 触发——对齐上游 `canSend(player)` 门控）+ `neoforge:recipe_content`（join + brand 触发，wire 参考 Mrbysco 26.1 目录）+ NeoForge tag 表补发；② `jei:*` 自有通道 10 条（8 C2S：`request_cheat_permission` / `give_item_stack` / `delete_player_item` / `set_hotbar_item_stack` / `recipe_transfer_with_result` / `recipe_transfer_counted_with_result` / legacy `recipe_transfer` / legacy `recipe_transfer_counted`；2 S2C：`cheat_permission` / `recipe_transfer_result`）——**客户端功能门禁 `isJeiOnServer()` = 服务端声明过 `jei:delete_player_item` 通道（`ChannelManager` 成对注册），与 brand 无关**；③ 服务端行为：cheat 权限三切面（Op=权限级 2 / Give=`minecraft.command.give` / Creative）+ `BasicRecipeTransferHandlerServer` 配方转移算法逐行移植。协议详情见 [`docs/30-jei-protocol.md`](docs/30-jei-protocol.md)。
+- **Syncmatica**（`mod/syncmatica/`，对照 `OriginImpl/syncmatica-LTS-26.2/`）—— **投影共享**协议 Mod：服务端作中央仓库存储 `.litematic`，多玩家上传/下载/协同修改放置位置。单物理通道 `syncmatica:main` + 18 逻辑 PacketType + Exchange 会话层（请求-应答状态机）+ 文件存储 + JSON 持久化 + 配额/调试服务。与 Servux（单向广播）根本不同——**双向、有状态、多玩家共享**。26.1/26.2 wire 均零变化（但 `modifyState` 锁表有两处本地修复：CHM null 语义翻译 + null placement 守卫——迁移引入 NPE 链 + 上游原生缺陷，勿随模板回退，见 docs/21 §5.4）。
 
 > **本项目的本质是"协议层移植"**：客户端仍是 masa / syncmatica 的 Fabric Mod；我们要在 Paper 服务端复刻它们期待的**网络协议 + 数据采集**，使"Fabric 客户端 + Paper 服务端"的组合能像"Fabric 客户端 + 原版服务端 Mod"一样工作。
 
@@ -55,11 +55,11 @@
 
 **当前版本**（尚未冻结）的 Bug 直接走 `dev → main`，不为它开 `ver/*` 分支——避免同一件事存在多个改动入口。`ver/*` 对只在上游出现新版本的那一刻创建。
 
-**当前状态**（2026-09，以上游版本清单为准）：
-- 上游最新 release **26.2**，snapshot **26.3-pre-3**（26.3 将近）。
-- **`dev → main` 承载 26.1 线（26.1.2）**：26.1 全量迁移已完成（构建面 Java 25 / 新 dev-bundle 格式 / reobf 废除、协议面 DataTag 载体 + 版本常量 + 硬门禁对齐、NMS 漂移 39 处修复），`./gradlew build` 19 个测试类 / 113 个单测全绿，Paper 26.1.2 实机起服验证通过。
-- **1.21.11 是旧版本**：`ver/1.21.11` + `ver/1.21.11-dev` 维护对已从 `main`（tag `v1.21.11-b1`）冻结切出。
-- 适配 26.2 属后续工作（冻结 ver/26.1.2 对 → dev 升 mcVersion + bundle → NMS/协议漂移核对，见「升级 Minecraft 版本」）。
+**当前状态**（2026-10，以上游版本清单为准；版本策略 = **对齐 latest-1**——latest 可能出小版本更新，故 latest.release 下一版才是目标）：
+- 上游最新 release **26.3**，snapshot **26.4-snapshot-2**——latest-1 = **26.2**，26.3 暂时搁置。
+- **`dev → main` 承载 26.2 线**：26.1.2→26.2 迁移已完成（构建面 bundle `26.2.build.129-stable` / paperweight beta.24 / packetevents 2.14.0 / api-version 模板化、协议面**零变化**——对照 `OriginImpl/*-LTS-26.2` 五路全树逐文件实证、NMS 漂移仅 4 处——`EntityTypes.PLAYER` 常量类拆分 / `EntitySpawnRequest` / `CONCRETE_POWDERS`），`./gradlew build` 19 个测试类 / 113 个单测全绿，Paper 26.2 实机起服验证通过（实录见 docs/09 §26.2）。
+- **1.21.11 与 26.1.2 均为旧版本**：`ver/1.21.11`(+`-dev`) 与 `ver/26.1.2`(+`-dev`) 维护对均已冻结切出。
+- 适配 26.3 属后续工作（上游 26.4 出现时冻结 ver/26.2 对 → dev 升 mcVersion=26.3 + bundle → NMS/协议漂移核对，见「升级 Minecraft 版本」）。
 
 **发版**（版本内更新）：所在开发线（`dev` 或 `ver/<X>-dev`）`buildNumber` +1 并提交 → 合入对应发布线（`main` 或 `ver/<X>`）→ `./gradlew build` → tag `v<版本>`（如 `v1.21.11-b1`）。
 
@@ -68,18 +68,18 @@
 版本格式 **`<MC版本>-b<构建号>`**（如 `1.21.11-b1`）；MC 未来改日期式命名（如 `26.1`）时自动成为 `26.1-b1`，无需改格式。
 
 ```
-gradle.properties（mcVersion=26.1.2 · buildNumber=4）          ← 唯一改动点
+gradle.properties（mcVersion=26.2 · buildNumber=1）             ← 唯一改动点
    │  build.gradle.kts: version = "$mcVersion-b$buildNumber"
    ▼
 ├─ plugin.yml（version: '${version}' 展开）                      → /version、Paper 插件列表
-├─ jar 文件名 VeryMcProto-26.1.2-b5.jar（26.1 起无 -reobf 产物）
+├─ jar 文件名 VeryMcProto-26.2-b1.jar（26.1 起无 -reobf 产物）
 └─ version.properties（mcVersion/version 双键，processResources 展开）
        │  Reference 类加载时 Properties.load 读回
        ▼
    Reference.MC_VERSION / Reference.PLUGIN_VERSION（框架级常量）
-       ├─ ServuxReference.MOD_STRING   = "servux-fabric-26.1.2-b5"（MOD_TYPE 伪装 fabric：
-       │    26.1 客户端 startsWith("servux-fabric-<精确上游id>") 硬门禁，"paper" 会被四通道拒绝）
-       ├─ SyncmaticaReference.MOD_VERSION = "26.1.2-b5"（-b 后缀永不命中
+       ├─ ServuxReference.MOD_STRING   = "servux-fabric-26.2-b1"（MOD_TYPE 伪装 fabric：
+       │    26.1+ 客户端 startsWith("servux-fabric-<精确上游id>") 硬门禁——26.2 客户端期待前缀 servux-fabric-26.2，"paper" 会被四通道拒绝）
+       ├─ SyncmaticaReference.MOD_VERSION = "26.2-b1"（-b 后缀永不命中
        │    FeatureSet.fromVersionString 的 ^\d+(\.\d+){2,4}$ 正则 → 恒触发 FEATURE 交换）
        └─ （JEI 无版本握手支腿——26.1 线完整协议重做时删除：
             jei 协议无 MOD_STRING/版本协商字段，服务端检测走通道声明 jei:delete_player_item）
@@ -97,19 +97,19 @@ gradle.properties（mcVersion=26.1.2 · buildNumber=4）          ← 唯一改�
 
 | 项 | 说明 |
 |---|---|
-| **目标平台** | Paper **26.1.2**（`api-version: '26.1.2'`——三段精确式，1.20.5 起官方支持补丁段，语义 = 低于该值的服务器拒载；本插件 MOD_STRING 硬门禁绑死精确补丁，2026-09-10 由遗留 '1.21' 更正，Modrinth 按 api-version 标注适用版本），Java **25** |
-| **构建** | Gradle 9.7.1（Kotlin DSL） + **paperweight `userdev` 2.0.0-beta.23** + `run-paper 3.1.0`（v2 下载 API 已下线，3.1.0 起走 Fill v3）；配置缓存 / build cache / parallel 已开启 |
-| **NMS 映射** | 开发期用 `paperDevBundle("26.1.2.build.74-stable")`（26.1 起新格式 `<mc>.build.<N>-stable`；Mojang 已移除服务端混淆）提供 Mojang 名 `net.minecraft.*`；**26.1 起 reobf 废除**（paperweight 官方文档：reobf 插件无法在 Paper 26.1+ 加载），产物即 Mojang 映射 jar，标准 Paper 直接加载 |
+| **目标平台** | Paper **26.2**（`api-version: '26.2'`——**已模板化 `'${mcVersion}'`** 随唯一来源展开（26.2 升级起 plugin.yml 不再手写版本），语义 = 低于该值的服务器拒载；本插件 MOD_STRING 硬门禁绑死精确上游 id；Modrinth 按 api-version 标注适用版本；两段/三段式皆官方支持——26.1.2 线曾用三段、26.1 线曾用两段 '1.21'，均实测接受），Java **25** |
+| **构建** | Gradle 9.7.1（Kotlin DSL） + **paperweight `userdev` 2.0.0-beta.24**（26.2 升级随最新 beta；其 Gradle ≥9.7.1 下限与 wrapper 恰合） + `run-paper 3.1.0`（v2 下载 API 已下线，3.1.0 起走 Fill v3）；配置缓存 / build cache / parallel 已开启 |
+| **NMS 映射** | 开发期用 `paperDevBundle("26.2.build.129-stable")`（26.1 起新格式 `<mc>.build.<N>-stable`；Mojang 已移除服务端混淆）提供 Mojang 名 `net.minecraft.*`；**26.1 起 reobf 废除**（paperweight 官方文档：reobf 插件无法在 Paper 26.1+ 加载），产物即 Mojang 映射 jar，标准 Paper 直接加载 |
 | **反射用 Mojang 名** | 产物即 Mojang 映射、Paper 运行时亦然 → 反射私有成员直接用 Mojang 名 |
-| **可选依赖** | PacketEvents `compileOnly("...packetevents-spigot:2.13.0")` + `plugin.yml: softdepend: [packetevents]`（仅供 Servux EasyPlace 用；未装则优雅跳过） |
+| **可选依赖** | PacketEvents `compileOnly("...packetevents-spigot:2.14.0")`（2.13.0 起支持 MC 26.2、2.14.0 增 26.3） + `plugin.yml: softdepend: [packetevents]`（仅供 Servux EasyPlace 用；未装则优雅跳过） |
 | **版本注入** | 见上节；`gradle.properties` 是唯一版本来源 |
-| **当前状态** | 三个 mod（Servux / JEI / Syncmatica）在 26.1 线全部实现，服务端实机验证通过 |
+| **当前状态** | 三个 mod（Servux / JEI / Syncmatica）在 26.2 线全部实现，服务端实机验证通过 |
 
 构建命令（工具链 25 自动解析——foojay 下载兜底 + 本机 `~/.gradle/gradle.properties` 探测路径，无需手动 JAVA_HOME）：
 ```bash
 ./gradlew build        # 产出 Mojang 映射 jar（VeryMcProto-<版本>.jar，标准 Paper 26.1+ 可直接加载）
 ./gradlew test         # 纯函数单测（PacketSplitter/FeatureSet/LitematicaBitArray/DataTagIo 等，无需起服务端）
-./gradlew runServer    # 本地起 26.1.2 测试服（2G 堆；MC 版本跟随 gradle.properties 的 mcVersion）
+./gradlew runServer    # 本地起 26.2 测试服（2G 堆；MC 版本跟随 gradle.properties 的 mcVersion）
 ```
 
 > 为什么必须引入 paperweight/NMS：Servux 的数据采集大量依赖 NMS 内部（`NaturalSpawner.SpawnState`、`ServerTickRateManager`、`ChunkAccess.getAllReferences()`、`StructureStart.createTag()`、`Recipe.CODEC` + `NbtOps`、`BlockEntity.saveWithFullMetadata()` 等），网络层最干净的实现也复用原版 `FriendlyByteBuf` / `CompoundTag`，JEI/Syncmatica 的 S2C 大包直发依赖 NMS `ClientboundCustomPayloadPacket`。纯 Paper API 无法触达这些。详见 [`docs/07-migration-architecture.md`](docs/07-migration-architecture.md)。
@@ -164,7 +164,7 @@ gradle.properties（mcVersion=26.1.2 · buildNumber=4）          ← 唯一改�
 
 Paper 的 **plugin messaging channel（`namespace:path` 命名）直接映射到原版 custom payload 通道**：`PluginMessageListener.onPluginMessageReceived(channel, player, byte[])` 收到的 `byte[]` 就是 `FriendlyByteBuf` 的裸字节，`player.sendPluginMessage(...)` 发出的 `byte[]` 同理（实证：[FabricMC Discussion #4430](https://github.com/orgs/FabricMC/discussions/4430)）。
 
-**Servux 5 条数据通道 + 1 条配置主通道**（通道网络名 ≠ provider 逻辑名，源码 `ServuxReference.java` 实证；协议版本为 26.1 线真值，客户端按 `!=` 严格相等校验，错一个即整通道退网）：
+**Servux 5 条数据通道 + 1 条配置主通道**（通道网络名 ≠ provider 逻辑名，源码 `ServuxReference.java` 实证；协议版本为 26.2 复核真值（26.1→26.2 零变化），客户端按 `!=` 严格相等校验，错一个即整通道退网）：
 
 | 通道网络名 | Provider 逻辑名 | 协议版本 | 用途 |
 |---|---|---|---|
@@ -175,13 +175,13 @@ Paper 的 **plugin messaging channel（`namespace:path` 命名）直接映射到
 | `servux:structures` | `structure_bounding_boxes` | 3 | Structures：结构边界框（周期扫描区块） |
 | `servux:litematics` | `litematic_data` | 2 | Litematics：投影粘贴/批量实体 |
 
-**26.1 wire 三大变化**（对照 `OriginImpl/*-LTS-26.1` 客户端源码逐字实证）：
-1. **MOD_STRING 硬门禁**：客户端校验 `servux.startsWith("servux-fabric-<精确上游MC id>")`（`MOD_TYPE` 恒 "fabric"），故我方 `ServuxReference.MOD_TYPE = "fabric"` 伪装 + `mcVersion` 必须用精确补丁号 26.1.2；1.21.11 时代的 "paper" 三段式会被四通道全部静默拒绝。
+**26.1 起 wire 三大变化**（1.21.11→26.1 的变化记录，对照 `OriginImpl/*-LTS-26.1` 客户端源码逐字实证；**26.1→26.2 零变化**，已对照 `-LTS-26.2` 全树复核）：
+1. **MOD_STRING 硬门禁**：客户端校验 `servux.startsWith("servux-fabric-<精确上游MC id>")`（`MOD_TYPE` 恒 "fabric"），故我方 `ServuxReference.MOD_TYPE = "fabric"` 伪装 + `mcVersion` 必须用精确上游 id（26.1 线 = 26.1.2，26.2 线 = 26.2 干净 release 无补丁段）；1.21.11 时代的 "paper" 三段式会被四通道全部静默拒绝。
 2. **DataTag 线格式载体**：业务包 NBT 从 vanilla `writeNbt` 切换为 malilib DataTag 格式 `[int32 大端 压缩长][GZIP(具名根 NBT 流)]`（`mod/servux/util/nbt/DataTagIo.java`，与 NMS `NbtIo` 输出逐字节兼容，配单测）。分界规则**逐 Type**：全通道 metadata 1/2 恒 vanilla；分片 10-13 恒裸字节；其余业务 Type 走 DataTag（含 START 大包经 PacketSplitter 的**重组整体**）。Structures 通道包帧本身全程 vanilla/裸字节，是唯一幸存者。
 3. **C2S 变化**：请求删除 `transactionId` 前置 VarInt（残留吞读会错位解析）；批量重组体改按 NBT `"Task"` 字符串路由；新增 `UNREGISTER_REPLY`（HUD=9 / Entities=7 / Tweaks=7 / Litematics=8，服务端 decode→unregister）；Structures 删 type 10/11/12（spawn/weather 完全收敛到 HUD 通道）；Litematica task 组 14-17 **已实现**（`scheduler/` 五类：TaskScheduler + LitematicaTask 基类 + FillDeleteTask + PasteTask + InfoHudTaskSync，v3 极简形态 + 四处接线，见 docs/09 §26.1.5/§26.1.6——type 14 受理 Fill/Delete、paste 受理走 `LitematicaPaste` 批量路由创建 PasteTask、type 16 状态/完成帧三任务共用；type 15 客户端接收端 TODO 故服务端永不发送、type 17 上游同源忽略）。
 
 **三种 S2C 路径**（按 mod 选择）：
-- **Servux**：**plugin messaging 优先**（`ProtocolChannel.send` → `player.sendPluginMessage`），大包走 `PacketSplitter` 分片。**同通道 C2S 证明兜底**：Paper `CraftPlayer.sendPluginMessage` 有 `channels().contains(channel)` 门控（26.1.2 反编译实锤），玩家声明包被处理前 S2C **静默丢弃**（声明处理晚于客户端首个 C2S 到达）；若该玩家已在本通道发过 C2S（= 装有对应 mod、注册了 codec，能发即能收），`ProtocolChannel.send` 在 `listening=false` 时改走 NMS `new ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes))`——与 Paper 自身放行路径逐字同构。未发过 C2S 的玩家（vanilla / 未装 mod）永不走兜底（防护语义构造性保留）；证明集合随 `PlayerQuitEvent` 清除。
+- **Servux**：**plugin messaging 优先**（`ProtocolChannel.send` → `player.sendPluginMessage`），大包走 `PacketSplitter` 分片。**同通道 C2S 证明兜底**：Paper `CraftPlayer.sendPluginMessage` 有 `channels().contains(channel)` 门控（26.1.2 反编译实锤；26.2.build.129 源码复核存活 CraftPlayer.java:2225），玩家声明包被处理前 S2C **静默丢弃**（声明处理晚于客户端首个 C2S 到达）；若该玩家已在本通道发过 C2S（= 装有对应 mod、注册了 codec，能发即能收），`ProtocolChannel.send` 在 `listening=false` 时改走 NMS `new ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes))`——与 Paper 自身放行路径逐字同构。未发过 C2S 的玩家（vanilla / 未装 mod）永不走兜底（防护语义构造性保留）；证明集合随 `PlayerQuitEvent` 清除。
 - **JEI**：**NMS `ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes))` 直发**（`JeiPacketSender.send`），配方包常超 1MiB（`ProtocolChannel.send` 对超 Bukkit 上限的包硬拒，故不可走框架 send）。尺寸模型：32767 上限仅适用客户端**未知通道**的 discarded 解码；`fabric:recipe_sync` 是 Fabric API 客户端已注册 codec 的已知通道（上游注册上限 64MB），大包安全。jei:* C2S 8 条经 `ChannelManager` 成对注册（incoming 路由 + outgoing 声明——声明是客户端 `isJeiOnServer()` 门禁的解锁条件）。
 - **Syncmatica**：默认 **NMS `DiscardedPayload` 直发**（`ExchangeTarget.sendPacket`，`S2C_VIA_NMS=true`），构造 `[Identifier][body]` 复合包体；可用 `/syncmatica debug s2c msg` 切回 plugin messaging 对比（实测 plugin messaging wire 对纯 Fabric syncmatica 客户端不可达，故默认走 NMS）。
 
@@ -196,7 +196,7 @@ Paper 的 **plugin messaging channel（`namespace:path` 命名）直接映射到
 
 **C2S 接收命门**：Paper 原版服务端对未注册的 custom payload 会**踢玩家**（"Invalid payload"）。plugin messaging 注册的通道由 Paper 内置路由、不踢人——这正是用 `Messenger.registerIncomingPluginChannel` 接收 C2S 的理由。**握手机制命门**：configuration phase 期间 `sendPluginMessage` 会静默丢弃，客户端收不到。框架用 `PlayerRegisterChannelEvent`（客户端声明通道 = 装了对应 mod = configuration phase 已完成）作为可靠信号，在 `IDataProvider.onPlayerRegisterChannel` / syncmatica `onPlayerRegisterChannel` 重发 metadata / 发起握手。**但该补发范式对 minihud structures 无效**——其客户端 metadata 接受窗口是单次的（进服开门 → 首个 `%20` tick 关门，`DataStorage.java:288/:804`），只能靠首个 C2S REGISTER 的**即时回复**建立连接；这正是上文「同通道 C2S 证明兜底」存在的理由（进服首回复不再被 Paper 门控吞掉）。已知限制：REGISTER 回复 RTT 超过客户端剩余窗口时仍需手动 toggle，与上游 Fabric servux 同源。
 
-**C2S 注册版本门禁 + 名册拦截**（对齐上游 `register()` 语义，五通道同构）：`register(player, tags)` 首查 `tags == null || tags.getIntOr("version", -1) < PROTOCOL_VERSION`（**严格 `<`**——26.1 合法客户端常量与我方相等 3/2/2/3/2，相等/更高均放行）→ 拒绝四件套（warn 日志 + `MSG_PROTOCOL_VERSION_TOO_LOW` 预格式化聊天提示 + `tickFailures` 检疫 + return **不入册**）；名册 `isPlayerRegistered = registeredPlayers && !invalid` 承载拒绝状态——后续全部 C2S 请求入口与 S2C 推送路径（join/声明重发、tick 周期）均按名册白名单拦截，被拒旧客户端只收 3 次拒绝消息（`maxFailures()=2`，count=3 起 decode/encode 双侧 `checkFailures` 闸静默）。Structures 的 `max_receive_s2c` 能力协商**已移植**（register 读 TAG_INT 存名册 entry，sendStructures 据此条目级分批——上游 :221/:565-604；26.1 四客户端零发送点恒走默认 16MB，机制层对齐、真实环境不可观测）；`unregister` 单参（上游 tags 形参全实现未读，有意简化）。
+**C2S 注册版本门禁 + 名册拦截**（对齐上游 `register()` 语义，五通道同构）：`register(player, tags)` 首查 `tags == null || tags.getIntOr("version", -1) < PROTOCOL_VERSION`（**严格 `<`**——26.1+ 合法客户端常量与我方相等（3/2/2/3/2，26.2 复核不变），相等/更高均放行）→ 拒绝四件套（warn 日志 + `MSG_PROTOCOL_VERSION_TOO_LOW` 预格式化聊天提示 + `tickFailures` 检疫 + return **不入册**）；名册 `isPlayerRegistered = registeredPlayers && !invalid` 承载拒绝状态——后续全部 C2S 请求入口与 S2C 推送路径（join/声明重发、tick 周期）均按名册白名单拦截，被拒旧客户端只收 3 次拒绝消息（`maxFailures()=2`，count=3 起 decode/encode 双侧 `checkFailures` 闸静默）。Structures 的 `max_receive_s2c` 能力协商**已移植**（register 读 TAG_INT 存名册 entry，sendStructures 据此条目级分批——上游 :221/:565-604；26.1 四客户端零发送点恒走默认 16MB，机制层对齐、真实环境不可观测）；`unregister` 单参（上游 tags 形参全实现未读，有意简化）。
 
 ### 2. Mixin / AccessWidener 无法迁移 → 三段式处置
 
@@ -219,8 +219,9 @@ Servux 共 **26 个 Mixin + 2 个 AccessWidener 字段**；Syncmatica 共 **5 �
 - **镜像修复**（箱子/铁轨/楼梯 180° 镜像）：✅ **已实现**（粘贴时用）。箱子镜像修复在 `SchematicPlacingUtils` 内联照抄（`fixChestMirror` setting）；铁轨/楼梯靠 `BlockState.mirror()/rotate()` 自身行为（`fixRailRotations`/`fixStairs_mirror` settings，原版靠 Mixin，Paper 降级可能不完美）。
 - **潜影盒堆叠**（Tweakeroo `tweakShulkerBoxStacking` 服务端配合）：⛔ **不可能实现 + 已删全部代码**。改 NMS 全局方法行为，Paper 无 Mixin 无等价（反射改不了方法返回值；Bukkit 事件在 `maxStackSize=1` 前提下恒失败；设 `MAX_STACK_SIZE` 组件污染序列化）。`TweaksDataProvider` **不下发** `stackingShulkers` 元数据——否则客户端 tweakeroo 据其开客户端堆叠渲染而服务端不配合 → 不一致。
 
-### 4. 26.1 线关键 NMS 约束（编译驱动实测清单）
+### 4. 26.1 线关键 NMS 约束（编译驱动实测清单；26.2 重核：26.1 结论全部沿用，新漂移仅 4 处见下首条）
 
+- **26.2 新漂移（26.1.2→26.2 编译驱动实测，共 4 处）**：`EntityType.PLAYER` 等实体常量迁至新常量类 `EntityTypes`（vanilla 仿 Blocks/Items 拆分，`getKey/create` 仍在 `EntityType`）；`EntityType.create` 第三参改 `new EntitySpawnRequest(EntitySpawnReason.LOAD, true)`；`BlockTags.CONCRETE_POWDER`→`CONCRETE_POWDERS`（tag 改名，判定集合不变）。其余 126 个 NMS 触面文件零断裂。
 - **`CompoundTag`**：`getBoolean/getInt/getString/...` 返回 `Optional`/`OptionalInt`，须用 `getBooleanOr/getIntOr/getStringOr` 或 `.orElse()`；`putXxx` 返回 `void`（非链式）。
 - **`FriendlyByteBuf`**：协议体编码的核心类，`writeVarInt`/`writeNbt`/`readNbt` 等；paperweight userdev 可直接引用。
 - **`CustomPacketPayload`**：`record Payload(...) implements CustomPacketPayload` + `static Type<Payload> ID` + `static StreamCodec<FriendlyByteBuf, Payload> CODEC`。协议层可近乎照抄（去 Fabric `@Environment` 注解）。
@@ -279,11 +280,11 @@ Litematica 投影子系统（`mod/servux/schematic/`，约 8000 行）已移植�
 - **发版**（版本内更新）：在所在开发线（`dev` 或 `ver/<X>-dev`）`gradle.properties` 的 `buildNumber` +1 → 提交 → 合入对应发布线（`main` 或 `ver/<X>`）→ `./gradlew build` → tag `v<版本>`。
 - **升级 Minecraft 版本**（顺应上游）：先从 `main` 冻结旧版本（切 `ver/<旧版本>` + `ver/<旧版本>-dev` 对）→ 再在 `dev` 上改 `gradle.properties` 的 `mcVersion` + `build.gradle.kts`（dev bundle 26.1+ 新格式 `<mc>.build.<N>-stable`、Java 工具链、必要时 paperweight/run-paper/wrapper 版本）→ 重跑 paperweight → 编译驱动修 NMS 漂移（26.1 实测清单见核心约束 §4）→ 按 [`docs/04-mixin-analysis.md`](docs/04-mixin-analysis.md) 核对反射点 → **对照新版本 `OriginImpl/*-LTS/<新版本>` 客户端源码核对协议面**（协议版本常量、MOD_STRING 前缀门禁、载体格式——26.1 迁移实录见 docs/09 §26.1）。
 - **旧版本修 Bug**：在 `ver/<X>-dev` 提交 → 合入 `ver/<X>` 出包；若 `dev`（新版本）同样存在该 Bug，cherry-pick 回 `dev`。
-- **参考源码**（`OriginImpl/` 下，逐行对照的权威实现；**遇到分歧以真实源码为准**；本地目录已 gitignore，不入库；**1.21.11 与 26.1 双版本并存**——26.1 线对照 `*-LTS-26.1`，ver/1.21.11 维护对照 `*-LTS-1.21.11`）：
-  - **servux**：`OriginImpl/servux-LTS-26.1/`——服务端协议实现（协议常量 / Handler 分发的权威）。
-  - **litematica / malilib / minihud / tweakeroo**（masa 客户端，**协议的接收端与硬门禁所在**）：`OriginImpl/*-LTS-26.1/`。任何协议字段语义、分包重组、Task 分派、版本/前缀门禁都要回来对照客户端源码确认，**不要凭服务端代码猜客户端行为**（见 §6 教训 1）。
-  - **syncmatica**：`OriginImpl/syncmatica-LTS-26.1/`。
-  - **JEI**（26.1 线，**按线分叉**）：`OriginImpl/JustEnoughItems-26.1/`（最上游 mezz/JustEnoughItems 分支 `26.1`，clone 命令 `git clone --depth 1 --branch 26.1 https://github.com/mezz/JustEnoughItems.git`——**此后 JEI 侧更新一律以最上游为准**；协议权威文件：`Common/src/main/java/mezz/jei/common/network/packets/*` + `common/transfer/*` + `common/util/ServerCommandUtil.java` + `fabric/config/ServerConfig.java`）。fabric:recipe_sync wire 的真权威是 Fabric API `fabric-recipe-api-v1`（github FabricMC/fabric 分支 26.1）。ver/1.21.11 旧线仍对照 `OriginImpl/JEIRecipeBridge-1.21.11/`（Mrbysco）——**jei 模块跨线 cherry-pick 禁止，一律手工重写**（两线上游/包结构/协议面均不同源）。`JEIRecipeBridge-26.1/` 保留仅作 neoforge:recipe_content 层 wire 参考。
+- **参考源码**（`OriginImpl/` 下，逐行对照的权威实现；**遇到分歧以真实源码为准**；本地目录已 gitignore，不入库；**1.21.11 / 26.1 / 26.2 三版本并存**——dev 线（26.2）对照 `*-LTS-26.2`，ver/26.1.2 维护对照 `*-LTS-26.1`，ver/1.21.11 对照 `*-LTS-1.21.11`）：
+  - **servux**：`OriginImpl/servux-LTS-26.2/`——服务端协议实现（协议常量 / Handler 分发的权威）。
+  - **litematica / malilib / minihud / tweakeroo**（masa 客户端，**协议的接收端与硬门禁所在**）：`OriginImpl/*-LTS-26.2/`。任何协议字段语义、分包重组、Task 分派、版本/前缀门禁都要回来对照客户端源码确认，**不要凭服务端代码猜客户端行为**（见 §6 教训 1）。
+  - **syncmatica**：`OriginImpl/syncmatica-LTS-26.2/`。
+  - **JEI**（26.2 线，**按线分叉**）：`OriginImpl/JustEnoughItems-26.2/`（最上游 mezz/JustEnoughItems 分支 `26.2`，clone 命令 `git clone --depth 1 --branch 26.2 https://github.com/mezz/JustEnoughItems.git`——**此后 JEI 侧更新一律以最上游为准**；协议权威文件：`Common/src/main/java/mezz/jei/common/network/packets/*` + `common/transfer/*` + `common/util/ServerCommandUtil.java` + `fabric/config/ServerConfig.java`；26.2 起 `mezz.jei.api` 从顶层 `CommonApi/` 移至 `Common/src/api/java/`）。fabric:recipe_sync wire 的真权威是 Fabric API `fabric-recipe-api-v1`（github FabricMC/fabric 分支 26.2）。ver/1.21.11 旧线仍对照 `OriginImpl/JEIRecipeBridge-1.21.11/`（Mrbysco）——**jei 模块跨线 cherry-pick 禁止，一律手工重写**（两线上游/包结构/协议面均不同源）。`JEIRecipeBridge-26.1/` 保留仅作 neoforge:recipe_content 层 wire 参考。
   - 另有 `itemscroller-LTS-*`（客户端参考）与 `packetevents-2.0`（EasyPlace 依赖对照）。
   - ⚠️ 原版里**未被调用的公开 API**（典型例：`LitematicaSchematic.sendTransmitFile`）可能是**未经验证的死代码**、含字段语义 bug——照抄后必须对照客户端源码验证接收端存在性与字段语义（见 §6 教训 2）。**跨线注意**：26.1 线 `sendTransmitFile` 死信链已整体删除（stock 26.1 客户端 `handleBulkData` Transmit 分流整块注释、上游自身 `@Deprecated(forRemoval)`），`currentSlice` 修复随之消亡；**ver/1.21.11 线 S2C 投递命令保留**（服务端 `sendTransmitFile` + `/servux litematic transmit`——文件名来自 op 命令参数非网络输入，命令入口已加目录包含性守卫），但**修复版 litematica（≥0.26.11）客户端对 Transmit 帧双向静默丢弃**（仅旧版客户端可接收），该线 `currentSlice` 修复仍存在且禁止随模板回退；**两线 C2S 接收链已于 2026-10 随安全修复（路径穿越任意写删）整链移除**。
 
@@ -300,7 +301,7 @@ Litematica 投影子系统（`mod/servux/schematic/`，约 8000 行）已移植�
 | [`docs/04-mixin-analysis.md`](docs/04-mixin-analysis.md) | 26 Mixin + 2 AccessWidener 逐项清单、分类、迁移去向 |
 | [`docs/05-schematic-system.md`](docs/05-schematic-system.md) ⭐ | Litematica 投影系统：BitArray/Palette/Container/Selection/Placement/Transmit + 传输协议 |
 | [`docs/07-migration-architecture.md`](docs/07-migration-architecture.md) ⭐ | **Fabric → Paper 架构对照与降级矩阵**：目标架构、网络层/数据采集迁移、降级矩阵、可行性验证、逐域对照（原 06 已并入 §7） |
-| [`docs/09-DELIVERY.md`](docs/09-DELIVERY.md) | 投递/字节限制专题（含客户端 32767 上限实证）+ 与原版差异/降级 + **26.1 迁移实录（§26.1 权威）** |
+| [`docs/09-DELIVERY.md`](docs/09-DELIVERY.md) | 投递/字节限制专题（含客户端 32767 上限实证）+ 与原版差异/降级 + **26.1/26.2 迁移实录（§26.1/§26.2 权威）** |
 | [`docs/10-testing-guide.md`](docs/10-testing-guide.md) | **Servux 客户端兼容测试**：5 通道↔3 mod 映射、测试步骤、排错流程 |
 | **Syncmatica 实现说明**（文档 20–24） | 投影共享中央仓库：单通道 + Exchange 会话层 + 文件存储（**已完整实现**） |
 | [`docs/20-syncmatica-architecture.md`](docs/20-syncmatica-architecture.md) | 实际架构 + **与 Servux 本质差异对比表** + Exchange 会话模型 + framework 复用边界 |
@@ -323,7 +324,7 @@ Litematica 投影子系统（`mod/servux/schematic/`，约 8000 行）已移植�
 - Minecraft Protocol Wiki：https://wiki.vg/Protocol （`Custom Payload` 包结构）
 - Fabric 网络文档：https://docs.fabricmc.net/develop/networking
 - FabricMC Discussion #4430（Spigot/Paper ↔ Fabric 自定义通道实证）：https://github.com/orgs/FabricMC/discussions/4430
-- masa 全家桶源码（本仓库对照）：servux/litematica/malilib/syncmatica 均在 `OriginImpl/` 下；JEI = mezz/JustEnoughItems（26.1 分支，`OriginImpl/JustEnoughItems-26.1/`）
+- masa 全家桶源码（本仓库对照）：servux/litematica/malilib/syncmatica 均在 `OriginImpl/` 下；JEI = mezz/JustEnoughItems（26.2 分支，`OriginImpl/JustEnoughItems-26.2/`）
 - 姊妹项目 VeryMcBot（paperweight userdev + NMS 反射范式参考）：`I:\Programming\VeryMcBot`
 
 **开发环境**：IntelliJ IDEA + Minecraft Dev SDK + Gradle + PaperWeight。

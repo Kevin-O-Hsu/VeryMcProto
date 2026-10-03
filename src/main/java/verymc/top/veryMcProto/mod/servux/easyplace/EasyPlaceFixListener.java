@@ -29,7 +29,7 @@ import verymc.top.veryMcProto.mod.servux.util.PlacementHandler;
  * 手持读取 / 距离与保护检查 / 放置 / setPlacedBy / BE 初始化 / 物品消耗 / ack，本监听器仅对
  * 已落块状态做<b>属性级</b>修正（facing / half / type 等白名单属性，同方块同 BE，无副作用回放）。
  *
- * <p><b>时序依据</b>（26.1.2 dev bundle 实证）：{@code ItemStack.useOn} 在 capture 关闭后、
+ * <p><b>时序依据</b>（26.1.2 dev bundle 实证；26.2.build.129 复核同构：CraftEventFactory.callBlockPlaceEvent:519 + Level.captureBlockStates:1085-1140）：{@code ItemStack.useOn} 在 capture 关闭后、
  * 事件后通知循环前 fire 本事件——事件内 {@code level.getBlockState(pos)} 即 vanilla 真实落块状态
  * （= 上游 {@code getStateForPlacement} 基座的等价物，含玩家朝向 / 点击面上下文），事件内
  * {@code level.setBlock} 为正常全量写（自带广播与邻居通知），后续 vanilla 通知循环现读世界、

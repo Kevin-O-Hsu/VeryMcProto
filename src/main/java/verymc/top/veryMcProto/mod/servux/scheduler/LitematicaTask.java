@@ -58,7 +58,7 @@ abstract class LitematicaTask
 
     protected boolean finished;
 
-    /** 重复执行周期（客户端 "Interval" 字段，26.1 恒 1）；初值 0 = 下一次 runTasks 即首启。 */
+    /** 重复执行周期（客户端 "Interval" 字段，26.1+ 恒 1）；初值 0 = 下一次 runTasks 即首启。 */
     private int tickCounter = 0;
     private int repeatInterval = 1;
 

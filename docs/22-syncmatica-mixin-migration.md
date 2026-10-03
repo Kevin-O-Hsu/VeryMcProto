@@ -2,7 +2,7 @@
 
 > **文档定位**：syncmatica（投影共享）**迁移已完成**，本文是 Mixin → Paper 迁移的【已落地实现记录】，非方案/建议。
 > 对应实现代码：`src/main/java/verymc/top/veryMcProto/mod/syncmatica/`（实际包结构见 [20](20-syncmatica-architecture.md) §2）。
-> 原版根目录：`OriginImpl/syncmatica-LTS-26.1/src/main/java/ch/endte/syncmatica/`（含 `mixin/` 9 个服务端/客户端 Mixin + `litematica_mixin/` 10 个 GUI Mixin——26.1 树计数与 1.21.11 相同）。
+> 原版根目录：`OriginImpl/syncmatica-LTS-26.2/src/main/java/ch/endte/syncmatica/`（含 `mixin/` 9 个服务端/客户端 Mixin + `litematica_mixin/` 10 个 GUI Mixin——26.1 树计数与 1.21.11 相同，26.2 复核同）。
 > 相关：架构见 [20](20-syncmatica-architecture.md)；协议字段见 [21](21-syncmatica-protocol.md)；实现总览见 [23](23-syncmatica-implementation-plan.md)；测试见 [24](24-syncmatica-testing-guide.md)；项目权威说明见 [../AGENTS.md](../AGENTS.md)。
 
 ---
@@ -351,7 +351,7 @@ Gson 回调式配置实现。读时 try/catch 任何异常并设 `wasError=true`
 | **`material/`（材料配送）** | ⛔ **不移植，字段一起去掉** | 死代码：原版仅 `ServerPlacement.matList` 字段持有 `SyncmaticaMaterialList`，无 exchange / 无 PacketType / 无命令 / 无持久化引用。Paper `ServerPlacement` 删除 `matList` 字段 + `getMaterialList`/`setMaterialList` 方法 |
 | **`RedirectFileStorage`** | ⛔ **不移植** | 客户端装饰器（外部文件重定向免拷贝）；服务端纯 `FileStorage` 即可 |
 | **`extended_core/`（CORE_EX）** | ✅ **照抄** | owner / lastModifiedBy / subregion 共享，是协议字段（影响 metadata 编码），必须实现 |
-| **`litematica/schematic/`（peek）** | ✅ **照抄**（落地为 `data/litematica/`） | `SchematicMetadata`/`SchematicSchema`/`Schema`/`FileType` 是 syncmatica 自带的轻量 litematic 解析（不依赖 litematica mod），命令 `load` 需要。`Schema` 版本表 2026-09-10 对照上游补齐曾漏抄的 `SCHEMA_26_1_RC1(4783, "26.1-rc-1")`（其余 60+ 条原已逐条一致；补前 4783~9998 的 dataVersion 全落到 "26.1-snapshot-6"） |
+| **`litematica/schematic/`（peek）** | ✅ **照抄**（落地为 `data/litematica/`） | `SchematicMetadata`/`SchematicSchema`/`Schema`/`FileType` 是 syncmatica 自带的轻量 litematic 解析（不依赖 litematica mod），命令 `load` 需要。`Schema` 版本表 2026-09-10 对照上游补齐曾漏抄的 `SCHEMA_26_1_RC1(4783, "26.1-rc-1")`——该条目 26.2 升级时随上游删除（上游 syncmatica-LTS-26.2 Schema 无 4783 条目）（其余 60+ 条原已逐条一致；补前 4783~9998 的 dataVersion 全落到 "26.1-snapshot-6"） |
 | **版本协商（VERSION feature）** | ✅ **照抄** | `litematicVersion` / `dataVersion` 字段；`MOD_VERSION`=插件版本（`-b` 后缀永不命中版本正则）触发 FEATURE 交换使双方用全集 FeatureSet |
 | **客户端 exchange（3 个）** | ⛔ **不实现类，但服务端 `handle` 须回应其包** | `ModifyExchangeClient` / `ShareLitematicExchange` / `VersionHandshakeClient` 不移植；服务端 `ServerCommunicationManager.handle/handleExchange` 照常处理其对应 PacketType（见 [21](21-syncmatica-protocol.md) §5.5） |
 | **`Reference.isClient/isIntegratedServer/isOpenToLan` 分支** | ⚠️ **简化删除** | Paper 恒 dedicated server（`SyncmaticaContext.isServer()=true`，其余 false） |
@@ -400,4 +400,4 @@ Gson 回调式配置实现。读时 try/catch 任何异常并设 `wasError=true`
 
 ---
 
-> **相关**：架构与本质差异见 [20](20-syncmatica-architecture.md)；协议字段与 Exchange 状态机见 [21](21-syncmatica-protocol.md)；实现总览见 [23](23-syncmatica-implementation-plan.md)；客户端兼容测试见 [24](24-syncmatica-testing-guide.md)；项目权威说明见 [../AGENTS.md](../AGENTS.md)；原版权威源码见 `OriginImpl/syncmatica-LTS-26.1/`。
+> **相关**：架构与本质差异见 [20](20-syncmatica-architecture.md)；协议字段与 Exchange 状态机见 [21](21-syncmatica-protocol.md)；实现总览见 [23](23-syncmatica-implementation-plan.md)；客户端兼容测试见 [24](24-syncmatica-testing-guide.md)；项目权威说明见 [../AGENTS.md](../AGENTS.md)；原版权威源码见 `OriginImpl/syncmatica-LTS-26.2/`。

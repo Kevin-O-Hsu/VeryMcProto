@@ -24,7 +24,7 @@ import verymc.top.veryMcProto.mod.jei.recipesync.RecipeSyncService;
 
 /**
  * JEI 协议模块装配（mod 层，自管形态——仿 {@code SyncmaticaModule}，黄金模板锁定）。
- * 上游 = mezz/JustEnoughItems 26.1 分支（JEI 29.37.0），实现其服务端完整协议：
+ * 上游 = mezz/JustEnoughItems 26.2 分支（JEI 30.39.0），实现其服务端完整协议：
  * <ul>
  *   <li><b>配方同步层</b>：fabric:recipe_sync（Fabric API wire，RegisterChannel 触发 + 进服时序整形
  *       {@link RecipeSyncJoinOrderer}——payload 先于 UpdateRecipesPacket 上线）+
@@ -73,7 +73,7 @@ public final class JeiModule
         plugin.getServer().getPluginManager().registerEvents(new JeiListener(), plugin);
 
         enabled = true;
-        Reference.logger().info("[JEI] 模块已启用（上游 mezz/JustEnoughItems 26.1 · " + JeiReference.C2S_CHANNELS.length + " 条 jei:* C2S 通道）");
+        Reference.logger().info("[JEI] 模块已启用（上游 mezz/JustEnoughItems 26.2 · " + JeiReference.C2S_CHANNELS.length + " 条 jei:* C2S 通道）");
     }
 
     /** 主类 onDisable 调用（须在 {@code ChannelManager.unregisterAll} 之前）。 */

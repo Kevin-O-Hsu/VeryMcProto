@@ -7,7 +7,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
- * JEI 通道常量对齐断言（单测）。期望值 = 上游 mezz/JustEnoughItems 26.1 分支（commit ccc16e8）
+ * JEI 通道常量对齐断言（单测）。期望值 = 上游 mezz/JustEnoughItems 26.2 分支（commit f320348）
  * 各 payload 类的 {@code CustomPacketPayload.Type} 字面量——防止后续维护中的意外改动
  * （通道 id 错一字 = 客户端整通道静默退网）。
  */

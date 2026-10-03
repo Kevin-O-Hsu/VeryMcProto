@@ -42,9 +42,9 @@
 CompoundTag metadata:
   name           = "hud_data"            (provider 名)
   id             = "servux:hud_metadata" (通道网络名)
-  version        = 3                     (协议版本，26.1 真值)
-  servux         = "servux-fabric-26.1.2-b<N>"  (MOD_STRING——MOD_TYPE 恒 "fabric" 伪装，
-                                                26.1 客户端 startsWith 硬门禁，"paper" 会被拒)
+  version        = 3                     (协议版本，26.1→26.2 零变化真值)
+  servux         = "servux-fabric-26.2-b<N>"  (MOD_STRING——MOD_TYPE 恒 "fabric" 伪装，
+                                                26.2 客户端 startsWith 硬门禁（判断式与 26.1 逐字同构），"paper" 会被拒)
   spawnDimension = "minecraft:overworld" (出生点维度 ResourceLocation)
   spawnPosX/Y/Z  = <int>                 (出生点坐标)
   [worldSeed]    = <long>                (仅 share_seed 且玩家有 seed 权限时)
@@ -52,7 +52,7 @@ CompoundTag metadata:
 ```
 
 > **有意偏离声明（worldSeed 过滤，上游 bug 我方不跟随）**：上游 `HudDataProvider.register`
-> （servux-LTS-26.1 `:429-447`）构建了剔除 worldSeed 的过滤副本 `nbt`，却发送**未过滤原件**
+> （servux-LTS-26.2 `:429-447`，26.1→26.2 树逐字节相同）构建了剔除 worldSeed 的过滤副本 `nbt`，却发送**未过滤原件**
 > `this.metadata`——无 seed 权限的玩家仍能收到 worldSeed（上游自身 bug）。我方 `register`
 > （`HudDataProvider.java:425-431`）发送**过滤后的副本**：无 `share_seed`/seed 权限时 worldSeed
 > 键不出现。此为已声明的安全增强偏离，与上游行为不同属有意为之。
@@ -95,7 +95,7 @@ CompoundTag:
 
 #### 1.5.1 RecipeNbtNormalizer——混合 ingredients wire 兼容层
 
-`mod/servux/util/nbt/RecipeNbtNormalizer.java`（`HudDataProvider.java:574` 在 `Recipe.CODEC` encode 之后、入 ListTag 之前调用）。26.1 wire 病灶：ingredient 元素域为「单物品 → 裸 StringTag（compactListCodec 单元素裸出）；多物品/tag → ListTag」，两者混装的 ingredients 列表（全量普查恰 66 条 vanilla 配方）在 `ListTag.write` 逐元素写出时被包装为 `{"": x}` Compound 并按 TAG_Compound(10) 上线；malilib 客户端读端（ListData.read，同构语法，全库无解包逻辑）两分支皆拒 → DFU 报 `List is too short: 0, expected range [1-9]`（即 minihud HudDataManager 的 66 条刷屏报错）。本层把混合列表内裸 StringTag 包成单元素 ListTag → 整表同构 → wire 不再包装，客户端解码成功且物品集语义等价（真 vanilla jar + 真数据包配方离线逐字验证）。不变式：已同构（全串/全列表）/ 无 ingredients / 非 CompoundTag 的树**原样返回、wire 逐字节不变**（同构短路）；调用点外裹 `catch(Throwable)` 异常回退原树——兼容层失败不阻断配方下发。7 个单测钉守卫（`RecipeNbtNormalizerTest`，含病灶层字节断言与幂等性用例）。
+`mod/servux/util/nbt/RecipeNbtNormalizer.java`（`HudDataProvider.java:574` 在 `Recipe.CODEC` encode 之后、入 ListTag 之前调用）。26.1→26.2 wire 病灶（零变化）：ingredient 元素域为「单物品 → 裸 StringTag（compactListCodec 单元素裸出）；多物品/tag → ListTag」，两者混装的 ingredients 列表（全量普查恰 66 条 vanilla 配方）在 `ListTag.write` 逐元素写出时被包装为 `{"": x}` Compound 并按 TAG_Compound(10) 上线；malilib 客户端读端（ListData.read，同构语法，全库无解包逻辑）两分支皆拒 → DFU 报 `List is too short: 0, expected range [1-9]`（即 minihud HudDataManager 的 66 条刷屏报错）。本层把混合列表内裸 StringTag 包成单元素 ListTag → 整表同构 → wire 不再包装，客户端解码成功且物品集语义等价（真 vanilla jar + 真数据包配方离线逐字验证）。不变式：已同构（全串/全列表）/ 无 ingredients / 非 CompoundTag 的树**原样返回、wire 逐字节不变**（同构短路）；调用点外裹 `catch(Throwable)` 异常回退原树——兼容层失败不阻断配方下发。7 个单测钉守卫（`RecipeNbtNormalizerTest`，含病灶层字节断言与幂等性用例）。
 
 ### 1.6 DataLogger 子系统（TPS / MobCap）⭐
 
@@ -170,7 +170,7 @@ for (ServerLevel world : server.getAllLevels()) {                       // Paper
 
 ### 1.9 C2S 注册版本门禁 + 注册名册
 
-五 Provider 的 `register(player, tags)` 首做版本门禁：`tags == null || tags.getIntOr("version", -1) < PROTOCOL_VERSION`（严格 `<`，相等/更高放行——26.1 合法客户端常量与我方一致 3/2/2/3/2）→ 拒绝四件套（warn 日志 + `ServuxReference.MSG_PROTOCOL_VERSION_TOO_LOW` 预格式化聊天提示 + `tickFailures` 检疫 + return 不入册）。名册 `isPlayerRegistered = registeredPlayers && !invalid`（Structures 用自有 registeredPlayers Map 等价承载）拦截一切后续 C2S 请求入口（refresh*/blockEntity/entity/bulk/task/分片回执）与 S2C 推送（join/声明重发、tick 周期）。
+五 Provider 的 `register(player, tags)` 首做版本门禁：`tags == null || tags.getIntOr("version", -1) < PROTOCOL_VERSION`（严格 `<`，相等/更高放行——26.1→26.2 合法客户端常量与我方一致 3/2/2/3/2）→ 拒绝四件套（warn 日志 + `ServuxReference.MSG_PROTOCOL_VERSION_TOO_LOW` 预格式化聊天提示 + `tickFailures` 检疫 + return 不入册）。名册 `isPlayerRegistered = registeredPlayers && !invalid`（Structures 用自有 registeredPlayers Map 等价承载）拦截一切后续 C2S 请求入口（refresh*/blockEntity/entity/bulk/task/分片回执）与 S2C 推送（join/声明重发、tick 周期）。
 
 > **Paper 迁移**：plugin messaging 的 `sendPluginMessage` 不返回成功/失败；需用"客户端是否回 C2S 握手"或 Paper 的通道就绪判断替代；或在玩家 JOIN 后延迟试发 + 重试。
 
@@ -262,12 +262,12 @@ CompoundTag (发给单个玩家，按其观察的区块):
 （防未来新增调用点绕过）；tick 侧撤权即除名与 16MB 分批门禁不变。
 
 **按客户端能力分批发送**（对齐上游 `sendStructures :565-604`）：register 时读
-`tags.max_receive_s2c`（TAG_INT，默认 16MB——26.1 客户端重组上限同源）存入名册 entry；
+`tags.max_receive_s2c`（TAG_INT，默认 16MB——26.1→26.2 客户端重组上限同源）存入名册 entry；
 发送时总量 + 4096 padding ≤ 上限则单帧，否则**条目级分批**多次 START 帧（逐条累计
 `>=` 即 flush、首条无条件入列、空条目跳过、收尾 flush——纯函数
 `StructureDataProvider.splitStructuresBySize` 配单测）。每业务帧仍走 PacketSplitter
 字节分片（分批在分片之上，两层叠加）；客户端按帧合并非替换（minihud 每重组帧独立
-`addOrUpdateStructuresFromServer`）。26.1 四客户端均无 `max_receive_s2c` 发送点（恒走
+`addOrUpdateStructuresFromServer`）。26.1→26.2 四客户端均无 `max_receive_s2c` 发送点（恒走
 默认值），机制层对齐、真实环境不可观测。
 
 ### 4.2 采集（**几乎全 NMS**）
@@ -330,7 +330,7 @@ output.put("Entities", <ListTag: AABB 内所有非玩家实体 NBT>);
 ```
 对齐要点（上游语义四则）：
 - **名册门**：`!isPlayerRegistered || !isEnabled || req null/empty → 静默 return`（先于权限消息）；权限不足消息无条件直发。
-- **Task 校验**：须存在 + TAG_STRING + 值 == `"BulkEntityRequest"`（无 Task 的旧形态包不再受理——26.1 客户端恒带此字段）。
+- **Task 校验**：须存在 + TAG_STRING + 值 == `"BulkEntityRequest"`（无 Task 的旧形态包不再受理——26.1→26.2 客户端恒带此字段）。
 - **minY/maxY 回退**：字段缺失时回退 `world.getMinY()/getMaxY()`（维度实际上下界，自定义高度维度不错位）。
 - **反馈门控**：chunk-not-loaded 与 acknowledge 消息受 `player_task_feedback` setting 门控（默认 false 不发；文案=上游 en_us.json 原文）；批量循环内 BE 不存在的条目直接跳过（不塞空 tag）。
 

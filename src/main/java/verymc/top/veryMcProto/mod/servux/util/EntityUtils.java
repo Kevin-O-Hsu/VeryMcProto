@@ -14,6 +14,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntitySpawnRequest;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -92,7 +93,8 @@ public class EntityUtils
         try
         {
             NbtView view = NbtView.getReader(nbt, world.registryAccess());
-            Optional<Entity> optional = EntityType.create(view.getReader(), world, EntitySpawnReason.LOAD);
+            // 26.2 起 EntityType.create 需要 EntitySpawnRequest（对齐上游 servux-LTS-26.2 EntityUtils:95 逐字）
+            Optional<Entity> optional = EntityType.create(view.getReader(), world, new EntitySpawnRequest(EntitySpawnReason.LOAD, true));
 
             if (optional.isPresent())
             {

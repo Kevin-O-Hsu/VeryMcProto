@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * {@link SchematicPlacingUtils#applyEntityPastePositionFixes} 纯函数单测（无需起服务端；
  * NMS 类经 paperDevBundle 在纯 JVM 可用——DataTagIoTest 同型）。
  *
- * <p>被测函数逐字对齐上游 servux-LTS-26.1 SchematicPlacingUtils.java:446-513 的实体位置
+ * <p>被测函数逐字对齐上游 servux-LTS-26.2 SchematicPlacingUtils.java:446-513（26.1→26.2 树逐字节相同）的实体位置
  * 修复族 ①-⑤（⑥ Leashable tick 需实体实例，不在纯函数面，走实机验收）。输入一律用
  * <b>字面串</b>构造（不引用生产常量），与生产键常量互为独立轨道——任一侧拼错（典型：
  * "leash" 1.21.5 起为小写）必被本测试捕获，杜绝同源共错。

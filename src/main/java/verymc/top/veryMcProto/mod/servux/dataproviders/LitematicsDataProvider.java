@@ -12,6 +12,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -273,7 +274,7 @@ public class LitematicsDataProvider extends DataProviderBase
                 Identifier id = EntityType.getKey(entity.getType());
 
                 // 对齐上游 :522：查询者查自己时保留背包/末影箱（!uuid.equals 才进入剥离判断）
-                if (entity.getType() == EntityType.PLAYER && !entity.getUUID().equals(player.getUUID()))
+                if (entity.getType() == EntityTypes.PLAYER && !entity.getUUID().equals(player.getUUID()))
                 {
                     // 复用 Entities Provider 的玩家背包/末影箱权限过滤
                     if (!EntitiesDataProvider.INSTANCE.hasPlayerInventoryPermission(player)) { nbt.remove("Inventory"); nbt.put("Inventory", new ListTag()); }
@@ -322,7 +323,7 @@ public class LitematicsDataProvider extends DataProviderBase
             return;
         }
 
-        // 对齐上游 :570-571：Task 字段须存在 + TAG_STRING + 值相等（26.1 客户端恒带此字段，无 Task 的旧形态包不再受理）。
+        // 对齐上游 :570-571：Task 字段须存在 + TAG_STRING + 值相等（26.1+ 客户端恒带此字段，无 Task 的旧形态包不再受理）。
         // vanilla CompoundTag 无 contains(String,int) 重载（上游系 malilib API）——getStringOr 对非 String 类型
         // 恒回退默认 ""，故「contains && getStringOr().equals」与上游 TAG_STRING 类型校验语义等价
         if (req.contains("Task") && req.getStringOr("Task", "").equals("BulkEntityRequest"))
@@ -332,7 +333,7 @@ public class LitematicsDataProvider extends DataProviderBase
             long timeStart = System.currentTimeMillis();
             ListTag tileList = new ListTag();
             ListTag entityList = new ListTag();
-            // 对齐上游 :577-578：回退维度实际上下界（自定义高度维度不再错位切片；26.1 客户端恒发 minY/maxY，回退仅兜底）
+            // 对齐上游 :577-578：回退维度实际上下界（自定义高度维度不再错位切片；26.1+ 客户端恒发 minY/maxY，回退仅兜底）
             final int minY = req.getIntOr("minY", world.getMinY());
             final int maxY = req.getIntOr("maxY", world.getMaxY());
             BlockPos pos1 = new BlockPos(chunkPos.getMinBlockX(), minY, chunkPos.getMinBlockZ());

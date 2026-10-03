@@ -32,7 +32,7 @@ import verymc.top.veryMcProto.framework.debug.FrameworkDebug;
  *
  * <p><b>客户端支持检测（实锤前提 + C2S 证明兜底）</b>：Paper {@code CraftPlayer.sendPluginMessage} 内部有
  * {@code channels().contains(channel)} 门控——玩家声明包（play 期 {@code minecraft:register}）被 Paper 处理前，
- * S2C 一律<b>静默丢弃</b>（26.1.2 反编译实证；声明处理晚于客户端首个 C2S 到达，进服首握手回复因此曾被吞 →
+ * S2C 一律<b>静默丢弃</b>（26.1.2 反编译实证、26.2.build.129 源码复核同构 CraftPlayer.java:2225；声明处理晚于客户端首个 C2S 到达，进服首握手回复因此曾被吞 →
  * minihud structures 恒 not_connected）。对策：<b>同通道 C2S 证明兜底</b>——玩家在本通道发过 C2S 即证明其
  * 装有对应 mod、注册了 payload codec（能发即能收），此时若 Paper 声明簿记未跟上（listening=false），改走 NMS
  * {@code new ClientboundCustomPayloadPacket(new DiscardedPayload(channelId, bytes))} 直发——与 Paper 自身放行
@@ -184,7 +184,7 @@ public final class ProtocolChannel
             return false;
         }
 
-        // ★ Paper 命门（26.1.2 反编译实锤）：CraftPlayer.sendPluginMessage 有 channels().contains(channel) 门控，
+        // ★ Paper 命门（26.1.2 反编译实锤、26.2.build.129 源码复核存活 :2225）：CraftPlayer.sendPluginMessage 有 channels().contains(channel) 门控，
         // 玩家声明包被 Paper 处理前 S2C 一律静默丢弃——而声明处理晚于客户端首个 C2S（进服首握手回复曾被吞，
         // minihud structures 的 metadata 接受窗口是单次的，错过即 not_connected）。
         boolean listening = player.getListeningPluginChannels().contains(name());

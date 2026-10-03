@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p>覆盖上游 register() 门禁语句（HudDataProvider:411，五 Provider 同构）：
  * {@code tags == null || tags.getIntOrDefault("version", -1) < protocolVersion}。
- * 比较符必须是<b>严格小于</b>——26.1 合法客户端常量与我方相等（3/2/2/3/2），高版本客户端
+ * 比较符必须是<b>严格小于</b>——26.2 合法客户端常量与我方相等（3/2/2/3/2，26.1 起同值），高版本客户端
  * （snapshot）&gt; 我方须放行（客户端随后按自身 != 校验自行退网），误写 == / &gt;= 会拒合法客户端。
  */
 class DataProviderVersionGateTest
@@ -51,7 +51,7 @@ class DataProviderVersionGateTest
     @Test
     void versionEqualRequired_passes()
     {
-        // 26.1 合法客户端常量与我方相等（3/2/2/3/2）→ 必须放行（严格 <，误写 != / >= 即误拒）
+        // 26.2 合法客户端常量与我方相等（3/2/2/3/2，26.1 起同值）→ 必须放行（严格 <，误写 != / >= 即误拒）
         assertFalse(DataProviderBase.isVersionTooLow(tagsWithVersion(3), 3));
         assertFalse(DataProviderBase.isVersionTooLow(tagsWithVersion(2), 2));
     }

@@ -16,10 +16,10 @@ import net.minecraft.network.FriendlyByteBuf;
 import verymc.top.veryMcProto.Reference;
 
 /**
- * malilib/servux 26.1「DataTag」线格式编解码器（vanilla {@link CompoundTag} 视角，纯函数）。
+ * malilib/servux 26.1+「DataTag」线格式（26.2 复核逐字节相同）编解码器（vanilla {@link CompoundTag} 视角，纯函数）。
  *
  * <p>MC 26.1 起 servux 协议业务包的 NBT 载体从 vanilla {@code writeNbt} 切换为 malilib DataTag 线格式
- * （对照 {@code OriginImpl/servux-LTS-26.1 util/data/tag/util/DataByteBufUtils.java} 逐字节实证）：
+ * （对照 {@code OriginImpl/servux-LTS-26.2 util/data/tag/util/DataByteBufUtils.java} 逐字节实证）：
  *
  * <pre>线格式 = [int32 大端 压缩后字节数][GZIP 压缩流]</pre>
  *

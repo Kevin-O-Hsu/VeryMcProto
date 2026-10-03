@@ -1,7 +1,7 @@
 name: VeryMcProto
 version: '${version}'
 main: verymc.top.veryMcProto.VeryMcProto
-api-version: '26.1.2'
+api-version: '${mcVersion}'
 load: POSTWORLD
 softdepend: [packetevents]
 author: VeryMc

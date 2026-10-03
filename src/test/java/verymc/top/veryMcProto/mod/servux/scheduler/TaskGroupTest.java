@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * task 组（type 14-17）形状黄金样本单测——全部以 <b>26.1 客户端真实编码形状</b>为固定样本（非自编自解）：
+ * task 组（type 14-17）形状黄金样本单测——全部以 <b>26.1 客户端真实编码形状</b>为固定样本（非自编自解；26.2 wire 逐字节相同，样本继续有效）：
  * <ul>
  *   <li>Box 线格式 = 客户端 {@code Box.CODEC}（RecordCodecBuilder: pos1/pos2 = BlockPos.CODEC，malilib DataOps
  *       INT_STREAM → IntArrayTag[x,y,z]，name = string）——B 轮字节码级实证；</li>

@@ -207,7 +207,7 @@ class PacketSplitterTest
     @Test
     void send_rejectsFrameOver16MBClientLimit()
     {
-        // 16,777,217 = 客户端上限 +1：malilib 26.1 严格 > 语义即销毁 session，服务端入口应整帧拒发
+        // 16,777,217 = 客户端上限 +1：malilib 26.1+ 严格 > 语义即销毁 session（26.2 复核同值 16MB），服务端入口应整帧拒发
         FriendlyByteBuf buf = wrap(payload(PacketSplitter.MAX_REASSEMBLY_SIZE_S2C + 1, 3));
         CapturingHandler h = new CapturingHandler();
         boolean sent = PacketSplitter.send(h, buf, null);

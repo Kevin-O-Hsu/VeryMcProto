@@ -46,7 +46,7 @@ import verymc.top.veryMcProto.mod.servux.util.position.PositionUtils;
 
 public class SchematicPlacingUtils
 {
-    // 实体位置修复族 NBT 键——逐字对齐上游 NbtKeys.java（OriginImpl/servux-LTS-26.1/
+    // 实体位置修复族 NBT 键——逐字对齐上游 NbtKeys.java（OriginImpl/servux-LTS-26.2/
     // src/main/java/fi/dy/masa/servux/util/nbt/NbtKeys.java）：POS=:12、ATTACHED_BLOCK_POS=:81、
     // LEASH=:111、HOME_RADIUS=:150、HOME_POS=:151。"leash" 自 1.21.5 起为全小写（旧版 "Leash"），
     // 键拼错无任何报错、修复整条静默失效——由 EntityPastePositionFixTest 字面串用例互锁。
@@ -508,8 +508,8 @@ public class SchematicPlacingUtils
     }
 
     /**
-     * 粘贴前实体 NBT 位置修复族——逐字对齐上游 servux-LTS-26.1
-     * SchematicPlacingUtils.placeEntitiesToWorldWithinChunk（OriginImpl/servux-LTS-26.1/
+     * 粘贴前实体 NBT 位置修复族——逐字对齐上游 servux-LTS-26.2
+     * SchematicPlacingUtils.placeEntitiesToWorldWithinChunk（OriginImpl/servux-LTS-26.2/
      * src/main/java/fi/dy/masa/servux/util/SchematicPlacingUtils.java:446-513）：
      * <ol>
      * <li>一切实体：Pos 缺失或不等于世界目标坐标则重写为目标（vanilla 按 NBT Pos 构造实体；

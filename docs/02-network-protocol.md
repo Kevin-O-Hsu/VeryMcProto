@@ -141,19 +141,19 @@ public interface IServerPayloadData {
 public static final int MAX_TOTAL_PER_PACKET_S2C = 32_000;          // S2C 单片总上限（防御客户端 32767 解码上限）
 public static final int MAX_PAYLOAD_PER_PACKET_S2C = MAX_TOTAL_PER_PACKET_S2C - 5; // ≈31995（留 VarInt 头）
 public static final int DEFAULT_MAX_RECEIVE_SIZE_S2C = 67_108_864;  // 64 MiB（接收端缓冲上限；receive 默认用它）
-public static final int MAX_REASSEMBLY_SIZE_S2C = 16_777_216;       // 26.1 客户端重组上限预检（send 入口严格 >，恰好相等放行）
+public static final int MAX_REASSEMBLY_SIZE_S2C = 16_777_216;       // 客户端（malilib）重组上限预检，26.1→26.2 零变化（send 入口严格 >，恰好相等放行）
 // 原版另有 MAX_TOTAL_PER_PACKET_C2S / MAX_PAYLOAD_PER_PACKET_C2S / DEFAULT_MAX_RECEIVE_SIZE_C2S
 // 三个 C2S 专用常量，但本实现 C2S/S2C 共用单物理通道，C2S 常量全代码库零引用——已删除。
 // C2S 上传（servux litematic 粘贴）的 receive 也走 DEFAULT_MAX_RECEIVE_SIZE_S2C（64MB）。
 ```
 
-> 📌 **三常量方向对照**（同名/近名易混，方向各不相同）：`MAX_TOTAL_PER_PACKET_S2C`（32,000）= **我方发送**的单片上限；`DEFAULT_MAX_RECEIVE_SIZE_S2C`（64MB）= **我方接收**（C2S 上传）的缓冲上限；`MAX_REASSEMBLY_SIZE_S2C`（16,777,216）= **客户端（malilib 26.1）重组**上限——我方发送前的预检阈值，与 malilib 客户端侧同名常量（16MB）数值对齐而与上方 64MB 同名常量无关。
+> 📌 **三常量方向对照**（同名/近名易混，方向各不相同）：`MAX_TOTAL_PER_PACKET_S2C`（32,000）= **我方发送**的单片上限；`DEFAULT_MAX_RECEIVE_SIZE_S2C`（64MB）= **我方接收**（C2S 上传）的缓冲上限；`MAX_REASSEMBLY_SIZE_S2C`（16,777,216）= **客户端（malilib，26.1→26.2 零变化）重组**上限——我方发送前的预检阈值，与 malilib 客户端侧同名常量（16MB）数值对齐而与上方 64MB 同名常量无关。
 >
-> **Structures 条目级分批**（对齐上游 `sendStructures :565-604`，在上述字节分片**之下**的业务层）：register 时读客户端申报 `tags.max_receive_s2c`（TAG_INT，默认 16MB）存名册 entry；发送时总量 + 4096 padding ≤ 上限单帧，否则逐条累计 `>=` 即 flush 多次 `STRUCTURES_DATA_START` 帧（首条无条件入列、空条目跳过、收尾 flush——纯函数 `splitStructuresBySize` 配单测）。每业务帧仍走 PacketSplitter 字节分片（两层叠加）；客户端按帧合并非替换。26.1 四客户端无该字段发送点，恒走默认值（机制层对齐、真实环境不可观测）。
+> **Structures 条目级分批**（对齐上游 `sendStructures :565-604`，在上述字节分片**之下**的业务层）：register 时读客户端申报 `tags.max_receive_s2c`（TAG_INT，默认 16MB）存名册 entry；发送时总量 + 4096 padding ≤ 上限单帧，否则逐条累计 `>=` 即 flush 多次 `STRUCTURES_DATA_START` 帧（首条无条件入列、空条目跳过、收尾 flush——纯函数 `splitStructuresBySize` 配单测）。每业务帧仍走 PacketSplitter 字节分片（两层叠加）；客户端按帧合并非替换。26.1→26.2 四客户端均无该字段发送点，恒走默认值（机制层对齐、真实环境不可观测）。
 
-> **send 入口 16MB 门禁**（26.1 客户端重组上限预检）：被检量 = DataTag 帧化后 buffer 的 `writerIndex()`（= 4 + GZIP 压缩长 = 首包 VarInt 下发、客户端 `expectedSize` 读取的同一个数，三方同源）；超限（严格 `>`，恰好相等放行）在分片循环前**整帧拒发**（零分片发出——超限帧发出去会被客户端销毁重组 session 并抛异常，后续分片还会以垃圾 expectedSize 重建残留会话污染下一帧）+ warn 日志（log-and-drop，有意不限频：唯一重复源 Structures 周期重发上界 ≈ 每名已注册玩家 12 条/分钟，随数据缩量自停）。覆盖全部 S2C 分片大帧：HUD RecipeManager 全量帧、Litematics BulkEntityReply、Structures 全量帧三活跃点 + Entities/Tweaks 两死分支。**上游 servux 26.1 无此预检——我方增强，勿随上游模板回退**。曾并存的文件字节级门禁（`LitematicaSchematic.MAX_TRANSMIT_FILE_SIZE`）随 S2C 投递死信链删除（2026-09，26.1 客户端无接收端）——本门禁是现存唯一 16MB 服务端预检，覆盖全部 S2C 分片帧。历史两级裁分论述见 [09](09-DELIVERY.md) §26.1。
+> **send 入口 16MB 门禁**（26.1→26.2 客户端重组上限预检）：被检量 = DataTag 帧化后 buffer 的 `writerIndex()`（= 4 + GZIP 压缩长 = 首包 VarInt 下发、客户端 `expectedSize` 读取的同一个数，三方同源）；超限（严格 `>`，恰好相等放行）在分片循环前**整帧拒发**（零分片发出——超限帧发出去会被客户端销毁重组 session 并抛异常，后续分片还会以垃圾 expectedSize 重建残留会话污染下一帧）+ warn 日志（log-and-drop，有意不限频：唯一重复源 Structures 周期重发上界 ≈ 每名已注册玩家 12 条/分钟，随数据缩量自停）。覆盖全部 S2C 分片大帧：HUD RecipeManager 全量帧、Litematics BulkEntityReply、Structures 全量帧三活跃点 + Entities/Tweaks 两死分支。**上游 servux 26.1 无此预检——我方增强，勿随上游模板回退**。曾并存的文件字节级门禁（`LitematicaSchematic.MAX_TRANSMIT_FILE_SIZE`）随 S2C 投递死信链删除（2026-09，26.1 客户端无接收端）——本门禁是现存唯一 16MB 服务端预检，覆盖全部 S2C 分片帧。历史两级裁分论述见 [09](09-DELIVERY.md) §26.1。
 
-> ⚠️ **字节限制教义（26.1 真值）**：Bukkit `Messenger.MAX_MESSAGE_SIZE` = 1048576（~1MiB，1.21.x 起——旧文档称 32768 已过时）；**真正的 S2C 瓶颈是原版客户端对 `ClientboundCustomPayload`（未知通道 discarded 解码）的 32767 字节解码上限**。详见 [07](07-migration-architecture.md) §2.2 与 [09](09-DELIVERY.md) §4。我方 S2C 分片常量 32000/31995 即为防御 32767。
+> ⚠️ **字节限制教义（26.1→26.2 零变化真值）**：Bukkit `Messenger.MAX_MESSAGE_SIZE` = 1048576（~1MiB，1.21.x 起——旧文档称 32768 已过时）；**真正的 S2C 瓶颈是原版客户端对 `ClientboundCustomPayload`（未知通道 discarded 解码）的 32767 字节解码上限**。详见 [07](07-migration-architecture.md) §2.2 与 [09](09-DELIVERY.md) §4。我方 S2C 分片常量 32000/31995 即为防御 32767。
 
 ### 5.3 发送逻辑（切片）
 
@@ -323,11 +323,11 @@ ServuxHudHandler.encodeServerData(player, data)                    // :121
 
 1. **通道 = plugin messaging channel**：用通道**网络名**（`servux:hud_metadata` 等）注册 `registerIncomingPluginChannel`（C2S）+ `registerOutgoingPluginChannel`（S2C）。
 2. **收到的 byte[] = FriendlyByteBuf 裸字节**：`new FriendlyByteBuf(Unpooled.wrappedBuffer(bytes))` 即可复用原版 `fromPacket` 逻辑。
-3. **发送**：把 `toPacket(buf)` 写出的字节 `buf.array()`/`ByteBuf.getBytes` 成 `byte[]` → `sendPluginMessage`。**Paper 命门**：`CraftPlayer.sendPluginMessage` 按 `channels().contains(channel)` 门控，玩家声明包被处理前 S2C 静默丢弃（26.1.2 反编译实锤；声明处理晚于客户端首个 C2S）→ `ProtocolChannel.send` 对**已在本通道发过 C2S 的玩家**在 `listening=false` 时走 NMS `connection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes)))` 兜底（字面量 DiscardedPayload，与 Paper 放行路径同构；自定义 Payload record 直发会 CCE 踢人）。
+3. **发送**：把 `toPacket(buf)` 写出的字节 `buf.array()`/`ByteBuf.getBytes` 成 `byte[]` → `sendPluginMessage`。**Paper 命门**：`CraftPlayer.sendPluginMessage` 按 `channels().contains(channel)` 门控，玩家声明包被处理前 S2C 静默丢弃（26.1.2 反编译实锤，26.2.build.129 源码复核同构；声明处理晚于客户端首个 C2S）→ `ProtocolChannel.send` 对**已在本通道发过 C2S 的玩家**在 `listening=false` 时走 NMS `connection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes)))` 兜底（字面量 DiscardedPayload，与 Paper 放行路径同构；自定义 Payload record 直发会 CCE 踢人）。
 4. **分包常量**：S2C 分片从 1MiB 改 ≤32760（若走 plugin messaging）；session key 逻辑照搬。
 5. **Payload record / StreamCodec / toPacket / fromPacket**：几乎照抄（去掉 `@Environment`）。
 6. **C2S 不踢人**：plugin messaging 注册的通道 Paper 内置路由，不会因"未知 payload"踢玩家。
-7. **协议版本号保持一致**（26.1 线 HUD=3 / structures=3 / entities=2 / tweaks=2 / litematics=2）：客户端
+7. **协议版本号保持一致**（26.1→26.2 零变化：HUD=3 / structures=3 / entities=2 / tweaks=2 / litematics=2）：客户端
    收 metadata 按 `!=` 严格校验自行退网；服务端 C2S REGISTER 按 `<` 拒绝旧客户端（版本门禁 + 名册拦截，
    见 §6.2/§7）。
 

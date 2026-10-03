@@ -1,7 +1,7 @@
 # 07 · Fabric → Paper 架构对照与降级矩阵（含可行性论证）
 
-> 本文是 Fabric 协议 Mod → Paper 插件移植的**现行规范**：目标架构、各层迁移决策、可行性结论、Mixin 降级矩阵、构建配置、风险缓解，以及 **Fabric ↔ Paper 逐域对照表**（原 `06-fabric-vs-paper.md` 已并入本文 §7，26.1 口径）。
-> 阅读前提：已读 [01](01-servux-architecture.md)–[05](05-schematic-system.md)；协议字节细节见 [02](02-network-protocol.md)；26.1 线迁移实录见 [09](09-DELIVERY.md) §26.1；仓库权威说明见 [../AGENTS.md](../AGENTS.md)。
+> 本文是 Fabric 协议 Mod → Paper 插件移植的**现行规范**：目标架构、各层迁移决策、可行性结论、Mixin 降级矩阵、构建配置、风险缓解，以及 **Fabric ↔ Paper 逐域对照表**（原 `06-fabric-vs-paper.md` 已并入本文 §7，26.2 口径）。
+> 阅读前提：已读 [01](01-servux-architecture.md)–[05](05-schematic-system.md)；协议字节细节见 [02](02-network-protocol.md)；26.1/26.2 线迁移实录见 [09](09-DELIVERY.md) §26.1/§26.2；仓库权威说明见 [../AGENTS.md](../AGENTS.md)。
 > 历史迁移计划文档（08/11 与 docs/research/）已于 2026-09 删除，恢复走 git revert。
 
 ---
@@ -27,10 +27,10 @@
 
 | 决策 | 选择 | 理由 |
 |---|---|---|
-| 构建 | **paperweight `userdev` 2.0.0-beta.23** + `run-paper 3.1.0` | 提供完整 Mojang NMS 映射；26.1 起 **reobf 废除**，产物即 Mojang 映射 jar，标准 Paper 直接加载 |
+| 构建 | **paperweight `userdev` 2.0.0-beta.24**（策略性跟随最新 beta） + `run-paper 3.1.0` | 提供完整 Mojang NMS 映射；26.1 起 **reobf 废除**，产物即 Mojang 映射 jar，标准 Paper 直接加载 |
 | 网络收发 | **plugin messaging channel**（主）+ NMS `ClientboundCustomPayloadPacket`（大包/直发） | plugin messaging 内置路由不踢玩家、API 简单；NMS 直发承载超限大包（JEI 配方、syncmatica S2C、servux 声明滞后兜底） |
 | 数据采集 | **NMS 直连**（主）+ 反射（辅，仅 4-5 点） | 绝大多数 Servux 采集 API 是公开方法；反射点已识别（[03](03-dataproviders-detail.md) §6、§7.8） |
-| NBT | **NMS `CompoundTag`/`NbtIo`** | 与原版字节级一致，Litematica 客户端可直接读；保真度最高（26.1 业务包另按 DataTag 线格式封装，见 [09](09-DELIVERY.md) §26.1.2） |
+| NBT | **NMS `CompoundTag`/`NbtIo`** | 与原版字节级一致，Litematica 客户端可直接读；保真度最高（26.1→26.2 业务包另按 DataTag 线格式封装，零变化，见 [09](09-DELIVERY.md) §26.1.2） |
 | 权限 | Bukkit `Permission`（+ LuckPerms 兼容） | 无新依赖；servux 权限节点原样保留 |
 | Mixin | **不使用** | Paper 无 Mixin 运行时 |
 
@@ -108,7 +108,7 @@ public void register() {
 - Bukkit `Messenger.MAX_MESSAGE_SIZE` = **1048576（~1MiB）**（1.21.x 起；旧文档称 32768 已过时）。
 - **真正的 S2C 瓶颈是原版客户端对 `ClientboundCustomPayload` 的 32767 字节解码上限**（未知通道 discarded 解码；超过客户端断连）。客户端**已注册 codec 的已知通道**不受此限（Fabric API 上限 64MB）。
 
-**路径 A（servux 主路径）**：plugin messaging + `PacketSplitter` 分片——S2C 分片常量 `MAX_TOTAL_PER_PACKET_S2C = 32_000` / `MAX_PAYLOAD_PER_PACKET_S2C = 31_995`（留余量给 VarInt 头，防御 32767）。另设 16MB 重组上限预检（26.1 客户端 malilib 重组上限，详见 [02](02-network-protocol.md) §5 / [09](09-DELIVERY.md)）。
+**路径 A（servux 主路径）**：plugin messaging + `PacketSplitter` 分片——S2C 分片常量 `MAX_TOTAL_PER_PACKET_S2C = 32_000` / `MAX_PAYLOAD_PER_PACKET_S2C = 31_995`（留余量给 VarInt 头，防御 32767）。另设 16MB 重组上限预检（26.1→26.2 客户端 malilib 重组上限，零变化，详见 [02](02-network-protocol.md) §5 / [09](09-DELIVERY.md)）。
 **路径 B（大包直发）**：NMS `new ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes))` 直发——JEI 配方包（常超 1MiB）、syncmatica S2C（plugin messaging wire 对纯 Fabric 客户端不可达）已采用；servux 的"同通道 C2S 证明兜底"亦走此路径（Paper 声明簿记滞后时，[../AGENTS.md](../AGENTS.md) §1）。
 
 > **决策（as-built）**：servux 走 A + 兜底 B；jei / syncmatica 以 B 为主。两路径按通道选择、共存。
@@ -119,7 +119,7 @@ public void register() {
 - ✅ `CompoundTag` 读写：`FriendlyByteBuf.writeNbt(tag)` / `readNbt()`，NMS 直连（同一套 Mojang NBT 协议）。
 - ✅ VarInt：`FriendlyByteBuf.writeVarInt/readVarInt`，NMS 直连。
 - ✅ 通道命名：`servux:hud_metadata` 满足 plugin channel 的 `namespace:key` 规则。
-- ✅ 26.1 DataTag 线格式（业务包 NBT 载体）：`mod/servux/util/nbt/DataTagIo.java` 与 NMS `NbtIo` 输出逐字节兼容（配单测，见 [09](09-DELIVERY.md) §26.1.2）。
+- ✅ 26.1→26.2 DataTag 线格式（业务包 NBT 载体，零变化）：`mod/servux/util/nbt/DataTagIo.java` 与 NMS `NbtIo` 输出逐字节兼容（配单测，见 [09](09-DELIVERY.md) §26.1.2）。
 
 ### 2.4 Payload record 照抄
 
@@ -153,7 +153,7 @@ long sprint = Reflect.get(tickManager, "remainingSprintTicks");  // Mojang 名�
 
 | 采集触发 | Fabric（Mixin） | Paper（事件/调度，as-built） |
 |---|---|---|
-| 天气变化 | `MixinServerLevel.advanceWeatherCycle` | tick 内周期读（26.1：`ServerLevel.getWeatherData()`，见 [09](09-DELIVERY.md) §26.1.3） |
+| 天气变化 | `MixinServerLevel.advanceWeatherCycle` | tick 内周期读（26.2：`ServerLevel.getWeatherData()`，见 [09](09-DELIVERY.md) §26.1.3） |
 | 出生点变化 | `MixinServerLevel.setRespawnData` | `updateSpawnFromServer`（Bukkit `World.getSpawnLocation`）周期同步 |
 | 结构观察 | `MixinChunkLoadingManager.markChunkPendingToSend` | 周期扫描玩家 view distance 内区块（`update_interval`，默认 40t） |
 | TPS/MobCap | `tick` 内采集 | `BukkitScheduler` tick 任务 |
@@ -186,27 +186,27 @@ long sprint = Reflect.get(tickManager, "remainingSprintTicks");  // Mojang 名�
 
 ---
 
-## 5. 构建配置（26.1 as-built）
+## 5. 构建配置（26.2 as-built）
 
 > 26.1 起 Mojang 移除服务端混淆：**reobf 废除**（paperweight 官方：reobf 插件无法在 Paper 26.1+ 加载），产物即 Mojang 映射 jar。版本唯一来源 `gradle.properties`（`mcVersion` / `buildNumber`）。
 
 ```kotlin
 plugins {
     `java-library`
-    id("io.papermc.paperweight.userdev") version "2.0.0-beta.23"
+    id("io.papermc.paperweight.userdev") version "2.0.0-beta.24"
     id("xyz.jpenilla.run-paper") version "3.1.0"
 }
 
 dependencies {
-    paperweight.paperDevBundle("26.1.2.build.74-stable")
+    paperweight.paperDevBundle("26.2.build.129-stable")
     // 26.1 起新格式 <mc>.build.<N>-stable；提供 Mojang 全映射 net.minecraft.* + io.papermc.paper.*
-    // 可选依赖（EasyPlace）：compileOnly("com.github.retrooper:packetevents-spigot:2.13.0")
+    // 可选依赖（EasyPlace）：compileOnly("com.github.retrooper:packetevents-spigot:2.14.0")（2.13.0 起支持 26.2，2.14.0 增 26.3）
 }
 
 java { toolchain.languageVersion = JavaLanguageVersion.of(25) }
 
 tasks {
-    runServer { minecraftVersion("26.1.2"); jvmArgs("-Xms2G", "-Xmx2G") }
+    runServer { minecraftVersion("26.2"); jvmArgs("-Xms2G", "-Xmx2G") }
     processResources {
         // expand 占位符必须显式 inputs.property(...) 参与 up-to-date 跟踪（26.1.2-b2 曾实证陈旧展开事故）
         filesMatching("plugin.yml") { expand(props) }
@@ -215,13 +215,13 @@ tasks {
 }
 ```
 
-**plugin.yml**（`api-version` 三段精确式，1.20.5+ 支持补丁段；本插件 MOD_STRING 硬门禁绑死精确补丁）：
+**plugin.yml**（`api-version` 已模板化 `${mcVersion}`，不再手写——26.2 为干净 release 无补丁段，展开即 '26.2'；本插件 MOD_STRING 硬门禁绑死精确上游 id）：
 
 ```yaml
 name: VeryMcProto
 version: '${version}'
 main: verymc.top.veryMcProto.VeryMcProto
-api-version: '26.1.2'
+api-version: '${mcVersion}'
 load: POSTWORLD
 ```
 
@@ -235,7 +235,7 @@ load: POSTWORLD
 |---|---|---|
 | 客户端 32767 字节解码上限（未知通道） | S2C 大包断连 | `PacketSplitter` S2C 分片 32000/31995；已知通道大包走 NMS 直发（§2.2） |
 | 客户端未装对应 Mod（如无 MiniHUD） | 发包失败/无响应 | `MAX_FAILURES` 计数 + invalid 玩家标记；`PlayerRegisterChannelEvent` + C2S 主动请求自愈 |
-| `MOD_STRING` 协议握手字段 | 客户端版本协商 | **26.1 真值 `servux-fabric-<mcVersion>-b<buildNumber>`（当前 `servux-fabric-26.1.2-b5`）**——`MOD_TYPE` 恒 `"fabric"` 伪装，26.1 客户端 `startsWith("servux-fabric-<精确上游id>")` 硬门禁，1.21.11 时代的 `"paper"` 前缀会被四通道静默拒绝；协议版本用 26.1 真值 3/2/2/3/2（见 [09](09-DELIVERY.md) §26.1.2） |
+| `MOD_STRING` 协议握手字段 | 客户端版本协商 | **26.2 真值 `servux-fabric-<mcVersion>-b<buildNumber>`（当前 `servux-fabric-26.2-b1`）**——`MOD_TYPE` 恒 `"fabric"` 伪装，26.2 客户端 `startsWith("servux-fabric-<精确上游id>")` 硬门禁（判断式与 26.1 逐字同构），1.21.11 时代的 `"paper"` 前缀会被四通道静默拒绝；协议版本 26.1→26.2 零变化 3/2/2/3/2（见 [09](09-DELIVERY.md) §26.1.2） |
 | NMS 签名随版本漂移 | 升级 MC 时编译失败 | 反射点集中在 `framework/reflect/`；升级按 [04](04-mixin-analysis.md) 反射点清单 + [../AGENTS.md](../AGENTS.md) §4 NMS 约束核对 |
 | Structures 周期扫描性能 | 玩家多时 CPU 占用 | 限扫描频率（`update_interval` 默认 40t=2s）；只扫 view distance 内；去重缓存 |
 | EasyPlace 依赖 PacketEvents | 未装时功能缺席 | `EasyPlaceBootstrap` 反射加载 + `catch(Throwable)` 优雅跳过，其余通道零影响 |
@@ -243,7 +243,7 @@ load: POSTWORLD
 
 ---
 
-## 7. Fabric ↔ Paper 逐域对照（原 06 并入，26.1 口径）
+## 7. Fabric ↔ Paper 逐域对照（原 06 并入，26.2 口径）
 
 > 每行可直接当迁移转换规则用。网络层机制详见 [02](02-network-protocol.md)；Mixin 差异见 [04](04-mixin-analysis.md)。
 
@@ -274,7 +274,7 @@ load: POSTWORLD
 | `MixinPlayerManager.remove` → onPlayerLeave | Mixin | `PlayerQuitEvent` |
 | `MixinPlayerManager.respawn` | Mixin | `PlayerRespawnEvent` |
 | `MixinPlayerManager.canPlayerLogin` | Mixin | `AsyncPlayerPreLoginEvent` / `PlayerLoginEvent` |
-| `MixinServerLevel.advanceWeatherCycle`（天气采集） | Mixin | tick 内周期读天气状态（26.1：`ServerLevel.getWeatherData()`） |
+| `MixinServerLevel.advanceWeatherCycle`（天气采集） | Mixin | tick 内周期读天气状态（26.2：`ServerLevel.getWeatherData()`） |
 | `MixinServerLevel.setRespawnData`（出生点） | Mixin | `updateSpawnFromServer`（Bukkit `World.getSpawnLocation`）周期同步 |
 | `MixinChunkLoadingManager.markChunkPendingToSend`（结构触发） | Mixin | 周期扫描玩家 view distance 内区块查结构引用（§3.3） |
 | `MixinCommandManager.<init>`（注册命令） | Mixin | `plugin.yml` `commands:` + `CommandExecutor`/`TabCompleter` |
@@ -331,7 +331,7 @@ load: POSTWORLD
 | `NbtIo.writeCompressed` / `readCompressed` | NMS 同名（投影文件 GZIP） |
 | `NbtView`（Servux 自研，基于 `TagValueInput/Output`） | 重写为直接 NMS `Entity.saveWithoutId(CompoundTag)` / `BlockEntity.saveWithFullMetadata`，绕开 `IMixinNbtRead/WriteView`（[04](04-mixin-analysis.md) §5） |
 
-> **26.1 CompoundTag 约束**：`getXxx` 返回 Optional，用 `getXxxOr`/`.orElse()`；`putXxx` 返回 void（[../AGENTS.md](../AGENTS.md) §4）。
+> **26.1→26.2 CompoundTag 约束（零变化）**：`getXxx` 返回 Optional，用 `getXxxOr`/`.orElse()`；`putXxx` 返回 void（[../AGENTS.md](../AGENTS.md) §4）。
 
 ### 7.8 数据采集 API（NMS 可达性）——详见 [03](03-dataproviders-detail.md) §6
 
@@ -371,7 +371,7 @@ tick 调度        MixinMinecraftServer.tickServer → BukkitScheduler runTaskTi
 NBT              CompoundTag/NbtIo → NMS 直连
 Mixin 读私有     → 反射 / NMS 直接调用（多数已是公开方法）
 Mixin 改行为     → 降级省略 / PacketEvents / 投影代码内联
-构建             fabric-loom → paperweight userdev + run-paper（26.1 无 reobf）
+构建             fabric-loom → paperweight userdev + run-paper（26.1 起无 reobf）
 ```
 
 ---
@@ -390,7 +390,7 @@ Mixin 改行为     → 降级省略 / PacketEvents / 投影代码内联
 | 层 | 保真度 | 说明 |
 |---|---|---|
 | 网络协议字节 | **100%** | 同一 `FriendlyByteBuf`/`CompoundTag`/DataTag 线格式，字节级一致 |
-| 通道/版本号 | **100%** | 通道名、协议版本号与原版逐字对齐（26.1 真值） |
+| 通道/版本号 | **100%** | 通道名、协议版本号与原版逐字对齐（26.1→26.2 零变化真值） |
 | 数据采集 | **≈95%** | 绝大多数 NMS 直连；TPS/MobCap 个别字段反射可能版本敏感 |
 | 服务端行为改造 | **部分降级** | EasyPlace ✅ 已实现（PacketEvents）；UpdateSuppression/Allay 省略；潜影盒堆叠不可能实现（已删代码） |
 

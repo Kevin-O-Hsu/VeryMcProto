@@ -5,7 +5,7 @@ import java.util.zip.ZipFile
 
 plugins {
     `java-library`
-    id("io.papermc.paperweight.userdev") version "2.0.0-beta.23"
+    id("io.papermc.paperweight.userdev") version "2.0.0-beta.24"
     id("xyz.jpenilla.run-paper") version "3.1.0"
 }
 
@@ -28,12 +28,14 @@ repositories {
 dependencies {
     // paperDevBundle 提供 Mojang 官方映射（全 deobfuscated）的 NMS（net.minecraft.*），开发时直接用 Mojang 名访问。
     // MC 26.1 起 dev bundle 改为 <mcVersion>.build.<N>-stable 新命名（旧格式 X-R0.1-SNAPSHOT 止于 1.21.x），
-    // 26.1.2.build.74-stable 为 26.1 线当前最高 stable（repo.papermc.io metadata 实测）。
-    paperweight.paperDevBundle("26.1.2.build.74-stable")
+    // 26.2.build.129-stable 为 26.2 线当前最高 stable（repo.papermc.io metadata 实测，2026-10）。
+    paperweight.paperDevBundle("26.2.build.129-stable")
 
     // PacketEvents（EasyPlace 拦截原版 use_item_on）：compileOnly，运行时由服务器独立安装的 packetevents 插件提供。
-    // 锁定 2.13.0（codemc 最新 release；对照源码 OriginImpl/packetevents-2.0 为 2.13.1 开发版，API 一致）。
-    compileOnly("com.github.retrooper:packetevents-spigot:2.13.0")
+    // 锁定 2.14.0（codemc 最新 release，2026-09-23；2.13.0 起支持 MC 26.2，2.14.0 增 26.3；本地对照源码
+    // OriginImpl/packetevents-2.0 为 2.13.x 开发版——EasyPlace 用到的 API 面（WrapperPlayClientPlayerBlockPlacement
+    // 的 getCursorPosition/setCursorPosition/getBlockPosition 等）已对照 2.14.0 树实证零破坏）。
+    compileOnly("com.github.retrooper:packetevents-spigot:2.14.0")
 
     // 单元测试（JUnit 5 / Jupiter）。test classpath 继承 main 的 paperDevBundle——NMS 类（FriendlyByteBuf 等）
     // 在纯 JVM 可用，无需启动 MC 服务端（仅访问类，不触达需 Bootstrap 的方块/物品注册表运行时逻辑）。
@@ -85,9 +87,10 @@ tasks {
         val jarTask = named<Jar>("jar")
         val jarArchive = jarTask.flatMap { it.archiveFile }
         val expectedVersion = project.version.toString()
-        // api-version 应逐字等于 mcVersion（如 26.1.2；1.20.5 起官方支持三段式，语义 = 低于该值
-        // 的服务器拒载）。本插件协议面绑死精确补丁（MOD_STRING 硬门禁 + dev bundle），放行旧补丁
-        // 只会让握手静默失败；Modrinth 等平台亦按 api-version 标注适用版本——纳入终检构建期拦截。
+        // api-version 已模板化（plugin.yml '${mcVersion}'，随唯一来源展开），应逐字等于 mcVersion
+        // （如 26.2；两段/三段皆官方支持，语义 = 低于该值的服务器拒载）。本插件协议面绑死精确上游 id
+        // （MOD_STRING 硬门禁 + dev bundle），放行旧版本只会让握手静默失败；Modrinth 等平台亦按
+        // api-version 标注适用版本——保留终检作展开陈旧的构建期拦截（26.1.2-b2 事故语义）。
         val expectedApiVersion = providers.gradleProperty("mcVersion").get()
         group = "verification"
         dependsOn(jarTask)
@@ -111,7 +114,7 @@ tasks {
                 if (ymlApiVersion != expectedApiVersion) {
                     throw GradleException(
                         "api-version 注入不一致：jar=${jarFile.name} 内 plugin.yml=$ymlApiVersion，期望 $expectedApiVersion" +
-                            "（= mcVersion 主次段）——升级 MC 版本时须同步 plugin.yml 的 api-version")
+                            "（= mcVersion，plugin.yml 已模板化 '${'$'}{mcVersion}'）——疑似展开陈旧，执行 ./gradlew clean 后重新构建")
                 }
                 if (propVersion != expected || ymlVersion != expected) {
                     throw GradleException(

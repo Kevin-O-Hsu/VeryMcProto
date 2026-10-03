@@ -118,7 +118,7 @@ public void receiveSlice(int number, Slice slice) {       // 乱序安全
 
 ### 2.2 第二级：`PacketSplitter`（网络层，~1MiB/包）
 
-> 见 [02](02-network-protocol.md) §5。每个 16KiB slice 装进一个 Payload，若该 Payload 仍超网络单包上限，再由 PacketSplitter 切（26.1 线该两级形态仅为对端 C2S 上传约定——我方接收侧仅重组，见 §2.3 注记；S2C 发送侧死信链已删）。
+> 见 [02](02-network-protocol.md) §5。每个 16KiB slice 装进一个 Payload，若该 Payload 仍超网络单包上限，再由 PacketSplitter 切（26.2 线该两级形态仅为对端 C2S 上传约定——我方接收侧仅重组，见 §2.3 注记；S2C 发送侧死信链已删）。
 
 ### 2.3 两级分包示意
 
@@ -139,7 +139,7 @@ Litematic 文件 (5 MiB)
 
 ## 3. 传输协议：四阶段帧（历史 wire 记载——两侧均已移除）
 
-> **26.1 线现状**：
+> **26.2 线现状**：
 > - **S2C 发送侧**（`sendTransmitFile` + `/servux litematic transmit`）死信链已删（2026-09）——stock 26.1 客户端 `ServuxLitematicaHandler.handleBulkData` 的 Transmit 分流整块注释（帧被静默丢弃无日志），上游服务端同方法 `@Deprecated(forRemoval=true)` 零调用点，物理删除、恢复走 git revert。
 > - **C2S 接收侧**（`Litematic-Transmit*` 分流 → `receiveFileTransmit` 落盘）已于 **2026-10 随安全修复整链移除**：客户端可控 `FileName` 直达 `Path.of`/`dir.resolve` 无包含性检查，构成**路径穿越任意写/删/读回**原语（上游安全公告漏洞同源；另有 `new Slice[客户端控长]` 的 OOM 向量）。上游 0.10.7 同判禁用（分流注释态），修复版 stock 客户端亦不再发送上传帧。重组完成后无条件走 `handleClientPasteRequest`（上游 0.10.7 `:201` 同构），`SchematicBuffer`/`SchematicBufferManager` 物理删除，恢复走 git revert。
 
@@ -161,7 +161,7 @@ Litematic 文件 (5 MiB)
 
 原路由：`ServuxLitematicaHandler.handleBulkData` 按 NBT `"Task"` 字符串分流——`Litematic-Transmit*` → `LitematicaSchematic.receiveFileTransmit` → `SchematicBufferManager.createBuffer`/`receiveSlice`/`finishBuffer` 重组落盘 `schematics/`（**漏洞链**：`FileName` 零净化直达 `dir.resolve`），文件态粘贴受理 `handleClientPasteRequestPair`。**现存唯一活路**：重组完成后无条件 `handleClientPasteRequest`（`LitematicaPaste` Task 门控在 Provider 内，非该 Task 静默忽略）→ `PasteTask` 分 tick 粘贴（见 [09](09-DELIVERY.md) §5.5）。
 
-### 3.3 序列化字节流（26.1 线格式）
+### 3.3 序列化字节流（26.2 线格式，26.1 起沿用）
 
 26.1 起批量重组体 NBT 载体从 vanilla `writeNbt` 切换为 malilib **DataTag 格式**，且**无 type VarInt / transactionId 前缀**、按 NBT `"Task"` 字符串路由（1.21.11 旧线为 `writeVarInt(transactionId) + writeNbt`——旧描述已过时）：
 
@@ -278,6 +278,6 @@ class AreaSelection {
 ## 8. 与网络层的衔接（移植注意）
 
 - 投影传输走 `servux:litematics` 通道（[03](03-dataproviders-detail.md) §Litematics）。
-- 大上传 = 客户端 16KiB 切片（SchematicBuffer 约定）→ 我方 PacketSplitter 重组（[02](02-network-protocol.md) §5）；S2C 发送侧死链已删（见 §3 注记），26.1 线我方仅重组不切片。
+- 大上传 = 客户端 16KiB 切片（SchematicBuffer 约定）→ 我方 PacketSplitter 重组（[02](02-network-protocol.md) §5）；S2C 发送侧死链已删（见 §3 注记），26.2 线我方仅重组不切片。
 - 每个 16KiB slice 远小于客户端 32767 解码上限与 Bukkit 1MiB Messenger 上限，**单 slice 不会触发 PacketSplitter 二次分包**，反而简化——但仍保留 PacketSplitter 作为保险（应对极端情况）。
 - session key（`SliceKey`）需在插件侧维护 `Map<UUID, Long>` 映射，与原版 `SchematicBufferManager.playerMap` 一致。

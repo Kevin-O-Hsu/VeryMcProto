@@ -30,7 +30,7 @@ import verymc.top.veryMcProto.mod.servux.ServuxDebug;
  * BlockPlaceEvent / ack）全部由 vanilla 主线程包队列原生完成。
  *
  * <p><b>手持 desync 命门（本范式存在的理由）</b>：{@code use_item_on} 包内不带物品，方块种类由
- * 「vanilla 主线程包队列时刻的玩家手持」隐式决定（26.1.2 {@code handleUseItemOn} 实证）。litematica
+ * 「vanilla 主线程包队列时刻的玩家手持」隐式决定（26.1.2 实证；26.2.build.129 复核同构 ServerGamePacketListenerImpl:2096-2134）。litematica
  * easyPlace 自动换槽（SetCarriedItem / 容器 SWAP，主线程包队列才应用）与编码包同 tick 背靠背发出——
  * 若在 netty 线程读手持（旧实现），必读到<b>旧槽物品</b>，偶发错块（实机日志 [Netty NIO IO #1]
  * 线程名实锤）。本实现的 netty 路径对玩家状态<b>零读取</b>（不读手持 / 权限 / 世界），该竞态类被
@@ -52,7 +52,7 @@ import verymc.top.veryMcProto.mod.servux.ServuxDebug;
  *
  * <p><b>写回命门（PacketEvents 语义）</b>：只要构造过 wrapper（读 cursor 必须构造），PacketEvents
  * 就会在事件结束后<b>重编码整个包</b>（{@code PacketEventsImplHelper.handleServerBoundPacket}：
- * clear buffer + 重写 packetId + wrapper.write()），而非字节透传。read/write 逐字段对称（26.1 线的
+ * clear buffer + 重写 packetId + wrapper.write()），而非字节透传。read/write 逐字段对称（26.1 线核对、2.14.0 复核同字段集的
  * hand/pos/face/cursor/insideBlock/worldBorderHit/sequence 全保真），行为透明；但若未来升级
  * PacketEvents 出现 read/write 不对称，此处是活风险点。{@code event.getPlayer()} 仅取 UUID 作
  * pending key，不触玩家状态。

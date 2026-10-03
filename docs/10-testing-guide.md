@@ -87,7 +87,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
   完整分类见 `mod/servux/ServuxDebug.java` 的 `Cat` 枚举（10 值）：`lifecycle / handshake / network / packet / tick / permission / provider / config / easyplace / schematic`。
 - **持久化**：编辑 `run/plugins/VeryMcProto/servux.json`，设 `servux_main.debug_log: true`，重启。
 
-> 开启后日志形如：`[DBG/HANDSHAKE] litematic sendMetadata → Steve ok=true servux=servux-fabric-26.1.2-b5 ver=2`（MOD_TYPE=fabric 伪装 + 精确补丁版本——26.1 客户端硬门禁要求，见 docs/09 §26.1.2；litematics 协议版本 2）。
+> 开启后日志形如：`[DBG/HANDSHAKE] litematic sendMetadata → Steve ok=true servux=servux-fabric-26.2-b1 ver=2`（MOD_TYPE=fabric 伪装 + 精确上游 id——26.2 客户端硬门禁要求，见 docs/09 §26.1.2；litematics 协议版本 2）。
 
 ### 3.2 服务端：确认权限（当前默认全员可用）
 
@@ -151,8 +151,8 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 **预期（成功判据）—— 三处任一可见即通过**：
 
 - ✅ 服务端日志：`[DBG/PACKET] C2S litematics ← <玩家> type=PACKET_C2S_METADATA_REQUEST`
-- ✅ 服务端日志：`[DBG/HANDSHAKE] litematic sendMetadata → <玩家> ok=true servux=servux-fabric-26.1.2-b5 ver=2`
-- ✅ 客户端日志（`.minecraft/logs/latest.log`）：`LitematicDataChannel: joining Servux version servux-fabric-26.1.2-b5`
+- ✅ 服务端日志：`[DBG/HANDSHAKE] litematic sendMetadata → <玩家> ok=true servux=servux-fabric-26.2-b1 ver=2`
+- ✅ 客户端日志（`.minecraft/logs/latest.log`）：`LitematicDataChannel: joining Servux version servux-fabric-26.2-b1`
 
 **若失败**：服务端只有 C2S 没有 `ok=true` 的 S2C → 握手回程丢包，查 §7 排错。
 
@@ -219,7 +219,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 > 对应「Servux 与上游不一致八项修复」：A 查自己 NBT 保留背包 / B BE 不存在不回复 /
 > C bulk 四处 / D 粘贴实体撞车重排 + deduplicate setting / E Structures 分批 /
-> F 命令语义与权限树 / G 帧冗余键 / H worldSeed 过滤（保留我方行为）。需 Fabric 26.1 客户端实机。
+> F 命令语义与权限树 / G 帧冗余键 / H worldSeed 过滤（保留我方行为）。需 Fabric 26.2 客户端实机。
 
 | # | 测试步骤 | 预期 |
 |---|---|---|
@@ -227,7 +227,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 | B | 用客户端查询一个**不存在的方块实体**（已挖掉的箱子位置等） | 服务端不回帧（debug 日志无 encode 记录）；客户端短暂等待后按自身重试机制处理，**不出现空数据覆盖** |
 | C | ①开 `player_task_feedback`：`/servux set litematic_data:player_task_feedback true` + `/servux save`；②litematica 保存投影触发 bulk 请求 | ①默认 false 时无 chunk-not-loaded/acknowledge 聊天刷屏；开启后 bulk 完成出现上游原文 acknowledge（`Servux: Bulk NBT Data from world ...`）；②自定义高度维度（如模组维度）切片范围正确 |
 | D | 同一投影**连续粘贴两次**（默认 `deduplicate_schematic_entities=false`）→ 再 `/servux set litematic_data:deduplicate_schematic_entities true` + save 后粘贴第三次 | 前两次实体全部出现且 UUID 互不相同（撞车重排）；第三次开启去重后重复实体不再出现（原版 UUID 唯一性拒绝） |
-| E | （机制层，26.1 客户端无可观测差异）minihud 开 structures 后进服 | 结构框正常显示（分批路径与单帧路径行为一致；register 日志可见 max_receive_s2c 默认 16MB） |
+| E | （机制层，26.1→26.2 客户端均无可观测差异）minihud 开 structures 后进服 | 结构框正常显示（分批路径与单帧路径行为一致；register 日志可见 max_receive_s2c 默认 16MB） |
 | F | `/servux list`、`/servux set` + `/servux save`、以非 op 账号测子命令权限 | list 列全部 settings 现值（值 <10 字符才内联显示）；set 后未 save 时重启+crash 场景不持久；各子命令权限独立生效（旧 `servux.command` 授权自动继承新树） |
 | G | minihud HUD 开启，观察 spawn/weather 数据 | 功能不回归（删的 id/servux/version 键客户端本就不读） |
 | H | 无 seed 权限玩家查询 HUD metadata（`share_seed=true` 时） | metadata 帧**不含** worldSeed 键（我方发过滤副本——有意偏离，上游发原件属其自身 bug，见 docs/03 §1.2 声明） |

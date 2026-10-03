@@ -59,7 +59,7 @@ public final class VeryMcProto extends JavaPlugin
                 Reference.logger().severe("[" + Reference.PLUGIN_NAME + "] 注册 servux 模块失败: " + ex.getMessage());
             }
 
-            // 注册协议 mod 模块（第二个：JEI —— mezz/JustEnoughItems 26.1 完整服务端协议：配方同步 + jei:* 通道交互）
+            // 注册协议 mod 模块（第二个：JEI —— mezz/JustEnoughItems 26.2 完整服务端协议：配方同步 + jei:* 通道交互）
             try
             {
                 verymc.top.veryMcProto.mod.jei.app.JeiModule.enable(this);
