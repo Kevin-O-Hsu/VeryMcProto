@@ -36,9 +36,11 @@ import verymc.top.veryMcProto.mod.servux.dataproviders.ConfigProvider;
  * 偏移里，服务端用本类从 {@code protocolValue} 解码出最终 BlockState。
  *
  * <p><b>无 Mixin 依赖</b>：原版用两个 Mixin（{@code MixinBlockItem_EasyPlace} 拦截 {@code getPlacementState}、
- * {@code MixinServerPlayNetworkHandler_EasyPlace} 把 hitVec 距离检查短路）接入。Paper 无 Mixin，本移植改用
- * PacketEvents 拦截原版 {@code use_item_on}（= {@code PLAYER_BLOCK_PLACEMENT}）包后手动调用本类 + 手动复刻
- * {@code BlockItem.place} 副作用。详见 {@code EasyPlaceListener}。
+ * {@code MixinServerGamePacketListenerImpl_easyPlace} 把 hitVec 距离检查短路）接入。Paper 无 Mixin，本移植改用
+ * 「改写放行」双挂点：netty 侧 PacketEvents 改写 hitVec 过 vanilla 逐轴校验（零取消、零玩家态读取），
+ * 主线程 {@code BlockCanBuildEvent} 写入前否决（拒绝 = vanilla place 在 placeBlock 前整次 FAIL，
+ * 与上游 {@code setReturnValue(null)} 同位同效）+ {@code BlockPlaceEvent} 纯修正写入。详见
+ * {@code EasyPlaceListener} / {@code EasyPlaceFixListener}。
  *
  * <p><b>适配</b>：{@code ServuxConfigProvider.INSTANCE} → {@link ConfigProvider#INSTANCE}；
  * {@code Servux.LOGGER.warn(msg, e)} → {@link Reference#logger()} 的 JUL（打完整堆栈）。算法逻辑零改动。
@@ -243,10 +245,18 @@ public class PlacementHandler
         {
             if (state.getBlock() instanceof BedBlock)
             {
+                // 本地分支（勿随上游模板回退）：上游传 NMS BlockPlaceContext 查床头可替换性
+                // （canBeReplaced(ctx) = replaceable && 非手持同物品 && (isDestroyable || instabuild)）；
+                // Paper 无 Mixin 取不到该 context（UseContext.itemPlacementContext 恒 null），而 26.2
+                // vanilla 基类实现无条件解引用 context → 原样照抄必 NPE（床头可替换的常见路径即触发，
+                // 异常穿透 EventHandler 使床朝向修正链路整体失效）。改为无参 canBeReplaced()：
+                // canBuild 时点修正朝向的床头位恒未被本次 vanilla 放置触碰（vanilla 只写事件位与
+                // vanilla 朝向床头，Direction.relative 单射），当前态 == 放置前态，判定等价上游。
+                // 与带参版差异两枝：手持物品==床头位方块 asItem 时上游拒绝/我方放行（更宽）；
+                // Paper isDestroyable 枝（replaceable 且不可毁的组合现实中≈空集）。
                 BlockPos headPos = context.pos().relative(facing);
-                BlockPlaceContext ctx = context.itemPlacementContext();
 
-                if (context.world().getBlockState(headPos).canBeReplaced(ctx) == false)
+                if (context.world().getBlockState(headPos).canBeReplaced() == false)
                 {
                     return null;
                 }

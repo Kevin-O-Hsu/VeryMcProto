@@ -134,7 +134,7 @@ verymc.top.veryMcProto/
 
 | 功能 | 原版实现 | Paper 处置 | 影响 |
 |---|---|---|---|
-| **EasyPlace**（Tweakeroo 精确放置） | Mixin BlockItem/NetworkHandler | ✅ 已实现（「改写放行」：PacketEvents `EasyPlaceListener` 改写 cursor 放行 + `EasyPlaceFixListener` 在 BlockPlaceEvent 修正） | 需服务器装 packetevents 插件；门等 `DoubleBlockHalf` 双半格下半修正 + `setPlacedBy` 上半派生两半一致；床不修正（编码朝向≠vanilla 时两半错位，已知差异） |
+| **EasyPlace**（Tweakeroo 精确放置） | Mixin BlockItem/NetworkHandler | ✅ 已实现（「改写放行」双挂点：PacketEvents `EasyPlaceListener` 改写 cursor 放行 + `EasyPlaceFixListener` 在 `BlockCanBuildEvent`（写入前，fire 于 `BlockItem.canPlace` 体内）否决/暂存 + `BlockPlaceEvent` 纯修正写入；拒绝 = vanilla place 在 placeBlock 前整次 FAIL，与上游 `setReturnValue(null)` 同位同效、零残差） | 需服务器装 packetevents 插件；门等 `DoubleBlockHalf` 双半格下半修正 + `setPlacedBy` 上半派生两半一致；床编码朝向≠vanilla 时两半错位（床头检查 NPE 修复后从不可达变为现实的已知差异）；修正态 canSurvive + 实体碰撞补查不受 `easy_place_validator_enabled` 门控（validator 关闭时我方比上游严——上游 OFF 连基座检查都旁路）；vanilla 基座检查失败时保守不动不 override；canBuild→place 间隙病态扰动 → place 侧 canSurvive 复查失败降级保留 vanilla 态；`EasyPlacePending` TTL 1s 内 stale 条目理论上可命中同位手动放置（罕见、自愈、有界）；物品 BLOCK_STATE 组件（pick-block）改写的最终态会被修正覆盖（极边缘） |
 | **UpdateSuppression** | Mixin Level/WorldChunk | 省略 | 协议非必需 |
 | **潜影盒可堆叠** | Mixin ItemStack/Hopper | ⛔ 不可能实现（已删代码） | 改 NMS 全局方法行为，Paper 无等价；不下发元数据避免客户端误判 |
 | **Allay 收集修复** | Mixin Mob/ItemEntity/Allay | 省略 | 影响小 |
