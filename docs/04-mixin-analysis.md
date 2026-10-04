@@ -63,7 +63,7 @@
 
 > **EasyPlace 迁移**：✅ **已实现**（`EasyPlaceListener` + `EasyPlaceFixListener`，「改写放行」范式）。PacketEvents 在 netty 线程拦截 `use_item_on`：编码包（pv≥0）不取消、不读任何玩家状态，仅把 `cursor.x` 改写回 `relX∈[0,1)`（过 vanilla 逐轴 hitVec 校验，等效上游 NetworkHandler Mixin）+ 登记 pv 到 `EasyPlacePending`（TTL 1000ms）；vanilla 主线程全流程完成放置（手持/检查/BE/消耗/ack 全原生，**消除 netty 读手持的换手 desync 竞态**），`EasyPlaceFixListener` 在 `BlockPlaceEvent`（HIGHEST）内以 vanilla 落块状态为基座跑 `applyPlacementProtocolV3` 修正属性。详见 [07](07-migration-architecture.md) §降级矩阵。
 >
-> **与上游的有意差异**：① 床/门双半格走 `BlockMultiPlaceEvent` 不被修正（安全降级，vanilla 朝向）；② `itemPlacementContext` 恒 null（仅影响床头检查分支）；③ 恢复 vanilla 距离/可达/spawn 保护检查（原「取消包」实现属越权绕过，上游同样受检）；④ 保护插件重新可见 EasyPlace 放置的 `BlockPlaceEvent`（原为盲区）。
+> **与上游的有意差异**：① 双半格方块：`BlockMultiPlaceEvent` extends `BlockPlaceEvent` 且无自有 HandlerList，经父类派发 `EasyPlaceFixListener` **实收**（旧注「不注册故不修正」为派发误判）——门族/垂滴叶族（`DoubleBlockHalf`）下半修正后以修正态重演 `setPlacedBy` 派生上半（两半构造性一致，不依赖受 BlockPhysicsEvent 取消门控的 updateShape 邻居自愈）；床（`BedPart`）不修正——编码朝向==vanilla 无修正、≠vanilla 且目标头位被占则拒绝保留 vanilla 床、≠vanilla 且头位可替换时仅 FOOT 修正而床头留 vanilla 相对位（两半错位已知差异，上游为写入前整体改向、头随脚走）；② `itemPlacementContext` 恒 null（仅影响床头检查分支）；③ 恢复 vanilla 距离/可达/spawn 保护检查（原「取消包」实现属越权绕过，上游同样受检）；④ 保护插件重新可见 EasyPlace 放置的 `BlockPlaceEvent`（原为盲区）。
 >
 > **潜影盒堆叠——不可能实现**：`MixinItemStack` 改 `ItemStack.getMaxStackSize()` 全局返回值（空潜影盒返回 64），`MixinHopperBlockEntity` 配套改漏斗三方法（`inventoryFull`/`isFullContainer`/`canMergeItems`）。这是改 NMS 核心方法的全局行为，Paper 无 Mixin 运行时无任何 API 等价：反射改不了方法返回值；Bukkit 事件在服务端 `maxStackSize=1` 前提下无法模拟合并（`count < maxStackSize` 恒失败）；设 `MAX_STACK_SIZE` 组件是 per-item 且污染序列化。**已从 `TweaksDataProvider` 删除全部相关遗留代码（setting / 元数据下发 / 死方法），不下发 `stackingShulkers` 元数据**——否则客户端 tweakeroo 据 `EntityDataManager.checkTweaksConfigs` 自动开堆叠渲染而服务端不配合 → 不一致。
 
