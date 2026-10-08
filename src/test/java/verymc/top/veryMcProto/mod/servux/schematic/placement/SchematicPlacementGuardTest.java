@@ -4,6 +4,8 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.IntArrayTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.LongArrayTag;
 import net.minecraft.nbt.StringTag;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -14,6 +16,7 @@ import verymc.top.veryMcProto.mod.servux.schematic.LitematicaSchematic;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -133,5 +136,63 @@ class SchematicPlacementGuardTest
 
         // 全坏 → 空 map（下游 updateEnclosingBox 不设框、粘贴 region 循环空转——上游同语义，无 NPE 路径）
         assertTrue(placement.getAllSubRegionsPlacements().isEmpty());
+    }
+
+    /**
+     * 体积一致性预检（schematic Regions 数据层守卫，2026-10 安全修复锁定测试）：
+     * 声明体积必须被 BlockStates 实际容量背书——虚假大体积直达粘贴层是 PasteTask 巨量格位 CPU DoS
+     * 与执行期 onResize 全量重分配的入口，必须整体拒绝（抛 CommandSyntaxException，与 readFromNBT
+     * 的 version 错误同构；上游无此检查——上游是客户端 GUI 语境靠 catch(OutOfMemoryError) 兜底，
+     * 网络入口形态不同构）。
+     *
+     * <p>两个条件各锁一例：①体积超容量——Size=[1e6,1,1]（volume=1e6）配 BlockStates long[1]
+     * （capacityBits/bits = 64/2 = 32）→ 1e6 > 32 拒绝；②long 回绕守卫——Size=[MAX_VALUE]³
+     * 三乘积 mod 2^64 = 2^63+2^32-1（最高位置位，负 long）→ {@code totalVolume < 0} 拒绝。
+     * （注意 [2^30]³ 会回绕为 0——2^90 是 2^64 的整数倍——两条件都不命中，勿用作负回绕用例。）
+     *
+     * <p>注意 schematic 层的 Position/Size 是 {x,y,z} Compound 形态（readBlockPos 消费），
+     * 与 placement SubRegions 层的 Pos int[3] 形态不同。
+     */
+    @Test
+    void oversizedRegionRejectedByVolumeConsistencyGuard()
+    {
+        assertThrows(CommandSyntaxException.class, () -> new LitematicaSchematic(schematicsWithEvilRegion(1_000_000, 1, 1)),
+                "声明体积（1e6）远超 BlockStates 容量背书（32）必须被一致性预检整体拒绝");
+
+        assertThrows(CommandSyntaxException.class, () -> new LitematicaSchematic(
+                        schematicsWithEvilRegion(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE)),
+                "Size 各轴 MAX_VALUE 的三乘积按 2^64 回绕为负 long，必须被 totalVolume<0 守卫拒绝");
+    }
+
+    /** 构造含单个恶意 region 的 Schematics 桩（palette 仅 air → bits=2；BlockStates 仅 1 long → 容量 32 格）。 */
+    private static CompoundTag schematicsWithEvilRegion(int sx, int sy, int sz)
+    {
+        CompoundTag region = new CompoundTag();
+        region.put("Position", blockPosTag(0, 0, 0));
+        region.put("Size", blockPosTag(sx, sy, sz));
+
+        ListTag palette = new ListTag();
+        CompoundTag air = new CompoundTag();
+        air.putString("Name", "minecraft:air");
+        palette.add(air);
+        region.put("BlockStatePalette", palette);
+        region.put("BlockStates", new LongArrayTag(new long[1]));
+
+        CompoundTag regions = new CompoundTag();
+        regions.put("evil", region);
+
+        CompoundTag schematics = schematicStub();
+        schematics.put("Regions", regions);
+        return schematics;
+    }
+
+    /** schematic 层 Position/Size 的 {x,y,z} Compound 形态。 */
+    private static CompoundTag blockPosTag(int x, int y, int z)
+    {
+        CompoundTag tag = new CompoundTag();
+        tag.putInt("x", x);
+        tag.putInt("y", y);
+        tag.putInt("z", z);
+        return tag;
     }
 }

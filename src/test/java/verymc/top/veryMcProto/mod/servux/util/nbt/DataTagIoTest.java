@@ -236,6 +236,56 @@ class DataTagIoTest
                 "NbtIo.write(空根名) 必须与 malilib writeToNbtStream 逐字节一致（DataTagIo 的等价性根基）");
     }
 
+    /**
+     * 长度字段炸弹（NbtAccounter 配额闸锁定）：gzip 的流内只声明 {@code long[2^30]}（8GB 分配）而无数据——
+     * 旧实现（NbtIo.read 单参 = unlimitedHeap）会先分配后读、直接 OOM；流式 accounter 必须<b>先记账后分配</b>，
+     * 超过 64MB 解压域配额抛 NbtAccounterException → 按坏包契约返回 null。
+     * 字节布局：0A=TAG_COMPOUND 根 / 0000=根名"" / 0C=TAG_Long_Array / 0000=条目名"" / 40000000=int32 长度 2^30。
+     */
+    @Test
+    void gzipBombRejectedByAccounter() throws Exception
+    {
+        byte[] bomb = { 0x0A, 0x00, 0x00, 0x0C, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00 };
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+        byte[] gz = gzip(bomb);
+        buf.writeInt(gz.length);
+        buf.writeBytes(gz);
+
+        assertNull(DataTagIo.readTag(buf), "长度字段炸弹（声明 8GB long[]）必须被 64MB 配额闸拦截为 null，不得触发分配");
+    }
+
+    /**
+     * 截断 gzip（deflate 体为零字节，仅 10 字节 GZIP header）→ peek 首字节触发 inflate 即 EOF——
+     * 解压期失败必须维持旧语义「空 tag」（对齐 gunzipOrRaw 时代 :87-90 路径），而非坏包 null。
+     */
+    @Test
+    void truncatedGzipYieldsEmptyTag() throws Exception
+    {
+        byte[] gz = gzip(GOLDEN_FOO1);
+        byte[] headerOnly = java.util.Arrays.copyOf(gz, 10);   // 恰好 10 字节 GZIP header，deflate 为空
+
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+        buf.writeInt(headerOnly.length);
+        buf.writeBytes(headerOnly);
+
+        CompoundTag tag = DataTagIo.readTag(buf);
+        assertNotNull(tag, "截断 gzip（解压期 EOF）应容错为空 compound，而非 null");
+        assertTrue(tag.isEmpty());
+    }
+
+    /** 裸流 1 字节 payload（GZIP 魔数都读不齐 → ctor 抛 EOFException）→ 空 tag（对齐旧 gunzipOrRaw 失败路径）。 */
+    @Test
+    void bareEmptyDataYieldsEmptyTag()
+    {
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+        buf.writeInt(1);
+        buf.writeByte(0x0A);
+
+        CompoundTag tag = DataTagIo.readTag(buf);
+        assertNotNull(tag, "过短 payload（解压期 EOF）应容错为空 compound，而非 null");
+        assertTrue(tag.isEmpty());
+    }
+
     private static byte[] gzip(byte[] data) throws Exception
     {
         ByteArrayOutputStream out = new ByteArrayOutputStream();

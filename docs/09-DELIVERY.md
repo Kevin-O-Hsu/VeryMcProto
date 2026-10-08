@@ -149,9 +149,12 @@ verymc.top.veryMcProto/
 - **反射防御**：`Reflect.getOr(obj, field, default)` 失败返回默认值（TPS 的 `remainingSprintTicks` 漂移返回 0，NbtView 的 `output` 失败返回 null）。
 - **并发安全**：`PacketSplitter.READING_SESSIONS` 用 `ConcurrentHashMap` + `ReadingSession.receive` 加 `synchronized`；坏包立即丢弃 session。
 - **大包保护**：`ProtocolChannel.send` 拒绝超 `Messenger.MAX_MESSAGE_SIZE` 的包（应走 PacketSplitter；真正 S2C 瓶颈是客户端 32767 字节上限）；PacketSplitter `receive` 校验 `maxLength`；`send` 入口 16MB 重组上限预检（见 [02](02-network-protocol.md) §5）。
+- **C2S 解析双闸（2026-10 安全修复）**：`DataTagIo.readTag` GZIP 流式直读 + `NbtAccounter.create(64MB)`——解压域逐结构计数、**先记账后分配**（`LongArrayTag.readAccounted` 字节码实证 accountBytes 先于 newarray），单闸同时拦截 gzip bomb（解压膨胀）与长度字段炸弹（≤64MB 流内声明 `long[2^31-1]` 驱动 16GB 分配）；超配额 `NbtAccounterException` → warn + null 坏包丢弃。上游 malilib `SizeTracker` 同语义（解压流上逐字节计数、超 64MB 抛异常断读），上游 servux `NbtUtils` 即流式 `NbtIo.read(gzip, tracker)` 写法——**勿回退为整体解压进内存再解析**（多两次数据搬运且漏掉全部配额，旧实现即此形态）。异常三分语义（空 tag = peek 0x00 / 解压期 EOF；null = 超配额 / 解析失败；ZipException → 裸读回落）由 `DataTagIoTest` 13 用例锁定。
+- **投影体积一致性预检（2026-10 安全修复）**：`readSubRegionsFromNBT` 每 region 在 `createFrom` 前校验声明体积 ≤ BlockStates 实际容量（floor 除法 + `totalVolume<0` 回绕守卫），拒绝"声明 20000³ 只给 1 个 long"的脱钩坏包——虚假大体积直达粘贴层是 `PasteTask` 巨量格位 CPU DoS 与 `onResize` 全量重分配 OOM 的入口；上游 `catch(OutOfMemoryError)` 是客户端读本地文件的承重防御，网络入口照抄属死防御**勿搬运**（详见 [05](05-schematic-system.md) §1.5）。
 - **客户端未装 mod**：`getListeningPluginChannels` 检测 + MAX_FAILURES 计数 → invalid，不刷屏。
 - **配置原子写**：`JsonUtils.writeJsonToFileAsPath` 用 `.tmp` + move 原子写。
 - **RegistryAccess 时机**：必须在 `ServerLoadEvent(STARTED)` 后捕获（否则 Recipe/NbtView/palette 拿空注册表）。
+- **已知残留面（2026-10 登记，独立工单）**：`SyncmaticaUtil.readNbtFromFile:203` 的 `NbtIo.readCompressed(..., NbtAccounter.unlimitedHeap())`——输入为客户端上传落盘的 `.litematic`（启动 `correctMetadataFromPeek` / op 命令触发 peek），理论 gzip bomb 面（不达 `LitematicaSchematic`，仅 metadata peek）；宜换 `FILE_MAX_BYTES`（512MB）式配额。
 
 ---
 

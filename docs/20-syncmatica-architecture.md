@@ -179,7 +179,7 @@ VeryMcProto.onDisable
 - `getFeatureSet()`：懒加载 `Arrays.asList(Feature.values())`——声明全集，配合 `MOD_VERSION`=插件版本（`26.2-b1` 式，带 `-b` 后缀永不命中版本正则，更不会落入 `"0.1.x"` 兼容分支）触发 FEATURE 交换，使双方用全集编码（MODIFY/DISPLAY_NAME/CORE_EX/VERSION 全开）。
 - `checkPartnerVersion(version)`：**仅拒绝 `"0.0.1"`**，其余全放行——版本兼容性实际靠 FeatureSet 协商。
 - `loadConfiguration()` / `saveConfiguration()`：读/写 `syncmatica-config.json`，按 service 的 `configKey`（`quota` / `debug`）分段装配；额外保存 `SyncmaticaDebug` 状态到顶层 `"debugLog"` 子对象。
-- `suspendProtocol()` / `resumeProtocol()`：软禁用——`suspendAll()` 关闭进行中 exchange + 清空 `broadcastTargets`，但**通道仍注册**（避免 Paper 踢人）；`resumeProtocol()` 仅翻标志，在线玩家重握手由 `SyncmaticaModule.reconnectOnlinePlayers` 负责。
+- `suspendProtocol()` / `resumeProtocol()`：软禁用——`suspendAll()` 关闭**全部在线玩家**（`targets.values()` 全集，含握手中途玩家）的进行中 exchange 并逐个显式移出其 target 的 exchange 列表 + 清空 `broadcastTargets`，但**通道仍注册**（避免 Paper 踢人）；`resumeProtocol()` 仅翻标志，在线玩家重握手由 `SyncmaticaModule.reconnectOnlinePlayers` 负责。🔧 **2026-10 修复（勿随模板回退）**：旧实现只遍历 `broadcastTargets` 子集且 close 后不移除——disable 瞬间握手中的玩家（`VersionHandshakeServer` 成功后才入集）被漏扫、exchange 以未 finished 残留列表，enable 后 `tryStartHandshake` 的 `instanceof VHS` 检查（不辨死活）永久跳过重握手 → 该玩家 syncmatica 卡死直到重进服；现为 targets 全集遍历 + `close(false)` 后显式 `getExchanges().remove(ex)`（刻意不走 `notifyClose`——保留不触发 `handleExchange` 副作用的静默语义）。
 
 **Paper 适配**：去掉原版 `Reference.isClient()/isIntegratedServer()/isOpenToLan()` 分支（恒 dedicated server）；`FileStorage` 与 `IService` 不再 `setContext`，改用函数式注入（`setDownloadStateProvider`）解耦。
 

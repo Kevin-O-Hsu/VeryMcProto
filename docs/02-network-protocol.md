@@ -153,6 +153,8 @@ public static final int MAX_REASSEMBLY_SIZE_S2C = 16_777_216;       // 客户端
 
 > **send 入口 16MB 门禁**（26.1→26.2 客户端重组上限预检）：被检量 = DataTag 帧化后 buffer 的 `writerIndex()`（= 4 + GZIP 压缩长 = 首包 VarInt 下发、客户端 `expectedSize` 读取的同一个数，三方同源）；超限（严格 `>`，恰好相等放行）在分片循环前**整帧拒发**（零分片发出——超限帧发出去会被客户端销毁重组 session 并抛异常，后续分片还会以垃圾 expectedSize 重建残留会话污染下一帧）+ warn 日志（log-and-drop，有意不限频：唯一重复源 Structures 周期重发上界 ≈ 每名已注册玩家 12 条/分钟，随数据缩量自停）。覆盖全部 S2C 分片大帧：HUD RecipeManager 全量帧、Litematics BulkEntityReply、Structures 全量帧三活跃点 + Entities/Tweaks 两死分支。**上游 servux 26.1 无此预检——我方增强，勿随上游模板回退**。曾并存的文件字节级门禁（`LitematicaSchematic.MAX_TRANSMIT_FILE_SIZE`）随 S2C 投递死信链删除（2026-09，26.1 客户端无接收端）——本门禁是现存唯一 16MB 服务端预检，覆盖全部 S2C 分片帧。历史两级裁分论述见 [09](09-DELIVERY.md) §26.1。
 
+> **readTag 接收侧配额闸（2026-10 安全修复）**：上述 16MB 是**我方发送**方向的预检；**接收**方向（C2S）在同一 `DataTagIo` 内另有两道闸——①长度前缀闸（`readTag` :77，压缩字节 ≤64MB）；②**解压域 NbtAccounter 闸**（`NbtIo.read(dis, NbtAccounter.create(NETWORK_MAX_BYTES))`，GZIP 流式直读不物化中间 byte[]）：对解压后 NBT 流逐结构计数、**先记账后分配**——gzip bomb（解压膨胀 ~1032×）与长度字段炸弹（小流内声明巨数组驱动 16GB 分配）在同一道闸被拦截，超配额按坏包契约 warn + null 丢弃。与上游对齐：malilib `SizeTracker`（NETWORK_MAX_BYTES=64MB）即在解压流上逐字节计数、超限抛异常断读；上游 servux `NbtUtils` 即 `NbtIo.read(gzip 流, tracker)` 流式写法。**两层关系**：64MB 前缀闸限**压缩字节**（帧长），accounter 闸限**解压后语义字节**（内容），正交覆盖；与 16MB 重组闸（S2C 发送方向）互不重叠。异常三分语义与锁定单测见 [09](09-DELIVERY.md) §7。
+
 > ⚠️ **字节限制教义（26.1→26.2 零变化真值）**：Bukkit `Messenger.MAX_MESSAGE_SIZE` = 1048576（~1MiB，1.21.x 起——旧文档称 32768 已过时）；**真正的 S2C 瓶颈是原版客户端对 `ClientboundCustomPayload`（未知通道 discarded 解码）的 32767 字节解码上限**。详见 [07](07-migration-architecture.md) §2.2 与 [09](09-DELIVERY.md) §4。我方 S2C 分片常量 32000/31995 即为防御 32767。
 
 ### 5.3 发送逻辑（切片）

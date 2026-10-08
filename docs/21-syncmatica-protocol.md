@@ -148,6 +148,7 @@
 - `checkPartnerVersion(version)`（`SyncmaticaContext`）：**仅拒绝 `"0.0.1"`**（原版行为）。
 - `onFeatureSetReceive`（`VersionHandshakeServer.java:73-89`）：发 `CONFIRM_USER` = `writeInt(placementCount)` + 逐个 `putMetaData(p, buf, partner)` → `succeed()`。
 - 握手成功后客户端才算「已确认用户」，进入 `broadcastTargets`，此后服务端任何 placement 变更都会广播给它。
+- 🔧 **重握手收敛链（2026-10 disable→enable 卡死修复的协议侧依据）**：服务端向已握过手的客户端重发 `REGISTER_VERSION` **恒可收敛、无需客户端配合**——上游 `ClientCommunicationManager.handle` 对无人认领的 `REGISTER_VERSION` 自带重握手路径（`LitematicManager.clear()` + 新建 `VersionHandshakeClient` + `startExchange` + 立即喂包）；若旧 VHC 仍在场（FEATURE 轮中间态），其 `checkPacket` 无条件匹配 `REGISTER_VERSION`，`handle` 完全可重入（每次接收从头重跑版本/FEATURE 轮次，状态仅 `partnerVersion` 字符串、重入即覆写重驱）。协议 wire 无 exchange 身份字段（§1 单通道 `[Identifier][body]`），服务端重建的新 exchange 对客户端不可区分，重发即无害——这是 `/syncmatica enable` 后 `reconnectOnlinePlayers` 直接重发握手能收敛的根基（修复实录见 [22](22-syncmatica-mixin-migration.md) §3.1）。
 
 ---
 
