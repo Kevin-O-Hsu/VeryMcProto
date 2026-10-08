@@ -6,7 +6,7 @@ import net.minecraft.resources.Identifier;
  * 18 个逻辑消息类型（移植自 {@code ch.endte.syncmatica.network.PacketType}）。
  *
  * <p>syncmatica 用<b>单物理通道</b> {@code syncmatica:main}（C2S/S2C 共用），内部第一字段是逻辑通道 Identifier
- * （即本枚举的 {@link #identifier}），其后是 body。详见 docs/21-syncmatica-protocol.md §2。
+ * （即本枚举的 {@link #identifier}），其后是 body。详见 docs/syncmatica-protocol.md §2。
  *
  * <p>⚠️ <b>path 拼写陷阱（逐字照抄，勿改）</b>：
  * <ul>

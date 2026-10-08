@@ -31,7 +31,7 @@ import io.netty.buffer.Unpooled;
  *   <li>{@link #onPacket}：把包派发给该 target 的活跃 Exchange 链（{@link Exchange#checkPacket} 命中者），
  *       无人认领则走抽象 {@link #handle}（一次性请求）；</li>
  *   <li>{@link #putMetaData} / {@link #putPositionData} / {@link #receiveMetaData} / {@link #receivePositionData}：
- *       placement metadata 的 FriendlyByteBuf 编解码（Feature 条件字段，docs/21 §4）；</li>
+ *       placement metadata 的 FriendlyByteBuf 编解码（Feature 条件字段，docs/syncmatica-protocol.md §4）；</li>
  *   <li>exchange 生命周期调度（{@link #startExchange} / {@link #notifyClose}）；</li>
  *   <li>下载/修改状态表（{@code downloadState} / {@code modifyState}）。</li>
  * </ul>

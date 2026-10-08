@@ -16,7 +16,7 @@ import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaLog;
  * syncmatica 单通道 handler（Paper 新增，实现 {@link IPluginServerPlayHandler}）。
  *
  * <p>对应原版 {@code network/handler/ServerPlayHandler.receiveSyncPayload} + {@code IServerPlay} mixin 桥接。
- * 接收端解析 {@code [Identifier][body]} 复合包体（docs/21 §1.2 命门），派发给 {@link ServerCommunicationManager#onPacket}。
+ * 接收端解析 {@code [Identifier][body]} 复合包体（docs/syncmatica-protocol.md §1.2 命门），派发给 {@link ServerCommunicationManager#onPacket}。
  *
  * <p>不复用 {@code IServerPayloadData}（那是 Servux per-通道模型）；{@code encodeWithSplitter} 空实现
  *（syncmatica 文件分片走 exchange 自写 stop-and-wait，不用 {@code PacketSplitter}）。

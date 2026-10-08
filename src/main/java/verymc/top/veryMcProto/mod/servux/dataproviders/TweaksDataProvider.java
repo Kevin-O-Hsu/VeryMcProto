@@ -46,7 +46,7 @@ import verymc.top.veryMcProto.mod.servux.util.nbt.NbtView;
  * 反射改不了方法行为、Bukkit 事件模拟在 {@code maxStackSize=1} 前提下不成立、设 MAX_STACK_SIZE 组件
  * 是 per-item 且污染序列化——三条路均不通。故本 provider <b>不保留</b>原版的 {@code stackable_shulkers}
  * 系列 setting 与 {@code stackingShulkers} 元数据下发（避免客户端误以为服务端开了堆叠而与服务端不一致）。
- * 详见 {@code docs/04-mixin-analysis.md} §1 / §4。
+ * 详见 {@code docs/architecture.md} §5 Mixin 处置矩阵。
  */
 public class TweaksDataProvider extends DataProviderBase
 {

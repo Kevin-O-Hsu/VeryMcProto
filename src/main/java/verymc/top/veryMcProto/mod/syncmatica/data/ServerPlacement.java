@@ -30,7 +30,7 @@ import org.apache.commons.lang3.tuple.Pair;
  * <p><b>Paper 适配</b>：
  * <ul>
  *   <li>删除 {@code matList}（{@code SyncmaticaMaterialList}）字段与 getter/setter——原版死代码
- *       （无 exchange/协议/命令/持久化引用），见 docs/22 §9；</li>
+ *       （无 exchange/协议/命令/持久化引用），见 docs/syncmatica-architecture.md §10.7；</li>
  *   <li>{@code fromJson} 去掉 {@code Context} 参数，改接收 {@link PlayerIdentifierProvider}（解耦 Context）；
  *       原版 {@code context.isServer()} 分支的 peek 元数据修正抽到 {@link #correctMetadataFromPeek(Path)}，
  *       由 {@code SyncmaticManager.loadServer} 调用；</li>

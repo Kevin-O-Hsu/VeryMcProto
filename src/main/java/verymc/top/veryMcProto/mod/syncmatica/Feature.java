@@ -5,7 +5,7 @@ package verymc.top.veryMcProto.mod.syncmatica;
  *
  * <p>握手时双方交换 FeatureSet，决定 metadata / position 包编码哪些可选字段。
  * 其中 4 个直接影响协议字段编码：{@link #DISPLAY_NAME} / {@link #CORE_EX} / {@link #VERSION} / {@link #MODIFY}。
- * 详见 docs/21-syncmatica-protocol.md §3 / §4。
+ * 详见 docs/syncmatica-protocol.md §3 / §4。
  */
 public enum Feature
 {

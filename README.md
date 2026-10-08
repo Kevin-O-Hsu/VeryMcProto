@@ -55,9 +55,9 @@ This project uses **paperweight `userdev`** to reference fully-deobfuscated Moja
 
 **Syncmatica**: the server acts as a central `.litematic` repository; players upload / download / collaboratively modify placements through Exchange request-acknowledgement sessions, with JSON persistence and upload quotas.
 
-> 26.1 introduced hard client-side gates (protocol versions must match exactly; the `servux` handshake string must start with `servux-fabric-<exact upstream MC id>`), a new DataTag NBT wire carrier, and a 16MB client reassembly cap. All of this is implemented and documented in [`docs/09-DELIVERY.md`](docs/09-DELIVERY.md) §26.1.
+> 26.1 introduced hard client-side gates (protocol versions must match exactly; the `servux` handshake string must start with `servux-fabric-<exact upstream MC id>`), a new DataTag NBT wire carrier, and a 16MB client reassembly cap. All of this is implemented and documented in [`docs/servux-protocol.md`](docs/servux-protocol.md) §5 (version constraints).
 
-Protocol deep-dives: [docs/02](docs/02-network-protocol.md) (Servux network) · [docs/21](docs/21-syncmatica-protocol.md) (Syncmatica) · [docs/30](docs/30-jei-protocol.md) (JEI).
+Protocol deep-dives: [docs/servux-protocol.md](docs/servux-protocol.md) (Servux network) · [docs/syncmatica-protocol.md](docs/syncmatica-protocol.md) (Syncmatica) · [docs/jei.md](docs/jei.md) (JEI).
 
 ---
 
@@ -103,7 +103,7 @@ On startup the console shows:
 
 > **Defensive design**: the three mods are assembled each inside its own try-catch; any one failing only logs and degrades gracefully — **it never blocks server startup** and never affects the other mods.
 
-Commands (`/servux`, `/syncmatica`, `/jei`), permission nodes (incl. LuckPerms recipes), every config key of `servux.json` / `jei.json` / `syncmatica-config.json`, the on-disk data layout, and a troubleshooting table live in **[`docs/40-configuration.md`](docs/40-configuration.md)**.
+Commands (`/servux`, `/syncmatica`, `/jei`), permission nodes (incl. LuckPerms recipes), every config key of `servux.json` / `jei.json` / `syncmatica-config.json`, the on-disk data layout, and a troubleshooting table live in **[`docs/operations.md`](docs/operations.md)**.
 
 ---
 
@@ -128,7 +128,7 @@ verymc.top.veryMcProto
 
 **Assembly** (`VeryMcProto.onEnable`): initialize the framework → register `servux` → `jei` → `syncmatica` → register the three commands; every step is individually try-catch guarded.
 
-The full Fabric→Paper replacement map (lifecycle hooks → Bukkit events, `ServerPlayNetworking` → plugin messaging + NMS direct send, Mixin → reflection/PacketEvents/omission, etc.), the degradation matrix and the feasibility argument are in [`docs/07-migration-architecture.md`](docs/07-migration-architecture.md).
+The full Fabric→Paper replacement map (lifecycle hooks → Bukkit events, `ServerPlayNetworking` → plugin messaging + NMS direct send, Mixin → reflection/PacketEvents/omission, etc.), the degradation matrix and the feasibility argument are in [`docs/architecture.md`](docs/architecture.md).
 
 > **Maintainers & AI assistants**: read **[`AGENTS.md`](AGENTS.md)** first — it is the canonical repo guide (architecture, branch/version model, core design constraints, working conventions).
 >
@@ -138,7 +138,7 @@ The full Fabric→Paper replacement map (lifecycle hooks → Bukkit events, `Ser
 
 ## 6. Feature Matrix
 
-The original Servux has **26 Mixins + 2 AccessWideners**; Syncmatica has **5 server-side Mixins**. Paper has no Mixin runtime, so each is handled per the table below (full matrix: [docs/07](docs/07-migration-architecture.md) §4):
+The original Servux has **26 Mixins + 2 AccessWideners**; Syncmatica has **5 server-side Mixins**. Paper has no Mixin runtime, so each is handled per the table below (full matrix: [docs/architecture.md](docs/architecture.md) §5):
 
 | Feature | Handling | Status |
 | --- | --- | --- |
@@ -155,20 +155,19 @@ The original Servux has **26 Mixins + 2 AccessWideners**; Syncmatica has **5 ser
 
 ## 7. Docs & Guides
 
-**Start with [`docs/00-INDEX.md`](docs/00-INDEX.md)** — the full doc map and suggested reading order (Chinese). Quick pointers:
+**Start with [`docs/index.md`](docs/index.md)** — the full doc map and suggested reading order (Chinese). Quick pointers:
 
 | Doc | Content |
 | --- | --- |
 | [`AGENTS.md`](AGENTS.md) | **Canonical repo guide** — architecture, branch/version model, core constraints, conventions |
-| [`docs/02-network-protocol.md`](docs/02-network-protocol.md) ⭐ | Core network protocol: `CustomPacketPayload`, `PacketSplitter`, channels, byte layouts |
-| [`docs/07-migration-architecture.md`](docs/07-migration-architecture.md) ⭐ | Fabric→Paper architecture comparison, degradation matrix, feasibility |
-| [`docs/09-DELIVERY.md`](docs/09-DELIVERY.md) ⭐ | Delivery / byte limits + the authoritative 26.1/26.2 migration records (§26.1/§26.2) |
-| [`docs/40-configuration.md`](docs/40-configuration.md) | **Ops reference**: commands, permissions, config keys, data layout, troubleshooting |
-| [`docs/10`](docs/10-testing-guide.md) / [`docs/24`](docs/24-syncmatica-testing-guide.md) | Client compatibility testing (Servux / Syncmatica) |
-| [`docs/20–24`](docs/20-syncmatica-architecture.md) | Syncmatica implementation notes (architecture / protocol / migration / overview / testing) |
-| [`docs/30-jei-protocol.md`](docs/30-jei-protocol.md) ⭐ | Full JEI protocol |
+| [`docs/architecture.md`](docs/architecture.md) ⭐ | Global architecture: framework, network paths & byte limits, **Mixin→Paper matrix (canonical)**, Fabric↔Paper comparison, build toolchain |
+| [`docs/servux-protocol.md`](docs/servux-protocol.md) ⭐ | Core Servux network protocol: `CustomPacketPayload`, `PacketSplitter`, channels, byte layouts, version constraints |
+| [`docs/operations.md`](docs/operations.md) ⭐ | **Ops reference**: commands, permissions, config keys, data layout, troubleshooting + **MC version upgrade SOP** |
+| [`docs/servux-testing.md`](docs/servux-testing.md) / [`docs/syncmatica-testing.md`](docs/syncmatica-testing.md) | Client compatibility testing (Servux / Syncmatica) |
+| [`docs/syncmatica-architecture.md`](docs/syncmatica-architecture.md) + [`docs/syncmatica-protocol.md`](docs/syncmatica-protocol.md) | Syncmatica implementation notes (architecture / protocol) |
+| [`docs/jei.md`](docs/jei.md) ⭐ | Full JEI protocol |
 
-Building from source: `./gradlew build` (Mojang-mapped jar) · `./gradlew test` · `./gradlew runServer` — JDK 25 resolves automatically via the foojay toolchain plugin. Everything else a developer needs (NMS constraints, versioning & branch model, upgrade runbook) lives in [`AGENTS.md`](AGENTS.md).
+Building from source: `./gradlew build` (Mojang-mapped jar) · `./gradlew test` · `./gradlew runServer` — JDK 25 resolves automatically via the foojay toolchain plugin. Everything else a developer needs (NMS constraints, versioning & branch model) lives in [`AGENTS.md`](AGENTS.md); the MC upgrade runbook lives in [`docs/operations.md`](docs/operations.md) §6.
 
 ---
 
@@ -187,7 +186,7 @@ A: ⛔ No. The former alters a global NMS method (no Mixin / no equivalent on Pa
 A: EasyPlace is skipped automatically (`EasyPlaceBootstrap` reflective load + `catch(Throwable)` fallback); all other Servux channels, JEI, and Syncmatica are completely unaffected.
 
 **Q: What's the difference between `permission_level` 2 and 3?**
-A: Under pure Bukkit op there is **no difference** (both go through the `isOp()` binary). To differentiate levels, use LuckPerms to explicitly grant the corresponding permission node (see [docs/40](docs/40-configuration.md) §2).
+A: Under pure Bukkit op there is **no difference** (both go through the `isOp()` binary). To differentiate levels, use LuckPerms to explicitly grant the corresponding permission node (see [docs/operations.md](docs/operations.md) §2).
 
 **Q: What does pasting a schematic require?**
 A: The player needs creative mode + the `servux.provider.litematic_data.paste` permission (governed by `litematic_data:permission_level_paste`, default 0 = everyone).

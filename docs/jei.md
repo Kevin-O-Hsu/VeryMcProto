@@ -1,8 +1,10 @@
-# 30 · JEI 完整协议（Paper 服务端实现）
+# JEI 完整协议（Paper 服务端实现）
 
 > **上游权威**：mezz/JustEnoughItems 分支 `26.2`（JEI 30.39.0 / MC 26.2 / Java 25，本地对照 `OriginImpl/JustEnoughItems-26.2/`，commit `f320348`）。2026-09 起正式更换上游（原 Mrbysco/JEIRecipeBridge 已停更且只做过 1.21.11 的配方同步切面）；**此后 JEI 侧更新一律以最上游为准**。1.21.11 旧线（ver/1.21.11*）仍用原 JEI Recipe Bridge 实现——jei 模块跨线 cherry-pick 禁止，一律手工重写。
 >
 > 配方同步层的 wire 真权威是 **Fabric API** `fabric-recipe-api-v1`（github FabricMC/fabric 分支 26.2）；NeoForge 层是 NeoForge 加载器（wire 参考 `OriginImpl/JEIRecipeBridge-26.1/`）。
+>
+> 相关阅读：[architecture.md](architecture.md)（字节上限裸值 §3.4 / Mixin 处置 §5）、[operations.md](operations.md)（命令/权限/配置）、[index.md](index.md)、根 [../AGENTS.md](../AGENTS.md)。
 
 ## 0. 协议全景（三层）
 
@@ -120,7 +122,7 @@ recipes:    VarInt(count) + RecipeHolder.STREAM_CODEC 列表
 
 触发 = `PlayerJoinEvent` + brand=="neoforge"（**保留旧行为**——NeoForge 客户端连 Paper 服处于 vanilla 模式，其通道声明行为不可依赖；此路径已在 1.21.11/26.1 实机验证）。聊天提示仅此路径保留。
 
-## 6. 尺寸模型（与 docs/09 的 32767 表述勘误协调）
+## 6. 尺寸模型（字节上限真值见 [architecture.md](architecture.md) §3.4）
 
 - **32767** = 客户端对**未知通道** custom payload 的 discarded 解码上限（超过断连）——对发给 vanilla/未装 mod 客户端的任意通道成立，servux 的 PacketSplitter 32000 分片防的就是它。
 - **已知通道不受此限**：Fabric API 把 `fabric:recipe_sync` 注册为 64MB large payload（客户端 codec + mixin 提限）。我方单包直发给 Fabric API 客户端安全（26.1.2 实机验证，配方表全量 >1MiB 场景）。
@@ -180,3 +182,7 @@ command/JeiCommand     /jei status|enable|disable
 | 客户端门禁 | `Fabric/.../fabric/network/ConnectionToServer.java`（isJeiOnServer/isSameModLoader）+ `Library/.../library/startup/JeiStarter.java`（verifyClientRecipes） |
 | fabric:recipe_sync wire | FabricMC/fabric 分支 26.2 `fabric-recipe-api-v1/.../impl/recipe/sync/*`（ClientboundRecipeSyncPayload / RecipeSyncImpl） |
 | 进服时序不变量 | FabricMC/fabric 分支 26.2 `fabric-lifecycle-events-v1/.../mixin/event/lifecycle/PlayerListMixin.java`（`@At("NEW", target=...UpdateRecipesPacket)`）+ `fabric-networking-api-v1/.../client/ClientPlayNetworkAddon.java`（onServerReady 注释：收到 LoginPacket 前不可能发包） |
+
+---
+
+> **回到索引**：[index.md](index.md) · 项目权威说明：[../AGENTS.md](../AGENTS.md)

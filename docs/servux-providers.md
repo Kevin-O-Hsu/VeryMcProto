@@ -1,8 +1,9 @@
-# 03 · 五个 DataProvider 协议数据内容与数据采集
+# Servux 五个 DataProvider：协议数据内容与数据采集
 
 > 本文回答每个 Provider：**采集什么数据、NBT 字段长什么样、用什么 NMS API 采集、Paper 迁移难度**。
-> 原版目录：`OriginImpl/servux-LTS-1.21.11/src/main/java/fi/dy/masa/servux/dataproviders/` 与 `loggers/`。
-> 网络协议帧见 [02](02-network-protocol.md)；采集触发点（Mixin）见 [04](04-mixin-analysis.md)；迁移方案见 [07](07-migration-architecture.md)。
+> 原版目录：`OriginImpl/servux-LTS-26.2/src/main/java/fi/dy/masa/servux/dataproviders/` 与 `loggers/`。
+> 网络协议帧见 [servux-protocol.md](servux-protocol.md)；采集触发点（Mixin）处置见 [architecture.md](architecture.md) §5；迁移方案见 [architecture.md](architecture.md)。
+> 配合阅读：[index.md](index.md)、根 [../AGENTS.md](../AGENTS.md)。
 
 ---
 
@@ -14,7 +15,7 @@
 | `EntitiesDataProvider` | `servux:entity_data` | 2 | 方块实体/实体 NBT 查询（含玩家背包过滤） | NMS `saveWithFullMetadata` / `saveWithoutId` | 中 |
 | `TweaksDataProvider` | `servux:tweaks` | 2 | tweak 元数据 + NBT 查询（复用 Entities 逻辑） | 同上 | 低 |
 | `StructureDataProvider` | `servux:structures` | **3** | 原版结构边界框 | **纯 NMS**（`ChunkAccess.getAllReferences`/`StructureStart.createTag`） | **高** |
-| `LitematicsDataProvider` | `servux:litematics` | 2 | 投影粘贴/批量实体（S2C 投递已删） | NMS（投影系统见 [05](05-schematic-system.md)） | 高 |
+| `LitematicsDataProvider` | `servux:litematics` | 2 | 投影粘贴/批量实体（S2C 投递已删） | NMS（投影系统见 [servux-schematic.md](servux-schematic.md)） | 高 |
 
 ---
 
@@ -120,7 +121,7 @@ double mspt = server.getAverageTickTimeNanos() / 1e6;
 double tps  = 1000.0 / Math.max(sprinting ? 0 : tm.millisecondsPerTick(), mspt);
 long sprintTicks = ((IMixinServerTickManager) tm).servux_getStringTicks(); // ← Mixin 读私有字段 remainingSprintTicks
 ```
-> **Paper 迁移**：`ServerTickRateManager` 需 NMS 访问（`MinecraftServer#getTickRateManager`）；`remainingSprintTicks` 私有 → **反射**（见 [04](04-mixin-analysis.md) `IMixinServerTickManager`）；`getAverageTickTimeNanos` NMS 公开。Paper 还有 `Bukkit.getTPS()` / `Server#getAverageTickTime` 可部分替代。
+> **Paper 迁移**：`ServerTickRateManager` 需 NMS 访问（`MinecraftServer#getTickRateManager`）；`remainingSprintTicks` 私有 → **反射**（见 [architecture.md](architecture.md) §5 `IMixinServerTickManager`）；`getAverageTickTimeNanos` NMS 公开。Paper 还有 `Bukkit.getTPS()` / `Server#getAverageTickTime` 可部分替代。
 
 #### 1.6.2 `DataLoggerMobCaps`（`loggers/DataLoggerMobCaps.java:24-81`）
 
@@ -144,7 +145,7 @@ for (ServerLevel world : server.getAllLevels()) {                       // Paper
     }
 }
 ```
-> **Paper 迁移**：`NaturalSpawner.SpawnState` / `MAGIC_NUMBER`(=289) / `getMobCategoryCounts` 全是 NMS 内部 → **反射访问**（见 [04](04-mixin-analysis.md)）。`server.getAllLevels()` Paper 可遍历 `Bukkit.getWorlds()` 取 NMS `CraftWorld.getHandle()`。
+> **Paper 迁移**：`NaturalSpawner.SpawnState` / `MAGIC_NUMBER`(=289) / `getMobCategoryCounts` 全是 NMS 内部 → **反射访问**（见 [architecture.md](architecture.md) §5）。`server.getAllLevels()` Paper 可遍历 `Bukkit.getWorlds()` 取 NMS `CraftWorld.getHandle()`。
 
 ### 1.7 HUD 的 settings（权限/节奏）
 
@@ -212,7 +213,7 @@ if (entity.getType() == EntityType.PLAYER && !entity.getUUID().equals(player.get
 }
 ```
 
-> **Paper 迁移**：`BlockEntity.saveWithFullMetadata` / `entity.saveWithoutId` / `NbtView` 是 NMS（`NbtView` 走 `util/nbt/NbtView.java`，基于 `TagValueOutput`，见 [04](04-mixin-analysis.md) `IMixinNbtWriteView`）。paperweight 可直连，或反射。玩家背包过滤逻辑纯 NBT 操作，照搬。
+> **Paper 迁移**：`BlockEntity.saveWithFullMetadata` / `entity.saveWithoutId` / `NbtView` 是 NMS（`NbtView` 走 `util/nbt/NbtView.java`，基于 `TagValueOutput`，见 [architecture.md](architecture.md) §5 `IMixinNbtWriteView`）。paperweight 可直连，或反射。玩家背包过滤逻辑纯 NBT 操作，照搬。
 
 ### 2.3 权限
 
@@ -238,7 +239,7 @@ name="tweaks_data", id="servux:tweaks", version=2, servux=<MOD_STRING>
 
 原版“空潜影盒可堆叠”由 Mixin 实现（`MixinItemStack.getMaxStackSize` + `MixinHopperBlockEntity` 改 NMS 方法全局返回行为）。Paper 无 Mixin 运行时：反射改不了方法返回值；Bukkit 事件（`InventoryMoveItemEvent` 等）在服务端 `maxStackSize` 仍为 1 的前提下不成立（NMS 内部 `count < maxStackSize` 恒失败）；给物品设 `DataComponents.MAX_STACK_SIZE` 组件是 per-item、影响新生成物品且污染序列化——三条替代路均不通。
 
-故本 provider **不保留**原版 `stackable_shulkers` 系列 setting，也**不下发** `stackingShulkers` / `stackingShulkersMax` 元数据。否则客户端 tweakeroo 会据 `EntityDataManager.checkTweaksConfigs`（`OriginImpl/tweakeroo-*/.../EntityDataManager.java:420`）自动开启客户端堆叠渲染，而服务端无法配合 → 客户端/服务端不一致（堆叠的潜影盒交互时被服务端按原上限拆开）。详见 [04](04-mixin-analysis.md) §1/§4。
+故本 provider **不保留**原版 `stackable_shulkers` 系列 setting，也**不下发** `stackingShulkers` / `stackingShulkersMax` 元数据。否则客户端 tweakeroo 会据 `EntityDataManager.checkTweaksConfigs`（`OriginImpl/tweakeroo-*/.../EntityDataManager.java:420`）自动开启客户端堆叠渲染，而服务端无法配合 → 客户端/服务端不一致（堆叠的潜影盒交互时被服务端按原上限拆开）。详见 [architecture.md](architecture.md) §5.3。
 
 ---
 
@@ -300,14 +301,14 @@ Identifier type = BuiltInRegistries.STRUCTURE_TYPE.getKey(structure.type());    
 
 `update_interval`(默认 100) / `timeout` / `structure_whitelist_enabled` + `structure_whitelist` / `structure_blacklist_enabled` + `structure_blacklist`。
 
-> **Paper 迁移**：**整条最难**。`ChunkAccess.getAllReferences` / `getStartForStructure` / `StructureStart.createTag` / `StructurePieceSerializationContext` 全是 NMS 内部，**Paper 无公开 API**。必须用 paperweight NMS 直接调用（这些是公开/包级方法，paperweight dev bundle 可访问，**不需反射**）。触发点 `onStartedWatchingChunk` 改用 Paper 的 `PlayerChunkLimit`/chunk tracking 事件或周期扫描玩家周围区块。详见 [07](07-migration-architecture.md) §Structures。
+> **Paper 迁移**：**整条最难**。`ChunkAccess.getAllReferences` / `getStartForStructure` / `StructureStart.createTag` / `StructurePieceSerializationContext` 全是 NMS 内部，**Paper 无公开 API**。必须用 paperweight NMS 直接调用（这些是公开/包级方法，paperweight dev bundle 可访问，**不需反射**）。触发点 `onStartedWatchingChunk` 改用 Paper 的 `PlayerChunkLimit`/chunk tracking 事件或周期扫描玩家周围区块。详见 [architecture.md](architecture.md) §6.4。
 
 ---
 
 ## 5. `LitematicsDataProvider`（配 Litematica）⭐ 大模块
 
 > 原版：`dataproviders/LitematicsDataProvider.java`（424 行）。协议通道 `servux:litematics`，协议版本 2。
-> 投影数据结构与传输协议详见 [05-schematic-system.md](05-schematic-system.md)。本节只列协议操作。
+> 投影数据结构与传输协议详见 [servux-schematic.md](servux-schematic.md)。本节只列协议操作。
 
 ### 5.1 提供的操作（packetType / Task）
 
@@ -317,7 +318,7 @@ Identifier type = BuiltInRegistries.STRUCTURE_TYPE.getKey(structure.type());    
 | 方块实体查询 | C2S(pos)→S2C | `onBlockEntityRequest` → `be.saveWithFullMetadata`；BE 不存在不回复（同 Entities）；入口名册门（未注册静默） |
 | 实体查询 | C2S(entityId)→S2C | `onEntityRequest` → 实体 NBT；仅查他人时剥离背包（同 Entities）；入口名册门 |
 | 批量实体查询（大包） | C2S(chunkX,Z,minY,maxY)→S2C | `onBulkEntityRequest` → 区块内全部 TileEntities + Entities（详见 §5.2） |
-| 投影粘贴上传 | C2S 分片→重组 | 重组完成后无条件走 `handleClientPasteRequest`（活主路 LitematicaPaste，Task 门控在 Provider 内）——C2S 四阶段文件接收路由（Transmit*）已于 2026-10 随安全修复移除（路径穿越任意写删），见 [05](05-schematic-system.md) §传输协议 |
+| 投影粘贴上传 | C2S 分片→重组 | 重组完成后无条件走 `handleClientPasteRequest`（活主路 LitematicaPaste，Task 门控在 Provider 内）——C2S 四阶段文件接收路由（Transmit*）已于 2026-10 随安全修复移除（路径穿越任意写删），见 [servux-schematic.md](servux-schematic.md) §传输协议 |
 | 粘贴请求 | C2S→执行 | `handleClientPasteRequest` → PasteTask 任务化粘贴（需创造模式 + paste 权限；实体 UUID/ID 撞车重排见 §5.4） |
 
 ### 5.2 `onBulkEntityRequest`（对齐上游 `:542-644`）
@@ -361,4 +362,8 @@ output.put("Entities", <ListTag: AABB 内所有非玩家实体 NBT>);
 | 区块 TileEntities/Entities | `LevelChunk.getBlockEntitiesPos` / `getEntities` | NMS | paperweight 直连 |
 | RegistryAccess | `MinecraftServer.registryAccess()` | NMS 公开 | paperweight 直连 |
 
-> **结论**：除 `MAGIC_NUMBER` / `remainingSprintTicks` / NbtView 内部字段需**反射**外，其余都是 NMS 公开或包级方法，paperweight userdev 的 Mojang dev bundle **可直接调用，无需反射**。这与 [04](04-mixin-analysis.md) 的 Mixin 分类一致——Servux 大量"数据采集 Mixin"在 Paper 上反而是"直接 NMS 调用"，因为 paperweight 给了完整 Mojang 映射访问权。
+> **结论**：除 `MAGIC_NUMBER` / `remainingSprintTicks` / NbtView 内部字段需**反射**外，其余都是 NMS 公开或包级方法，paperweight userdev 的 Mojang dev bundle **可直接调用，无需反射**。这与 [architecture.md](architecture.md) §5 的 Mixin 分类一致——Servux 大量"数据采集 Mixin"在 Paper 上反而是"直接 NMS 调用"，因为 paperweight 给了完整 Mojang 映射访问权。
+
+---
+
+> **回到索引**：[index.md](index.md) · 项目权威说明：[../AGENTS.md](../AGENTS.md)

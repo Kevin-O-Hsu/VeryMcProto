@@ -536,7 +536,7 @@ public class SchematicPlacingUtils
      * <p>注：五个键统一走 {@code tag.read(KEY, CODEC).orElse(null)} 直调（Pos 用 Vec3.CODEC，
      * block_pos/leash/home_pos 用 BlockPos.CODEC）——缺失/畸形键一律 null，与上游
      * getCodec(...).orElse(null) 逐字同构；不依赖 NbtUtils.readEntityPositionFromTag
-     * （其 getId() 守卫恒 false，恒返 null——2026-09-10 实测发现，缺陷详情见 docs/09 §26.1.6）。
+     * （其 getId() 守卫恒 false，恒返 null——2026-09-10 实测发现，缺陷详情见 docs/servux-schematic.md §6.1）。
      */
     public static void applyEntityPastePositionFixes(CompoundTag tag, double x, double y, double z,
                                                      int offX, int offY, int offZ)

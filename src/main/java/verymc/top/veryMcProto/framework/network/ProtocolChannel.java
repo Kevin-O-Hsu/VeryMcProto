@@ -39,7 +39,7 @@ import verymc.top.veryMcProto.framework.debug.FrameworkDebug;
  * 路径（{@code CraftPlayer.sendCustomPayload}）逐字同构，生产先例 {@code ExchangeTarget.sendViaNms} /
  * {@code RecipeSyncHandler.sendPayload}。未发过 C2S 的玩家（vanilla / 未装 mod）永不走兜底，维持
  * sendPluginMessage 原路径（Paper 按声明丢弃）——vanilla 防护语义构造性保留，不依赖
- * 「vanilla 对未知通道 S2C 的行为」这一未决项（docs/09 §10.6.2）。
+ * 「vanilla 对未知通道 S2C 的行为」这一未决项（docs/architecture.md §3.2）。
  *
  * <p>plugin messaging 注册的通道由 Paper 内置路由 C2S 接收，<b>不会因未知 C2S payload 踢玩家</b>。
  */

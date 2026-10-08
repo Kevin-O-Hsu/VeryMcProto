@@ -51,7 +51,7 @@ import verymc.top.veryMcProto.mod.servux.util.PlacementHandler;
  * <p><b>权限时点</b>：权限门在两挂点（主线程）而非 netty 侧——netty 侧对玩家状态零读取是本范式
  * 消除「手持 desync」竞态的结构保证（权限缓存 /LuckPerms 等同为玩家态，一并避开）。
  *
- * <p><b>已知与上游的差异</b>（有意接受，详见 docs/07 降级矩阵与 docs/09 差异表）：
+ * <p><b>已知与上游的差异</b>（有意接受，详见 docs/architecture.md §5.3 降级矩阵与 docs/servux-protocol.md §8 差异表）：
  * <ul>
  *   <li><b>修正态实体碰撞 / canSurvive 补查恒生效</b>（锚点要求）：canBuild 拒绝判定（canSurvive +
  *       {@code checkEntityCollision}，后者与 vanilla {@code canPlace} 逐字同构）不受

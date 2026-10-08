@@ -101,7 +101,7 @@ public final class JeiModule
          * 的 canSend(player) 门控——只发给声明过能收的客户端（Fabric API 客户端注册 receiver 即声明；
          * vanilla/未装者零打扰）。finally 必经 {@link RecipeSyncJoinOrderer#release}：该声明同时是
          * 进服时序整形器的"证据到达"信号——payload 写先于此提交（主线程同步提交 + eventLoop FIFO
-         * ⇒ wire 序恒为 payload → 被扣的 UpdateRecipesPacket，见 docs/30 §5.3）。
+         * ⇒ wire 序恒为 payload → 被扣的 UpdateRecipesPacket，见 docs/jei.md §5.3）。
          */
         @EventHandler
         public void onPlayerRegisterChannel(PlayerRegisterChannelEvent event)

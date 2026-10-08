@@ -1,10 +1,10 @@
-# 24 · Syncmatica 客户端兼容测试指南
+# Syncmatica 客户端兼容测试指南
 
 > **实现状态**：syncmatica（投影共享）已 **100% 完整实现并可测试**。本文档从「待移植蓝图」改写为「已实现实测指南」——所有命令/权限/配置/日志/协议流程均与真实代码逐一对齐。
 >
 > **代码定位**：`src/main/java/verymc/top/veryMcProto/mod/syncmatica/`（命令 `command/SyncmaticaCommand.java`、配置 `SyncmaticaReference.java`、握手 `communication/exchange/VersionHandshakeServer.java`、上传/下载 `UploadExchange.java`/`DownloadExchange.java`、持久化 `data/SyncmaticManager.java`、配额 `service/QuotaService.java`、调试 `service/DebugService.java` + `util/SyncmaticaDebug.java`）；权限注册 `src/main/resources/plugin.yml`；客户端对照 `OriginImpl/syncmatica-LTS-26.2/`。
 >
-> **关联文档**：实现总览 [23](23-syncmatica-implementation-plan.md)；架构/协议/迁移 [20](20-syncmatica-architecture.md)/[21](21-syncmatica-protocol.md)/[22](22-syncmatica-mixin-migration.md)；姊妹（Servux 客户端测试）[10](10-testing-guide.md)；项目权威说明 [../AGENTS.md](../AGENTS.md)。
+> **关联文档**：协议详解 [syncmatica-protocol.md](syncmatica-protocol.md)；架构/迁移 [syncmatica-architecture.md](syncmatica-architecture.md)（实现总览/关键决策 §11）；姊妹（Servux 客户端测试）[servux-testing.md](servux-testing.md)；文档总索引 [index.md](index.md)；项目权威说明 [../AGENTS.md](../AGENTS.md)。
 
 ---
 
@@ -16,7 +16,7 @@
 1. **服务端调试日志的包流**（`/syncmatica debug on` + `cat all`，见 §2.3），看收发链路是否完整。
 2. **服务端文件落地**（`syncmatics/<hash>.litematic` 投影文件 + `placements.json` placement 注册表）。
 
-客户端 GUI 行为只是表象。遇到「客户端没反应」先查服务端日志收没收到包（`onPacket` / `Sending packet`），再查文件落地，最后才看客户端（同 Servux [10](10-testing-guide.md) §2 判官逻辑）。
+客户端 GUI 行为只是表象。遇到「客户端没反应」先查服务端日志收没收到包（`onPacket` / `Sending packet`），再查文件落地，最后才看客户端（同 Servux [servux-testing.md](servux-testing.md) §2 判官逻辑）。
 
 ---
 
@@ -155,7 +155,7 @@ syncmatica 有**两套独立**调试日志系统，互不替代，需配合开�
 
 ### 3.1 disable→enable 握手恢复测试（2026-10 修复回归用例）
 
-**背景**：修复前 `suspendAll` 只遍历 `broadcastTargets`（VHS 成功后才入集）且 close 后不移除 exchange——disable 瞬间握手中的玩家被漏扫，enable 后 `tryStartHandshake` 被 `instanceof VHS` 残留永久跳过，该玩家 syncmatica 卡死直到重进服（修复实录见 [22](22-syncmatica-mixin-migration.md) §3.1）。
+**背景**：修复前 `suspendAll` 只遍历 `broadcastTargets`（VHS 成功后才入集）且 close 后不移除 exchange——disable 瞬间握手中的玩家被漏扫，enable 后 `tryStartHandshake` 被 `instanceof VHS` 残留永久跳过，该玩家 syncmatica 卡死直到重进服（修复实录见 [syncmatica-architecture.md](syncmatica-architecture.md) §3.3）。
 
 **操作**：
 1. syncmatica 客户端 A 进服，完成 §3 基础握手（确认 `broadcastTargets` 含 A）；
@@ -175,7 +175,7 @@ syncmatica 有**两套独立**调试日志系统，互不替代，需配合开�
 **失败排查**：enable 后无 `tryStartHandshake: 发起握手` 日志（只有"跳过（已有进行中的 VersionHandshakeServer）"）→ 残留 exchange 未被清理（suspendAll 修复回退）；发起但无 CONFIRM_USER → 客户端侧连接状态，让玩家重进服后重试。
 
 **失败排查**（基础握手）：
-- 客户端进服即踢 / 无握手包 → 检查 `syncmatica:main` 通道 outgoing 注册；`SyncmaticaHandler.receivePlayPayload` 的 `[Identifier][body]` 解析（[21](21-syncmatica-protocol.md) §1.2）；`/syncmatica debug s2c msg`（切 plugin messaging）后重测。
+- 客户端进服即踢 / 无握手包 → 检查 `syncmatica:main` 通道 outgoing 注册；`SyncmaticaHandler.receivePlayPayload` 的 `[Identifier][body]` 解析（[syncmatica-protocol.md](syncmatica-protocol.md) §1.2）；`/syncmatica debug s2c msg`（切 plugin messaging）后重测。
 - 收到 REGISTER_VERSION 但 `Denying syncmatica join due to outdated client` → `VersionHandshakeServer.handle` 的 `checkPartnerVersion` 拒绝（仅应拒 `"0.0.1"`，其它放行）；确认服务端 `MOD_VERSION` 与客户端版本兼容。
 - 收到 REGISTER_VERSION 但无 FEATURE/CONFIRM_USER → `FeatureSet.fromVersionString` / `requestFeatureSet` 链路；FeatureExchange 是否 `succeed`。
 - 客户端报「不兼容版本」→ 服务端 `MOD_VERSION`（插件版本，`-b` 后缀）触发 FEATURE 交换应使用全集 FeatureSet；确认 `getFeatureSet()` 声明完整（MODIFY/DISPLAY_NAME/CORE_EX/VERSION 全开）。
@@ -214,7 +214,7 @@ syncmatica 有**两套独立**调试日志系统，互不替代，需配合开�
 **失败排查**：
 - 收到 REGISTER_METADATA 但无 REQUEST_LITEMATIC → `ServerCommunicationManager.handle(REGISTER_METADATA)` 的 `getLocalState` 判定；`FileStorage.getLocalState` 是否误判文件已存在。
 - 文件传一半中断 → `DownloadExchange` stop-and-wait 应答链（每片回 RECEIVED_LITEMATIC）；MD5 校验失败会 `close(false)` 删下载文件。
-- 文件落地但 hash 不匹配 → `SyncmaticaUtil.createChecksum` 必须是 MD5→type-3 UUID（`UUID.nameUUIDFromBytes`，[21](21-syncmatica-protocol.md) §7.3）；检查是否误用其他算法。
+- 文件落地但 hash 不匹配 → `SyncmaticaUtil.createChecksum` 必须是 MD5→type-3 UUID（`UUID.nameUUIDFromBytes`，[syncmatica-protocol.md](syncmatica-protocol.md) §7.3）；检查是否误用其他算法。
 - 分享成功但其他客户端没收到广播 → 确认 A 与 B 均在 `broadcastTargets`（握手成功才加入）；`addPlacement` 的广播循环是否覆盖全集合。
 
 > **方向语义**（命名易混）：syncmatica 原版命名以「服务端视角」——`DownloadExchange` = **服务端从客户端拉文件**（即客户端「分享/上传」走的就是它）；`UploadExchange` = 服务端把文件推给客户端（即客户端「Load/下载」）。下文沿用真实类名。
@@ -244,7 +244,7 @@ syncmatica 有**两套独立**调试日志系统，互不替代，需配合开�
 - 客户端点 Load 无反应 → 服务端是否收到 `REQUEST_LITEMATIC`；`ServerCommunicationManager.handle(REQUEST_LITEMATIC)` 的 placement 查找（按 placement id）。
 - 下载后客户端校验失败 → 同 §4 hash 算法检查（服务端文件 hash 与 metadata.hash 必须一致）。
 - 客户端收不到任何 S2C 包 → `/syncmatica debug s2c` 切换 NMS/plugin-messaging 路径重测（见 §12）。
-- **注意**：S2C 下发（`UploadExchange`）**不查配额**——即便 quota 启用，客户端 Load 不应被拦截（[22](22-syncmatica-mixin-migration.md) §8.1）。
+- **注意**：S2C 下发（`UploadExchange`）**不查配额**——即便 quota 启用，客户端 Load 不应被拦截（[syncmatica-architecture.md](syncmatica-architecture.md) §7）。
 
 ---
 
@@ -271,7 +271,7 @@ syncmatica 有**两套独立**调试日志系统，互不替代，需配合开�
 **失败排查**：
 - MODIFY_REQUEST 收到但回 DENY → 检查 `ModifyExchangeServer.init` 的 placement 查找 + `modifyState` 锁（是否已有他人占用未释放）。
 - MODIFY_FINISH 收到但未广播 → `handleExchange(ModifyExchangeServer)` 的广播循环；B 是否在 broadcastTargets。
-- 客户端 B 不同步 → B 是否声明了 MODIFY feature（完整版客户端应有）；若无，服务端应退化发 REMOVE_SYNCMATIC + REGISTER_METADATA（[21](21-syncmatica-protocol.md) §5.3）。
+- 客户端 B 不同步 → B 是否声明了 MODIFY feature（完整版客户端应有）；若无，服务端应退化发 REMOVE_SYNCMATIC + REGISTER_METADATA（[syncmatica-protocol.md](syncmatica-protocol.md) §5.3）。
 - **并发修改**：A 改时 B 也请求 → B 应收到 DENY（锁被 A 占）。验证 `modifyState` 单写锁语义。
 
 ---
@@ -332,7 +332,7 @@ syncmatica 有**两套独立**调试日志系统，互不替代，需配合开�
 - 客户端列表显示全部投影，可正常下载（文件仍在 `syncmatics/`）。
 
 **失败排查**：
-- 重启后 placement 丢失 → `SyncmaticManager.loadServer` 的 JSON 反序列化；`placements.json` 字段顺序是否与原版一致（[21](21-syncmatica-protocol.md) §7.1）；`ServerPlacement.fromJson(elem, playerIdentifierProvider)`。
+- 重启后 placement 丢失 → `SyncmaticManager.loadServer` 的 JSON 反序列化；`placements.json` 字段顺序是否与原版一致（[syncmatica-protocol.md](syncmatica-protocol.md) §7.1）；`ServerPlacement.fromJson(elem, playerIdentifierProvider)`。
 - 重启后文件丢失 → 文件是否真的写到了 `syncmatics/`（§4 验证过）；是否被误删。
 - `placements.json.bak` / `.new` 残留 → `SyncmaticaUtil.backupAndReplace` 流程；正常情况替换后只剩 `.bak`。
 
@@ -390,7 +390,7 @@ DownloadExchange: close(true)（取消包 CANCEL_LITEMATIC）
 
 ## 12. 排错流程
 
-遇到功能异常，按此顺序排查（与 Servux [10](10-testing-guide.md) §7 同构）：
+遇到功能异常，按此顺序排查（与 Servux [servux-testing.md](servux-testing.md) §7 同构）：
 
 1. **协议是否启用**？→ `/syncmatica status` 看协议状态；若 OFF → `/syncmatica enable`（不重启插件，重新握手在线玩家）。
 2. **服务端是否收到包**？→ `/syncmatica debug on` + `cat all`（或单独 `network`/`packet`）看日志。没收到 → 通道注册 / `SyncmaticaHandler.receivePlayPayload` 的 `[Identifier][body]` 解析。
@@ -398,7 +398,7 @@ DownloadExchange: close(true)（取消包 CANCEL_LITEMATIC）
 4. **exchange 是否派发**？→ `onPacket` 是否找到 handler（`exchange 认领` 日志）；无人认领则走一次性 `handle`（`无 exchange 认领` 日志）。
 5. **S2C 包客户端是否收到**？→ `/syncmatica debug s2c` 切 NMS/plugin-messaging 重测（路由诊断）。
 6. **文件是否落地**？→ `syncmatics/` 目录 + hash 比对。
-7. **placements.json 是否更新**？→ 每次变更即落盘（[20](20-syncmatica-architecture.md) §6.2）。
+7. **placements.json 是否更新**？→ 每次变更即落盘（[syncmatica-architecture.md](syncmatica-architecture.md) §6.2）。
 8. **广播是否发出**？→ `broadcastTargets` 是否含目标客户端（握手成功才加入）。
 9. **客户端侧**：syncmatica + litematica + malilib 版本兼容；客户端日志（Fabric Loader.log）。
 
@@ -454,4 +454,4 @@ DownloadExchange: close(true)（取消包 CANCEL_LITEMATIC）
 
 ---
 
-> **回到上层**：[00-INDEX.md](00-INDEX.md) · [../AGENTS.md](../AGENTS.md)
+> **回到索引**：[index.md](index.md) · 项目权威说明：[../AGENTS.md](../AGENTS.md)

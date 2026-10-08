@@ -13,7 +13,7 @@ import net.minecraft.network.FriendlyByteBuf;
 public interface IServerPayloadData
 {
     /** 返回该协议版本，须与原版一致（客户端按版本协商）。各通道真值见 mod/servux/network/ 对应
-     *  XxxPacket#PROTOCOL_VERSION 常量与 docs/02-network-protocol.md §2 通道总表（勿在此复述裸值，防版本线演进漂移）。 */
+     *  XxxPacket#PROTOCOL_VERSION 常量与 docs/servux-protocol.md §2 通道总表（勿在此复述裸值，防版本线演进漂移）。 */
     int getVersion();
 
     /** 返回子消息 packetType id。 */

@@ -1,11 +1,10 @@
-# 40 · 配置与运维参考（命令 / 权限 / 配置全键 / 数据布局 / 排错）
+# 运维参考（命令 / 权限 / 配置全键 / 数据布局 / 排错）+ 版本升级 SOP
 
-> **本文是 docs/ 内运维信息的唯一权威**（英文 README 不再承载这些表格）：
-> 三 mod 全命令参考、权限节点（命令 + Provider 运行时）、三个配置文件全键表、磁盘数据布局、调试系统与排错速查。
+> **本文是 docs/ 内运维信息的唯一权威**（英文 README 不再承载这些表格）：三 mod 全命令参考、权限节点（命令 + Provider 运行时）、三个配置文件全键表、磁盘数据布局、调试系统与排错速查（§1–§5），以及 **MC 版本升级 SOP 与观察项**（§6）。
 >
 > - **键权威 = src 配置类**：`servux.json` 各 Provider settings 声明（`ConfigProvider` / `HudDataProvider` / … / `StructureDataProvider.java:83` 等）、`jei.json` = `mod/jei/config/JeiConfiguration.java`、`syncmatica-config.json` = `service/QuotaService.java` + `service/DebugService.java` + `util/SyncmaticaDebug.java`。**改键必须同步本文**（仓库"文档同步强制"约定）。
-> - **三载体边界**：本文 = docs 内运维全键唯一权威；根 [`AGENTS.md`](../AGENTS.md) §5 权限表 = AI 上下文自包含安全网（豁免声明）；[`03`](03-dataproviders-detail.md) = 设置语义视角（讲每个设置的含义与采集联动，不维护节点全表）。
-> - 命令/权限的**语义与上游对照**见各 mod 协议文档（[`02`](02-network-protocol.md)/[`03`](03-dataproviders-detail.md)/[`21`](21-syncmatica-protocol.md)/[`30`](30-jei-protocol.md)）。
+> - **三载体边界**：本文 = docs 内运维全键唯一权威；根 [`AGENTS.md`](../AGENTS.md) §5 权限表 = AI 上下文自包含安全网（豁免声明）；[`servux-providers.md`](servux-providers.md) = 设置语义视角（讲每个设置的含义与采集联动，不维护节点全表）。
+> - 命令/权限的**语义与上游对照**见各 mod 协议文档（[`servux-protocol.md`](servux-protocol.md) / [`servux-providers.md`](servux-providers.md) / [`syncmatica-protocol.md`](syncmatica-protocol.md) / [`jei.md`](jei.md)）。
 
 ---
 
@@ -30,7 +29,7 @@
 ```
 
 - setting 的**全名** = `<provider 逻辑名>:<setting 名>`，如 `hud_data:share_seed`、`servux_main:permission_level`；无歧义时可省略 provider 前缀。
-- Provider 逻辑名见 [`02`](02-network-protocol.md) 通道总表：`servux_main` / `hud_data` / `entity_data` / `tweaks_data` / `structure_bounding_boxes` / `litematic_data`。
+- Provider 逻辑名见 [`servux-protocol.md`](servux-protocol.md) §2 通道总表：`servux_main` / `hud_data` / `entity_data` / `tweaks_data` / `structure_bounding_boxes` / `litematic_data`。
 - `servux_main`（配置主通道）**永不可停用**；其余 5 个可 `enable`/`disable`。
 
 ### 1.2 `/servux debug` —— 调试日志热切换（即时生效 + 即时持久化到 servux.json）
@@ -51,7 +50,7 @@
 /servux litematic list                          列出 schematics/ 下的 .litematic 文件
 ```
 
-> S2C 文件投递（transmit）已于 2026-09 **物理删除**：26.1 stock 客户端 `handleBulkData` 的 Transmit 分流整块注释（无接收端，帧被静默丢弃），上游 `sendTransmitFile` 亦 `@Deprecated(forRemoval)` 零调用点（详见 [`09`](09-DELIVERY.md) §5.5）。文件位于 `plugins/VeryMcProto/schematics/`。
+> S2C 文件投递（transmit）已于 2026-09 **物理删除**（stock 客户端无接收端；详见 [`servux-protocol.md`](servux-protocol.md) §8.5）。文件位于 `plugins/VeryMcProto/schematics/`。
 
 ### 1.4 `/syncmatica`
 
@@ -71,7 +70,7 @@
 
 > 投影的**上传 / 下载 / 修改 / 删除全部走协议 Exchange**（客户端侧操作）；命令只负责把本地文件注册为 placement 并广播。`[admin]` 需 `syncmatica.command.admin`，`[load]` 需 `syncmatica.command.load`，`[load_each]` 需 `syncmatica.command.load_each`，`[debug]` 需 `syncmatica.command.debug`。
 >
-> **load 广播语义**（对齐上游 `sendSuccess(..., true)`，2026-09 修复）：控制台执行 `load` 同样对在线已握手客户端即时广播 REGISTER_METADATA（此前仅注册不广播、客户端需重进服）；load 成功/计数消息广播给持 `syncmatica.command.admin` 权限的全体玩家与控制台（≈ vanilla OP 广播位），执行者若不持该权限则补直发保证回执；"No file"/"Failed to peek" 类提示仍仅回执行者（上游对应 `sendSuccess(..., false)`）。
+> **load 广播语义**（对齐上游 `sendSuccess(..., true)`）：控制台执行 `load` 同样对在线已握手客户端即时广播 REGISTER_METADATA；load 成功/计数消息广播给持 `syncmatica.command.admin` 权限的全体玩家与控制台（≈ vanilla OP 广播位），执行者若不持该权限则补直发保证回执；"No file"/"Failed to peek" 类提示仍仅回执行者。
 
 **`/syncmatica debug`**（独立于 `/servux debug` 的 `SyncmaticaDebug` 引擎）：
 
@@ -85,8 +84,7 @@
 /syncmatica debug s2c nms|msg      切换 S2C 路径（NMS 直发 / plugin messaging）——诊断开关，不持久化
 ```
 
-> 分类共 **6 值**（源 `mod/syncmatica/util/SyncmaticaDebug.java` `Cat` 枚举）：`lifecycle` `handshake` `network` `packet` `exchange` `data`。
-> S2C 默认 **NMS `DiscardedPayload` 直发**（实测 plugin messaging wire 对纯 Fabric syncmatica 客户端不可达，详见 [`22`](22-syncmatica-mixin-migration.md) §4.3）；`/syncmatica debug s2c msg` 临时切回 plugin messaging 作对照排错。
+> 分类共 **6 值**。S2C 默认 **NMS `DiscardedPayload` 直发**（实测 plugin messaging wire 对纯 Fabric syncmatica 客户端不可达，详见 [`syncmatica-architecture.md`](syncmatica-architecture.md) §4.3）；`/syncmatica debug s2c msg` 临时切回 plugin messaging 作对照排错。
 
 ### 1.5 `/jei`
 
@@ -98,7 +96,7 @@
 /jei disable        停用模块（通道保持注册——不踢人；在途 C2S 静默丢弃）
 ```
 
-> **生效范围**：只影响**之后**的交互（新进服玩家的配方同步；新的 C2S 包被丢弃）。disable 时**从不注销通道**——注销会使后续客户端包命中未注册通道而被踢。cheat 三开关在 `jei.json`（文件管理，同上游 `jei-server.properties`；无命令切换）。
+> **生效范围**：只影响**之后**的交互。disable 时**从不注销通道**——注销会使后续客户端包命中未注册通道而被踢。cheat 三开关在 `jei.json`（文件管理，同上游 `jei-server.properties`；无命令切换）。
 
 ---
 
@@ -241,7 +239,7 @@ commands:
 | `permission_level` | int [0..4] | 0 | 基础权限 |
 | `update_interval` | int [40..1200] | 120 | 推送间隔（tick） |
 
-> ⛔ 原 `stackable_shulkers` / `stackable_shulkers_count` / `stackable_shulkers_fix` **已删除**——潜影盒堆叠在无 Mixin 的 Paper 上不可能实现（见 [`07`](07-migration-architecture.md) §4 降级矩阵）；保留会令客户端 Tweakeroo 开堆叠渲染而服务端不配合 → 不一致。
+> ⛔ 原 `stackable_shulkers` / `stackable_shulkers_count` / `stackable_shulkers_fix` **已删除**——潜影盒堆叠在无 Mixin 的 Paper 上不可能实现（见 [`architecture.md`](architecture.md) §5.3）；保留会令客户端 Tweakeroo 开堆叠渲染而服务端不配合 → 不一致。
 
 #### `structure_bounding_boxes`（`servux:structures`）
 
@@ -314,7 +312,7 @@ plugins/VeryMcProto/
 ├── syncmatics/                 Syncmatica .litematic 中央仓库（上传 / 下载 / 共享）
 │   └── <hash-uuid>.litematic   文件名 = hash UUID（/syncmatica load 按它识别文件）
 └── schematics/                 Servux 投影目录
-    └── *.litematic             26.2 线已无写入方（C2S 接收链 2026-10 随安全修复移除；ver/1.21.11 线仅 op 命令只读发送）；/servux litematic list 列出
+    └── *.litematic             当前线已无写入方（C2S 接收链已随安全修复移除；旧维护线仅 op 命令只读发送）；/servux litematic list 列出
 ```
 
 > `schematics/` 与 `syncmatics/` 首次访问时自动创建。停服（`onDisable`）时 `placements.json` 由 `SyncmaticManager` 原子保存（backup → current ← incoming）；启动时读取，损坏条目逐条 try/catch 跳过并修正重写。
@@ -341,7 +339,7 @@ plugins/VeryMcProto/
 /syncmatica debug cat all
 ```
 
-syncmatica 不工作的排查：`on` + `cat all`（或单开 `handshake`/`network`/`packet`），盯握手链：声明通道 → `tryStartHandshake` → init 推 `REGISTER_VERSION` → 客户端回版本 → `FeatureSet` → `CONFIRM_USER` → `broadcastTargets`（详见 [`24`](24-syncmatica-testing-guide.md) §2.3）。
+syncmatica 不工作的排查：`on` + `cat all`（或单开 `handshake`/`network`/`packet`），盯握手链：声明通道 → `tryStartHandshake` → init 推 `REGISTER_VERSION` → 客户端回版本 → `FeatureSet` → `CONFIRM_USER` → `broadcastTargets`（详见 [`syncmatica-testing.md`](syncmatica-testing.md) §2.3）。
 
 S2C 路径排查：`/syncmatica debug s2c`（查看）→ `/syncmatica debug s2c nms|msg`（切换对照）。
 
@@ -351,14 +349,96 @@ S2C 路径排查：`/syncmatica debug s2c`（查看）→ `/syncmatica debug s2c
 
 | 症状 | 看哪里 |
 |---|---|
-| 客户端进服但收不到数据 | 查 Provider 是否启用（看 `servux.json` 顶层 `DataProviderToggles` 段 / 开 `/servux debug cat provider` 看生命周期日志——`/servux info` 只回显 setting 现值/默认值，不含启用状态）；查 `permission_level`；开 `handshake` 分类看握手是否成功（客户端侧先确认 `entityDataSync` 开关已开——`not_enabled` 是客户端本地开关未开，与服务端无关，见 [`10`](10-testing-guide.md) §2） |
-| 大投影粘贴 / 上传失败 | 查客户端是否因 32,767 字节断连；开 `network`/`packet` 看分片（字节限制教义见 [`09`](09-DELIVERY.md)） |
+| 客户端进服但收不到数据 | 查 Provider 是否启用（看 `servux.json` 顶层 `DataProviderToggles` 段 / 开 `/servux debug cat provider` 看生命周期日志——`/servux info` 只回显 setting 现值/默认值，不含启用状态）；查 `permission_level`；开 `handshake` 分类看握手是否成功（客户端侧先确认 `entityDataSync` 开关已开——`not_enabled` 是客户端本地开关未开，与服务端无关，见 [`servux-testing.md`](servux-testing.md) §2） |
+| 大投影粘贴 / 上传失败 | 查客户端是否因 32,767 字节断连；开 `network`/`packet` 看分片（字节限制教义见 [`architecture.md`](architecture.md) §3.4） |
 | EasyPlace 无反应 | 确认服务器装了 PacketEvents 插件（`softdepend`）；开 `easyplace` 分类——若日志见「拒绝放置（写入前 FAIL）」为 canBuild 拒绝分支（validator/床头拒绝或修正态 canSurvive/实体碰撞失败，语义对齐上游整次 FAIL），非故障 |
 | Syncmatica 客户端连不上 | 默认 NMS 直发；`/syncmatica debug s2c` 确认路径；开 `handshake` 看握手链 |
-| JEI 配方不同步 | `/jei` 确认 `enabled`；fabric 腿要求客户端声明 `fabric:recipe_sync`（任何 Fabric-API 客户端都会）；进服时序整形器（`RecipeSyncJoinOrderer`）必须出现在 pipeline——缺失/安装失败会降级为旧时序（警告 + 客户端本地配方）；注意只影响**之后**进服的玩家（详见 [`30`](30-jei-protocol.md) §5.2） |
+| JEI 配方不同步 | `/jei` 确认 `enabled`；fabric 腿要求客户端声明 `fabric:recipe_sync`（任何 Fabric-API 客户端都会）；进服时序整形器（`RecipeSyncJoinOrderer`）必须出现在 pipeline——缺失/安装失败会降级为旧时序（警告 + 客户端本地配方）；注意只影响**之后**进服的玩家（详见 [`jei.md`](jei.md) §5.2） |
 
-> Servux / Syncmatica 各通道的逐步实测步骤见 [`10`](10-testing-guide.md) 与 [`24`](24-syncmatica-testing-guide.md)。
+> Servux / Syncmatica 各通道的逐步实测步骤见 [`servux-testing.md`](servux-testing.md) 与 [`syncmatica-testing.md`](syncmatica-testing.md)。
 
 ---
 
-> **回到索引**：[00-INDEX.md](00-INDEX.md) · 项目权威说明：[../AGENTS.md](../AGENTS.md)
+## 6. MC 版本升级 SOP（维护者方法论）
+
+> 本节是版本升级的标准作业程序，由 26.1 / 26.2 两次迁移提炼。分支模型（`dev` / `main` / `ver/<X>`(+`-dev`)）与发版流程的唯一权威见 [`AGENTS.md`](../AGENTS.md) §分支模型，本文不复制。
+
+### 6.1 前置检查
+
+1. **查上游版本清单**：`https://launchermeta.mojang.com/mc/game/version_manifest_v2.json`，读 `latest.release` / `latest.snapshot`；Paper 侧用 `https://api.papermc.io/v2/projects/paper` 交叉核对。
+2. **版本策略 = 对齐 latest-1**（latest 可能出小版本更新，latest.release 的下一版才是目标）。
+3. 对齐动作：上游最新 release == 本线 `gradle.properties` 的 `mcVersion` → 正常开发；上游已越过本线 → 该版本属旧线，当前版本的活走 `ver/<X>-dev`，同时按本 SOP 启动升级。
+
+### 6.2 冻结与切分支
+
+上游新版本出现时：从 `main`（干净冻结点）切出 `ver/<旧版本>` + `ver/<旧版本>-dev` 对（**不要从 dev 切**——dev 即将携带新版本改动）→ 回到 `dev` 改 `gradle.properties` 开始升级。旧版本 Bug 修在 `ver/<X>-dev`，验证后合入 `ver/<X>` 出包；若新版本同样存在，cherry-pick / 手工移植回 `dev`。
+
+### 6.3 构建面升级清单
+
+逐项核对（历史漂移实例见 §6.7）：
+
+- [ ] `gradle.properties`：`mcVersion` 改为**精确上游 id**（客户端 MOD_STRING 硬门禁绑死；Fill/dev-bundle/runServer 三处都无裸版本段）+ `buildNumber` 换线重置为 1（每线独立编号）。
+- [ ] dev bundle：`<mc>.build.<N>-stable` 新格式（26.1 起），取该线当前最高 stable（repo.papermc.io metadata 实测）。
+- [ ] paperweight userdev：策略性跟随最新 beta（若无功能必要性且编译失败可回退并记录）。
+- [ ] run-paper / Gradle wrapper：核对插件 API 版本要求（run-task 3.1.0 要求 Gradle ≥9.7）。
+- [ ] Java 工具链：对照上游 `build.gradle` 与 piston-meta `javaVersion`。
+- [ ] **reobf 已废除**（26.1 起）：不得恢复 reobfJar 装配。
+- [ ] `plugin.yml` `api-version` 已模板化 `${mcVersion}`——确认展开链路（`inputs.property` + `verifyVersionInjection` 终检；历史事故：手写 api-version 误留旧值致 Modrinth 错标 + 发版陈旧展开打进新 jar）。
+- [ ] packetevents：核对新 MC 版本支持与 API 面破坏（`WrapperPlayClientPlayerBlockPlacement` 等），运行时实机复验。
+
+### 6.4 协议面核对方法论
+
+> **静默失败重灾区，编译器不可见**——必须逐字对照客户端源码（`OriginImpl/*-LTS/<版本>`），不要凭服务端代码猜客户端行为。
+
+1. **五路全树逐文件字节级 diff**（`git diff --no-index` / `diff -rq`），非抽样：servux / malilib+litematica / minihud+tweakeroo / syncmatica / JEI（+ Fabric API `fabric:recipe_sync` 所在分支）。
+2. 核对面：协议版本常量表（客户端 `!=` 严格相等）、MOD_STRING 期待前缀（`servux-fabric-<精确上游id>`）、DataTag 载体与逐 Type 分界、C2S 枚举增删、PacketSplitter 常量与重组上限、JEI 通道/权限/转移算法、syncmatica 18 PacketType/FeatureSet/Exchange。
+3. **wire diff 基线**：当前线（26.1→26.2）协议面**零变化**已实证；旧线维护时以各线上游树为准（如 Schema 两表各随各的上游树，勿互相对齐）。上游 HEAD 锚（commit hash）在升级 commit 中记录。
+4. Schema/DataVersion 表：整表照抄上游（含上游主动携带的前瞻条目与特有序型，保序）；上游删除的条目跟随删除（非回归）。
+
+### 6.5 NMS 漂移修复
+
+**编译驱动**：改版本 → `./gradlew build` → 逐个编译错误修复。已知坑清单见 [`architecture.md`](architecture.md) §3.6（升级时逐行重核）。Paper 行为实证重核：dev bundle 自带全套 .java 源码可直读（如 `CraftPlayer.sendPluginMessage` 门控、`PaperCommonConnection.packetListener` 反射目标、`handleUseItemOn` 逐轴校验与 capture 时序）。
+
+### 6.6 实机验证
+
+1. **单测**：`./gradlew test` 全绿（规模基线以实跑为准；新增漂移应补锁定用例——见 §6.8 判据索引）。
+2. **构建终检**：`./gradlew build` + `verifyVersionInjection`（解包断言 plugin.yml / version.properties 与 project.version 一致）。
+3. **runServer 环境隔离三件套**（循先例）：`run/server.properties` `level-name=<新版本隔离世界名>`（旧世界不触碰）+ 共享配置 `.pre<版本>.bak` 备份 + packetevents jar 版本核对（升级则换装后复启复验 EasyPlace）。
+4. **起服检查**：版本横幅正确 → 三模块注册 + `框架就绪` + `Done`，无 ERROR/SEVERE。
+5. **客户端互通冒烟（用户侧最终验收）三要素**：
+   - HUD/litematics 握手（按 [`servux-testing.md`](servux-testing.md) 流程）；
+   - **EasyPlace 编码包改写放行回归**（packetevents 跨版本 read/write 对称性是活风险点）；
+   - `RecipeNbtNormalizer` 的 wire 病灶形状确认（plain NbtOps 编码形状无头环境不可观测，需真客户端）。
+
+### 6.7 已知漂移模式表（历史实例，升级时优先排查同类）
+
+| 线 | 漂移 | 形态 |
+|---|---|---|
+| 26.1 | `ChunkPos` 变 record | 字段私有化：`x()/z()`、`unpack/pack/containing` |
+| 26.1 | 天气状态搬家 | `ServerLevelData.getXxx` → `ServerLevel.getWeatherData()` |
+| 26.1 | 消息 API | `displayClientMessage(comp, bool)` → `sendSystemMessage(comp)` |
+| 26.1 | `ResourceLocation` → `Identifier` | Mojang 重命名；`.location()` → `.identifier()` |
+| 26.1 | `CompoundTag` Optional 语义 | `getXxx` 返回 Optional；`getXxxOr`/`.orElse()` |
+| 26.2 | `EntityType.PLAYER` 等常量迁至 `EntityTypes` | vanilla 拆常量类（`getKey/create` 仍在 `EntityType`） |
+| 26.2 | `EntityType.create` 第三参 | `new EntitySpawnRequest(EntitySpawnReason.LOAD, true)` |
+| 26.2 | `BlockTags.CONCRETE_POWDER` → `CONCRETE_POWDERS` | tag 改名，判定集合不变 |
+
+### 6.8 验证判据索引（测试名 + 通过条件 → 详锚）
+
+| 测试 | 通过条件 | 详锚 |
+|---|---|---|
+| `TaskGroupTest`（4 黄金样本） | Box IntArrayTag 形状 / REMAINING_CHUNKS 字面量 / 完成帧缺键 / 10 条上限无标题行（纯 JVM 需 `SharedConstants.tryDetectVersion()+Bootstrap.bootStrap()` 前置） | [`servux-schematic.md`](servux-schematic.md) §9.5 |
+| `TaskSchedulerTest`（7 用例） | timer 首启 / interval 钳制 / 周期复位 / 完成移除 / 同 tick 双任务 / clearTasks | 同上 |
+| `EntityPastePositionFixTest`（11 用例） | 实体修复族 ①-⑤ 全守卫（字面串防同源共错 + wire 形状 + 负数截断 + UUID 不变） | 同上 §6.1 |
+| `DataTagIoTest`（13 用例） | 异常三分语义（空 tag / null / ZipException 裸读回落）+ 黄金向量 | [`servux-protocol.md`](servux-protocol.md) §5.5 |
+| `PacketSplitterTest` / `FeatureSet` / `LitematicaBitArray` | 分片重组 / 版本正则 / 位打包纯函数 | — |
+
+### 6.9 观察项（升级窗口消费）
+
+- 上游 servux 树已携带 26.3 Schema 前瞻条目；`DataTypeUtils` 已为 26.3 预留 `"id"/"properties"` BlockState 读宽容——**26.3 wire 可能翻转写路径**，届时 DataTag 块状态写出需对照。
+- 上游 26.4 出现时：按 §6.2 冻结 `ver/26.2`（+`-dev`）对 → dev 升 `mcVersion=26.3`。
+- 僵尸 VHS 周期重试器（enable 后正常对局中客户端停止应答的残留 exchange）——行为级已知局限，登记于 [`syncmatica-architecture.md`](syncmatica-architecture.md) §已知局限。
+
+---
+
+> **回到索引**：[index.md](index.md) · 项目权威说明：[../AGENTS.md](../AGENTS.md)

@@ -1,10 +1,10 @@
-# 10 · Servux 客户端兼容测试指南
+# Servux 客户端兼容测试指南
 
 > 本文档把「插件移植」转化为「实测验证」。基于 `OriginImpl/` 下 masa 全家桶
 > （minihud / tweakeroo / litematica）**客户端源码的逐行分析**，给出每个 servux 通道对应的
 > 客户端 mod、触发方式、预期表现和成功判据。
 >
-> 配套阅读：[`02-network-protocol.md`](02-network-protocol.md)（协议层）、[`03-dataproviders-detail.md`](03-dataproviders-detail.md)（数据内容）。
+> 配套阅读：[servux-protocol.md](servux-protocol.md)（协议层）、[servux-providers.md](servux-providers.md)（数据内容）、[index.md](index.md)（文档地图）。
 
 ---
 
@@ -87,7 +87,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
   完整分类见 `mod/servux/ServuxDebug.java` 的 `Cat` 枚举（10 值）：`lifecycle / handshake / network / packet / tick / permission / provider / config / easyplace / schematic`。
 - **持久化**：编辑 `run/plugins/VeryMcProto/servux.json`，设 `servux_main.debug_log: true`，重启。
 
-> 开启后日志形如：`[DBG/HANDSHAKE] litematic sendMetadata → Steve ok=true servux=servux-fabric-26.2-b1 ver=2`（MOD_TYPE=fabric 伪装 + 精确上游 id——26.2 客户端硬门禁要求，见 docs/09 §26.1.2；litematics 协议版本 2）。
+> 开启后日志形如：`[DBG/HANDSHAKE] litematic sendMetadata → Steve ok=true servux=servux-fabric-26.2-b1 ver=2`（MOD_TYPE=fabric 伪装 + 精确上游 id——26.2 客户端硬门禁要求，见 [servux-protocol.md](servux-protocol.md) §5；litematics 协议版本 2）。
 
 ### 3.2 服务端：确认权限（当前默认全员可用）
 
@@ -183,8 +183,8 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 | 功能 | 状态 | 表现 |
 |---|---|---|
-| 投影文件传输（服务器投递投影给客户端） | ⛔ 已移除 | 26.1 stock 客户端无接收端（Transmit 分流整块注释，帧被静默丢弃；上游同源死路 `@Deprecated(forRemoval)`）——服务端死信链已删；**C2S 接收侧（客户端上传落盘）同判于 2026-10 安全修复移除**（路径穿越任意写删），见 [05](05-schematic-system.md) §3 |
-| 投影粘贴（客户端上传投影让服务端放置） | ✅ 已实现 | 客户端 `LitematicaPaste` 批量路由上传 → `handleClientPasteRequest` → `PasteTask` 分 tick 写世界（创造模式 + paste 权限）。详见 [09](09-DELIVERY.md) §5.5 |
+| 投影文件传输（服务器投递投影给客户端） | ⛔ 已移除 | 26.1 stock 客户端无接收端（Transmit 分流整块注释，帧被静默丢弃；上游同源死路 `@Deprecated(forRemoval)`）——服务端死信链已删；**C2S 接收侧（客户端上传落盘）同判于 2026-10 安全修复移除**（路径穿越任意写删），见 [servux-schematic.md](servux-schematic.md) §3 |
+| 投影粘贴（客户端上传投影让服务端放置） | ✅ 已实现 | 客户端 `LitematicaPaste` 批量路由上传 → `handleClientPasteRequest` → `PasteTask` 分 tick 写世界（创造模式 + paste 权限）。详见 [servux-protocol.md](servux-protocol.md) §8.5 |
 | 单个 / 批量 NBT 查询 | ✅ 已实现 | 上述测试 A / B 覆盖 |
 
 ---
@@ -197,7 +197,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 1. **握手 + NBT 查询**：与 Litematica 同构（`entityDataSync` 开 → C2S 拉取 → 缓存）。
 
-> **潜影盒堆叠——未实现（不可能实现）**：原版通过 tweaks 通道下发 `stackingShulkers` / `stackingShulkersMax` 元数据，客户端 `EntityDataManager.checkTweaksConfigs`（`EntityDataManager.java:420`）收到后**自动**开启 `TWEAK_SHULKERBOX_STACKING` 客户端堆叠渲染。但“真正可堆叠”靠服务端 Mixin 改 `ItemStack.getMaxStackSize()` 全局行为——Paper 无 Mixin 无法等价（详见 [`04`](04-mixin-analysis.md) §4）。若只下发元数据而不做服务端堆叠，会导致客户端显示可堆叠、服务端按原上限拆开的**不一致**。故本插件**已删除** `stackable_shulkers` 系列 setting，**不下发** `stackingShulkers` 元数据——这是正确的降级，非 bug。
+> **潜影盒堆叠——未实现（不可能实现）**：原版通过 tweaks 通道下发 `stackingShulkers` / `stackingShulkersMax` 元数据，客户端 `EntityDataManager.checkTweaksConfigs`（`EntityDataManager.java:420`）收到后**自动**开启 `TWEAK_SHULKERBOX_STACKING` 客户端堆叠渲染。但“真正可堆叠”靠服务端 Mixin 改 `ItemStack.getMaxStackSize()` 全局行为——Paper 无 Mixin 无法等价（详见 [architecture.md](architecture.md) §5.3）。若只下发元数据而不做服务端堆叠，会导致客户端显示可堆叠、服务端按原上限拆开的**不一致**。故本插件**已删除** `stackable_shulkers` 系列 setting，**不下发** `stackingShulkers` 元数据——这是正确的降级，非 bug。
 
 ### 6.2 测试 A：握手（必做，前置）
 
@@ -215,7 +215,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 ---
 
-## 6.5 上游对齐回归（2026-09 八项修复实测）
+## 6.5 上游对齐回归清单（八项）
 
 > 对应「Servux 与上游不一致八项修复」：A 查自己 NBT 保留背包 / B BE 不存在不回复 /
 > C bulk 四处 / D 粘贴实体撞车重排 + deduplicate setting / E Structures 分批 /
@@ -230,7 +230,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 | E | （机制层，26.1→26.2 客户端均无可观测差异）minihud 开 structures 后进服 | 结构框正常显示（分批路径与单帧路径行为一致；register 日志可见 max_receive_s2c 默认 16MB） |
 | F | `/servux list`、`/servux set` + `/servux save`、以非 op 账号测子命令权限 | list 列全部 settings 现值（值 <10 字符才内联显示）；set 后未 save 时重启+crash 场景不持久；各子命令权限独立生效（旧 `servux.command` 授权自动继承新树） |
 | G | minihud HUD 开启，观察 spawn/weather 数据 | 功能不回归（删的 id/servux/version 键客户端本就不读） |
-| H | 无 seed 权限玩家查询 HUD metadata（`share_seed=true` 时） | metadata 帧**不含** worldSeed 键（我方发过滤副本——有意偏离，上游发原件属其自身 bug，见 docs/03 §1.2 声明） |
+| H | 无 seed 权限玩家查询 HUD metadata（`share_seed=true` 时） | metadata 帧**不含** worldSeed 键（我方发过滤副本——有意偏离，上游发原件属其自身 bug，见 [servux-providers.md](servux-providers.md) §1.2 声明） |
 
 ---
 
@@ -285,8 +285,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 ## 8. 已知降级清单（测试时预期这些「不工作」，非 bug）
 
-源自 Mixin / schematic 无法迁移，详见 [`04-mixin-analysis.md`](04-mixin-analysis.md) 与
-[`07-migration-architecture.md`](07-migration-architecture.md) §降级矩阵：
+源自 Mixin / schematic 无法迁移，详见 [architecture.md](architecture.md) §5（Mixin→Paper 处置矩阵）与 §5.3（统一降级矩阵）：
 
 | 功能 | 所属通道 | 降级表现 |
 |---|---|---|
@@ -328,3 +327,18 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 | `OriginImpl/tweakeroo-*/.../data/EntityDataManager.java` | 握手条件（`checkTweaksConfigs` 潜影盒同步已废弃，见 §6.1） |
 | `OriginImpl/tweakeroo-*/.../network/ServuxTweaksHandler.java` | 客户端通道 `servux:tweaks` 收发 |
 | 我们的插件 | `mod/servux/dataproviders/LitematicsDataProvider.java`、`TweaksDataProvider.java`、`mod/servux/network/Servux*Litematica/Tweaks*Handler.java` |
+
+---
+
+## 10. 实测验收要点
+
+1. **客户端必须装 masa mod**（MiniHUD/Litematica/Tweakeroo + servux 协议）：plugin messaging ↔ vanilla custom payload 互通**当且仅当**客户端通过 1.20.5+ `PayloadTypeRegistry.playS2C()` 注册通道 id（masa mod 这么做了）。原版/未装 mod 客户端收不到 servux 数据。
+2. **原版客户端 S2C 安全性（2026-09-08 裁决，现行权威；机制详见 [architecture.md](architecture.md) §3.2）**：Paper `CraftPlayer.sendPluginMessage` 按 `channels().contains(channel)` 门控、未声明即静默丢弃（26.1.2 反编译实锤；26.2.build.129 源码复核存活 :2225）——这曾吞掉 minihud structures 的进服首握手回复（其客户端 metadata 接受窗口是单次的：`DataStorage.java:288` 开门 → 首个 `%20` tick `:804` 关门，错过即恒 not_connected 直到手动 toggle）。修复：`ProtocolChannel.send` 引入**同通道 C2S 证明兜底**——只对**在本通道发过 C2S 的玩家**（= 装有对应 mod，能发即能收）在 Paper 声明簿记未跟上时走 NMS `new ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes))` 直发（与 Paper 自身放行路径逐字同构；证明集合随 PlayerQuitEvent 清除）。未发过 C2S 的玩家（vanilla / 未装 mod）**构造性不受兜底影响**，仍走 sendPluginMessage 由 Paper 丢弃——设计**不押注**「原版客户端对未知通道 S2C 的行为」（旧记述「NeoForge/vanilla 倾向断连」系未实证断言：服务端侧对称机制 `CustomPacketPayload.codec` 的 fallback 把未知 id 解码为 DiscardedPayload 后忽略，vanilla 大概率静默丢弃、断连风险主要在 NeoForge 网络层）。**已知限制**：REGISTER 回复 RTT 超过客户端剩余 `%20` 窗口（概率 ≈ RTT/1000ms）时仍需手动 toggle——与上游 Fabric servux 同源，不劣于上游。
+3. **握手时序**：HUD 有三道保障（onPlayerJoin 40t / onPlayerRegisterChannel 事件 / 客户端 C2S 主动请求），首包可靠性已大幅提升；entity/tweaks/litematics 亦有 `onPlayerRegisterChannel` 重发（幂等）。
+4. **C2S 不踢人**：5 条通道均 `registerIncomingPluginChannel`，Paper 内置路由，客户端 C2S 不会因「Invalid payload」被踢。
+5. **互通性**：workflow 调研确认方案可行（`blocksRuntime=false`），Fabric+masa 客户端 ↔ Paper 的端到端字节级 round-trip 按本文件 §1–§9 流程验收（FabricMC #4430 是求助帖非权威结论；其作者曾反映「能发不能收」，masa mod 因正确注册 PayloadTypeRegistry.playS2C 而可用）。早期「互通性未真机验证」划线注记属历史记录，现行验证按本文件流程。
+6. 待实测点随各次迁移更新——当前清单见本文件 §1–§9（历史迁移实录各节「用户侧最终验收」注记属历史记录，现行验证按本文件流程）。
+
+---
+
+> **回到索引**：[index.md](index.md) · 项目权威说明：[../AGENTS.md](../AGENTS.md)

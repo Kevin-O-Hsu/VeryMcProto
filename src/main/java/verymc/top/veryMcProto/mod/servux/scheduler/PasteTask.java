@@ -19,7 +19,7 @@ import verymc.top.veryMcProto.mod.servux.util.position.PositionUtils;
 
 /**
  * Litematica 投影粘贴任务（26.1 移植）——合并上游
- * {@code TaskPasteSchematicPerChunkBase + TaskPasteSchematicPerChunkDirect}（paste 任务化，docs/09 §26.1.5）。
+ * {@code TaskPasteSchematicPerChunkBase + TaskPasteSchematicPerChunkDirect}（paste 任务化，docs/servux-schematic.md §9）。
  *
  * <p>行为真值逐项对照上游 {@code TaskPasteSchematicPerChunkDirect.java:51-138}：
  * <ul>

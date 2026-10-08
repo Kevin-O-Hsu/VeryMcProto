@@ -30,7 +30,7 @@ import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaLog;
  *   <li>原版持 {@code ServerGamePacketListenerImpl}（NMS，需 Mixin 注入）→ 改持 {@link Player}（Bukkit）；</li>
  *   <li>{@code persistentName} = {@code player.getUniqueId().toString()}（原版 {@code getStringUUID()}）；</li>
  *   <li>{@code sendPacket} 默认走 <b>NMS {@code DiscardedPayload} 直发</b>（{@link #S2C_VIA_NMS}，同 JEI Recipe Bridge），
- *       构造 {@code [Identifier][body]} 复合包体（docs/21 §1.2 命门——单物理通道 + 第一字段逻辑 PacketType）；
+ *       构造 {@code [Identifier][body]} 复合包体（docs/syncmatica-protocol.md §1.2 命门——单物理通道 + 第一字段逻辑 PacketType）；
  *       plugin messaging 仅作 fallback——纯 Fabric 客户端（syncmatica）收不到 plugin messaging 的 wire（实测）。</li>
  * </ul>
  */

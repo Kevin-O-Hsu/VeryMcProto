@@ -7,7 +7,7 @@ import java.util.List;
  * Litematica task 组服务端任务调度器（26.1 移植）。
  *
  * <p>对照上游 {@code OriginImpl/servux-LTS-26.2 scheduler/TaskScheduler.java:17-74}（scheduler 20 类的
- * v3 极简合并形态——见 docs/09 §26.1.5）：单列表 + 每 tick {@link #runTasks()} 驱动。
+ * v3 极简合并形态——见 docs/servux-schematic.md §9）：单列表 + 每 tick {@link #runTasks()} 驱动。
  * 任务面 = {@link LitematicaTask} 基类（Fill/Delete 与 Paste 共居；上游 {@code List<ITask>} 的对应物，
  * 预算模型任务自带——Fill/Delete 固定 25ms、Paste 为 vanillaTickTime+60ms 动态预算，调度器零预算知识）。
  *

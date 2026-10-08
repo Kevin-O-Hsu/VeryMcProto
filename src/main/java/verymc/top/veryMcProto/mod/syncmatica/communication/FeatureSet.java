@@ -11,7 +11,7 @@ import java.util.*;
  * （<b>非二进制位图</b>），作为一个 writeUtf/readUtf 字段传输。
  *
  * <p>版本默认集：仅 {@code "0.1" → {CORE}}。其他版本走 FEATURE 交换获取对端实际 FeatureSet。
- * 详见 docs/21-syncmatica-protocol.md §3。
+ * 详见 docs/syncmatica-protocol.md §3。
  */
 public class FeatureSet {
 

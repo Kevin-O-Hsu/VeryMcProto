@@ -23,7 +23,7 @@ import verymc.top.veryMcProto.Reference;
 import verymc.top.veryMcProto.framework.reflect.Reflect;
 
 /**
- * fabric 配方同步进服时序整形器（netty 出站拦截——全仓库首例，范式论证见 docs/30 §5.3）。
+ * fabric 配方同步进服时序整形器（netty 出站拦截——全仓库首例，范式论证见 docs/jei.md §5.3）。
  *
  * <p><b>要解决的问题</b>：JEI 客户端在处理 play 相位 {@code ClientboundUpdateRecipesPacket} 的 RETURN
  * 时启动并一次性判定配方同步状态（上游 {@code ClientPacketListenerRecipeUpdateMixin} →

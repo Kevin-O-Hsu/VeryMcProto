@@ -40,7 +40,7 @@ import verymc.top.veryMcProto.mod.servux.util.position.PositionUtils;
  *       （comparator 参考点另有 BlockPos.ZERO 兜底初值，PositionUtils:1231；桩路径下 stop/updateInfoHudLines
  *       结构性不可达——见 TaskSchedulerTest）；</li>
  *   <li>Fill/Delete 的中断终行文案随本次基类化由恒 completed 修正为 finished 条件（对齐上游 aborted 行）——
- *       Fill/Delete 的中断仅在插件停用 clearTasks 路径可达，行为变化已声明 docs/09 §26.1.5。</li>
+ *       Fill/Delete 的中断仅在插件停用 clearTasks 路径可达，行为变化已声明 docs/servux-schematic.md §9。</li>
  * </ul>
  */
 abstract class LitematicaTask

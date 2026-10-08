@@ -23,7 +23,7 @@ import verymc.top.veryMcProto.mod.servux.util.nbt.DataTagIo;
  * task 组）DataTag 线格式；Type 10-13 分片恒裸 bytes——<b>C2S 投影上传的重组整体亦为 DataTag 帧，且不再有
  * type VarInt 前缀，改按 NBT 内 "Task" 字符串路由</b>（26.1 客户端 encodeClientData 直接 DataTag 编码）。
  *
- * <p>Type 14-17（task 组，已实现——见 docs/09 §26.1.5）：type 14（C2S TASK_REQUEST）受理 Fill/Delete 选区任务；
+ * <p>Type 14-17（task 组，已实现——见 docs/servux-schematic.md §9）：type 14（C2S TASK_REQUEST）受理 Fill/Delete 选区任务；
  * type 16（S2C TASK_STATUS_SYNC）下行任务进度/完成帧（Fill/Delete/Paste 三类任务共用，Paste 粘贴自任务化后
  * 同走此帧清除客户端 InfoHud renderer）；type 15（S2C TASK_RESPONSE）客户端接收端 TODO 故服务端永不发送；
  * type 17（C2S TASK_CANCEL）上游双向 TODO 死路，同源忽略。
@@ -312,7 +312,7 @@ public class ServuxLitematicaPacket implements IServerPayloadData
         // For Packet Splitter (Oversize Packets, C2S)
         PACKET_C2S_NBT_RESPONSE_START(12),
         PACKET_C2S_NBT_RESPONSE_DATA(13),
-        // Task Scheduler Items（26.1 新增；type 14 受理与 type 16 任务帧已实现——见 docs/09 §26.1.5/§26.1.6）
+        // Task Scheduler Items（26.1 新增；type 14 受理与 type 16 任务帧已实现——见 docs/servux-schematic.md §9/§26.1.6）
         PACKET_C2S_TASK_REQUEST(14),
         PACKET_S2C_TASK_RESPONSE(15),
         PACKET_S2C_TASK_STATUS_SYNC(16),

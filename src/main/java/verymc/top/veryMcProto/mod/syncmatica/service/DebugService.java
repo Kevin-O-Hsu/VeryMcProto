@@ -9,7 +9,7 @@ import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaLog;
  * <p>记录收发包日志（{@code CommunicationManager.onPacket} 调 {@link #logReceivePacket}；
  * {@code ExchangeTarget.sendPacket} 调 {@link #logSendPacket}）。
  *
- * <p><b>Paper 适配 / 原版 bug 修正</b>（docs/22 §8.2）：
+ * <p><b>Paper 适配 / 原版 bug 修正</b>（docs/syncmatica-architecture.md §7）：
  * <ul>
  *   <li>原版字段 {@code doPacketLogging} 默认 {@code true}，但配置默认值 {@code false}，不一致——此处统一 {@code false}
  *       （生产环境不应默认开 INFO 级包日志）；</li>
