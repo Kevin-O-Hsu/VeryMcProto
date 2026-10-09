@@ -144,7 +144,7 @@ The original Servux has **26 Mixins + 2 AccessWideners**; Syncmatica has **5 ser
 | --- | --- | --- |
 | Protocol data collection (reading private fields) | **Reflection / direct NMS access** | ✅ |
 | Collection triggers / lifecycle | **Bukkit events + tick scheduling** | ✅ |
-| **EasyPlace** (Tweakeroo precise placement) | **PacketEvents intercepts `PLAYER_BLOCK_PLACEMENT` + replays `BlockItem.place` side effects** | ✅ needs PacketEvents |
+| **EasyPlace** (Tweakeroo precise placement) | **PacketEvents rewrites the encoded `PLAYER_BLOCK_PLACEMENT` packet (vanilla placement untouched) + pre-write veto via `BlockCanBuildEvent` + post-place fix via `BlockPlaceEvent`** | ✅ needs PacketEvents |
 | **Mirror fixes** (chest/rail/stairs) | **Inlined fixes on paste** (`fix_chest_mirror` / `fix_rail_rotations` / `fix_stairs_mirror`) | ✅ (rail/stairs may be less perfect than Mixin) |
 | **Fill/Delete via servux tasks** (26.1 new) | `PACKET_C2S_TASK_REQUEST` group (types 14-17): per-tick budgeted fill/delete + InfoHud status sync | ✅ (26.1+) |
 | **UpdateSuppression** | ⛔ **Omitted** (no Paper equivalent) | ❌ |

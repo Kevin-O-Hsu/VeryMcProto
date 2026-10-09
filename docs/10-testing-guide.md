@@ -293,7 +293,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 | 投影文件传输（服务器→客户端投递投影） | litematics | ⛔ 已移除（26.1 客户端无接收端，死信链已删——上游 Transmit 分流注释 + `@Deprecated(forRemoval)` 同源死路；**C2S 接收侧同判 2026-10 安全修复移除**——路径穿越任意写删） |
 | 投影粘贴（C2S 上传放置） | litematics | ✅ 已实现（`LitematicaPaste` 路由 → `PasteTask` 分 tick 写世界） |
 | 服务端潜影盒堆叠行为 | tweaks | ⛔ 不可能实现（已删代码） |
-| EasyPlace（Tweakeroo 服务端配合放置） | servux_main | ✅ 已实现（PacketEvents）；调试 `/servux set servux_main:debug_log true` 看 `EasyPlace in/out` 日志 |
+| EasyPlace（Tweakeroo 服务端配合放置） | servux_main | ✅ 已实现（PacketEvents + 双挂点：`BlockCanBuildEvent` 写入前否决/暂存 + `BlockPlaceEvent` 修正写入）；调试 `/servux set servux_main:debug_log true` 看 `EasyPlace in/out` 日志（canBuild 阶段打出）与「拒绝放置（写入前 FAIL）/ 修正放置」（拒绝/写入阶段） |
 | UpdateSuppression | — | 省略 |
 | 镜像修复（箱子 180°） | litematics | ✅ 已实现（SchematicPlacingUtils 内联 + fixChestMirror setting）。铁轨/楼梯靠 BlockState.mirror/rotate 自身（原版 Mixin 降级，可能不完美） |
 

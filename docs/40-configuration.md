@@ -202,7 +202,7 @@ commands:
 | `permission_level` | int [0..4] | 0 | 基础权限等级（0 = 全员） |
 | `permission_level_admin` | int [0..4] | 3 | 管理操作权限等级 |
 | `permission_level_easy_place` | int [0..4] | 0 | EasyPlace 权限等级 |
-| `easy_place_validator_enabled` | bool | true | EasyPlace 放置校验器 |
+| `easy_place_validator_enabled` | bool | true | EasyPlace 放置校验器（仅控制 `PlacementHandler` 内部的 canSurvive 中间/终态校验回退；**修正态 canSurvive + 实体碰撞的 canBuild 拒绝判定恒生效**——关闭时我方比上游严，上游 OFF 会连 vanilla 基座检查一起旁路放行非法态，我方仍拒绝） |
 | `default_language` | string | `en_us` | 默认语言 |
 | `debug_log` | bool | false | 调试 master 总开关 |
 | `debug_categories` | string[] | `[]` | 已启用的调试分类（与 `debug_log` 正交） |
@@ -353,7 +353,7 @@ S2C 路径排查：`/syncmatica debug s2c`（查看）→ `/syncmatica debug s2c
 |---|---|
 | 客户端进服但收不到数据 | 查 Provider 是否启用（看 `servux.json` 顶层 `DataProviderToggles` 段 / 开 `/servux debug cat provider` 看生命周期日志——`/servux info` 只回显 setting 现值/默认值，不含启用状态）；查 `permission_level`；开 `handshake` 分类看握手是否成功（客户端侧先确认 `entityDataSync` 开关已开——`not_enabled` 是客户端本地开关未开，与服务端无关，见 [`10`](10-testing-guide.md) §2） |
 | 大投影粘贴 / 上传失败 | 查客户端是否因 32,767 字节断连；开 `network`/`packet` 看分片（字节限制教义见 [`09`](09-DELIVERY.md)） |
-| EasyPlace 无反应 | 确认服务器装了 PacketEvents 插件（`softdepend`）；开 `easyplace` 分类 |
+| EasyPlace 无反应 | 确认服务器装了 PacketEvents 插件（`softdepend`）；开 `easyplace` 分类——若日志见「拒绝放置（写入前 FAIL）」为 canBuild 拒绝分支（validator/床头拒绝或修正态 canSurvive/实体碰撞失败，语义对齐上游整次 FAIL），非故障 |
 | Syncmatica 客户端连不上 | 默认 NMS 直发；`/syncmatica debug s2c` 确认路径；开 `handshake` 看握手链 |
 | JEI 配方不同步 | `/jei` 确认 `enabled`；fabric 腿要求客户端声明 `fabric:recipe_sync`（任何 Fabric-API 客户端都会）；进服时序整形器（`RecipeSyncJoinOrderer`）必须出现在 pipeline——缺失/安装失败会降级为旧时序（警告 + 客户端本地配方）；注意只影响**之后**进服的玩家（详见 [`30`](30-jei-protocol.md) §5.2） |
 
