@@ -143,6 +143,17 @@ Paper 下 `PlayerJoinEvent` 时客户端 codec **尚未就绪**，立即推 `REG
 
 `tryStartHandshake` 幂等，两路径安全共存。`/syncmatica enable`（恢复协议）对在线玩家走同一 40t 延迟握手路径（`SyncmaticaModule.reconnectOnlinePlayers`）。
 
+> 🔧 **disable→enable 陈旧握手卡死修复（2026-10，勿随模板回退）**：`suspendAll` 旧实现只遍历
+> `broadcastTargets`（VHS 握手**成功后**才入集）且 `close(false)` 后不移出 `getExchanges()`
+> （唯一移出点 `notifyClose` 不被触发）——disable 瞬间握手中途的玩家被漏扫，其 VHS 以未 finished
+> 残留；enable 后 `reconnectOnlinePlayers` → `getOrCreateTarget`（computeIfAbsent 复用同一 target）
+> → `tryStartHandshake` 的 `instanceof VersionHandshakeServer` 跳过检查不辨死活 → 永久跳过，该玩家
+> syncmatica 不可用直到重进服（`onPlayerLeave` 移除 target 才重建）。修复 = suspendAll 遍历
+> `targets.values()` 全集 + 每个 exchange close 后显式移出列表。**收敛无需客户端配合**：上游
+> `ClientCommunicationManager.handle` 对无主 `REGISTER_VERSION` 自带重握手路径（clear + 新建 VHC），
+> VHC `checkPacket` 无条件匹配、FEATURE 轮重入幂等（时序详见 [21](21-syncmatica-protocol.md) §3.4）。
+> 残余（独立工单）：enable 后正常对局中客户端停止应答的僵尸 VHS 需周期重试器，本修复不覆盖。
+
 ---
 
 ## 4. 网络层迁移（已落地）

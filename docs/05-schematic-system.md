@@ -90,6 +90,24 @@ public BlockState get(int x, int y, int z) {
 
 > **可移植性**：核心算法纯；唯一 NMS 接触点是 `createFrom()` / `readFromNBT()` 里用 `DataProviderManager.INSTANCE.getRegistryManager()`（`RegistryAccess.Frozen`）解析 palette NBT → BlockState。移植时把 registry 改成参数传入（`plugin`/`server` 提供）。
 
+### 1.5 体积一致性预检（2026-10 安全修复，我方增强——上游无对应检查）
+
+paste 上传链（`ServuxLitematicaHandler` → `SchematicPlacement.createFromNbt` → `readFromNBT` → `readSubRegionsFromNBT`）在每 region 的 `createFrom` 之前做**声明体积 vs BlockStates 实际容量**校验：
+
+```java
+// LitematicaSchematic.readSubRegionsFromNBT（palette 转换后、createFrom 前）
+final int bits = Math.max(2, Integer.SIZE - Integer.numberOfLeadingZeros(palette.size() - 1)); // 与 createFrom 内部逐字同式
+final long totalVolume = (long) size.getX() * size.getY() * size.getZ();
+final long capacityBits = (long) blockStateArr.length * 64L;
+if (totalVolume < 0 || totalVolume > capacityBits / bits) { error("servux.litematics.error.schematic_load.region_volume_exceeds_blockstates"); }
+```
+
+- **动机**：`Size` 键完全客户端可控且与 `BlockStates` 实长可任意脱钩（声明 20000³ 只给 1 个 long）。虚假大体积直达粘贴层 = `PasteTask` 按 volume 迭代的巨量格位 CPU DoS（`TaskScheduler` 对 `execute()` 无 per-task 兜底），且执行期 `onResize` 全量重分配可达 OOM。上游 `readFromData` 的 `catch(OutOfMemoryError)` 是客户端读无限本地文件的承重防御（且对 int 溢出同样接不住——`Error` 分支不捕 `RuntimeException`），我方网络入口已有 64MB 双闸（DataTagIo 长度前缀 + NbtAccounter，见 [02](02-network-protocol.md) §5.2），照抄属死防御——**勿随上游模板搬运**。
+- **公式细节**：`bits` 与 `LitematicaBlockStateContainer.createFrom` 内部逐字同式（保证预检容量 ≡ 容器容量）；**floor 除法**（`volume > capacityBits / bits` 整数等价于 `volume × bits ≤ capacityBits`，零误拒零溢出）——勿用 `BitArray.roundUp`（对 volume=0 会算出 requiredLongs=1 误拒合法空形态）；`totalVolume < 0` 守卫接住 `(long)` 三乘的 2^64 回绕（Position/Size 经 `getMinCorner/getMaxCorner` 相减可为负分量——注意 `[2^30]³` 回绕值为 **0** 而非负数，两条件都不命中，构造溢出测试用例需用 `[MAX_VALUE]³`——积回绕为 `2^63+2^32-1` 负 long）。
+- **拒绝语义**：整体拒（抛 `CommandSyntaxException`，经 `SchematicPlacement.createFromNbt` 包 `RuntimeException` → handler 外层 `catch(Exception)` warn 日志）——与 `readFromNBT` 的 version 错误同构；区别于结构残缺 region 的**静默跳过**（Position/Size 缺失，上游同源）。恶意坏包（体积配比不自洽）= 整体拒，两类失败勿混淆。
+- **传递性背书**：C2S 侧 BlockStates 实长受 DataTagIo 的 NbtAccounter 64MB 配额封顶（先记账后分配）→ 合法流内声明体积上限自动 ≤ 2^32/bits ≈ 2^31 格位——预检只需处理"脱钩"（声明大、数据小），无需独立绝对上限常量。
+- 单测：`SchematicPlacementGuardTest#oversizedRegionRejectedByVolumeConsistencyGuard`（两条件各锁一例：1e6 volume vs 32 容量 / `[MAX_VALUE]³` 负回绕）。
+
 ---
 
 ## 2. 传输系统：两级分包

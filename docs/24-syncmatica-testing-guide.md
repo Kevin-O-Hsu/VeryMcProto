@@ -153,7 +153,28 @@ syncmatica 有**两套独立**调试日志系统，互不替代，需配合开�
 
 **成功判定**：`CONFIRM_USER` 下发且玩家进入 `broadcastTargets`。
 
-**失败排查**：
+### 3.1 disable→enable 握手恢复测试（2026-10 修复回归用例）
+
+**背景**：修复前 `suspendAll` 只遍历 `broadcastTargets`（VHS 成功后才入集）且 close 后不移除 exchange——disable 瞬间握手中的玩家被漏扫，enable 后 `tryStartHandshake` 被 `instanceof VHS` 残留永久跳过，该玩家 syncmatica 卡死直到重进服（修复实录见 [22](22-syncmatica-mixin-migration.md) §3.1）。
+
+**操作**：
+1. syncmatica 客户端 A 进服，完成 §3 基础握手（确认 `broadcastTargets` 含 A）；
+2. 客户端 B 进服，在握手进行中（或已完成后均可）执行 `/syncmatica disable`；
+3. 等待 ≥2s（越过 40t 重连延迟），执行 `/syncmatica enable`。
+
+**验证**（服务端日志，`/syncmatica debug cat handshake` 开启后）：
+
+```
+[DBG/syncmatica/handshake] tryStartHandshake: 发起握手 → <A>/<B>（enable 后 reconnectOnlinePlayers 触发）
+[DBG/syncmatica/handshake] VersionHandshakeServer.onFeatureSetReceive: 推 CONFIRM_USER[...] → <玩家>
+<玩家> 已加入 broadcastTargets
+```
+
+**成功判定**：enable 后 A、B 均在 ~2s 内重新进入 `broadcastTargets`，`/syncmatica status` 正常，客户端 B 服务端投影列表可用——**无需任何玩家重进服**。
+
+**失败排查**：enable 后无 `tryStartHandshake: 发起握手` 日志（只有"跳过（已有进行中的 VersionHandshakeServer）"）→ 残留 exchange 未被清理（suspendAll 修复回退）；发起但无 CONFIRM_USER → 客户端侧连接状态，让玩家重进服后重试。
+
+**失败排查**（基础握手）：
 - 客户端进服即踢 / 无握手包 → 检查 `syncmatica:main` 通道 outgoing 注册；`SyncmaticaHandler.receivePlayPayload` 的 `[Identifier][body]` 解析（[21](21-syncmatica-protocol.md) §1.2）；`/syncmatica debug s2c msg`（切 plugin messaging）后重测。
 - 收到 REGISTER_VERSION 但 `Denying syncmatica join due to outdated client` → `VersionHandshakeServer.handle` 的 `checkPartnerVersion` 拒绝（仅应拒 `"0.0.1"`，其它放行）；确认服务端 `MOD_VERSION` 与客户端版本兼容。
 - 收到 REGISTER_VERSION 但无 FEATURE/CONFIRM_USER → `FeatureSet.fromVersionString` / `requestFeatureSet` 链路；FeatureExchange 是否 `succeed`。
