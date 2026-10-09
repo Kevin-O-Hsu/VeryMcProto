@@ -178,7 +178,7 @@ long sprint = Reflect.get(tickManager, "remainingSprintTicks");  // Mojang 名�
 | **Litematica 投影粘贴** | MixinChestBlock/Rail/Stairs（镜像） | ✅ **做**（投影照抄 + 镜像修复**内联**到粘贴；任务化 PasteTask——见 [09](09-DELIVERY.md) §26.1.5/§26.1.6） | P2 | 见 [05](05-schematic-system.md) |
 | **潜影盒可堆叠** | MixinItemStack/Hopper | ⛔ **不可能实现** | P3 | 改 NMS 方法全局返回行为，Paper 无 Mixin；已删全部相关代码（不下发 stackingShulkers 元数据，避免客户端误判）。详见 [04](04-mixin-analysis.md) §4 |
 | **Allay 收集修复** | MixinMob/ItemEntity/Allay | ⚠️ **省略** | P4 | 改行为，影响小 |
-| **EasyPlace**（Tweakeroo 精确放置） | MixinBlockItem_EasyPlace + MixinServerPlayNetworkHandler_EasyPlace | ✅ **已实现** | P3 | 「改写放行」范式：`EasyPlaceListener` netty 线程把编码包 `cursor.x` 改写回 `relX`（等效上游短路校验的 Mixin）+ 登记 pv；vanilla 全流程放置（**消除 netty 读手持的换手 desync 竞态**，2026-09 修复）；`EasyPlaceFixListener` 在 `BlockPlaceEvent`（HIGHEST）用 `applyPlacementProtocolV3` 修正属性。与上游差异：床/门双半格不修正（`BlockMultiPlaceEvent` 降级）、`itemPlacementContext` 恒 null、恢复 vanilla 距离/保护检查、保护插件重新可见放置事件 |
+| **EasyPlace**（Tweakeroo 精确放置） | MixinBlockItem_EasyPlace + MixinServerPlayNetworkHandler_EasyPlace | ✅ **已实现** | P3 | 「改写放行」范式：`EasyPlaceListener` netty 线程把编码包 `cursor.x` 改写回 `relX`（等效上游短路校验的 Mixin）+ 登记 pv；vanilla 全流程放置（**消除 netty 读手持的换手 desync 竞态**，2026-09 修复）；`EasyPlaceFixListener` 在 `BlockPlaceEvent`（HIGHEST）用 `applyPlacementProtocolV3` 修正属性。与上游差异：门/垂滴叶双半格下半修正后以修正态重演 `setPlacedBy` 派生上半（`BlockMultiPlaceEvent` 经父类 HandlerList 派发实收，两半构造性一致）；床不修正（编码朝向≠vanilla 且头位可替换时两半错位，已知差异）、`itemPlacementContext` 恒 null、恢复 vanilla 距离/保护检查、保护插件重新可见放置事件 |
 | **UpdateSuppression** | MixinLevel/LevelChunk/Block | ❌ **省略** | P4 | 改行为，Paper 无等价 |
 | **调试 (IDE 模式)** | MixinSharedConstants | ❌ **省略** | — | 生产无用 |
 

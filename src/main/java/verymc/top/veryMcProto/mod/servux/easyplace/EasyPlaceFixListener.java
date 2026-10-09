@@ -2,6 +2,7 @@ package verymc.top.veryMcProto.mod.servux.easyplace;
 
 import java.util.UUID;
 
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -13,6 +14,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.phys.Vec3;
 
 import verymc.top.veryMcProto.framework.nms.Nms;
@@ -40,12 +43,24 @@ import verymc.top.veryMcProto.mod.servux.util.PlacementHandler;
  *
  * <p><b>已知与上游的差异</b>（有意接受，详见 docs/07 降级矩阵）：
  * <ul>
- *   <li>床 / 门等双半格方块：vanilla 双半格走 {@code BlockMultiPlaceEvent}（本监听器不注册），
- *       安全降级为不修正——多半格朝向可能为 vanilla 朝向而非投影朝向（方块种类仍正确）；</li>
+ *   <li>双半格方块（门族 / 垂滴叶族，{@code DoubleBlockHalf} 计数体系）：{@code BlockMultiPlaceEvent}
+ *       extends {@code BlockPlaceEvent} 且无自有 HandlerList，经父类派发<b>本监听器实际收到</b>。
+ *       下半格修正后以修正态重演 {@code setPlacedBy} 派生上半格（见 {@link #onBlockPlace} 尾段），
+ *       两半构造性一致、与上游「写入前改态后走同一派生」同构；不依赖 {@code updateShape} 邻居
+ *       自愈——该链受 BlockPhysicsEvent 取消门控，且垂滴叶族无自愈复制语义。</li>
+ *   <li>床（{@code BedPart} 计数体系，不走上段派生）：编码朝向==vanilla 时不修正；≠vanilla 且
+ *       目标头位被占则 {@code PlacementHandler} 床头检查拒绝（保留 vanilla 床，两半自洽）；
+ *       ≠vanilla 且目标头位可替换则仅 FOOT 被修正、床头仍留 vanilla 相对位 → 两半错位（上游为
+ *       写入前整体改向、头随脚走；事件后无法无损重构，已知差异）。</li>
  *   <li>{@code itemPlacementContext} 恒 null（无 Mixin 取不到 NMS {@code BlockPlaceContext}），
  *       仅影响 {@code PlacementHandler} 的床头可替换检查分支，非床方块与上游等价；</li>
  *   <li>修正基座继承 vanilla {@code canPlace}（含实体碰撞检查）——上游 Mixin 默认 validator
- *       开启时行为等价，仅管理员显式关闭 validator 时上游更宽（绕过实体碰撞）。</li>
+ *       开启时行为等价；仅管理员显式关闭 validator 时上游更宽：其 {@code @At("HEAD") cancellable}
+ *       注入以 {@code setReturnValue} 取消整个 {@code getPlacementState} 方法体，连带绕过体内
+ *       canPlace（含实体碰撞）；我方基座恒为 vanilla 全量检查，无此绕过。</li>
+ *   <li>事件派发内直接 {@code setBlock}（下半修正 / 双半格上半派生）不在 CraftBukkit 捕获快照内：
+ *       若事件被更晚优先级的监听器取消，{@code revertPlace} 按捕获位写回快照会覆盖这些直写
+ *       （下半 / 上半均为捕获位）——与既有单格修正同类的取舍，非新增风险。</li>
  * </ul>
  */
 public class EasyPlaceFixListener implements Listener
@@ -97,6 +112,17 @@ public class EasyPlaceFixListener implements Listener
 
         level.setBlock(pos, finalState, Block.UPDATE_ALL);
         ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "修正放置 " + finalState + " @ " + pos);
+
+        // 双半格（门族/垂滴叶族）：上半格在事件前已由 vanilla setPlacedBy 按 vanilla 态写入，
+        // 以修正态重演同一派生恢复两半一致——不依赖 updateShape 邻居自愈（受 BlockPhysicsEvent
+        // 取消门控，垂滴叶族无自愈复制语义）。床走 BedPart 计数体系，不在此列（见类注释）。
+        if (finalState.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF) &&
+            finalState.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.LOWER)
+        {
+            finalState.getBlock().setPlacedBy(level, pos, finalState, player,
+                    CraftItemStack.asNMSCopy(event.getItemInHand()));
+            ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "双半格上半派生 @ " + pos.above());
+        }
     }
 
     @EventHandler
