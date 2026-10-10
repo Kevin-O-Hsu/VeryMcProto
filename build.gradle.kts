@@ -63,6 +63,10 @@ tasks {
         // 注意：task 内用自身的 providers 取值，不捕获脚本顶层 val（配置缓存要求）。
         minecraftVersion(providers.gradleProperty("mcVersion").get())
         jvmArgs("-Xms2G", "-Xmx2G")
+        // 独立运行目录：本仓库多线共用工作区，共享 run/ 会让 26.x 线留下的 server.properties
+        //（level-name=world262 等）与本线世界格式互踩——1.21.11 服务器读 26.x 布局的 level.dat
+        //（dimensions/ 目录化）时报 "No key dimensions in MapLike[{}]; No key seed"。按线隔离后互不影响。
+        runDirectory(file("run-1.21.11"))
     }
 
     processResources {

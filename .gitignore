@@ -33,7 +33,8 @@ bin/
 
 # -------- Paper / Minecraft 运行时 --------
 # run-paper 起的测试服目录（含 cache/ libraries/ versions/ plugins/ logs/ eula.txt 等）
-# 注意：世界存档（world/ world_nether/ ...）默认也在 run/ 下，已被本规则覆盖，
+# 注意：世界存档（world/ world_nether/ ...）默认也在 run/
+run-1.21.11/ 下，已被本规则覆盖，
 #       因此【不要】单独写顶层 world/ 规则——那会误伤 OriginImpl 的 mixin/world/ 源码包。
 run/
 run-data/
