@@ -62,6 +62,8 @@ tasks {
         // 注意：task 内用自身的 providers 取值，不捕获脚本顶层 val（配置缓存要求）。
         minecraftVersion(providers.gradleProperty("mcVersion").get())
         jvmArgs("-Xms2G", "-Xmx2G")
+        // 运行目录按 mcVersion 派生隔离：多线共用工作区，防跨线世界/配置互踩（根因与 SOP 见 docs/operations.md §6.6）
+        runDirectory(file("run-" + providers.gradleProperty("mcVersion").get()))
     }
 
     processResources {

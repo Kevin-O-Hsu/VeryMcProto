@@ -109,7 +109,7 @@ gradle.properties（mcVersion=26.2 · buildNumber=1）             ← 唯一改
 ```bash
 ./gradlew build        # 产出 Mojang 映射 jar（VeryMcProto-<版本>.jar，标准 Paper 26.1+ 可直接加载）
 ./gradlew test         # 纯函数单测（PacketSplitter/FeatureSet/LitematicaBitArray/DataTagIo 等，无需起服务端）
-./gradlew runServer    # 本地起 26.2 测试服（2G 堆；MC 版本跟随 gradle.properties 的 mcVersion）
+./gradlew runServer    # 本地起 26.2 测试服（2G 堆；MC 版本跟随 gradle.properties 的 mcVersion；运行目录 run-<mcVersion>/ 按线隔离）
 ```
 
 > 为什么必须引入 paperweight/NMS：Servux 的数据采集大量依赖 NMS 内部（`NaturalSpawner.SpawnState`、`ServerTickRateManager`、`ChunkAccess.getAllReferences()`、`StructureStart.createTag()`、`Recipe.CODEC` + `NbtOps`、`BlockEntity.saveWithFullMetadata()` 等），网络层最干净的实现也复用原版 `FriendlyByteBuf` / `CompoundTag`，JEI/Syncmatica 的 S2C 大包直发依赖 NMS `ClientboundCustomPayloadPacket`。纯 Paper API 无法触达这些。详见 [`docs/architecture.md`](docs/architecture.md)。

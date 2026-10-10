@@ -414,7 +414,12 @@ dependencies {
 java { toolchain.languageVersion = JavaLanguageVersion.of(25) }
 
 tasks {
-    runServer { minecraftVersion(providers.gradleProperty("mcVersion")); jvmArgs("-Xms2G", "-Xmx2G") }
+    runServer {
+        minecraftVersion(providers.gradleProperty("mcVersion"))
+        jvmArgs("-Xms2G", "-Xmx2G")
+        // 运行目录按 mcVersion 派生隔离（见 operations.md §6.6）
+        runDirectory(file("run-" + providers.gradleProperty("mcVersion").get()))
+    }
     processResources {
         // expand 占位符必须显式 inputs.property(...) 参与 up-to-date 跟踪
         // （历史事故：发版 buildNumber+1 后任务误判 UP-TO-DATE、陈旧展开被打进新 jar）

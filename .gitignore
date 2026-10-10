@@ -32,11 +32,12 @@ bin/
 .nbproject/
 
 # -------- Paper / Minecraft 运行时 --------
-# run-paper 起的测试服目录（含 cache/ libraries/ versions/ plugins/ logs/ eula.txt 等）
-# 注意：世界存档（world/ world_nether/ ...）默认也在 run/ 下，已被本规则覆盖，
+# run-paper 起的测试服目录（含 cache/ libraries/ versions/ plugins/ logs/ eula.txt 等）。
+# 运行目录按线隔离：runServer 由 mcVersion 派生 run-<mcVersion>/（见 build.gradle.kts），
+# run*/ 一条通配覆盖旧共享 run/ 与全部按线目录（含原 run-data/ 死规则语义）。
+# 注意：世界存档（world/ world_nether/ ...）默认也在 run*/ 下，已被本段规则覆盖，
 #       因此【不要】单独写顶层 world/ 规则——那会误伤 OriginImpl 的 mixin/world/ 源码包。
-run/
-run-data/
+run*/
 logs/
 *.log
 crash-reports/
