@@ -160,7 +160,7 @@
 ```
 putMetaData(metaData, buf, target)                          // CommunicationManager.java:109-134
 ├─ writeUUID(id)                          placement UUID
-├─ writeUtf(fileName)                     基础文件名
+├─ writeUtf(getCleanFileName())           基础文件名（basename 清洗，见下方注记）
 ├─ writeUUID(hash)                        文件内容 MD5→UUID
 ├─ [若 target 有 DISPLAY_NAME]
 │   └─ writeUtf(name)                     显示名（litematic 内的 Display Name）
@@ -174,6 +174,8 @@ putMetaData(metaData, buf, target)                          // CommunicationMana
 │   └─ writeVarInt(dataVersion)
 └─ putPositionData(metaData, buf, target)                  // 接 §4.2
 ```
+
+> ⚠️ **fileName 出口 = basename 清洗**（`ServerPlacement.getCleanFileName()`，正则 `[^/\]+$` 取尾段、find 失败返回原串——上游 `ServerPlacement:107-121` 同构）。`/syncmatica load` 构造的 placement 内存 fileName 为服务端绝对路径，wire 出口（本处 putMetaData——进服握手全量推送/广播/修改重发三时机共用）与落盘出口（`SyncmaticManager.saveServer` 的 Sanitize 块 + `setFileName` 突变收敛，上游 `:124-137` 同构）双重清洗，杜绝服务端目录结构泄露。清洗对为移植时整体遗漏、已回正（勿随模板回退）。
 
 ### 4.2 putPositionData（origin + 朝向 + 子区域）
 

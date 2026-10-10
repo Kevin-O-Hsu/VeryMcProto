@@ -8,6 +8,8 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import verymc.top.veryMcProto.mod.syncmatica.SyncmaticaContext;
 import verymc.top.veryMcProto.mod.syncmatica.SyncmaticaReference;
@@ -135,7 +137,21 @@ public class SyncmaticManager
 
         for (final ServerPlacement p : getAll())
         {
-            arr.add(p.toJson());
+            // Sanitize the FileName（上游 :124-137 逐字）：if 分支正则清洗 + setFileName 突变收敛内存，
+            // else 保底原样写盘——杜绝 find() 失败形态条目静默丢失
+            Pattern pattern = Pattern.compile("[^/\\\\]+$");
+            Matcher matcher = pattern.matcher(p.getFileName());
+
+            if (matcher.find())
+            {
+                String result = matcher.group();
+                ServerPlacement px = p.setFileName(result);
+                arr.add(px.toJson());
+            }
+            else
+            {
+                arr.add(p.toJson());
+            }
         }
 
         obj.add(PLACEMENTS_JSON_KEY, arr);

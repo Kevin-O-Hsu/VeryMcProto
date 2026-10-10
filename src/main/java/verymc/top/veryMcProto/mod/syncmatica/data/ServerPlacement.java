@@ -4,6 +4,8 @@ import java.io.FileInputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
@@ -110,6 +112,27 @@ public class ServerPlacement
         return this.fileName;
     }
 
+    /**
+     * 取 basename 形态的文件名（正则 {@code [^/\]+$}，find() 失败返回原串——上游同款行为，勿改为"更像 basename"）。
+     * 逐字对齐上游 {@code ServerPlacement:107-121}：wire 出口（putMetaData）与落盘出口（saveServer）用它
+     * 杜绝服务端绝对路径泄露；正则清洗对（与 {@link #setFileName}）为移植时整体遗漏、6e5c5be 回正。
+     */
+    public String getCleanFileName()
+    {
+        String badFileName = this.fileName;
+        String result = badFileName;
+
+        Pattern pattern = Pattern.compile("[^/\\\\]+$");
+        Matcher matcher = pattern.matcher(badFileName);
+
+        if (matcher.find())
+        {
+            result = matcher.group();
+        }
+
+        return result;
+    }
+
     public UUID getHash()
     {
         return hashValue;
@@ -171,6 +194,15 @@ public class ServerPlacement
     {
         this.file = file;
         this.fileName = file.toAbsolutePath().toString();
+        return this;
+    }
+
+    /**
+     * 供 saveServer 落盘时突变收敛内存 fileName（上游 {@code ServerPlacement:187-191}，protected 同包）。
+     */
+    protected ServerPlacement setFileName(String fileName)
+    {
+        this.fileName = fileName;
         return this;
     }
 
