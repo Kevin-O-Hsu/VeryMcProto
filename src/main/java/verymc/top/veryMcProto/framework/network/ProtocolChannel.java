@@ -81,7 +81,11 @@ public final class ProtocolChannel
             }
             catch (Exception e)
             {
-                Reference.logger().warning("ProtocolChannel[" + channelId + "] 处理 C2S 失败: " + e.getMessage());
+                // 单行防刷屏：本 catch 是每包 C2S 解码热路径，恶意客户端畸形包可无限触发，
+                // 全堆栈 log() 会每包一整栈刷屏。"+ e" 拼接走 toString() 恒非 null——NPE 的
+                // getMessage() 为 null，此前线上只见「处理 C2S 失败: null」无法定位。
+                // 范式边界：每包热路径用本形态；低频失败路径（unregister/NMS 兜底等）维持单行 getMessage()。
+                Reference.logger().warning("ProtocolChannel[" + channelId + "] 处理 C2S 失败: " + e);
             }
         }
     };
