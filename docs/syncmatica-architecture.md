@@ -144,9 +144,11 @@ VeryMcProto.onDisable
 `ServerCommunicationManager.onPlayerJoin` **不**立即发起握手——`PlayerJoinEvent` 时客户端 codec 尚未就绪，立即推 `REGISTER_VERSION` 会握手失败并残留 exchange。握手由两条路径触发：
 
 1. **主路径**：`PlayerJoinEvent` → `getOrCreateTarget` + `onPlayerJoin`（仅登记）→ `runTaskLater(40t)`（2s，等 configuration phase 完成、客户端 codec 就绪）→ **`tryStartHandshake`**（幂等：已在 `broadcastTargets` 或已有进行中 `VersionHandshakeServer` 则跳过）。
-2. **兜底/主力**：`PlayerRegisterChannelEvent`（channel == `syncmatica:main`）→ 立即 `tryStartHandshake`（实测 Fabric 客户端进服后**会**触发本事件，但时序可晚于 40t 主路径探针 0~2s+——主路径被守卫拦截时，本路径是声明晚到场景的握手发起主力）。
+2. **兜底/加速**：`PlayerRegisterChannelEvent`（channel == `syncmatica:main`）→ `tryStartHandshake(target)`。
 
 `tryStartHandshake` 幂等，两路径安全共存。`/syncmatica enable`（恢复协议）对在线玩家走同一 40t 延迟握手路径（`reconnectOnlinePlayers`）。
+
+> **事实链（静态全链实证，取代旧「事件不触发」与「声明晚到兜底」错误认知）**：Paper 的 `minecraft:register` → `pluginMessagerChannels` → `PlayerRegisterChannelEvent` 链路完整；但 syncmatica 客户端的 `syncmatica:main` receiver **仅在握手 CONFIRM_USER 之后注册**（`VersionHandshakeClient:65` → `Context.startup():150-156` → `registerReceivers():186`，全树唯一链）——**声明是握手完成的下游产物**（晚探针 2-3 RTT），不是独立事件。推论：①40t 探针是握手唯一引导路径（客户端被动等探针）；②`tryStartHandshake` 入口加 canSend 前置守卫 = 自引用死锁，**禁止回移 317a9a1 守卫**（该 commit 曾在本线引入自引用死锁，静态全链实证，已修复）；③vanilla 客户端收 ~40B 探针被静默丢弃（不踢人），悬挂 VHS 由 `onPlayerLeave` 清理；④兜底事件到达时握手通常已完成（幂等跳过）——「事件不触发」为时序错觉。
 
 > 🔧 **disable→enable 陈旧握手卡死修复（2026-10，勿随模板回退）**：`suspendAll` 旧实现只遍历 `broadcastTargets`（VHS 握手**成功后**才入集）且 `close(false)` 后不移出 `getExchanges()`（唯一移出点 `notifyClose` 不被触发）——disable 瞬间握手中途的玩家被漏扫，其 VHS 以未 finished 残留；enable 后 `reconnectOnlinePlayers` → `getOrCreateTarget`（computeIfAbsent 复用同一 target）→ `tryStartHandshake` 的 `instanceof VersionHandshakeServer` 跳过检查不辨死活 → 永久跳过，该玩家 syncmatica 不可用直到重进服。修复 = suspendAll 遍历 `targets.values()` 全集 + 每个 exchange close 后显式移出列表（刻意不走 `notifyClose`——保留不触发 `handleExchange` 副作用的静默语义）。**收敛无需客户端配合**：上游 `ClientCommunicationManager.handle` 对无主 `REGISTER_VERSION` 自带重握手路径（clear + 新建 VHC），VHC `checkPacket` 无条件匹配、FEATURE 轮重入幂等（时序详见 [syncmatica-protocol.md](syncmatica-protocol.md) §3.4）。
 
