@@ -222,7 +222,7 @@ private static class ReadingSession {
 | `registerPlayReceiver(Type, handler)` | `ServerPlayNetworking.registerGlobalReceiver` | `Messenger.registerIncomingPluginChannel(plugin, channel, listener)` |
 | `unregisterPlayReceiver()` | `ServerPlayNetworking.unregisterGlobalReceiver` | `Messenger.unregisterIncomingPluginChannel` |
 | `receivePlayPayload(payload, ctx)` | 收到包的入口（`ctx.player()`） | `PluginMessageListener.onPluginMessageReceived(channel, player, bytes)` → 包一层成 Payload |
-| `sendPlayPayload(player, payload)` | `ServerPlayNetworking.send` | `player.sendPluginMessage` 或 NMS `connection.send(new ClientboundCustomPayloadPacket(payload))` |
+| `sendPlayPayload(player, payload)` | `ServerPlayNetworking.send` | `player.sendPluginMessage`（已声明）；未声明且已在本通道发过 C2S → NMS `connection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes)))` 兜底（`ProtocolChannel.send`，与 Paper 放行路径逐字同构；**勿**直发自定义 Payload record，会 CCE） |
 | `sendPlayPayload(networkHandler, payload)` | 走 `ServerGamePacketListenerImpl.send(new ClientboundCustomPayloadPacket(payload))` | NMS `player.connection.send(...)`（**这条在 Paper 上可原样用**） |
 | `encodeWithSplitter(player, buf, networkHandler)` | 分包时每片发送回调 | 调 Paper 版 `sendPlayPayload` |
 
@@ -295,7 +295,7 @@ ServuxHudHandler.encodeServerData(player, data)                    // :121
 
 1. **通道 = plugin messaging channel**：用通道**网络名**（`servux:hud_metadata` 等）注册 `registerIncomingPluginChannel`（C2S）+ `registerOutgoingPluginChannel`（S2C）。
 2. **收到的 byte[] = FriendlyByteBuf 裸字节**：`new FriendlyByteBuf(Unpooled.wrappedBuffer(bytes))` 即可复用原版 `fromPacket` 逻辑。
-3. **发送**：把 `toPacket(buf)` 写出的字节 `buf.array()`/`ByteBuf.getBytes` 成 `byte[]` → `sendPluginMessage`；或 NMS `connection.send(new ClientboundCustomPayloadPacket(payload))`。
+3. **发送**：把 `toPacket(buf)` 写出的字节 `buf.array()`/`ByteBuf.getBytes` 成 `byte[]` → `sendPluginMessage`。**Paper 命门**：`CraftPlayer.sendPluginMessage` 按 `channels().contains(channel)` 门控，玩家声明包被处理前 S2C 静默丢弃（26.1.2 反编译实锤；声明处理晚于客户端首个 C2S）→ `ProtocolChannel.send` 对**已在本通道发过 C2S 的玩家**在 `listening=false` 时走 NMS `connection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes)))` 兜底（字面量 DiscardedPayload，与 Paper 放行路径同构；自定义 Payload record 直发会 CCE 踢人）。
 4. **分包常量**：S2C 分片从 1MiB 改 ≤32760（若走 plugin messaging）；session key 逻辑照搬。
 5. **Payload record / StreamCodec / toPacket / fromPacket**：几乎照抄（去掉 `@Environment`）。
 6. **C2S 不踢人**：plugin messaging 注册的通道 Paper 内置路由，不会因"未知 payload"踢玩家。

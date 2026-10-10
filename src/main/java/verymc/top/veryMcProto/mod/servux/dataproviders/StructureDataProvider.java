@@ -201,6 +201,8 @@ public class StructureDataProvider extends DataProviderBase
             return registered;
         }
 
+        // 上游语义 = 每次 REGISTER 全量应答（metadata + initialSync）。唯一调用方 ServuxStructuresHandler
+        // 恒先 unregister 再 register，故此处不做去重（客户端 %20 重试 / toggle 重开都会得到完整回复）。
         if (!this.registeredPlayers.containsKey(uuid))
         {
             this.registeredPlayers.put(uuid, new PlayerDimensionPosition(player));
@@ -211,10 +213,6 @@ public class StructureDataProvider extends DataProviderBase
 
             registered = true;
             ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "structures register OK: " + player.getName().getString() + " → 已加入订阅，推 metadata + initialSync");
-        }
-        else
-        {
-            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "structures register: " + player.getName().getString() + " 已在订阅列表（重复 REGISTER，跳过）");
         }
 
         return registered;
@@ -249,17 +247,15 @@ public class StructureDataProvider extends DataProviderBase
                 + " timeout=" + nbt.getIntOr("timeout", -1));
     }
 
-    /** 周期扫描：玩家当前 chunk 视野内的结构引用 → 起点 → NBT，全量发送。 */
+    /**
+     * 周期扫描：玩家当前 chunk 视野内的结构引用 → 起点 → NBT，全量发送。
+     *
+     * <p>不按 {@code getListeningPluginChannels} 早退：能进这里的必是发过 C2S REGISTER 的玩家（= 装有 MiniHUD、
+     * 能解码），其「未声明」只是 Paper 声明簿记滞后，投递由框架 {@code ProtocolChannel.send} 的 C2S 证明兜底保证；
+     * 上游 servux 亦无此门。
+     */
     protected void rescanAndSend(ServerPlayer player)
     {
-        // 门控：客户端未声明监听 servux:structures（getListeningPluginChannels 不含该通道）则跳过采集，
-        // 避免 createTag / 遍历 view-distance 区块的重活白干 + 发送失败累计计数误注销
-        // （1.20.2+ configuration phase 后，通道声明可能晚于客户端 C2S STRUCTURES_REGISTER）。
-        if (!player.getBukkitEntity().getListeningPluginChannels().contains(this.getNetworkChannel().toString()))
-        {
-            return;
-        }
-
         ServerLevel world = (ServerLevel) player.level();
         ChunkPos center = player.getLastSectionPos().chunk();
 

@@ -74,16 +74,18 @@ public interface IPluginServerPlayHandler
     void encodeWithSplitter(ServerPlayer player, FriendlyByteBuf buf);
 
     /**
-     * 发送普通 S2C 包（plugin messaging，方案 A）。
+     * 发送普通 S2C 包（plugin messaging；未声明且已 C2S 证明时由 {@link ProtocolChannel} NMS 兜底）。
      *
      * <p>Paper 的 plugin messaging 通道由 {@code registerOutgoingPluginChannel} 注册，Paper 内部以
      * {@code DiscardedPayload} codec 投递 {@code byte[]}（= {@link FriendlyByteBufs#encodePayload} 的 toPacket
      * 裸字节）。masa 客户端为 {@code servux:*} 注册了 {@code Payload.CODEC}，可正确解码。
      *
-     * <p><b>禁用 NMS 直发</b>：曾尝试 {@code player.connection.send(new ClientboundCustomPayloadPacket(payload))}，
-     * 但 Paper 已把 {@code servux:*} 的 payload codec 注册为 {@code DiscardedPayload}，自定义 Payload 编码时
-     * 强转 DiscardedPayload 失败（ClassCastException → 踢玩家，实测）。覆盖该注册需反射改写 payload registry，
-     * 暂不采用。故 S2C 统一走 plugin messaging。
+     * <p><b>NMS 直发的边界（历史教训修正）</b>：直接发送<b>自定义 Payload record 对象</b>会因 Paper 把
+     * {@code servux:*} 的 payload codec 注册为 {@code DiscardedPayload} 而强转失败（ClassCastException →
+     * 踢玩家，实测）——此路仍禁用。但发送<b>字面量 {@code new DiscardedPayload(id, bytes)}</b> 与 Paper 自身
+     * 放行路径（{@code CraftPlayer.sendCustomPayload}）逐字同构，是已实证可用的兜底（生产先例：
+     * {@code ExchangeTarget.sendViaNms} / {@code RecipeSyncHandler.sendPayload}）；{@link ProtocolChannel#send}
+     * 在「客户端未声明（Paper 将丢弃）且已在本通道发过 C2S（证明可解码）」时自动走该兜底。
      *
      * @return 是否投递（{@link ChannelManager#send} 结果，用于失败计数）。
      */
