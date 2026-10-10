@@ -384,10 +384,21 @@ public class StructureDataProvider extends DataProviderBase
      */
     protected void sendStructures(ServerPlayer player, Map<Structure, LongSet> references)
     {
+        // 对齐 26.x 上游 sendStructures :540-549 三门早退（先门后解析，无权限时省去 getStructureStartsFromReferences
+        // 开销）。结构加固：上游 1.21.11 的 provider 层名册门位于全包 readNbt 之后，前置=我方加固；
+        // tick 侧撤权即除名与条目级分批（J 落地）不变。
+        if (!this.isEnabled() || !this.isPlayerRegistered(player)) { return; }
+
+        if (!this.hasPermission(player))
+        {
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "structures sendStructures 拒绝 " + player.getName().getString() + " (权限不足)");
+            return;
+        }
+
         ServerLevel world = (ServerLevel) player.level();
         Map<ChunkPos, StructureStart> starts = this.getStructureStartsFromReferences(world, references);
 
-        if (!starts.isEmpty() && this.registeredPlayers.containsKey(player.getUUID()))
+        if (!starts.isEmpty())
         {
             ListTag structureList = this.getStructureList(starts, world);
 

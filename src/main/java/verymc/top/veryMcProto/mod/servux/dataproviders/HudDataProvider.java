@@ -463,6 +463,15 @@ public class HudDataProvider extends DataProviderBase
     {
         if (!this.isPlayerRegistered(player) || !this.isEnabled()) { return; }
 
+        // 对齐 26.x 上游 :572-576：每次刷新重查权限（注册后撤权的玩家不再拉到 spawn 帧——坐标/维度 + 条件种子）；
+        // 1.21.11 上游 :519-524 无此复检（仅 roster+enabled），属有意加固。paste 路径不适用此注记——
+        // 上游 1.21.11 handleClientPasteRequest:347 本就有 hasPermission 复检
+        if (!this.hasPermission(player))
+        {
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud refreshSpawnMetadata 拒绝 " + player.getName().getString() + " (权限不足)");
+            return;
+        }
+
         GlobalPos spawnPos = this.getSpawnPos();
         CompoundTag nbt = new CompoundTag();
 
