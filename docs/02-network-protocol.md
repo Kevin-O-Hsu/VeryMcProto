@@ -207,6 +207,8 @@ private static class ReadingSession {
 
 **移植要点**：`PacketSplitter` 是**纯算法 + NMS `FriendlyByteBuf`/`Unpooled`**，可近乎照抄；唯一改动是 §5.2 的分片常量（受 plugin messaging 32KiB 限制）和 §5.4 的 session key 存储。
 
+> ⚠️ **会话生命周期治理（我方增强，1.21.11 上游无此机制）**：`ReadingSession` 带 `lastReceivedTime`（每片刷新），`LifecycleBridge` 心跳每 `CLEANER_INTERVAL_TICKS=100t`（≈5s）调 `PacketSplitter.evictStaleSessions()` 驱逐超 `STALE_TIMEOUT_MS=10s` 未收片的会话并 `release()` 其 netty buffer——26.x 上游 "PacketSplitter-Cleaner" 守护线程的**主线程等价物**（冻结期不驱逐，更宽松）；`LifecycleBridge.stop()` 时 `releaseAllSessions()` 确定性回收。玩家退出由 `ServuxLitematicaHandler.onPlayerQuit(UUID)` 清键+`discardSession`（防 TTL 窗口内重进复用键命中僵尸会话、新上传被追加旧 buffer 腐坏）；receive 异常路径（超限/零长带余字节/正长无载荷）废弃会话，调用方 catch(IAE|NPE) 清键。契约由 `PacketSplitterTest` 固化。
+
 ---
 
 ## 6. `IPluginServerPlayHandler` —— 收发封装接口

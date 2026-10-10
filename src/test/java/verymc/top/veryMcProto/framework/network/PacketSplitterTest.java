@@ -13,7 +13,9 @@ import net.minecraft.server.level.ServerPlayer;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * PacketSplitter 分片→重组 round-trip 单测。
@@ -107,5 +109,97 @@ class PacketSplitterTest
         malicious.writeBytes(new byte[10]);
         assertThrows(IllegalArgumentException.class, () -> PacketSplitter.receive(h, 103L, malicious),
                 "expectedSize 超 64MB 上限应被拒");
+    }
+
+    @Test
+    void receive_zeroExpectedSize_completesEmptyAndClearsSession()
+    {
+        CapturingHandler h = new CapturingHandler();
+        FriendlyByteBuf pkt = new FriendlyByteBuf(Unpooled.buffer());
+        pkt.writeVarInt(0); // 零总长且无多余字节 → 走正常完成路径
+        FriendlyByteBuf full = PacketSplitter.receive(h, 201L, pkt);
+        assertNotNull(full, "==0 且无多余字节：应走正常完成路径返回空 buffer");
+        assertEquals(0, full.readableBytes(), "空流应返回零长 buffer");
+        assertEquals(0, PacketSplitter.readingSessionCount(), "完成后会话应已移除");
+    }
+
+    @Test
+    void receive_zeroExpectedSizeWithExtraBytes_discardsSilently()
+    {
+        CapturingHandler h = new CapturingHandler();
+        FriendlyByteBuf pkt = new FriendlyByteBuf(Unpooled.buffer());
+        pkt.writeVarInt(0);
+        pkt.writeBytes(new byte[] { 1, 2, 3 }); // 声明 0 却带多余字节 → 坏流
+        assertNull(PacketSplitter.receive(h, 202L, pkt), "==0 且带多余字节：应静默丢弃返回 null（上游 malilib :158-162）");
+        assertEquals(0, PacketSplitter.readingSessionCount(), "丢弃后会话应已移除");
+    }
+
+    @Test
+    void receive_positiveExpectedSizeWithoutPayload_throwsAndClearsSession()
+    {
+        CapturingHandler h = new CapturingHandler();
+        FriendlyByteBuf pkt = new FriendlyByteBuf(Unpooled.buffer());
+        pkt.writeVarInt(50); // 正长度但首片无载荷字节 → 坏流
+        assertThrows(IllegalArgumentException.class, () -> PacketSplitter.receive(h, 203L, pkt),
+                ">0 且无载荷应抛 IAE（上游 servux :145-149）");
+        assertEquals(0, PacketSplitter.readingSessionCount(), "异常终态后应清理会话");
+    }
+
+    @Test
+    void evictExpired_evictsStaleSession()
+    {
+        CapturingHandler h = new CapturingHandler();
+        FriendlyByteBuf pkt = new FriendlyByteBuf(Unpooled.buffer());
+        pkt.writeVarInt(100);
+        pkt.writeBytes(new byte[10]); // 只收到 10/100，未收齐 → 会话存留（模拟中断上传）
+        assertNull(PacketSplitter.receive(h, 204L, pkt));
+        assertEquals(1, PacketSplitter.readingSessionCount(), "未收齐的会话应存留");
+        // 未来时刻法：now + 20s 使会话视为已过期 20s（与回拨时间戳算术等价；勿用 Long.MAX_VALUE 防减法溢出假绿）
+        PacketSplitter.evictExpired(System.currentTimeMillis() + 20_000L);
+        assertEquals(0, PacketSplitter.readingSessionCount(), "超过 10s TTL 的中断会话应被驱逐");
+    }
+
+    @Test
+    void evictExpired_keepsActiveSession_andReceiveRefreshesTimestamp()
+    {
+        CapturingHandler h = new CapturingHandler();
+        FriendlyByteBuf first = new FriendlyByteBuf(Unpooled.buffer());
+        first.writeVarInt(100);
+        first.writeBytes(new byte[10]);
+        assertNull(PacketSplitter.receive(h, 205L, first));
+        long t1 = PacketSplitter.sessionLastReceived(205L);
+
+        try { Thread.sleep(50); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        // 50ms > Windows currentTimeMillis 粒度（~15.6ms），确保时间戳可区分
+
+        FriendlyByteBuf second = new FriendlyByteBuf(Unpooled.buffer());
+        second.writeBytes(new byte[10]); // 续片（无长度头）
+        assertNull(PacketSplitter.receive(h, 205L, second));
+        assertTrue(PacketSplitter.sessionLastReceived(205L) > t1, "每收一片应刷新 lastReceivedTime（servux 每片刷新语义）");
+
+        PacketSplitter.evictExpired(System.currentTimeMillis()); // 刚收过片 → 未过期
+        assertEquals(1, PacketSplitter.readingSessionCount(), "活跃会话不应被误杀");
+        PacketSplitter.evictExpired(System.currentTimeMillis() + 20_000L); // 清场，勿遗留静态会话给其他用例
+        assertEquals(0, PacketSplitter.readingSessionCount());
+    }
+
+    @Test
+    void discardAndReleaseAll_clearEverything()
+    {
+        CapturingHandler h = new CapturingHandler();
+        FriendlyByteBuf a = new FriendlyByteBuf(Unpooled.buffer());
+        a.writeVarInt(100);
+        a.writeBytes(new byte[5]);
+        FriendlyByteBuf b = new FriendlyByteBuf(Unpooled.buffer());
+        b.writeVarInt(100);
+        b.writeBytes(new byte[5]);
+        assertNull(PacketSplitter.receive(h, 206L, a));
+        assertNull(PacketSplitter.receive(h, 207L, b));
+
+        int before = PacketSplitter.readingSessionCount();
+        PacketSplitter.discardSession(206L);
+        assertEquals(before - 1, PacketSplitter.readingSessionCount(), "discardSession 应精确移除指定会话（增量断言，不依赖用例顺序）");
+        PacketSplitter.releaseAllSessions();
+        assertEquals(0, PacketSplitter.readingSessionCount(), "releaseAllSessions 应清空全部会话");
     }
 }

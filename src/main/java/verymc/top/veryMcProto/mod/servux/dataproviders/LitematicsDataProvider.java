@@ -368,7 +368,11 @@ public class LitematicsDataProvider extends DataProviderBase
         }
     }
 
-    @Override public void onPlayerQuit(ServerPlayer player) { this.removePlayer(player); }
+    @Override public void onPlayerQuit(ServerPlayer player)
+    {
+        this.removePlayer(player);
+        HANDLER.onPlayerQuit(player.getUUID());
+    }
 
     @Override public void onTickEndPre() { /* NO-OP */ }
     @Override public void onTickEndPost() { /* NO-OP */ }

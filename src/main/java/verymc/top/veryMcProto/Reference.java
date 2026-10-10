@@ -1,6 +1,5 @@
 package verymc.top.veryMcProto;
 
-import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
@@ -68,9 +67,9 @@ public final class Reference
         return plugin;
     }
 
-    /** 插件 Logger；plugin 尚未初始化时回退到全局 Bukkit Logger。 */
+    /** 插件 Logger；plugin 尚未初始化时回退到同名 JUL Logger（纯 JVM 单测环境无 Bukkit，不可用 Bukkit.getLogger()——dev 线 de14138 同款）。 */
     public static Logger logger()
     {
-        return plugin != null ? plugin.getLogger() : Bukkit.getLogger();
+        return plugin != null ? plugin.getLogger() : Logger.getLogger(PLUGIN_NAME);
     }
 }

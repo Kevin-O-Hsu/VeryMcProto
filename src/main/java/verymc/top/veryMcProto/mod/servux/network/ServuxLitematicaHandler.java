@@ -58,6 +58,17 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
     @Override
     public void reset(Identifier channel) { if (channel.equals(CHANNEL_ID)) { this.failures.clear(); } }
 
+    /** 玩家退出：丢弃其进行中的分片上传（会话键 + 重组会话 + buffer 一起清，防 TTL 窗口内重进复用键命中僵尸会话）。 */
+    public void onPlayerQuit(UUID uuid)
+    {
+        Long key = this.readingSessionKeys.remove(uuid);
+
+        if (key != null)
+        {
+            PacketSplitter.discardSession(key);
+        }
+    }
+
     @Override
     public void receivePlayPayload(FriendlyByteBuf data, ServerPlayer player)
     {
@@ -96,22 +107,33 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
 
                 ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeServerData litematics: 收到投影分片 size=" + packet.getTotalSize() + " key=" + readingSessionKey);
 
-                FriendlyByteBuf fullPacket = PacketSplitter.receive(this, readingSessionKey, packet.getBuffer());
-
-                if (fullPacket != null)
+                try
                 {
-                    ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeServerData litematics: 投影完整包 size=" + fullPacket.readableBytes() + " key=" + readingSessionKey);
-                    try
+                    FriendlyByteBuf fullPacket = PacketSplitter.receive(this, readingSessionKey, packet.getBuffer());
+
+                    if (fullPacket != null)
                     {
-                        this.readingSessionKeys.remove(uuid);
-                        // 上游 0.9.5 ServuxLitematicaHandler:139-153 同构：重组完成无条件走 paste 受理
-                        //（Task 门控在 Provider：非 LitematicaPaste 静默忽略）；Transmit* 接收链已随安全修复移除
-                        LitematicsDataProvider.INSTANCE.handleClientPasteRequest(player, fullPacket.readVarInt(), (CompoundTag) fullPacket.readNbt(NbtAccounter.unlimitedHeap()));
+                        ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeServerData litematics: 投影完整包 size=" + fullPacket.readableBytes() + " key=" + readingSessionKey);
+                        try
+                        {
+                            this.readingSessionKeys.remove(uuid);
+                            // 上游 0.9.5 ServuxLitematicaHandler:139-153 同构：重组完成无条件走 paste 受理
+                            //（Task 门控在 Provider：非 LitematicaPaste 静默忽略）；Transmit* 接收链已随安全修复移除
+                            LitematicsDataProvider.INSTANCE.handleClientPasteRequest(player, fullPacket.readVarInt(), (CompoundTag) fullPacket.readNbt(NbtAccounter.unlimitedHeap()));
+                        }
+                        catch (Exception e)
+                        {
+                            Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: 投影完整包解析失败: " + e.getMessage());
+                        }
                     }
-                    catch (Exception e)
-                    {
-                        Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: 投影完整包解析失败: " + e.getMessage());
-                    }
+                }
+                catch (IllegalArgumentException | NullPointerException e)
+                {
+                    // 上游 packet/ServuxLitematicaHandler.java:162-170 同构：分片坏流终态——清键让下次上传换新会话键
+                    //（僵尸会话本体由 receive 异常路径移除 / TTL 驱逐兜底）。注意残余分片会逐片「新建会话→坏头→再抛」，
+                    // 每片一条 warning——日志放大上界=同帧残余分片数，可接受（malilib 发送为同步突发，残余窗口极小）。
+                    Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: PacketSplitter 分片异常，废弃会话 key=" + readingSessionKey + ": " + e.getMessage());
+                    this.readingSessionKeys.remove(uuid);
                 }
             }
             default -> Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: 无效 packetType " + packet.getPacketType()
