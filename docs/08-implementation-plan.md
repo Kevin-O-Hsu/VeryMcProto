@@ -41,7 +41,7 @@
 | # | 任务 | 细节 | 验收 | 参考 |
 |---|---|---|---|---|
 | 0.1 | 改 `build.gradle.kts` | 引入 `paperweight.userdev` + `run-paper`；`paperDevBundle("1.21.11"...)` | `./gradlew build` 通过 | [07](07-migration-architecture.md) §5；VeryMcBot `build.gradle.kts` |
-| 0.2 | 修 `plugin.yml` | `api-version: '1.21'`；补 `name`/`main`/`version` | 加载无警告 | [07](07-migration-architecture.md) §5 |
+| 0.2 | 修 `plugin.yml` | `api-version`（现模板化 `'${mcVersion}'`=1.21.11）；补 `name`/`main`/`version` | 加载无警告 | [07](07-migration-architecture.md) §5 |
 | 0.3 | 建 `reflect/Reflect` 工具类 | 字段读写 + `MethodHandles`（抄 VeryMcBot） | 单测可读写 NMS 私有字段 | [03](03-dataproviders-detail.md) §3.2 |
 | 0.4 | 建 `Reference.java` | `MOD_STRING="servux-paper-1.21.11-x.y.z"`；`getDataFolder()` | 编译通过 | [01](01-servux-architecture.md) §9 |
 | 0.5 | 主类 `onEnable` 打印日志 | 验证 `runServer` 启动 | 控制台见日志 | — |

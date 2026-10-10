@@ -1,3 +1,8 @@
+// 顶层显式 import：tasks{} 块内 Project 接收器的 `java` 扩展（JavaPluginExtension）会遮蔽
+// java.* 包名限定，故 ZipFile/Properties 必须走 import 引入而非全限定名。
+import java.util.Properties
+import java.util.zip.ZipFile
+
 plugins {
     `java-library`
     id("io.papermc.paperweight.userdev") version "2.0.0-beta.21"
@@ -63,8 +68,68 @@ tasks {
     processResources {
         val projectVersion = project.version
         val mcVersionProp = providers.gradleProperty("mcVersion").get()
+        // expand() 的占位符值不参与 Gradle up-to-date 跟踪——必须显式 inputs.property，否则
+        // 发版 buildNumber+1 后本任务误判 UP-TO-DATE、陈旧展开产物被打进新文件名 jar
+        //（1.21.11 线与 26.1.2-b2 事故同构暴露面：jar 与 -reobf.jar 双产物同步陈旧）。
+        inputs.property("version", projectVersion)
+        inputs.property("mcVersion", mcVersionProp)
         filesMatching(listOf("plugin.yml", "paper-plugin.yml", "version.properties")) {
             expand(mapOf("version" to projectVersion, "mcVersion" to mcVersionProp))
         }
+    }
+
+    // 版本注入终检：解包产物 jar，断言内部 version.properties / plugin.yml 与 project.version
+    // 一致——把「展开陈旧 / 占位符缺位」这类静默错版转为构建失败。无 outputs 声明故每次构建必跑
+    //（成本为解包读两 Entry）；捕获 Provider 而非 Task，配置缓存安全。
+    // ★ 1.21.11 线（含 reobf）说明：本任务检查 plain jar（Mojang 映射），交付物是
+    // build/libs/VeryMcProto-<版本>-reobf.jar——reobfJar 只重映射 .class、资源条目逐字节透传，
+    // 两 jar 内 plugin.yml/version.properties 同源，断言等价；勿取 plain jar 部署（经典 plugin.yml
+    // 会被旧版 Paper 按 Spigot 映射假设 deobf，见上方 :43-45 注释）。
+    val verifyVersionInjection = register("verifyVersionInjection") {
+        // 依赖必须经 tasks.named 显式取得——registering lambda 内裸引用 `jar` 会静默解析到
+        // 非任务对象，dependsOn 不进任务图（dry-run 实证孤节点），verify 抢在 jar 重打包前读旧 jar。
+        val jarTask = named<Jar>("jar")
+        val jarArchive = jarTask.flatMap { it.archiveFile }
+        val expectedVersion = project.version.toString()
+        // api-version 已模板化（plugin.yml '${'$'}{mcVersion}'，随唯一来源展开），应逐字等于 mcVersion
+        //（如 1.21.11；两段/三段皆官方支持——Paper ApiVersion.java 接受 2-3 段，语义 = 低于该值的
+        // 服务器拒载）。本插件按 1.21.11 dev bundle 编译、NMS 绑死精确版本，放行旧补丁版本只会
+        // 运行期炸于 NMS 漂移——加载期拒载优于运行期炸（Q4 裁决收口，与 README 宣称一致）。
+        val expectedApiVersion = providers.gradleProperty("mcVersion").get()
+        group = "verification"
+        dependsOn(jarTask)
+        doLast {
+            val jarFile = jarArchive.get().asFile
+            val expected = expectedVersion
+            ZipFile(jarFile).use { zip ->
+                val propEntry = zip.getEntry("version.properties")
+                    ?: throw GradleException("产物 jar 缺 version.properties：${jarFile.name}")
+                val props = Properties()
+                zip.getInputStream(propEntry).use { props.load(it) }
+                val propVersion = props.getProperty("version")
+                    ?: throw GradleException("version.properties 缺 version 键：${jarFile.name}")
+                val ymlEntry = zip.getEntry("plugin.yml")
+                    ?: throw GradleException("产物 jar 缺 plugin.yml：${jarFile.name}")
+                val ymlText = zip.getInputStream(ymlEntry).use { it.readBytes().toString(Charsets.UTF_8) }
+                val ymlVersion = Regex("(?m)^version:\\s*'?([^'\\r\\n]+)'?\\s*$").find(ymlText)?.groupValues?.get(1)
+                    ?: throw GradleException("plugin.yml 缺 version 行：${jarFile.name}")
+                val ymlApiVersion = Regex("(?m)^api-version:\\s*'?([^'\\r\\n]+)'?\\s*$").find(ymlText)?.groupValues?.get(1)
+                    ?: throw GradleException("plugin.yml 缺 api-version 行：${jarFile.name}")
+                if (ymlApiVersion != expectedApiVersion) {
+                    throw GradleException(
+                        "api-version 注入不一致：jar=${jarFile.name} 内 plugin.yml=$ymlApiVersion，期望 $expectedApiVersion" +
+                            "（= mcVersion，plugin.yml 已模板化 '${'$'}{mcVersion}'）——疑似展开陈旧，执行 ./gradlew clean 后重新构建")
+                }
+                if (propVersion != expected || ymlVersion != expected) {
+                    throw GradleException(
+                        "版本注入不一致：jar=${jarFile.name} 内 version.properties=$propVersion / " +
+                            "plugin.yml=$ymlVersion，期望 $expected——疑似展开陈旧，执行 ./gradlew clean 后重新构建")
+                }
+                logger.lifecycle("版本注入校验通过：${jarFile.name} 内部版本 = $expected")
+            }
+        }
+    }
+    build {
+        dependsOn(verifyVersionInjection)
     }
 }

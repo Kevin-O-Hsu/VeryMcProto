@@ -109,7 +109,7 @@ Fundamentally different from Servux (one-way broadcast):
 
 |  Item      |  Requirement                                                                                                               |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------- |
-|  Server    |  **Paper 1.21.11** (`api-version: 1.21`; standard Paper, no patch / fork needed)                                           |
+|  Server    |  **Paper 1.21.11** (`api-version: 1.21.11`; standard Paper, no patch / fork needed)                                           |
 |  Java      |  **21**                                                                                                                    |
 |  Optional  |  **PacketEvents 2.13.0** (only for EasyPlace; if absent, EasyPlace is gracefully skipped — other features are unaffected)  |
 
@@ -127,7 +127,7 @@ Fundamentally different from Servux (one-way broadcast):
 
 ## 4. Installation
 
-1. Get `VeryMcProto-1.21.11-b2.jar` from the project Releases page, or build it with `./gradlew build` (the reobf artifact loads directly on standard Paper).
+1. Get `VeryMcProto-<version>-reobf.jar` from the project Releases page, or build it with `./gradlew build` (the `-reobf` artifact is the deliverable that loads directly on standard Paper; the plain jar is Mojang-mapped, do NOT deploy it).
 2. Drop it into the server's `plugins/` directory.
 3. **(Optional, only for EasyPlace)** Install the PacketEvents plugin.
 4. With PacketEvents installed, EasyPlace is enabled automatically; without it, it is skipped automatically.

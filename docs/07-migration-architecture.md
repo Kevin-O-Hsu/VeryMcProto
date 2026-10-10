@@ -249,8 +249,9 @@ java { toolchain.languageVersion = JavaLanguageVersion.of(21) }
 tasks {
     runServer { minecraftVersion("1.21.11"); jvmArgs("-Xms2G","-Xmx2G") }
     processResources {
-        val props = mapOf("version" to version)
-        filesMatching("plugin.yml") { expand(props) }
+        val props = mapOf("version" to version, "mcVersion" to mcVersionProp)
+        filesMatching(listOf("plugin.yml", "version.properties")) { expand(props) }
+        // expand 值不参与 up-to-date 跟踪——须显式 inputs.property（以仓库 build.gradle.kts 现行为准）
     }
     // reobfJar 由 paperweight 自动配置，产出标准 Paper 可加载 jar
 }
@@ -258,12 +259,12 @@ tasks {
 
 > `paperDevBundle` 与 VeryMcBot 的 `paperDevBundle("1.21.11-R0.1-SNAPSHOT")` 等价（写法因 paperweight 版本略异，以实际可用为准；VeryMcBot 已在该环境验证通过）。
 
-**plugin.yml**（修正 `api-version`，Paper 1.20.5+ 用主次版本）：
+**plugin.yml**（`api-version` 已模板化 `'${mcVersion}'`，随唯一来源展开）：
 ```yaml
 name: VeryMcProto
 version: '${version}'
 main: verymc.top.veryMcProto.VeryMcProto
-api-version: '1.21'        # ← 当前是 '1.21.11'，Paper 只接受主次版本，需改
+api-version: '${mcVersion}'  # 展开为 1.21.11——Paper 接受 2-3 段（ApiVersion.java:59-70），语义=低于该值的服务器拒载
 load: POSTWORLD
 ```
 

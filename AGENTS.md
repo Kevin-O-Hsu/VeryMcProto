@@ -69,7 +69,7 @@
 gradle.properties（mcVersion=1.21.11 · buildNumber=1）          ← 唯一改动点
    │  build.gradle.kts: version = "$mcVersion-b$buildNumber"
    ▼
-├─ plugin.yml（version: '${version}' 展开）                      → /version、Paper 插件列表
+├─ plugin.yml（version: '${version}' + api-version: '${mcVersion}' 展开） → /version、Paper 插件列表/加载门禁
 ├─ jar 文件名 VeryMcProto-1.21.11-b2(-reobf).jar
 └─ version.properties（mcVersion/version 双键，processResources 展开）
        │  Reference 类加载时 Properties.load 读回
@@ -82,6 +82,7 @@ gradle.properties（mcVersion=1.21.11 · buildNumber=1）          ← 唯一改
 ```
 
 要点：
+- `processResources` 的 expand() 占位符值**不参与 Gradle up-to-date 跟踪**——已显式 `inputs.property("version"/"mcVersion")`（否则 buildNumber+1 后任务误判 UP-TO-DATE、陈旧版本进新 jar，26.1.2-b2 事故实证）；`verifyVersionInjection` 解包产物 jar 三断言（version.properties 双键/plugin.yml version/api-version==mcVersion）作构建期终检——检查对象为 plain jar，交付物为 `-reobf.jar`（资源两 jar 逐字节同源，断言等价）。
 - `Reference.loadVersionProperty` 资源缺失时回退 `dev-unknown`（开发环境不崩），生产 jar 恒有值。
 - 版本号出现在任何别的位置都是 bug——grep `1\.21\.11` 应只命中 `gradle.properties`、`version.properties` 模板（`${...}` 占位）与文档示例。
 - 历史 tag `v1.0.0`（旧命名体系）保留作历史记录；新 tag 一律 `v<mcVersion>-b<buildNumber>`。
@@ -92,7 +93,7 @@ gradle.properties（mcVersion=1.21.11 · buildNumber=1）          ← 唯一改
 
 | 项 | 说明 |
 |---|---|
-| **目标平台** | Paper **1.21.11**（`api-version: 1.21`），Java **21** |
+| **目标平台** | Paper **1.21.11**（`api-version: 1.21.11`，模板化注入），Java **21** |
 | **构建** | Gradle（Kotlin DSL） + **paperweight `userdev`** + `run-paper`；配置缓存 / build cache / parallel 已开启 |
 | **NMS 映射** | 开发期用 `paperDevBundle("1.21.11-R0.1-SNAPSHOT")` 提供 Mojang 全反混淆的 `net.minecraft.*`；产物经 `reobfJar` 转 Spigot 运行时映射，标准 Paper 直接加载 |
 | **反射用 Mojang 名** | `reobf` 不转换反射字符串，Paper 运行时即 Mojang 映射 → 反射私有成员直接用 Mojang 名 |
