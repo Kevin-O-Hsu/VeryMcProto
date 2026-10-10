@@ -8,6 +8,15 @@
 
 ## 0. 速查表：5 个 Provider 的数据采集与迁移难度
 
+> **注册名册状态机（上游 1.21.11 同构恢复）**：四 Provider（HUD/Entities/Tweaks/Litematics）各持
+> `registeredPlayers` 名册——**注册**三入口：`onPlayerJoin→register()/registerPlayer()`（上游 PlayerListener 同构；
+> HUD 因 Paper 声明时序延迟 40t）、Handler `METADATA_REQUEST→register()`（请求即注册）、权限拒绝即拒发且不入册；
+> **出册**：`onPacketFailure`（发送失败检疫）/`removePlayer`（退服）。`isPlayerRegistered = contains && !invalid`
+> （名册 ∩ 检疫）。**push 门**：HUD 的 refreshSpawnMetadata/refreshWeatherData/refreshLoggers 三方法首行名册门
+> （上游 :519-524/:553-571 同构）、Tweaks updateAllTweaks 按名册；`onPlayerRegisterChannel` 握手补偿重发按名册白名单
+> （deny 语义不被旁路）。Structures 自有 `Map<UUID, PlayerDimensionPosition>` 真名册（维度跟踪），不经此机制。
+> **无版本门禁**（Q2 裁决按上游 1.21.11：客户端 version 字段为字符串 MOD_STRING，上游该线无版本拒绝）。
+
 | Provider | 通道(网络名) | 协议版本 | 主要采集数据 | Paper 数据来源 | 迁移难度 |
 |---|---|---|---|---|---|
 | `HudDataProvider` | `servux:hud_metadata` | **2** | 元数据/出生点/天气/配方/TPS·MobCap | 大部分 Bukkit API；TPS/MobCap 需 NMS | 中 |

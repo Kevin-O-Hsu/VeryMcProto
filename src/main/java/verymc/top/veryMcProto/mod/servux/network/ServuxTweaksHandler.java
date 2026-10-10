@@ -73,7 +73,7 @@ public class ServuxTweaksHandler implements IPluginServerPlayHandler
 
         switch (packet.getType())
         {
-            case PACKET_C2S_METADATA_REQUEST -> TweaksDataProvider.INSTANCE.sendMetadata(player);
+            case PACKET_C2S_METADATA_REQUEST -> TweaksDataProvider.INSTANCE.register(player); // 上游 :79 同构：请求即注册（入册+推送）
             case PACKET_C2S_BLOCK_ENTITY_REQUEST -> TweaksDataProvider.INSTANCE.onBlockEntityRequest(player, packet.getPos());
             case PACKET_C2S_ENTITY_REQUEST -> TweaksDataProvider.INSTANCE.onEntityRequest(player, packet.getEntityId());
             // PACKET_C2S_NBT_RESPONSE_DATA（C2S 分片接收）原版注释禁用，保持注释省略

@@ -86,7 +86,7 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
 
         switch (packet.getType())
         {
-            case PACKET_C2S_METADATA_REQUEST -> LitematicsDataProvider.INSTANCE.sendMetadata(player);
+            case PACKET_C2S_METADATA_REQUEST -> LitematicsDataProvider.INSTANCE.registerPlayer(player); // 上游 :83 同构：请求即注册（入册+推送）
             case PACKET_C2S_BLOCK_ENTITY_REQUEST -> LitematicsDataProvider.INSTANCE.onBlockEntityRequest(player, packet.getPos());
             case PACKET_C2S_ENTITY_REQUEST -> LitematicsDataProvider.INSTANCE.onEntityRequest(player, packet.getEntityId());
             case PACKET_C2S_BULK_ENTITY_NBT_REQUEST -> LitematicsDataProvider.INSTANCE.onBulkEntityRequest(player, packet.getChunkPos(), packet.getCompound());

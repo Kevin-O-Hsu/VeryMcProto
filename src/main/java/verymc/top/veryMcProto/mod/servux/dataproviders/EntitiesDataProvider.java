@@ -58,6 +58,8 @@ public class EntitiesDataProvider extends DataProviderBase
     );
 
     private final List<UUID> invalidPlayers = new ArrayList<>();
+    /** 注册名册（上游 EntitiesDataProvider:50 同构）：register() 入册、onPacketFailure/removePlayer 出册。 */
+    private final List<UUID> registeredPlayers = new ArrayList<>();
 
     protected EntitiesDataProvider()
     {
@@ -87,7 +89,25 @@ public class EntitiesDataProvider extends DataProviderBase
 
     @Override public IPluginServerPlayHandler getPacketHandler() { return HANDLER; }
 
-    @Override public boolean isPlayerRegistered(ServerPlayer player) { return !this.isPlayerInvalid(player); }
+    @Override public boolean isPlayerRegistered(ServerPlayer player) { return this.registeredPlayers.contains(player.getUUID()) && !this.isPlayerInvalid(player); }
+
+    /**
+     * 名册注册（上游 :106-125 同构）：isEnabled/hasPermission 拒绝即拒发且不入册；入册后 sendMetadata 推送。
+     */
+    public void register(ServerPlayer player)
+    {
+        if (!this.isEnabled()) { return; }
+
+        if (!this.hasPermission(player))
+        {
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "entity register 拒绝 " + player.getName().getString() + " (权限不足)");
+            return;
+        }
+
+        this.registeredPlayers.add(player.getUUID());
+
+        this.sendMetadata(player);
+    }
 
     public void sendMetadata(ServerPlayer player)
     {
@@ -107,9 +127,17 @@ public class EntitiesDataProvider extends DataProviderBase
                 + " ver=" + this.metadata.getIntOr("version", -1));
     }
 
-    public void onPacketFailure(ServerPlayer player) { this.setPlayerInvalid(player); }
+    public void onPacketFailure(ServerPlayer player)
+    {
+        this.setPlayerInvalid(player);
+        this.registeredPlayers.remove(player.getUUID());
+    }
 
-    public void removePlayer(ServerPlayer player) { this.removeInvalidPlayer(player); }
+    public void removePlayer(ServerPlayer player)
+    {
+        this.removeInvalidPlayer(player);
+        this.registeredPlayers.remove(player.getUUID());
+    }
 
     private void setPlayerInvalid(ServerPlayer player) { if (!this.invalidPlayers.contains(player.getUUID())) { this.invalidPlayers.add(player.getUUID()); } }
     private boolean isPlayerInvalid(ServerPlayer player) { return this.invalidPlayers.contains(player.getUUID()); }
@@ -199,7 +227,7 @@ public class EntitiesDataProvider extends DataProviderBase
 
     @Override public boolean hasPermission(ServerPlayer player) { return Perms.check(player, this.permNode, this.permissionLevel.getValue()); }
 
-    @Override public void onPlayerJoin(ServerPlayer player) { this.sendMetadata(player); }
+    @Override public void onPlayerJoin(ServerPlayer player) { this.register(player); } // 上游 PlayerListener join→register 同构
 
     @Override
     public void onPlayerRegisterChannel(ServerPlayer player, String channel)
@@ -209,6 +237,9 @@ public class EntitiesDataProvider extends DataProviderBase
         // 客户端声明该通道（= 装了实体查询 mod）时立即重发，确保 metadata 可达。sendMetadata 幂等，重复无害。
         if (this.getNetworkChannel().toString().equals(channel))
         {
+            // 名册白名单：仅已注册玩家重发（上游无此补偿路径；未注册玩家的 deny 语义不被旁路——
+            // 未注册者经 join→register 或 C2S METADATA_REQUEST→register 入册）
+            if (!this.isPlayerRegistered(player)) { return; }
             ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "entity onPlayerRegisterChannel: 客户端声明 " + channel + " → 重发 metadata");
             this.sendMetadata(player);
         }

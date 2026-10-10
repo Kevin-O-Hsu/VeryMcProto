@@ -65,7 +65,7 @@ public class ServuxEntitiesHandler implements IPluginServerPlayHandler
 
         switch (packet.getType())
         {
-            case PACKET_C2S_METADATA_REQUEST -> EntitiesDataProvider.INSTANCE.sendMetadata(player);
+            case PACKET_C2S_METADATA_REQUEST -> EntitiesDataProvider.INSTANCE.register(player); // 上游 :79 同构：请求即注册（入册+推送）
             case PACKET_C2S_BLOCK_ENTITY_REQUEST -> EntitiesDataProvider.INSTANCE.onBlockEntityRequest(player, packet.getPos());
             case PACKET_C2S_ENTITY_REQUEST -> EntitiesDataProvider.INSTANCE.onEntityRequest(player, packet.getEntityId());
             default -> Reference.logger().warning("ServuxEntitiesHandler#decodeServerData: 无效 packetType " + packet.getPacketType()

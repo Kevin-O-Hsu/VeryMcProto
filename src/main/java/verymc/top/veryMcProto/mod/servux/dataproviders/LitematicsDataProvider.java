@@ -80,6 +80,8 @@ public class LitematicsDataProvider extends DataProviderBase
     );
 
     private final List<UUID> invalidPlayers = new ArrayList<>();
+    /** 注册名册（上游 LitematicsDataProvider:55 同构）：registerPlayer() 入册、onPacketFailure/removePlayer 出册。 */
+    private final List<UUID> registeredPlayers = new ArrayList<>();
 
     protected LitematicsDataProvider()
     {
@@ -129,7 +131,25 @@ public class LitematicsDataProvider extends DataProviderBase
         return dir;
     }
 
-    @Override public boolean isPlayerRegistered(ServerPlayer player) { return !this.isPlayerInvalid(player); }
+    @Override public boolean isPlayerRegistered(ServerPlayer player) { return this.registeredPlayers.contains(player.getUUID()) && !this.isPlayerInvalid(player); }
+
+    /**
+     * 名册注册（上游 :152-175 同构，方法名保持 registerPlayer）：isEnabled/hasPermission 拒绝即拒发且不入册。
+     */
+    public void registerPlayer(ServerPlayer player)
+    {
+        if (!this.isEnabled()) { return; }
+
+        if (!this.hasPermission(player))
+        {
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic register 拒绝 " + player.getName().getString() + " (权限不足)");
+            return;
+        }
+
+        this.registeredPlayers.add(player.getUUID());
+
+        this.sendMetadata(player);
+    }
 
     public void sendMetadata(ServerPlayer player)
     {
@@ -149,9 +169,17 @@ public class LitematicsDataProvider extends DataProviderBase
                 + " ver=" + this.metadata.getIntOr("version", -1));
     }
 
-    public void onPacketFailure(ServerPlayer player) { this.setPlayerInvalid(player); }
+    public void onPacketFailure(ServerPlayer player)
+    {
+        this.setPlayerInvalid(player);
+        this.registeredPlayers.remove(player.getUUID());
+    }
 
-    public void removePlayer(ServerPlayer player) { this.removeInvalidPlayer(player); }
+    public void removePlayer(ServerPlayer player)
+    {
+        this.removeInvalidPlayer(player);
+        this.registeredPlayers.remove(player.getUUID());
+    }
 
     private void setPlayerInvalid(ServerPlayer player) { if (!this.invalidPlayers.contains(player.getUUID())) { this.invalidPlayers.add(player.getUUID()); } }
     private boolean isPlayerInvalid(ServerPlayer player) { return this.invalidPlayers.contains(player.getUUID()); }
@@ -352,8 +380,9 @@ public class LitematicsDataProvider extends DataProviderBase
     public void onPlayerJoin(ServerPlayer player)
     {
         if (!this.isEnabled()) { return; }
-        // plugin messaging 握手需时间，直接 sendMetadata（与 Entities 一致；configuration phase 多半失败，由 onPlayerRegisterChannel 补救）
-        this.sendMetadata(player);
+        // 上游 PlayerListener join→register 同构（Paper 适配：configuration phase 多半失败，
+        // 由 onPlayerRegisterChannel 名册白名单重发与 C2S METADATA_REQUEST→registerPlayer 兜底）
+        this.registerPlayer(player);
     }
 
     @Override
@@ -363,6 +392,8 @@ public class LitematicsDataProvider extends DataProviderBase
         // 客户端声明 servux:litematics（= 装了 Litematica）时立即重发。sendMetadata 幂等。
         if (this.getNetworkChannel().toString().equals(channel))
         {
+            // 名册白名单：仅已注册玩家重发（上游无此补偿路径；deny 语义不被旁路）
+            if (!this.isPlayerRegistered(player)) { return; }
             ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic onPlayerRegisterChannel: 客户端声明 " + channel + " → 重发 metadata");
             this.sendMetadata(player);
         }

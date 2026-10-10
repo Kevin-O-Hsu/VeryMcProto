@@ -61,6 +61,8 @@ public class TweaksDataProvider extends DataProviderBase
     );
 
     private final List<UUID> invalidPlayers = new ArrayList<>();
+    /** 注册名册（上游 TweaksDataProvider:53 同构）：register() 入册、onPacketFailure/removePlayer 出册。 */
+    private final List<UUID> registeredPlayers = new ArrayList<>();
     private boolean configDirty = false;
 
     protected TweaksDataProvider()
@@ -113,7 +115,7 @@ public class TweaksDataProvider extends DataProviderBase
 
     @Override public IPluginServerPlayHandler getPacketHandler() { return HANDLER; }
 
-    @Override public boolean isPlayerRegistered(ServerPlayer player) { return !this.isPlayerInvalid(player); }
+    @Override public boolean isPlayerRegistered(ServerPlayer player) { return this.registeredPlayers.contains(player.getUUID()) && !this.isPlayerInvalid(player); }
 
     public void updateAllTweaks(MinecraftServer server)
     {
@@ -124,6 +126,26 @@ public class TweaksDataProvider extends DataProviderBase
         {
             if (this.isPlayerRegistered(player)) { this.sendMetadata(player); }
         }
+    }
+
+    /**
+     * 名册注册（上游 :177-199 同构）：isEnabled/hasPermission 拒绝即拒发且不入册。
+     * 上游此处另有 checkTweaksMetadata()（潜影盒堆叠键自检，:138-162）——本线按设计不实现堆叠、
+     * 元数据永不含 stackingShulkers 键（见 AGENTS.md §3），该步骤不移植。
+     */
+    public void register(ServerPlayer player)
+    {
+        if (!this.isEnabled()) { return; }
+
+        if (!this.hasPermission(player))
+        {
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "tweaks register 拒绝 " + player.getName().getString() + " (权限不足)");
+            return;
+        }
+
+        this.registeredPlayers.add(player.getUUID());
+
+        this.sendMetadata(player);
     }
 
     public void sendMetadata(ServerPlayer player)
@@ -146,9 +168,17 @@ public class TweaksDataProvider extends DataProviderBase
                 + " keys=" + this.metadata.keySet());
     }
 
-    public void onPacketFailure(ServerPlayer player) { this.setPlayerInvalid(player); }
+    public void onPacketFailure(ServerPlayer player)
+    {
+        this.setPlayerInvalid(player);
+        this.registeredPlayers.remove(player.getUUID());
+    }
 
-    public void removePlayer(ServerPlayer player) { this.removeInvalidPlayer(player); }
+    public void removePlayer(ServerPlayer player)
+    {
+        this.removeInvalidPlayer(player);
+        this.registeredPlayers.remove(player.getUUID());
+    }
 
     private void setPlayerInvalid(ServerPlayer player) { if (!this.invalidPlayers.contains(player.getUUID())) { this.invalidPlayers.add(player.getUUID()); } }
     private boolean isPlayerInvalid(ServerPlayer player) { return this.invalidPlayers.contains(player.getUUID()); }
@@ -208,7 +238,7 @@ public class TweaksDataProvider extends DataProviderBase
 
     @Override public boolean hasPermission(ServerPlayer player) { return Perms.check(player, this.permNode, this.permissionLevel.getValue()); }
 
-    @Override public void onPlayerJoin(ServerPlayer player) { this.sendMetadata(player); }
+    @Override public void onPlayerJoin(ServerPlayer player) { this.register(player); } // 上游 PlayerListener join→register 同构
 
     @Override
     public void onPlayerRegisterChannel(ServerPlayer player, String channel)
@@ -217,6 +247,8 @@ public class TweaksDataProvider extends DataProviderBase
         // 客户端声明 servux:tweaks（= 装了 Tweakeroo 等）时立即重发。sendMetadata 幂等。
         if (this.getNetworkChannel().toString().equals(channel))
         {
+            // 名册白名单：仅已注册玩家重发（上游无此补偿路径；deny 语义不被旁路）
+            if (!this.isPlayerRegistered(player)) { return; }
             ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "tweaks onPlayerRegisterChannel: 客户端声明 " + channel + " → 重发 metadata");
             this.sendMetadata(player);
         }

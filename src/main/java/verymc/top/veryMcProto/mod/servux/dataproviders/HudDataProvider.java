@@ -92,6 +92,8 @@ public class HudDataProvider extends DataProviderBase
     private boolean refreshSpawnMetadata;
     private boolean refreshWeatherData;
     private final List<UUID> invalidPlayers = new ArrayList<>();
+    /** 注册名册（上游 HudDataProvider:65 同构）：register() 入册、onPacketFailure/removePlayer 出册——push 门消费。 */
+    private final List<UUID> registeredPlayers = new ArrayList<>();
 
     private final HashMap<UUID, List<DataLogger>> loggerPlayers = new HashMap<>();
     private final HashMap<DataLogger, DataLoggerBase<?>> LOGGERS = new HashMap<>();
@@ -162,7 +164,7 @@ public class HudDataProvider extends DataProviderBase
     public IPluginServerPlayHandler getPacketHandler() { return HANDLER; }
 
     @Override
-    public boolean isPlayerRegistered(ServerPlayer player) { return !this.isPlayerInvalid(player); }
+    public boolean isPlayerRegistered(ServerPlayer player) { return this.registeredPlayers.contains(player.getUUID()) && !this.isPlayerInvalid(player); }
 
     @Override
     public boolean shouldTick() { return this.enabled; }
@@ -349,6 +351,34 @@ public class HudDataProvider extends DataProviderBase
         }
     }
 
+    /**
+     * 名册注册（上游 :414-448 同构）：isEnabled/hasPermission 拒绝即拒发且不入册；removeInvalidPlayer 解除检疫。
+     *
+     * <p>种子剥离块为<b>上游同源死块</b>（上游 :427-442 构建了去种子的局部 nbt 却发送 this.metadata——上游缺陷；
+     * 我方 sendMetadata 发送剥离后的 nbt，保持既有正确行为），保留逐字对照勿"修复"。
+     */
+    public void register(ServerPlayer player)
+    {
+        if (!this.isEnabled()) { return; }
+
+        if (!this.hasPermission(player))
+        {
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud register 拒绝 " + player.getName().getString() + " (权限不足)");
+            return;
+        }
+
+        this.removeInvalidPlayer(player);
+
+        CompoundTag nbt = new CompoundTag();
+        nbt.merge(this.metadata);
+
+        if (!this.hasPermissionsForSeed(player) && nbt.contains("worldSeed")) { nbt.remove("worldSeed"); }
+
+        this.registeredPlayers.add(player.getUUID());
+
+        this.sendMetadata(player);
+    }
+
     public void sendMetadata(ServerPlayer player)
     {
         if (!this.isEnabled())
@@ -380,6 +410,10 @@ public class HudDataProvider extends DataProviderBase
 
     public void refreshLoggers(ServerPlayer player, CompoundTag nbt)
     {
+        if (!this.isPlayerRegistered(player) || !this.isEnabled())
+        {
+            return;
+        }
         if (!this.hasPermissionsForLoggers(player))
         {
             player.sendSystemMessage(StringUtils.translate("servux.hud_data.error.insufficient_for_loggers", "any"));
@@ -412,12 +446,14 @@ public class HudDataProvider extends DataProviderBase
     public void onPacketFailure(ServerPlayer player)
     {
         this.setPlayerInvalid(player);
+        this.registeredPlayers.remove(player.getUUID());
         this.removePlayerLoggers(player);
     }
 
     public void removePlayer(ServerPlayer player)
     {
         this.removeInvalidPlayer(player);
+        this.registeredPlayers.remove(player.getUUID());
         this.removePlayerLoggers(player);
     }
 
@@ -425,7 +461,7 @@ public class HudDataProvider extends DataProviderBase
 
     public void refreshSpawnMetadata(ServerPlayer player, @Nullable CompoundTag data)
     {
-        if (!this.isEnabled()) { return; }
+        if (!this.isPlayerRegistered(player) || !this.isEnabled()) { return; }
 
         GlobalPos spawnPos = this.getSpawnPos();
         CompoundTag nbt = new CompoundTag();
@@ -448,7 +484,7 @@ public class HudDataProvider extends DataProviderBase
 
     public void refreshWeatherData(ServerPlayer player, @Nullable CompoundTag data)
     {
-        if (!this.hasPermissionsForWeather(player) || !this.isEnabled()) { return; }
+        if (!this.hasPermissionsForWeather(player) || !this.isPlayerRegistered(player) || !this.isEnabled()) { return; }
 
         CompoundTag nbt = new CompoundTag();
         nbt.putString("id", this.getNetworkChannel().toString());
@@ -590,16 +626,16 @@ public class HudDataProvider extends DataProviderBase
     public void onPlayerJoin(ServerPlayer player)
     {
         if (!this.isEnabled()) { return; }
-        // plugin messaging 握手（客户端 MC|Register servux:hud_metadata）需要时间，延迟 sendMetadata。
+        // 上游 PlayerListener join→register 同构（Paper 适配：延迟 40t 等客户端声明/codec 就绪后入册+推送）
         try
         {
             new BukkitRunnable()
             {
                 @Override
-                public void run() { HudDataProvider.this.sendMetadata(player); }
+                public void run() { HudDataProvider.this.register(player); }
             }.runTaskLater(Reference.plugin(), 40L); // 2s
         }
-        catch (Exception e) { ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "onPlayerJoin 延迟 sendMetadata 失败: " + e.getMessage()); }
+        catch (Exception e) { ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "onPlayerJoin 延迟 register 失败: " + e.getMessage()); }
     }
 
     @Override
@@ -608,11 +644,12 @@ public class HudDataProvider extends DataProviderBase
     @Override
     public void onPlayerRegisterChannel(ServerPlayer player, String channel)
     {
-        // 客户端声明监听 servux:hud_metadata = 装了 MiniHUD（configuration phase 后的可靠信号，
-        // 比 onPlayerJoin 固定 40t 延迟更准时）。立即主动推 metadata；sendMetadata 幂等，重复无害，
-        // 且会 removeInvalidPlayer 清除可能的失败计数 invalid 标记。
+        // 客户端声明监听 servux:hud_metadata = 装了 MiniHUD（configuration phase 后的可靠信号）。
+        // 名册白名单：仅已注册玩家重发（上游无此补偿路径；未注册玩家的 deny 语义不被重发旁路——
+        // 未注册者经 join→register 或 C2S METADATA_REQUEST→register 入册）
         if (ServuxReference.CHANNEL_HUD.toString().equals(channel))
         {
+            if (!this.isPlayerRegistered(player)) { return; }
             this.sendMetadata(player);
         }
     }
