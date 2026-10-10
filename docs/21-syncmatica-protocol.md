@@ -293,7 +293,9 @@ writeBytes(buffer, 0, bytesRead)
 | `accept()` | 发 | `MODIFY_REQUEST_ACCEPT` | `writeUUID(placement.id)` → `setModifier(placement, this)` 占锁（`:72-78`） |
 | 收 | 收 | `MODIFY_FINISH` | `readUUID`（消费）→ `receivePositionData(placement, buf, partner)` 应用位置 → `setLastModifiedBy(玩家)` → `updateServerPlacement` → `succeed()`（`:40-57`） |
 | `sendCancelPacket` | 发 | `MODIFY_REQUEST_DENY` | `writeUUID(placementId)`（`:81-86`） |
-| `onClose` | — | — | 若当前 modifier 是自己则清锁（`:91-97`） |
+| `onClose` | — | — | 若当前 modifier 是自己则清锁（`:91-97`）——`setModifier(placement, null)` 解锁 |
+
+> ⚠️ **modifyState 的 null 解锁语义（我方修复，勿随模板回退）**：上游 `modifyState` 为 HashMap，「写 null 值」即解锁；本仓库为 **ConcurrentHashMap（禁 null 值）**，`setModifier(placement, null)` 若照搬上游必抛 NPE（迁移引入——曾致 MODIFY 成功不广播/REMOVE 中断/onPlayerLeave 清理中断/suspendAll 锁泄漏四条路径静默失效，锁残留使后续 MODIFY 恒 DENY）。修复 = setModifier 内 null→`Map.remove` 翻译（读点仅 `get`，与上游 null 值残留可观测等价）；getModifier 对 null placement（幽灵 id）返回 null 守卫（上游原生缺陷：NPE 且 close 中 onClose 先于 sendCancelPacket 致 DENY 永不发出）——契约由 `ModifyStateTest` 固化。
 
 成功后由 `ServerCommunicationManager.handleExchange` 广播 `MODIFY`：
 

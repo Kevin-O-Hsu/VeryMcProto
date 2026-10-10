@@ -26,7 +26,7 @@
 
 - **Servux**（`mod/servux/`，对照 `OriginImpl/servux-LTS-1.21.11/`）—— masa 开发的服务端协议 Mod，为 masa 的客户端 Mod（**MiniHUD / Litematica / Tweakeroo**）提供**服务端→客户端的数据投递与协议**，通过自定义网络通道（`servux:*`）下发：世界元数据、出生点、天气、TPS/MobCap、结构边界框、Litematica 投影投递/粘贴、实体与方块实体 NBT 查询、EasyPlace 服务端放置协议等。5 通道 + schematic（粘贴/投递）+ EasyPlace 全功能已实现。
 - **JEI Recipe Bridge**（`mod/jeirecipebridge/`，对照 `OriginImpl/JEIRecipeBridge-1.21.11/`）—— 玩家进服时把服务端配方表同步给 JEI 客户端，按 client brand 走 `fabric:recipe_sync` / `neoforge:recipe_content` 两条原版 custom payload 通道（NMS `ClientboundCustomPayloadPacket` 直发，绕过 plugin messaging size 上限）。纯 S2C / 一次性 / 仅 1 个 `enabled` 配置项。
-- **Syncmatica**（`mod/syncmatica/`，对照 `OriginImpl/syncmatica-LTS-1.21.11/`）—— **投影共享**协议 Mod：服务端作中央仓库存储 `.litematic`，多玩家上传/下载/协同修改放置位置。单物理通道 `syncmatica:main` + 18 逻辑 PacketType + Exchange 会话层（请求-应答状态机）+ 文件存储 + JSON 持久化 + 配额/调试服务。与 Servux（单向广播）根本不同——**双向、有状态、多玩家共享**。全功能已实现。
+- **Syncmatica**（`mod/syncmatica/`，对照 `OriginImpl/syncmatica-LTS-1.21.11/`）—— **投影共享**协议 Mod：服务端作中央仓库存储 `.litematic`，多玩家上传/下载/协同修改放置位置。单物理通道 `syncmatica:main` + 18 逻辑 PacketType + Exchange 会话层（请求-应答状态机）+ 文件存储 + JSON 持久化 + 配额/调试服务。与 Servux（单向广播）根本不同——**双向、有状态、多玩家共享**。全功能已实现（`modifyState` 锁表有两处本地修复：CHM null 语义翻译 + null placement 守卫——迁移引入 NPE 链 + 上游原生缺陷，勿随模板回退，见 docs/21 §5.4）。
 
 > **本项目的本质是"协议层移植"**：客户端仍是 masa / syncmatica 的 Fabric Mod；我们要在 Paper 服务端复刻它们期待的**网络协议 + 数据采集**，使"Fabric 客户端 + Paper 服务端"的组合能像"Fabric 客户端 + 原版服务端 Mod"一样工作。
 
