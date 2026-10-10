@@ -95,7 +95,7 @@
 | `status` | `admin` | 显示协议启停状态 + 调试状态行（`SyncmaticaDebug.statusLine()`）+ 配置文件名 |
 | `save` | `admin` | `context.saveConfiguration()`——把当前 quota/debug 配置 + 调试 master/分类写入 `syncmatica-config.json` |
 | `reload` | `admin` | `context.loadConfiguration()`——从 `syncmatica-config.json` 重读配置 |
-| `enable` / `disable` | `admin` | **软禁用/启用协议**：调 `context.resumeProtocol()`/`suspendProtocol()`。**不重启插件**，只切换协议处理开关；enable 会 `reconnectOnlinePlayers()`（在线玩家重新握手），disable 中断进行中的传输但**不踢玩家**（通道保留） |
+| `enable` / `disable` | `admin` | **软禁用/启用协议**：调 `context.resumeProtocol()`/`suspendProtocol()`。**不重启插件**，只切换协议处理开关；enable 会 `reconnectOnlinePlayers()`（在线玩家重新握手），disable 中断进行中的传输但**不踢玩家**（通道保留）；disable 关闭**全部 targets** 的进行中 exchange（含握手中途、尚未入 broadcastTargets 的玩家）并显式移出列表——enable 后可重新握手（不残留僵尸 VersionHandshakeServer） |
 | `load` | `load` | peek `syncmatics/` 目录下所有 `<hash>.litematic`（**文件名须为 UUID**），未注册的逐个建 `ServerPlacement`（owner=发送方玩家，origin=玩家脚下）并 `addPlacement` 广播 |
 | `load <file>` | `load_each` | 加载指定单个 `<file>.litematic` |
 | `debug [...]` | `debug` | 调试日志宏开关热切换（见 §2.3） |

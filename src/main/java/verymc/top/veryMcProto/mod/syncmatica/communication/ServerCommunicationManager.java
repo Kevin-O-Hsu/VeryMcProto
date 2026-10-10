@@ -156,17 +156,32 @@ public class ServerCommunicationManager extends CommunicationManager
     }
 
     /**
-     * 软禁用辅助（{@code /syncmatica disable} 用）：关闭所有已握手玩家的进行中 exchange
-     * （不通知对方、不触发 {@link #handleExchange} 副作用），清空 {@code broadcastTargets}。
-     * {@code targets} 保留——玩家仍在服，{@code resumeProtocol} 后复用并重新握手。
+     * 软禁用辅助（{@code /syncmatica disable} 用）：关闭<b>全部在线玩家</b>（{@code targets.values()}
+     * 全集，含握手中途、尚未加入 {@code broadcastTargets} 的玩家）的进行中 exchange（不通知对方、
+     * 不触发 {@link #handleExchange} 副作用），并把每个 exchange 显式移出其 target 的 exchange 列表，
+     * 最后清空 {@code broadcastTargets}。
+     *
+     * <p>遍历面必须是 targets 全集而非 broadcastTargets 子集：{@link VersionHandshakeServer} 仅在握手
+     * <b>成功后</b>才加入 broadcastTargets（{@link #handleExchange}），disable 瞬间握手中途的玩家不在
+     * 其列——若漏扫，其 exchange 以未 finished 状态残留列表，enable 后 {@link #tryStartHandshake} 的
+     * {@code instanceof VersionHandshakeServer} 检查（不辨死活）将永久跳过重握手，该玩家 syncmatica
+     * 卡死直到重进服。
+     *
+     * <p>显式移除是必须的半步：{@code Exchange#close(boolean)} 仅翻状态位，唯一的列表移出点是
+     * {@code CommunicationManager#notifyClose}——本方法刻意不走它（会触发 handleExchange 副作用），
+     * 但不移除则残留 exchange 同样命中 {@link #tryStartHandshake} 的跳过检查（残留与在途不可区分）。
+     *
+     * <p>{@code targets} 保留——玩家仍在服，{@code resumeProtocol} 后复用并重新握手（客户端
+     * VersionHandshakeClient 的 checkPacket 无条件匹配 REGISTER_VERSION，服务端重发即收敛）。
      */
     public void suspendAll()
     {
-        for (final ExchangeTarget t : new ArrayList<>(broadcastTargets))
+        for (final ExchangeTarget t : targets.values())
         {
             for (final Exchange ex : new ArrayList<>(t.getExchanges()))
             {
                 try { ex.close(false); } catch (final Exception ignored) { }
+                t.getExchanges().remove(ex);
             }
         }
         broadcastTargets.clear();
