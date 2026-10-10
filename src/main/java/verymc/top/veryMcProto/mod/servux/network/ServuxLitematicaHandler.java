@@ -119,7 +119,12 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
                             this.readingSessionKeys.remove(uuid);
                             // 上游 0.9.5 ServuxLitematicaHandler:139-153 同构：重组完成无条件走 paste 受理
                             //（Task 门控在 Provider：非 LitematicaPaste 静默忽略）；Transmit* 接收链已随安全修复移除
-                            LitematicsDataProvider.INSTANCE.handleClientPasteRequest(player, fullPacket.readVarInt(), (CompoundTag) fullPacket.readNbt(NbtAccounter.unlimitedHeap()));
+                            LitematicsDataProvider.INSTANCE.handleClientPasteRequest(player, fullPacket.readVarInt(), (CompoundTag) fullPacket.readNbt(NbtAccounter.create(verymc.top.veryMcProto.mod.servux.util.nbt.NbtUtils.NETWORK_MAX_BYTES)));
+                        }
+                        catch (net.minecraft.nbt.NbtAccounterException e)
+                        {
+                            // 超配额（先记账后分配拦截——长度字段炸弹类膨胀），丢弃本流（客户端可重传更小的）
+                            Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: 投影 NBT 超配额（>" + verymc.top.veryMcProto.mod.servux.util.nbt.NbtUtils.NETWORK_MAX_BYTES + " 记账字节），丢弃: " + e.getMessage());
                         }
                         catch (Exception e)
                         {

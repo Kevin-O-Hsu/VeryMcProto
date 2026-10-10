@@ -677,7 +677,12 @@ public class LitematicaSchematic
         throw new SimpleCommandExceptionType(Component.translatable(s)).create();
     }
 
-    private void readSubRegionsFromNBT(CompoundTag tag, int version, int minecraftDataVersion, boolean enableFixers)
+    /**
+     * 逐 region 解析 Regions 子树。边界语义：结构残缺的 region（Position/Size 缺失）<b>静默跳过</b>
+     * （上游同源）；体积与 BlockStates 容量不自洽的 region 视为<b>恶意坏包整体拒</b>（抛
+     * {@link CommandSyntaxException}，与 readFromNBT 的 version 错误同构——见下方一致性预检）。
+     */
+    private void readSubRegionsFromNBT(CompoundTag tag, int version, int minecraftDataVersion, boolean enableFixers) throws CommandSyntaxException
     {
         for (String regionName : tag.keySet())
         {
@@ -745,6 +750,23 @@ public class LitematicaSchematic
                         if (enableFixers)
                         {
                             palette = this.convertBlockStatePalette_to_1_20_5(palette, minecraftDataVersion);
+                        }
+
+                        // ★ 体积一致性预检（我方安全增强，上游无对应检查——上游是客户端 GUI 语境，靠
+                        // readFromData 的 catch(OutOfMemoryError) 兜底；我方服务端 paste 上传链的 Size 键
+                        // 完全客户端可控，且与 BlockStates 实长可任意脱钩：声明 20000³ 只给 1 个 long）。
+                        // 声明体积必须被 BlockStates 实际容量背书，否则虚假大体积直达粘贴层——paste
+                        // 按 volume 迭代（8e12 格位 CPU DoS），且执行期 onResize 全量重分配可达 OOM。
+                        // bits 与 LitematicaBlockStateContainer.createFrom 内部逐字同式，保证预检容量 ≡
+                        // 容器容量；floor 除法（勿用 roundUp——对 volume=0 会算出 requiredLongs=1
+                        // 误拒合法空形态）；totalVolume<0 守卫接住 (long) 三乘的 2^64 回绕（Position/Size
+                        // 经 getMinCorner/getMaxCorner 相减可为负分量）。
+                        final int bits = Math.max(2, Integer.SIZE - Integer.numberOfLeadingZeros(palette.size() - 1));
+                        final long totalVolume = (long) size.getX() * size.getY() * size.getZ();
+                        final long capacityBits = (long) blockStateArr.length * 64L;
+                        if (totalVolume < 0 || totalVolume > capacityBits / bits)
+                        {
+                            error("servux.litematics.error.schematic_load.region_volume_exceeds_blockstates");
                         }
 
                         LitematicaBlockStateContainer container = LitematicaBlockStateContainer.createFrom(palette, blockStateArr, size);

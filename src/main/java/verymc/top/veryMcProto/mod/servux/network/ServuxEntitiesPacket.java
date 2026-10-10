@@ -201,8 +201,8 @@ public class ServuxEntitiesPacket implements IServerPayloadData
             {
                 case PACKET_C2S_BLOCK_ENTITY_REQUEST -> { input.readVarInt(); return ServuxEntitiesPacket.BlockEntityRequest(input.readBlockPos()); }
                 case PACKET_C2S_ENTITY_REQUEST -> { input.readVarInt(); return ServuxEntitiesPacket.EntityRequest(input.readVarInt()); }
-                case PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE -> { return ServuxEntitiesPacket.SimpleBlockResponse(input.readBlockPos(), (CompoundTag) input.readNbt(NbtAccounter.unlimitedHeap())); }
-                case PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE -> { return ServuxEntitiesPacket.SimpleEntityResponse(input.readVarInt(), (CompoundTag) input.readNbt(NbtAccounter.unlimitedHeap())); }
+                case PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE -> { return ServuxEntitiesPacket.SimpleBlockResponse(input.readBlockPos(), (CompoundTag) input.readNbt(NbtAccounter.create(verymc.top.veryMcProto.mod.servux.util.nbt.NbtUtils.NETWORK_MAX_BYTES))); }
+                case PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE -> { return ServuxEntitiesPacket.SimpleEntityResponse(input.readVarInt(), (CompoundTag) input.readNbt(NbtAccounter.create(verymc.top.veryMcProto.mod.servux.util.nbt.NbtUtils.NETWORK_MAX_BYTES))); }
                 case PACKET_S2C_NBT_RESPONSE_DATA -> { return ServuxEntitiesPacket.ResponseS2CData(new FriendlyByteBuf(input.readBytes(input.readableBytes()))); }
                 case PACKET_C2S_NBT_RESPONSE_DATA -> { return ServuxEntitiesPacket.ResponseC2SData(new FriendlyByteBuf(input.readBytes(input.readableBytes()))); }
                 case PACKET_C2S_METADATA_REQUEST -> { return ServuxEntitiesPacket.MetadataRequest(input.readNbt()); }

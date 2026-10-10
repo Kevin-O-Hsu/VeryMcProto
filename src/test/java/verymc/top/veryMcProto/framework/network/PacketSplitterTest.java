@@ -106,10 +106,10 @@ class PacketSplitterTest
     {
         CapturingHandler h = new CapturingHandler();
         FriendlyByteBuf malicious = new FriendlyByteBuf(Unpooled.buffer());
-        malicious.writeVarInt(70_000_000); // > DEFAULT_MAX_RECEIVE_SIZE_S2C(64MB)
+        malicious.writeVarInt(PacketSplitter.DEFAULT_MAX_RECEIVE_SIZE_S2C + 1); // 常量随线适配（1.21.11=128MB），断言解耦具体值
         malicious.writeBytes(new byte[10]);
         assertThrows(IllegalArgumentException.class, () -> PacketSplitter.receive(h, 103L, malicious),
-                "expectedSize 超 64MB 上限应被拒");
+                "expectedSize 超接收上限应被拒");
     }
 
     @Test

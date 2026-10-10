@@ -24,6 +24,14 @@ import verymc.top.veryMcProto.mod.servux.util.data.Constants;
 public class NbtUtils
 {
     /**
+     * 网络输入 NBT 解析配额（1.21.11 线常量族单值：上游 malilib/servux 的 C2S/S2C 双常量同为 134217728
+     * 即 128MB——26.x 线为 64MB 解压域/DataTag 语境，勿照搬数值）。NbtAccounter 先记账后分配：流内
+     * 声明的长数组（如 long[2^31-1]）在记账处即断，堵长度字段炸弹；单值乘数 1——字符串记账（4+2len）
+     * 的 ~2x 放大只影响远低于上限的 metadata 级帧，无合法误伤面（粘贴投影主体 BlockStates 记账恰 1:1）。
+     * 本地文件读点（transmit 命令/syncmatica 存储）保持 unlimitedHeap——非网络直连输入，与 26.x 对齐。
+     */
+    public static final long NETWORK_MAX_BYTES = 134_217_728L;
+    /**
      * Get the Entity's UUID from NBT.
      *
      * @param nbt ()

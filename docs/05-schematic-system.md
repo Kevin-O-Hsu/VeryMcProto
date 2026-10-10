@@ -6,6 +6,8 @@
 
 ---
 
+
+> **NBT 输入防线（7800cbe 回移 + 常量族单值化）**：①`LitematicaSchematic.readSubRegionsFromNBT` 体积一致性预检——声明体积须被 BlockStates 实际容量背书（bits 与 createFrom 同式、floor 除法、totalVolume<0 回绕守卫），脱钩坏包整体拒（CommandSyntaxException→SchematicPlacement 包装→handler catch warn）；②网络输入 NBT 全部有界化——`NbtUtils.NETWORK_MAX_BYTES = 134_217_728`（1.21.11 客户端双常量同值 128MB），`ServuxLitematicaHandler:109` 与三个 Packet 类 7 处 decode 点 `unlimitedHeap()`→`NbtAccounter.create(常量)`（先记账后分配，堵长度字段炸弹；NAE 专属 catch 置于 Exception 前）；③`PacketSplitter.DEFAULT_MAX_RECEIVE_SIZE_S2C` 64MB→128MB（修正拒 64-128MB 合法上传的移植漂移——litematica 客户端上传上界 128MB-4096）。契约由 `SchematicPlacementGuardTest` 固化。
 ## 0. 子系统全景
 
 ```

@@ -38,7 +38,7 @@ public class PacketSplitter
     // 接收端缓冲上限。receive 默认用此（C2S 上传——如 servux litematic 粘贴——也走同一 receive 路径：
     // plugin messaging 单物理通道不分方向）。原版另有 C2S 专用常量，但本实现 C2S/S2C 共用一通道，
     // 故只保留一个接收上限（C2S 专用死常量已删——见 docs/TECH_DEBT_AUDIT F006）。DoS 防护最后防线。
-    public static final int DEFAULT_MAX_RECEIVE_SIZE_S2C = 67_108_864;
+    public static final int DEFAULT_MAX_RECEIVE_SIZE_S2C = 134_217_728; // 上游 1.21.11 双常量同值 128MB（原 64MB 为移植漂移——拒 64-128MB 合法上传，实测客户端上界 128MB-4096）
 
     /**
      * S2C 整帧发送上限 = 1.21.11 客户端分片重组上限（malilib-LTS-1.21.11 {@code DEFAULT_MAX_RECEIVE_SIZE_S2C = 134217728}，
