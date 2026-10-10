@@ -46,6 +46,9 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
 {
     private static final String USAGE = "§e/syncmatica §7status|save|reload|enable|disable|load [file]|debug [on|off|cat|status|s2c]";
 
+    /** load 成功/计数消息的广播面（vanilla sendSuccess(msg, true) 的 level≥2 OP 广播位近似）。 */
+    private static final String PERMISSION_ADMIN_BROADCAST = "syncmatica.command.admin";
+
     private final SyncmaticaContext context;
     private final HashMap<Path, Pair<SchematicMetadata, SchematicSchema>> files = new HashMap<>();
 
@@ -375,7 +378,7 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
             }
         }
 
-        sender.sendMessage("§b" + String.format("%02d", count) + "§r Syncmatic file(s) found / loaded.");
+        broadcastSuccess(sender, "§b" + String.format("%02d", count) + "§r Syncmatic file(s) found / loaded.");
         this.updateSyncmaticDir();
     }
 
@@ -410,7 +413,7 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
 
         if (loadEach(sender, file, pair.getLeft(), pair.getRight(), owner, origin))
         {
-            sender.sendMessage("§b01§r Syncmatic file(s) found / loaded.");
+            broadcastSuccess(sender, "§b01§r Syncmatic file(s) found / loaded.");
         }
 
         this.updateSyncmaticDir();
@@ -426,18 +429,30 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
 
         final ServerCommunicationManager comms = (ServerCommunicationManager) context.getCommunicationManager();
         final ExchangeTarget target = (sender instanceof final Player player) ? comms.getOrCreateTarget(player) : null;
-        if (target != null)
-        {
-            comms.addPlacement(target, placement);
-        }
-        else
-        {
-            // 控制台执行：无发起方 target，直接注册（玩家进服握手时 CONFIRM_USER 会下发全部 placement）
-            context.getSyncmaticManager().addPlacement(placement);
-        }
+        // 对齐上游 :197 意图（"Update placement to all clients"）：控制台也走 addPlacement 广播臂——
+        // 在线已握手客户端即时收到 REGISTER_METADATA（此前 console 分支仅注册不广播，客户端需重进服
+        // 重新握手 CONFIRM_USER 才可见）。t=null 由 addPlacement 内部 null 守卫承载（上游
+        // fromExistingPlayer(null) 在 playerMap 非空时自身 NPE，不复刻该缺陷）。
+        comms.addPlacement(target, placement);
 
-        sender.sendMessage("Loaded Server Placement '§d" + placement.getName() + "§r'");
+        broadcastSuccess(sender, "Loaded Server Placement '§d" + placement.getName() + "§r'");
         return true;
+    }
+
+    /**
+     * vanilla Brigadier {@code sendSuccess(msg, true)} 的 Bukkit 等价（上游 :183/:199）：消息广播给持
+     * {@code syncmatica.command.admin} 权限的全体玩家与控制台（≈ vanilla permission level ≥ 2 的
+     * OP 广播位）。Bukkit.broadcast 只达在线持权者 + console——执行者若不持权（load 节点 default true）
+     * 补直发保证回执不丢。各身份恰收 1 次：admin 经广播、非 admin 经直发、console 恒在广播集。
+     * "No file"/"Failed to peek" 类提示对齐上游 sendSuccess(..., false) 仍仅回执行者。
+     */
+    private static void broadcastSuccess(final CommandSender sender, final String msg)
+    {
+        org.bukkit.Bukkit.broadcast(msg, PERMISSION_ADMIN_BROADCAST);
+        if (!sender.hasPermission(PERMISSION_ADMIN_BROADCAST))
+        {
+            sender.sendMessage(msg);
+        }
     }
 
     private ServerPosition playerOrigin(final Player player)

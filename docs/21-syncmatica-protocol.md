@@ -309,6 +309,8 @@ putPositionData(placement, buf, client)            // §4.2
 
 对**不支持 MODIFY** feature 的客户端，退化兼容：先发 `REMOVE_SYNCMATIC[uuid]`，再发 `REGISTER_METADATA`（重发完整 metadata）。
 
+> ⚠️ **addPlacement 的 null target 守卫（我方修复，勿随模板回退）**：`addPlacement(@Nullable t, placement)` 的控制台路径（`/syncmatica load` 无发起方玩家）传 `t=null`——上游 `fromExistingPlayer(null)` 在 playerMap 非空时自身 NPE，本仓库不复刻该缺陷：null 仅跳过「已存在 id」分支对 origin 的 `cancelShare` 通知，注册+广播照常。console load 因此与玩家路径同型（在线已握手客户端即时收到 REGISTER_METADATA）。
+
 ### 5.5 客户端 Exchange（服务端需回应的包）
 
 服务端 `ServerCommunicationManager.handle` 必须正确处理客户端 Exchange 发出的包：
