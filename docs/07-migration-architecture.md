@@ -247,7 +247,12 @@ dependencies {
 java { toolchain.languageVersion = JavaLanguageVersion.of(21) }
 
 tasks {
-    runServer { minecraftVersion("1.21.11"); jvmArgs("-Xms2G","-Xmx2G") }
+    runServer {
+        minecraftVersion(providers.gradleProperty("mcVersion").get())
+        jvmArgs("-Xms2G", "-Xmx2G")
+        // 独立运行目录（run-1.21.11/）：多线共用工作区，防跨线世界/配置互踩（2c38ee2）
+        runDirectory(file("run-1.21.11"))
+    }
     processResources {
         val props = mapOf("version" to version, "mcVersion" to mcVersionProp)
         filesMatching(listOf("plugin.yml", "version.properties")) { expand(props) }

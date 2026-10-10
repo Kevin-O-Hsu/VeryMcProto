@@ -85,7 +85,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
   /servux debug off                   # 关闭 master 总开关（不碰分类）
   ```
   完整分类见 `framework/debug/Debug.java` 的 `Cat` 枚举：`lifecycle / handshake / network / packet / tick / permission / provider / config`。
-- **持久化**：编辑 `run/plugins/VeryMcProto/servux.json`，设 `servux_main.debug_log: true`，重启。
+- **持久化**：编辑 `run-1.21.11/plugins/VeryMcProto/servux.json`，设 `servux_main.debug_log: true`，重启。
 
 > 开启后日志形如：`[DBG/HANDSHAKE] litematic sendMetadata → Steve ok=true servux=servux-paper-1.21.11-b2 ver=1`。
 
