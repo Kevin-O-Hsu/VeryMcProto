@@ -139,9 +139,9 @@ ServerPlayHandler.getInstance().registerServerPlayHandler(handler);  // → Chan
 Paper 下 `PlayerJoinEvent` 时客户端 codec **尚未就绪**，立即推 `REGISTER_VERSION` 会握手失败并残留 exchange。**已落地双保险**（`SyncmaticaModule.enable` 注册的 listener）：
 
 1. **主路径**：`PlayerJoinEvent` → `getOrCreateTarget` + `onPlayerJoin`（仅登记）→ `runTaskLater(40t)`（2s，等 configuration phase 完成、客户端 codec 就绪）→ **`tryStartHandshake`**（`ServerCommunicationManager`，幂等：已在 `broadcastTargets` 或已有进行中 `VersionHandshakeServer` 则跳过）。
-2. **兜底/加速**：`PlayerRegisterChannelEvent`（channel == `syncmatica:main`）→ 立即 `tryStartHandshake`（旧式 MC|Register 协商；1.21 Fabric 客户端经 `PayloadTypeRegistry.playS2C()` 声明通道**通常不触发**此事件，故仅作加速/兜底）。
+2. **兜底/加速**：`PlayerRegisterChannelEvent`（channel == `syncmatica:main`）→ 立即 `tryStartHandshake`。事件**确实会触发**（Paper 1.21.11 register→事件链路完整）；旧认知「`PayloadTypeRegistry.playS2C()` 声明通道不触发本事件」是概念错误——codec 注册 ≠ 通道声明，真因是客户端 receiver 仅在握手 CONFIRM_USER 后注册（声明为握手下游产物，晚探针 2-3 RTT），到达时握手通常已完成（幂等跳过，时序错觉造成「不触发」假象）。
 
-`tryStartHandshake` 幂等，两路径安全共存。`/syncmatica enable`（恢复协议）对在线玩家走同一 40t 延迟握手路径（`SyncmaticaModule.reconnectOnlinePlayers`）。
+`tryStartHandshake` 幂等，两路径安全共存。`/syncmatica enable`（恢复协议）对在线玩家走同一 40t 延迟握手路径（`SyncmaticaModule.reconnectOnlinePlayers`）。**禁止**在 `tryStartHandshake` 入口加 canSend 前置守卫（自引用死锁：探针是唯一引导，声明是其下游产物——26.x 317a9a1 有同型风险）。
 
 ---
 

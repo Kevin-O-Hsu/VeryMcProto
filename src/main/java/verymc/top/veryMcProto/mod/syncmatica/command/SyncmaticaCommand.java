@@ -185,7 +185,7 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
      *   <li>{@code /syncmatica debug cat <name>} —— 切换单个分类（lifecycle/handshake/network/packet/exchange）。</li>
      * </ul>
      * <p>诊断 syncmatica 不可用：先 {@code /syncmatica debug on}，再 {@code /syncmatica debug cat all}（或单独 handshake/network/packet），
-     * 观察握手链路：声明通道 → tryStartHandshake → init 推 REGISTER_VERSION → 客户端回版本 → FeatureSet → CONFIRM_USER → broadcastTargets。
+     * 观察握手链路：40t 探针 → tryStartHandshake → init 推 REGISTER_VERSION → 客户端回版本 → FeatureSet → CONFIRM_USER → broadcastTargets（声明通道是其下游产物——receiver 仅在 CONFIRM_USER 后注册，晚探针 2-3 RTT 到达）。
      * 命令切换即时持久化到 {@code syncmatica-config.json}（master + 分类各自独立保存），重启后完全恢复。
      */
     private void handleDebug(final CommandSender sender, final String[] args)

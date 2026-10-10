@@ -79,12 +79,18 @@ public class SyncmaticaModule
                     final ExchangeTarget target = fComMan.getOrCreateTarget(e.getPlayer());
                     fComMan.onPlayerJoin(target);
 
-                    // ★ 命门修复：把握手从「仅依赖 onPlayerRegisterChannel」改为双保险（与 servux HudDataProvider 一致）。
-                    // 1.21.x Fabric 客户端（syncmatica 经 PayloadTypeRegistry.playS2C() 声明通道）不通过 Bukkit
-                    // 旧式 MC|Register 机制声明 → PlayerRegisterChannelEvent 不触发 → 单路径下 tryStartHandshake
-                    // 永不调用 → syncmatica 完全不可用（实测：玩家进服后无任何 HANDSHAKE 日志）。
-                    // 主路径改为 onPlayerJoin 延迟 40t（2s，等 configuration phase 完成、客户端 codec 就绪），
-                    // onPlayerRegisterChannel 保留为加速/兜底（若事件触发则立即握手，tryStartHandshake 幂等）。
+                    // ★ 认知修正（静态全链实证，勿按旧注释回改）：本 40t 延迟探针是 syncmatica 握手的【唯一引导路径】。
+                    // 旧注释「1.21.x 客户端不通过 MC|Register 声明 → 事件不触发」是错误归因——Paper 1.21.11 的
+                    // minecraft:register → pluginMessagerChannels → PlayerRegisterChannelEvent 链路完整（与 26.x 同构）；
+                    // 真因是【因果方向】：syncmatica 客户端的 syncmatica:main receiver 仅在握手 CONFIRM_USER 之后注册
+                    // （VersionHandshakeClient:65 → Context.startup():150-156 → registerReceivers():186，全树唯一链），
+                    // 声明是握手完成的【下游产物】（晚探针 2-3 RTT）而非独立事件。因此：
+                    //   ① 客户端上下文惰性创建、纯被动等探针（VersionHandshakeClient.init() = await message from server），
+                    //      无探针则握手永不开始、声明永不发生；
+                    //   ② tryStartHandshake 入口加 canSend/getListeningPluginChannels 前置守卫 = 自引用死锁
+                    //      （拦探针 → 永不声明 → 兜底事件永不触发 → mod 客户端整体不可用）——【禁止回移 26.x 317a9a1 守卫，
+                    //      该 commit 在 main 线有同型死锁风险】；
+                    //   ③ vanilla 客户端收 ~40B 探针被静默丢弃（不踢人），其悬挂 VHS 由 onPlayerLeave 清理。
                     final org.bukkit.entity.Player bukkitPlayer = e.getPlayer();
                     new BukkitRunnable()
                     {
@@ -139,10 +145,11 @@ public class SyncmaticaModule
             @EventHandler
             public void onRegisterChannel(final PlayerRegisterChannelEvent e)
             {
-                // 兜底/加速路径：若客户端通过 MC|Register 声明了 syncmatica:main（旧式协商），立即握手。
-                // 注意：1.21.x Fabric 客户端（PayloadTypeRegistry.playS2C() 新式协商）通常【不】触发本事件，
-                // 故握手的主路径在 onJoin 的 40t 延迟（见上），此处仅作加速/兜底。tryStartHandshake 幂等，
-                // 两路径安全共存。
+                // 兜底/加速路径：客户端声明 syncmatica:main 时立即握手。
+                // 事实链（静态实证）：本事件【确实会触发】（Paper 1.21.11 的 register → 集合 → 事件链路完整），
+                // 但 syncmatica 客户端的声明只发生在握手 CONFIRM_USER 之后（receiver 晚注册，见 onJoin 注释）——
+                // 即事件到达时握手早已由 40t 探针完成，tryStartHandshake 幂等跳过（旧注释「1.21 不触发」为时序错觉：
+                // 事件晚到 ≠ 不触发）。保留本路径覆盖 enable 后重连等声明先于调用到达的场景。两路径安全共存。
                 if (!SyncmaticaReference.NETWORK_ID.toString().equals(e.getChannel()))
                 {
                     return;

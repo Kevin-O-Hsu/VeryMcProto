@@ -143,12 +143,12 @@ VeryMcProto.onDisable
 
 `ServerCommunicationManager.onPlayerJoin` **不**立即发起握手——`PlayerJoinEvent` 时客户端 codec 尚未就绪，立即推 `REGISTER_VERSION` 会握手失败并残留 exchange。握手由两条路径触发（见 `SyncmaticaModule.java` 注释）：
 
-- **主路径**：`PlayerJoinEvent` → `runTaskLater(40t)`（2s，等 configuration phase 完成、客户端 codec 就绪）→ `tryStartHandshake(target)`。
-- **兜底/加速**：`PlayerRegisterChannelEvent`（旧式 `MC|Register`，1.21 Fabric 客户端通常**不**触发）→ `tryStartHandshake(target)`。
+- **主路径（唯一引导）**：`PlayerJoinEvent` → `runTaskLater(40t)`（2s，等 configuration phase 完成、客户端 codec 就绪）→ `tryStartHandshake(target)`。
+- **兜底/加速**：`PlayerRegisterChannelEvent`（channel == `syncmatica:main`）→ `tryStartHandshake(target)`。
 
 `tryStartHandshake` **幂等**：已在 `broadcastTargets`（握手已完成）或已有进行中的 `VersionHandshakeServer` 则跳过。`/syncmatica enable` 恢复协议后由 `reconnectOnlinePlayers()` 对每个在线玩家延迟 40t 重新握手。
 
-> 与 Servux `HudDataProvider` 的握手策略一致（onJoin 延迟 + RegisterChannel 兜底），是 1.21.x Fabric 客户端兼容的通用范式。
+> **事实链（静态全链实证，取代旧「1.21 不声明/事件不触发」错误认知）**：Paper 1.21.11 的 `minecraft:register` → `pluginMessagerChannels` → `PlayerRegisterChannelEvent` 链路完整（与 26.x 同构）；但 syncmatica 客户端的 `syncmatica:main` receiver **仅在握手 CONFIRM_USER 之后注册**（`VersionHandshakeClient:65` → `Context.startup():150-156` → `registerReceivers():186`，全树唯一链）——**声明是握手完成的下游产物**（晚探针 2-3 RTT），不是独立事件。推论：①40t 探针是握手唯一引导路径（客户端被动等探针）；②`tryStartHandshake` 入口加 canSend 前置守卫 = 自引用死锁，**禁止回移 26.x 317a9a1 守卫**（该 commit 在 main 线有同型死锁风险）；③vanilla 客户端收 ~40B 探针被静默丢弃（不踢人），悬挂 VHS 由 `onPlayerLeave` 清理；④兜底事件到达时握手通常已完成（幂等跳过）——「事件不触发」为时序错觉。
 
 ---
 

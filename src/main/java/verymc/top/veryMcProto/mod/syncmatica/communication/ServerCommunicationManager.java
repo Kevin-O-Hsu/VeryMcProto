@@ -88,8 +88,9 @@ public class ServerCommunicationManager extends CommunicationManager
         // 此处【不】立即发起 VersionHandshakeServer——原版可行是因为 Fabric 配置阶段已完成通道声明；
         // Paper 下 PlayerJoinEvent 时客户端 codec 尚未就绪，立即推 REGISTER_VERSION 会握手失败并残留 exchange。
         // 握手发起策略（双保险，见 SyncmaticaModule.onJoin）：
-        //   ① 主路径：onJoin → runTaskLater(40t) → tryStartHandshake（等 configuration phase 完成、codec 就绪）；
-        //   ② 兜底：onPlayerRegisterChannel(syncmatica:main) → tryStartHandshake（旧式 MC|Register，1.21 通常不触发）。
+        //   ① 主路径（唯一引导）：onJoin → runTaskLater(40t) → tryStartHandshake（等 configuration phase 完成、codec 就绪）；
+        //   ② 兜底：onPlayerRegisterChannel(syncmatica:main) → tryStartHandshake——事件确实会触发，但声明是握手
+        //      完成的下游产物（receiver 仅在 CONFIRM_USER 后注册），到达时握手通常已完成（幂等跳过）。
         // tryStartHandshake 幂等（已在 broadcastTargets / 有进行中的 VersionHandshakeServer 则跳过）。
     }
 
@@ -98,12 +99,19 @@ public class ServerCommunicationManager extends CommunicationManager
      *
      * <p>由 {@code SyncmaticaModule} 双路径调用：
      * <ul>
-     *   <li>主路径——{@code onJoin}（{@link org.bukkit.event.player.PlayerJoinEvent}）延迟 40t 后调用
+     *   <li>主路径（<b>唯一引导</b>）——{@code onJoin}（{@link org.bukkit.event.player.PlayerJoinEvent}）延迟 40t 后调用
      *       （等 configuration phase 完成、客户端 codec 就绪）；</li>
      *   <li>兜底——{@code onPlayerRegisterChannel}（{@link org.bukkit.event.player.PlayerRegisterChannelEvent}，
-     *       客户端经旧式 MC|Register 声明 {@code syncmatica:main} 时；1.21 Fabric 客户端通常不触发）。</li>
+     *       客户端声明 {@code syncmatica:main} 时——事件确实触发，但声明是握手完成的下游产物：客户端 receiver
+     *       仅在 CONFIRM_USER 后注册（VersionHandshakeClient:65→Context.startup()→registerReceivers()），晚探针
+     *       2-3 RTT，到达时握手通常已完成）。</li>
      * </ul>
      * 幂等：已握手成功（在 {@code broadcastTargets}）/ 已有进行中的 VersionHandshakeServer 则跳过。
+     *
+     * <p><b>禁止在本方法入口加 canSend/getListeningPluginChannels 前置守卫</b>（自引用死锁）：探针是握手唯一
+     * 触发器，客户端声明是握手下游产物——拦探针则声明永不发生、兜底事件永不触发，mod 客户端 syncmatica 整体
+     * 不可用（26.x 线 317a9a1 有同型死锁风险）。vanilla 客户端收 ~40B 探针被静默丢弃（不踢人），其悬挂
+     * VersionHandshakeServer 由 {@link #onPlayerLeave} 清理。
      */
     public void tryStartHandshake(final ExchangeTarget target)
     {
@@ -123,8 +131,8 @@ public class ServerCommunicationManager extends CommunicationManager
             }
         }
         SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] tryStartHandshake: 发起握手 → " + target.getPersistentName()
-                + "（客户端已声明 syncmatica:main）");
-        SyncmaticaLog.info("syncmatica 发起握手 → {}（客户端已声明 syncmatica:main）", target.getPersistentName());
+                + "（探针引导，声明尚未到达——声明是握手下游产物，见方法 javadoc）");
+        SyncmaticaLog.info("syncmatica 发起握手 → {}（探针引导，声明尚未到达）", target.getPersistentName());
         final VersionHandshakeServer hi = new VersionHandshakeServer(target, context);
         startExchangeUnchecked(hi);
     }
