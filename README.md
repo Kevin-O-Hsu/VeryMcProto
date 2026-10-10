@@ -4,7 +4,7 @@
 > The client still uses the original Fabric mods; the server swaps from "Fabric server + server-side mod" to "standard Paper server + this plugin", with identical protocol behavior.
 
 ```
-Paper 1.21.11 · Java 21 · paperweight userdev · Version 1.21.11-b2
+Paper 1.21.11 · Java 21 · paperweight userdev · Version 1.21.11-b3
 Servux ✅  ·  JEI Recipe Bridge ✅  ·  Syncmatica ✅   (all three targets fully implemented and tested)
 ```
 
@@ -77,7 +77,7 @@ A server-side protocol mod that delivers data to masa's client mods (MiniHUD / L
 |  `servux:structures`     |  `structure_bounding_boxes`  |  2                 |  Structures: structure bounding boxes (periodic chunk scan)                                                                     |
 |  `servux:litematics`     |  `litematic_data`            |  1                 |  Litematics: schematic transmit / paste / bulk entities                                                                         |
 
-> Handshake field `MOD_STRING = servux-paper-1.21.11-b2` (keeps the `servux-` prefix so masa's client recognizes that the server runs the Servux protocol; concrete version negotiation goes through each channel's protocol version).
+> Handshake field `MOD_STRING = servux-paper-1.21.11-b3` (keeps the `servux-` prefix so masa's client recognizes that the server runs the Servux protocol; concrete version negotiation goes through each channel's protocol version).
 
 ### 2. JEI Recipe Bridge
 
@@ -86,7 +86,7 @@ On player join, syncs the **server's complete recipe table** to the JEI client, 
 - Fabric client → `fabric:recipe_sync`
 - NeoForge client → `neoforge:recipe_content`
 
-Sent directly via NMS `ClientboundCustomPayloadPacket` (bypasses the plugin messaging size limit — recipe packs routinely exceed 32KiB). **Pure S2C / one-shot / a single `enabled` config option.** Handshake field `jei-recipe-bridge-paper-1.21.11-b2`.
+Sent directly via NMS `ClientboundCustomPayloadPacket` (bypasses the plugin messaging size limit — recipe packs routinely exceed 32KiB). **Pure S2C / one-shot / a single `enabled` config option.** Handshake field `jei-recipe-bridge-paper-1.21.11-b3`.
 
 > **The client only needs JEI itself.** JEIRecipeBridge is **server-side software** (upstream it is a Fabric *server* mod; here this plugin plays that role on Paper) — **nothing extra is ever installed on the client**.
 
@@ -99,7 +99,7 @@ Fundamentally different from Servux (one-way broadcast):
 - File storage + JSON persistence + **upload quota / debug** services.
 - On handshake, both sides exchange a **FeatureSet** to negotiate the optional-field encoding of metadata / position packets.
 
-**Feature enum** (negotiated on handshake): `CORE` `FEATURE` `MODIFY` `MESSAGE` `QUOTA` `DEBUG` `CORE_EX` `VERSION` `DISPLAY_NAME`. This server advertises the **full FeatureSet** (combined with `MOD_VERSION=1.21.11-b2` — the `-b` build suffix never matches the legacy version regex — to trigger FEATURE exchange so both sides encode with the full set).
+**Feature enum** (negotiated on handshake): `CORE` `FEATURE` `MODIFY` `MESSAGE` `QUOTA` `DEBUG` `CORE_EX` `VERSION` `DISPLAY_NAME`. This server advertises the **full FeatureSet** (combined with `MOD_VERSION=1.21.11-b3` — the `-b` build suffix never matches the legacy version regex — to trigger FEATURE exchange so both sides encode with the full set).
 
 ---
 
@@ -629,7 +629,7 @@ See [`docs/10-testing-guide.md`](docs/10-testing-guide.md) (Servux) and [`docs/2
 
 ### Versioning & Branch Model
 
-Plugin version = **`<MC version>-b<build number>`** — currently `1.21.11-b2`; when Mojang shifts to date-style names (e.g. `26.1`) it naturally becomes `26.1-b1`. The **single source of truth** is `gradle.properties` (`mcVersion` / `buildNumber`): Gradle derives `version` from it, injects it into `plugin.yml` / the jar name / `version.properties`, and `Reference.MC_VERSION` / `Reference.PLUGIN_VERSION` (hence every protocol handshake string such as `servux-paper-1.21.11-b2`) read it back from `version.properties`. Never hardcode a version anywhere else.
+Plugin version = **`<MC version>-b<build number>`** — currently `1.21.11-b3`; when Mojang shifts to date-style names (e.g. `26.1`) it naturally becomes `26.1-b1`. The **single source of truth** is `gradle.properties` (`mcVersion` / `buildNumber`): Gradle derives `version` from it, injects it into `plugin.yml` / the jar name / `version.properties`, and `Reference.MC_VERSION` / `Reference.PLUGIN_VERSION` (hence every protocol handshake string such as `servux-paper-1.21.11-b3`) read it back from `version.properties`. Never hardcode a version anywhere else.
 
 | Branch | Purpose |
 | --- | --- |
