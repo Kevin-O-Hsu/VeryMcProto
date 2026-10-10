@@ -262,3 +262,16 @@ verymc.top.veryMcProto/
 **有意偏差（相对上游）**：单 placement 字段（上游两调用点恒 singletonList，按"上游零调用点的泛化即裁"先例裁 multimap）；同步 `SchematicPlacement.pasteTo`/`getEnclosingBox`/`Box.toVanilla` 死代码删除（上游 pasteTo 已 @Deprecated "Use Task Scheduler"）。
 
 **验证**：`./gradlew build` 编译门（`getTickTimesNanos`/`getTickCount` NMS 符号实编验证）+ 全量 40/40 单测绿（新增 `TaskSchedulerTest` 7 用例：timer 首启/interval 钳制反射断言/周期复位/完成移除/同 tick 双任务索引回退/未完成保留+clearTasks）。**真实 paste 端到端**（用户侧最终验收）：26.1 litematica 客户端粘贴大投影 → 观察 InfoHud 剩余区块进度帧分 tick 收敛 + 完成帧清除 HUD renderer（同步直放时代的滞留缺陷就此闭合）。
+
+### 26.1.7 runServer 运行目录按线隔离（2026-10-11 追加）
+
+> 1.21.11 线 `2c38ee2` 同型修复的移植 + 改进。共享 `run/` 的跨线互踩在本线同样存在：
+> 当前 `run/server.properties` 的 `level-name=world262`（26.2 线 10-03 运行所留）会让本线下一次
+> runServer **静默打开并改写 26.2 世界**（26.x 两线格式同构不崩，比 1.21.11 读 26.x 世界报
+> `No key dimensions in MapLike[{}]` 的显式崩溃更糟）；共享 `run/plugins/` 还会让两线静默互换
+> packetevents 版本（2.13.0↔2.14.0，run/logs 归档实证）。
+
+- **build.gradle.kts**：runServer 块增 `runDirectory(file("run-" + mcVersion))`——目录名由版本唯一来源派生（升级零维护，runServer 配置无裸版本段的不变量保持为真）。
+- **.gitignore**：run 段改单规则 `run*/`——覆盖旧共享 `run/`、原 `run-data/` 死规则与全部按线目录。教训：改 .gitignore 须逐行自检——2c38ee2 曾把规则粘连进注释行留废规则（该线 .gitignore 待另修）。
+- **验证**（2026-10-11 实机）：`run-26.1.2/` 预置 eula 冷启动——`Starting minecraft server version 26.1.2` + `框架就绪` + `Done` + 新世界 `level.dat` 落位；`git check-ignore` 命中 `run*/`；`git status` 无 `?? run-*`。
+- **运维注意**：新目录 packetevents jar 不随迁（复测 EasyPlace 前从旧 `run/plugins/` 复制）；两线并行需各自在己线 `server.properties` 改 port（一次性持久）；旧共享 `run/` 成为死遗留（删除/归档由维护者决策）。

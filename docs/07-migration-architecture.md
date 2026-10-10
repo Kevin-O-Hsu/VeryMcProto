@@ -206,7 +206,12 @@ dependencies {
 java { toolchain.languageVersion = JavaLanguageVersion.of(25) }
 
 tasks {
-    runServer { minecraftVersion("26.1.2"); jvmArgs("-Xms2G", "-Xmx2G") }
+    runServer {
+        minecraftVersion(providers.gradleProperty("mcVersion").get())
+        jvmArgs("-Xms2G", "-Xmx2G")
+        // 运行目录按 mcVersion 派生隔离（见 09-DELIVERY.md §26.1.7）
+        runDirectory(file("run-" + providers.gradleProperty("mcVersion").get()))
+    }
     processResources {
         // expand 占位符必须显式 inputs.property(...) 参与 up-to-date 跟踪（26.1.2-b2 曾实证陈旧展开事故）
         filesMatching("plugin.yml") { expand(props) }

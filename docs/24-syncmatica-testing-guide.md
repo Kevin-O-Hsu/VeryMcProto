@@ -29,10 +29,10 @@
 | Paper | 26.1.2（与本项目一致，`api-version: '26.1.2'`） |
 | 插件 | VeryMcProto（含 syncmatica 模块，`POSTWORLD` 加载） |
 | Java | 25 |
-| 配置 | `plugins/VeryMcProto/syncmatica-config.json`（首次启动自动生成）：`{ quota: {enabled: false, limit: 40000000}, debug: {doPacketLogging: false} }` |
+| 配置 | `run-26.1.2/plugins/VeryMcProto/syncmatica-config.json`（服务器运行目录下，首次启动自动生成）：`{ quota: {enabled: false, limit: 40000000}, debug: {doPacketLogging: false} }` |
 | 端口 | 默认 25565；客户端直连 |
 
-启动：`./gradlew runServer`（开发期，2G 堆）或部署 reobf jar 到正式服。
+启动：`./gradlew runServer`（开发期，2G 堆，运行目录 `run-26.1.2/`）或部署 Mojang 映射 jar 到正式服（26.1 起无 reobf）。
 
 > **配额默认值**（`QuotaService`）：`enabled=false`、`limit=40000000`（约 40 MB）。**调试默认值**（`DebugService`）：`doPacketLogging=false`（生产静默）。两者皆可运行时改，详见 §10/§2.3。
 
