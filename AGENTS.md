@@ -221,7 +221,7 @@ Servux 共 **26 个 Mixin + 2 个 AccessWidener 字段**；Syncmatica 共 **5 �
 
 | 节点 | default | 用途 |
 |---|---|---|
-| `servux.command` | op | `/servux` |
+| `servux.commands`（根）+ `.reload/.save/.set/.info/.list/.enable/.disable/.debug/.litematic` | op | `/servux`（search 复用 .list；旧 `servux.command` 经 plugin.yml children 映射兼容） |
 | `jei.command` | op | `/jei enable\|disable` |
 | `syncmatica.command` | true | `/syncmatica` 基础命令 |
 | `syncmatica.command.admin` | op | `/syncmatica save\|reload\|enable\|disable\|status` |

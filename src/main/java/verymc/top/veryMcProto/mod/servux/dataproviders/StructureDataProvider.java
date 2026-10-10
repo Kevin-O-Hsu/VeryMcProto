@@ -1,5 +1,6 @@
 package verymc.top.veryMcProto.mod.servux.dataproviders;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -27,6 +28,7 @@ import net.minecraft.world.level.levelgen.structure.TerrainAdjustment;
 import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSerializationContext;
 
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderBase;
+import verymc.top.veryMcProto.framework.network.PacketSplitter;
 import verymc.top.veryMcProto.mod.servux.ServuxDebug;
 import verymc.top.veryMcProto.framework.network.IPluginServerPlayHandler;
 import verymc.top.veryMcProto.framework.network.ServerPlayHandler;
@@ -367,7 +369,19 @@ public class StructureDataProvider extends DataProviderBase
         return references;
     }
 
-    /** 解析 starts → ListTag（含 ExpandBox 标志），经 PacketSplitter 分片发送 PACKET_S2C_STRUCTURE_DATA_START。 */
+    /** 分批 padding（26.x 上游 sendStructures :566 同值 4096：帧包裹开销余量）。 */
+    static final int STRUCTURE_BATCH_PADDING = 4096;
+
+    /**
+     * 解析 starts → ListTag（含 ExpandBox 标志），按客户端重组上限条目级分批经 PacketSplitter 分片发送
+     * PACKET_S2C_STRUCTURE_DATA_START。对齐 26.x 上游 sendStructures :565-604：每业务帧仍走
+     * encodeServerData → PacketSplitter 字节分片（分批在分片之上，两层叠加）；客户端按帧合并
+     * 非替换（minihud ServuxStructuresHandler 逐重组帧独立 addOrUpdateStructuresFromServer）。
+     *
+     * <p>与 26.x 的差异：上游按名册 entry.maxReceiveS2c（客户端 REGISTER 申报）分批——1.21.11 客户端
+     * REGISTER 不含该键（grep 实证零发送点，恒走默认值），故不移植协商表，直接用
+     * {@link PacketSplitter#MAX_REASSEMBLY_SIZE_S2C}（= 1.21.11 客户端 128MB 上限）。
+     */
     protected void sendStructures(ServerPlayer player, Map<Structure, LongSet> references)
     {
         ServerLevel world = (ServerLevel) player.level();
@@ -379,11 +393,59 @@ public class StructureDataProvider extends DataProviderBase
 
             if (!structureList.isEmpty())
             {
-                CompoundTag nbt = new CompoundTag();
-                nbt.put("Structures", structureList.copy());
-                HANDLER.encodeServerData(player, new ServuxStructuresPacket(ServuxStructuresPacket.Type.PACKET_S2C_STRUCTURE_DATA_START, nbt));
+                final int maxSize = PacketSplitter.MAX_REASSEMBLY_SIZE_S2C;
+
+                for (ListTag batch : splitStructuresBySize(structureList, maxSize, STRUCTURE_BATCH_PADDING))
+                {
+                    CompoundTag nbt = new CompoundTag();
+                    nbt.put("Structures", batch);
+                    HANDLER.encodeServerData(player, new ServuxStructuresPacket(ServuxStructuresPacket.Type.PACKET_S2C_STRUCTURE_DATA_START, nbt));
+                }
             }
         }
+    }
+
+    /**
+     * 条目级分批（26.x 上游 sendStructures :568-604 批量循环泛化为纯函数，配单测）。语义四要素照上游：
+     * ①总量 + padding ≤ maxSize 单批直通（= 上游单帧分支 :568-572）；②逐条累计，(sendList + padding
+     * + entry) ≥ maxSize 即 flush（:586，{@code >=} 判超）；③首条无条件入列（:586 的 !isEmpty() 前置）；
+     * ④空条目跳过（:582）+ 收尾 flush（:598-603）。批内条目 copy（上游 entry.copy() 同款防御）。
+     */
+    static List<ListTag> splitStructuresBySize(ListTag structureList, int maxSize, int padding)
+    {
+        if ((structureList.sizeInBytes() + padding) <= maxSize)
+        {
+            return List.of(structureList);
+        }
+
+        List<ListTag> batches = new ArrayList<>();
+        ListTag sendList = new ListTag();
+        final int total = structureList.size();
+
+        for (int i = 0; i < total; i++)
+        {
+            CompoundTag entry = structureList.getCompoundOrEmpty(i);
+            if (entry.isEmpty()) { continue; }
+            int currentSize = sendList.sizeInBytes() + padding;
+
+            // Check size
+            if (!sendList.isEmpty() && (currentSize + entry.sizeInBytes()) >= maxSize)
+            {
+                // Release.
+                batches.add(sendList);
+                sendList = new ListTag();
+            }
+
+            sendList.add(entry.copy());
+        }
+
+        if (!sendList.isEmpty())
+        {
+            // Release.
+            batches.add(sendList);
+        }
+
+        return batches;
     }
 
     /** starts → ListTag：每项 = StructureStart.createTag + ExpandBox 标志（黑白名单过滤）。 */

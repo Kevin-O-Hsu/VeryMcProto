@@ -12,6 +12,7 @@ import net.minecraft.server.level.ServerPlayer;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -181,6 +182,31 @@ class PacketSplitterTest
         assertEquals(1, PacketSplitter.readingSessionCount(), "活跃会话不应被误杀");
         PacketSplitter.evictExpired(System.currentTimeMillis() + 20_000L); // 清场，勿遗留静态会话给其他用例
         assertEquals(0, PacketSplitter.readingSessionCount());
+    }
+
+    @Test
+    void send_rejectsFrameOverClientLimit()
+    {
+        // 134,217,729 = 客户端上限 +1：malilib 1.21.11 严格 > 语义即毒会话残留，服务端入口应整帧拒发
+        FriendlyByteBuf buf = wrap(payload(PacketSplitter.MAX_REASSEMBLY_SIZE_S2C + 1, 3));
+        CapturingHandler h = new CapturingHandler();
+        boolean sent = PacketSplitter.send(h, buf, null);
+        assertFalse(sent, "超客户端 128MB 重组上限（+1 字节）应整帧拒发返回 false");
+        assertEquals(0, h.slices.size(), "拒发路径应零分片发出（客户端毒会话窗口归零）");
+        assertEquals(0, buf.refCnt(), "入参 buffer 应已被 finally 释放（无泄漏）");
+    }
+
+    @Test
+    void send_acceptsExactClientLimit()
+    {
+        // 恰好 134,217,728：客户端严格 > 语义放行（1.21.11 客户端 128MB；26.x 为 16MB——改常量须同步此处）
+        int size = PacketSplitter.MAX_REASSEMBLY_SIZE_S2C;
+        FriendlyByteBuf buf = wrap(payload(size, 4));
+        CapturingHandler h = new CapturingHandler();
+        assertTrue(PacketSplitter.send(h, buf, null), "恰好等于客户端上限应放行（严格 >，无 off-by-one）");
+        int expectedSlices = (size + PacketSplitter.MAX_PAYLOAD_PER_PACKET_S2C - 1) / PacketSplitter.MAX_PAYLOAD_PER_PACKET_S2C;
+        assertEquals(expectedSlices, h.slices.size(), "片数按分片常量表达式断言；只数片不重组（免二次 128MB 分配）");
+        assertEquals(0, buf.refCnt(), "发送完成后入参 buffer 应已释放");
     }
 
     @Test

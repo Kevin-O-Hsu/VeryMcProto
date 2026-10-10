@@ -169,7 +169,8 @@ public class EntitiesDataProvider extends DataProviderBase
             {
                 Identifier id = EntityType.getKey(entity.getType());
 
-                if (entity.getType() == EntityType.PLAYER)
+                // 对齐 26.x 上游 :251：查询者查自己时保留背包/末影箱（!uuid.equals 才进入剥离判断；1.21.11 上游无此门——我方加固）
+                if (entity.getType() == EntityType.PLAYER && !entity.getUUID().equals(player.getUUID()))
                 {
                     if (!this.hasPlayerInventoryPermission(player)) { nbt.remove("Inventory"); nbt.put("Inventory", new ListTag()); }
                     if (!this.hasPlayerEnderItemsPermission(player)) { nbt.remove("EnderItems"); nbt.put("EnderItems", new ListTag()); }

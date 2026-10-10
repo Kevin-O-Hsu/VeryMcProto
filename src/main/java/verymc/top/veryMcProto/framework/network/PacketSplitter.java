@@ -40,6 +40,13 @@ public class PacketSplitter
     // 故只保留一个接收上限（C2S 专用死常量已删——见 docs/TECH_DEBT_AUDIT F006）。DoS 防护最后防线。
     public static final int DEFAULT_MAX_RECEIVE_SIZE_S2C = 67_108_864;
 
+    /**
+     * S2C 整帧发送上限 = 1.21.11 客户端分片重组上限（malilib-LTS-1.21.11 {@code DEFAULT_MAX_RECEIVE_SIZE_S2C = 134217728}，
+     * 双向同值 128MB——26.x 客户端为 16MB，勿照搬）。超限帧入口整帧拒发：malilib 1.21.11 的 ReadingSession 超限时
+     * IAE 抛出但会话不移除（毒会话跨帧残留污染下一帧），且其 receive 调用在 try-catch 之外（异常可直通网络层）。
+     */
+    public static final int MAX_REASSEMBLY_SIZE_S2C = 134_217_728;
+
     /** 会话过期阈值（ms）——溯 26.x 上游 servux/malilib {@code STALE_TIMEOUT_MS = 10000}（1.21.11 上游无此机制）。 */
     static final long STALE_TIMEOUT_MS = 10_000L;
     /** 过期扫描节拍（tick，100t = 5s）——对齐 26.x 上游 {@code scheduleAtFixedRate(5, 5, SECONDS)}，由 LifecycleBridge 心跳驱动。 */
@@ -47,7 +54,13 @@ public class PacketSplitter
 
     private static final Map<Long, ReadingSession> READING_SESSIONS = new ConcurrentHashMap<>();
 
-    /** 按 S2C 默认分片上限发送（大 NBT 包）。 */
+    /**
+     * 按 S2C 默认分片上限发送（大 NBT 包）。
+     *
+     * <p>返回 false 含义：帧总长超 1.21.11 客户端重组上限 {@link #MAX_REASSEMBLY_SIZE_S2C} 被拒——
+     * 零分片发出、仅记日志（调用点不消费返回值，语义供未来调用方观测用；不计 tickFailures，
+     * 超限是数据体量属性而非玩家过错）。
+     */
     public static boolean send(IPluginServerPlayHandler handler, FriendlyByteBuf packet, ServerPlayer player)
     {
         return send(handler, packet, MAX_PAYLOAD_PER_PACKET_S2C, player);
@@ -60,6 +73,19 @@ public class PacketSplitter
 
         try
         {
+            // 1.21.11 客户端重组上限预检（严格 > 语义，与 malilib ReadingSession 首包 readVarInt 判定同源）：
+            // 超限帧发出去客户端会 IAE 且毒会话残留（见常量 javadoc），故入口整帧拒发——零分片发出、finally 恒释放本 buffer。
+            // 日志有意不限频：每条对应一次真实拦截事件；唯一重复触发源是 Structures 周期全量重发（默认 100t），
+            // 上界随数据缩量自停。
+            if (len > MAX_REASSEMBLY_SIZE_S2C)
+            {
+                Reference.logger().warning("PacketSplitter: 拒发超限帧 channel=" + handler.getPayloadChannel()
+                        + " player=" + (player != null ? player.getName().getString() : "null")
+                        + " size=" + len + " > " + MAX_REASSEMBLY_SIZE_S2C
+                        + "（超 1.21.11 客户端分片重组上限，整帧丢弃，零分片发出）");
+                return false;
+            }
+
             for (int offset = 0; offset < len; offset += payloadLimit)
             {
                 int thisLen = Math.min(len - offset, payloadLimit);

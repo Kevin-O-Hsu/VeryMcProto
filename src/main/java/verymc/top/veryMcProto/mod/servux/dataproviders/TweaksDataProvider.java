@@ -190,7 +190,10 @@ public class TweaksDataProvider extends DataProviderBase
 
         ServerLevel level = (ServerLevel) player.level();
         BlockEntity be = level.getBlockEntity(pos);
-        CompoundTag nbt = be != null ? be.saveWithFullMetadata(player.registryAccess()) : new CompoundTag();
+        // 上游 1.21.11 TweaksDataProvider:244 用 saveWithoutMetadata（另两 Provider 为 saveWithFullMetadata——上游本就不同形，
+        // 原移植统一成 saveWithFullMetadata 属漂移）。BE 不存在时回空 CompoundTag：单点查询的空 tag 语义=该 BE 确实不存在
+        //（客户端 handleBlockEntityData 需响应清 pending——26.x 的「不回复」形态对 1.21.11 客户端会致 pending 永挂，有意保留回空帧）
+        CompoundTag nbt = be != null ? be.saveWithoutMetadata(player.registryAccess()) : new CompoundTag();
         HANDLER.encodeServerData(player, ServuxTweaksPacket.SimpleBlockResponse(pos, nbt));
     }
 
@@ -212,7 +215,8 @@ public class TweaksDataProvider extends DataProviderBase
 
             if (nbt != null)
             {
-                if (entity.getType() == EntityType.PLAYER)
+                // 对齐 26.x 上游 :336：查询者查自己时保留背包/末影箱（!uuid.equals 才进入剥离判断；1.21.11 上游无此门——我方加固）
+                if (entity.getType() == EntityType.PLAYER && !entity.getUUID().equals(player.getUUID()))
                 {
                     if (!EntitiesDataProvider.INSTANCE.hasPlayerInventoryPermission(player))
                     {

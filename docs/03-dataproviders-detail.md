@@ -171,6 +171,16 @@ for (ServerLevel world : server.getAllLevels()) {                       // Paper
 
 ### 2.1 回应请求
 
+> **行为对齐注记（5b00967 回移）**：①三 Provider（Entities/Tweaks/Litematics）`onEntityRequest` 补 `!uuid.equals`
+> 自查门——查询者查自己时保留 Inventory/EnderItems（26.x 上游 :251/:336/:522 对齐；1.21.11 上游无此门，属我方加固）；
+> ②单点 `onBlockEntityRequest` 的 BE-null **保持回空 tag**（1.21.11 客户端 handleBlockEntityData 需响应清 pending，
+> 26.x 的「不回复」形态对其致 pending 永挂）；仅 Litematics **bulk** TE 循环 BE-null 跳过（空帧会被客户端
+> loadWithComponents(空) 清空活 BE——有意行为变更）；③bulk 收紧：名册门前置静默 + Task 恒等式（litematica 恒带 Task）
+> + minY/maxY 回退维度上下界 + chunk/ack 反馈接 `player_task_feedback` 门（新 setting，26.x 上游键名）+
+> `deduplicate_schematic_entities` setting；④EntityUtils create 尊重 NBT UUID/LastEntityID + spawn 撞车重排；
+> ⑤Structures 按 `MAX_REASSEMBLY_SIZE_S2C`（1.21.11 客户端 128MB）条目级分批（splitStructuresBySize 纯函数，
+> 不移植 max_receive_s2c 协商表——本线客户端不发该键）；PacketSplitter.send 入口整帧预检。
+
 | C2S 请求 | 服务端方法 | 回应内容 |
 |---|---|---|
 | 元数据请求 | `sendMetadata` | `{name, id, version, servux}` |
