@@ -403,7 +403,7 @@ S2C 路径排查：`/syncmatica debug s2c`（查看）→ `/syncmatica debug s2c
 
 1. **单测**：`./gradlew test` 全绿（规模基线以实跑为准；新增漂移应补锁定用例——见 §6.8 判据索引）。
 2. **构建终检**：`./gradlew build` + `verifyVersionInjection`（解包断言 plugin.yml / version.properties 与 project.version 一致）。
-3. **runServer 环境隔离（运行目录按线派生）**：runServer 运行目录由 mcVersion 派生为 `run-<mcVersion>/`（build.gradle.kts），各线世界/配置/plugins/logs 物理隔离。根因：共享 `run/` 的 server.properties 残留跨线泄漏（level-name 指向别线格式世界）——1.21.11 线实撞 `No key dimensions in MapLike[{}]`、26.x 两线间为静默互开互写；旧「level-name 三件套」SOP 已废弃（其 .bak 备份正是此事故的制度化来源）。注意：新目录首启需预置 `eula.txt`（eula=true，不入库）；packetevents jar 不随迁（复测 EasyPlace 前从旧 `run/plugins/` 复制）；两线并行需各自在己线 server.properties 改 port（一次性持久）；旧共享 `run/` 成为死遗留（删除/归档由维护者决策）。教训：改 .gitignore 须逐行自检——2c38ee2 曾把规则粘连进注释行留废规则。
+3. **runServer 环境隔离（运行目录按线派生）**：runServer 运行目录由 mcVersion 派生为 `run-<mcVersion>/`（build.gradle.kts），各线世界/配置/plugins/logs 物理隔离。根因：共享 `run/` 的 server.properties 残留跨线泄漏（level-name 指向别线格式世界）——1.21.11 线实撞 `No key dimensions in MapLike[{}]`、26.x 两线间为静默互开互写；旧「level-name 三件套」SOP 已废弃（其 .bak 备份正是此事故的制度化来源）。注意：新目录首启需预置 `eula.txt`（eula=true，不入库）；packetevents jar 不随目录迁移（各线 `run-<mcVersion>/plugins/` 自行放置，2026-10-11 起已预置 2.14.0）；两线并行需各自在己线 server.properties 改 port（一次性持久）；旧共享 `run/` 死遗留已于 2026-10-11 连同仓库根 `logs/`（手工 java -jar 残骸）清除。教训：改 .gitignore 须逐行自检——2c38ee2 曾把规则粘连进注释行留废规则。
 4. **起服检查**：版本横幅正确 → 三模块注册 + `框架就绪` + `Done`，无 ERROR/SEVERE。
 5. **客户端互通冒烟（用户侧最终验收）三要素**：
    - HUD/litematics 握手（按 [`servux-testing.md`](servux-testing.md) 流程）；
