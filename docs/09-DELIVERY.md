@@ -272,6 +272,6 @@ verymc.top.veryMcProto/
 > packetevents 版本（2.13.0↔2.14.0，run/logs 归档实证）。
 
 - **build.gradle.kts**：runServer 块增 `runDirectory(file("run-" + mcVersion))`——目录名由版本唯一来源派生（升级零维护，runServer 配置无裸版本段的不变量保持为真）。
-- **.gitignore**：run 段改单规则 `run*/`——覆盖旧共享 `run/`、原 `run-data/` 死规则与全部按线目录。教训：改 .gitignore 须逐行自检——2c38ee2 曾把规则粘连进注释行留废规则（该线 .gitignore 待另修）。
+- **.gitignore**：run 段改单规则 `run*/`——覆盖旧共享 `run/`、原 `run-data/` 死规则与全部按线目录。教训：改 .gitignore 须逐行自检——2c38ee2 曾把规则粘连进注释行留废规则（该线 .gitignore 已于同日拆粘修复，`821d6d2`）。
 - **验证**（2026-10-11 实机）：`run-26.1.2/` 预置 eula 冷启动——`Starting minecraft server version 26.1.2` + `框架就绪` + `Done` + 新世界 `level.dat` 落位；`git check-ignore` 命中 `run*/`；`git status` 无 `?? run-*`。
-- **运维注意**：新目录 packetevents jar 不随迁（复测 EasyPlace 前从旧 `run/plugins/` 复制）；两线并行需各自在己线 `server.properties` 改 port（一次性持久）；旧共享 `run/` 成为死遗留（删除/归档由维护者决策）。
+- **运维注意**：新目录 packetevents jar 不随目录迁移（`run-26.1.2/plugins/` 已于 2026-10-11 预置 2.14.0）；两线并行需各自在己线 `server.properties` 改 port（一次性持久）；旧共享 `run/` 死遗留已于 2026-10-11 连同仓库根 `logs/` 清除。
