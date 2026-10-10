@@ -193,6 +193,14 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
     private void handleToggle(CommandSender sender, String[] args, boolean enable)
     {
         if (args.length < 2) { sender.sendMessage("§e/servux " + (enable ? "enable" : "disable") + " <provider>"); return; }
+
+        // 前置拒绝（fe1d92b 双保险之一，先于 manager 调用——否则总闸 false 会走「未找到 provider」误导反馈）
+        if (!enable && args[1].equalsIgnoreCase(DataProviderManager.ALWAYS_ENABLED_PROVIDER))
+        {
+            sender.sendMessage("§cservux_main 为配置主通道，永不可停用");
+            return;
+        }
+
         boolean ok = DataProviderManager.INSTANCE.setProviderEnabled(args[1].toLowerCase(), enable);
         if (ok)
         {
@@ -380,6 +388,8 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
             {
                 for (var p : DataProviderManager.INSTANCE.getAllProviders())
                 {
+                    // disable 不提供 servux_main 候选（必拒项不出现在补全；enable 不排除）
+                    if (sub.equals("disable") && p.getName().equalsIgnoreCase(DataProviderManager.ALWAYS_ENABLED_PROVIDER)) { continue; }
                     if (p.getName().toLowerCase().startsWith(typed)) { out.add(p.getName()); }
                 }
             }

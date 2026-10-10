@@ -237,7 +237,7 @@ Servux 用一套**自定义事件总线**（`event/*Handler` 单例 + `interface
 
 ## 8. 全局配置主 Provider：`ServuxConfigProvider`（`servux_main`）
 
-> 原版：`dataproviders/ServuxConfigProvider.java`（157 行）。**唯一一个 `getName()="servux_main"` 且永不被禁用**的 provider。
+> 原版：`dataproviders/ServuxConfigProvider.java`（157 行）。**唯一一个 `getName()="servux_main"` 且永不被禁用**的 provider。「永不被禁用」现为**双层强制**：`DataProviderManager.setProviderEnabled(IDataProvider,…)` 头部总闸（仅拦停用方向，防任何调用点）+ `ServuxCommand.handleToggle` 前置拒绝（聊天反馈，防误导性「未找到 provider」）；配置加载期提升分支保留为死分支防回退。
 
 它不对应独立网络通道（`getNetworkChannel()` 返回 `servux:main`，但 `registerHandler` 是 NO-OP），而是承载**全局配置**：
 - `permission_level` / `permission_level_admin`（基线权限）
