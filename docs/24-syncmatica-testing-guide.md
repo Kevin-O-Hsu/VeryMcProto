@@ -133,7 +133,7 @@ syncmatica 有**两套独立**调试日志系统，互不替代，需配合开�
 
 ## 3. 握手测试
 
-**操作**：syncmatica 客户端进服（进服即自动握手，由 `ServerCommunicationManager.onPlayerJoin` → `tryStartHandshake` 触发）。
+**操作**：syncmatica 客户端进服（进服即自动握手，由 onJoin 40t 探针任务 → `tryStartHandshake` 触发）。
 
 **验证**（服务端日志，`SyncmaticaDebug` HANDSHAKE 分类）：
 

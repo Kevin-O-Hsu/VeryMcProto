@@ -341,7 +341,7 @@ plugins/VeryMcProto/
 /syncmatica debug cat all
 ```
 
-syncmatica 不工作的排查：`on` + `cat all`（或单开 `handshake`/`network`/`packet`），盯握手链：声明通道 → `tryStartHandshake` → init 推 `REGISTER_VERSION` → 客户端回版本 → `FeatureSet` → `CONFIRM_USER` → `broadcastTargets`（详见 [`24`](24-syncmatica-testing-guide.md) §2.3）。
+syncmatica 不工作的排查：`on` + `cat all`（或单开 `handshake`/`network`/`packet`），盯握手链：40t 探针 → `tryStartHandshake` → init 推 `REGISTER_VERSION` → 客户端回版本 → `FeatureSet` → `CONFIRM_USER` → `broadcastTargets`（声明通道是握手的下游产物，详见 [`24`](24-syncmatica-testing-guide.md) §2.3）。
 
 S2C 路径排查：`/syncmatica debug s2c`（查看）→ `/syncmatica debug s2c nms|msg`（切换对照）。
 
