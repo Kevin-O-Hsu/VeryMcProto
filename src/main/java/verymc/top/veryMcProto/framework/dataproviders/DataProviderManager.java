@@ -303,7 +303,7 @@ public class DataProviderManager
                 // servux_main 永不被禁用（提供配置管理）
                 // 总闸（setProviderEnabled 头部）生效后本提升分支为死分支（禁用方向已在闸前被拒，
                 // enabled 不可能为 false 到达此处）——保留防回退（历史双保险，readFromConfig 直调 setProviderEnabled）
-                                if (provider.getName().equals(ALWAYS_ENABLED_PROVIDER) && !provider.isEnabled())
+                if (provider.getName().equals(ALWAYS_ENABLED_PROVIDER) && !provider.isEnabled())
                 {
                     this.setProviderEnabled(provider, true);
                 }
