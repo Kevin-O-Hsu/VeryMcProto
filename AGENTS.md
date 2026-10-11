@@ -12,7 +12,7 @@
   （Paper 侧版本可用 https://api.papermc.io/v2/projects/paper 交叉核对。）
 - **分支**：当前 MC 版本的开发一律在 `dev` 分支提交，完成后合入 `main`（= 最新 MC 稳定发布线）。旧 MC 版本冻结为 `ver/<X>` + `ver/<X>-dev` 维护对：修 Bug 在 `ver/<X>-dev`，验证后合入 `ver/<X>`。详见下文「分支模型与版本系统」。
 - **版本**：插件版本 = `<mcVersion>-b<buildNumber>`（当前 `1.21.11-b2`）。**唯一来源是 `gradle.properties`**——发版只需在 dev 上 `buildNumber` +1，**任何源码、plugin.yml、文档中都不得手写版本号**（注入链路见下文）。
-- **语言与风格**：注释、日志、文档用中文；与现有代码一致（中文 javadoc、常量类 + 源码实证注释）。
+- **语言与风格**：**对外可见面一律英文**——plugin.yml 元数据（全部 description 等字符串）、日志输出、玩家消息/命令回执必须是英文；译文一律 ASCII 化（§ 颜色码除外），禁止 `\uXXXX` 转义等绕过写法。注释与 `docs/` 文档用中文，与现有代码一致（中文 javadoc、常量类 + 源码实证注释）。
 - **协议字段语义**改动前必须对照 `OriginImpl/` 下的客户端源码（litematica / malilib / syncmatica 是协议接收端），**不要凭服务端代码猜客户端行为**。
 - **禁止引入 Mixin / AccessWidener / 服务端 patch 依赖**——Paper 无 Mixin 运行时，替代方案见核心约束 §2。
 - **可选依赖**（PacketEvents 等 `compileOnly`）的类引用必须隔离到独立引导类 + 反射加载 + `catch(Throwable)`（见核心约束 §6 教训 5）。
