@@ -87,7 +87,7 @@ class RecipeNbtNormalizerTest
             if (hit) { return wire[i + 2 + name.length]; }
         }
 
-        throw new AssertionError("wire 中未找到 ingredients 条目");
+        throw new AssertionError("ingredients entry not found in the wire");
     }
 
     /** 朴素字节序列包含判定。 */
@@ -120,7 +120,7 @@ class RecipeNbtNormalizerTest
 
         for (Tag element : ingredients)
         {
-            assertTrue(element instanceof ListTag, "元素应为 ListTag，实为 " + element.getClass().getSimpleName());
+            assertTrue(element instanceof ListTag, "element should be a ListTag, actually " + element.getClass().getSimpleName());
         }
 
         ListTag first = (ListTag) ingredients.get(0);
@@ -190,16 +190,16 @@ class RecipeNbtNormalizerTest
         CompoundTag recipe = fireChargeShape();
 
         byte[] before = wireBytes(recipe);
-        assertEquals(0x0A, declaredElementType(before), "规范化前混合列表应声明 TAG_Compound(10)");
-        assertTrue(contains(before, new byte[] { 0x08, 0x00, 0x00, 0x00, 0x13 }), "串值包装条目应在场");
-        assertTrue(contains(before, new byte[] { 0x09, 0x00, 0x00, 0x08 }), "列表值包装条目应在场");
+        assertEquals(0x0A, declaredElementType(before), "before normalization the mixed list should declare TAG_Compound(10)");
+        assertTrue(contains(before, new byte[] { 0x08, 0x00, 0x00, 0x00, 0x13 }), "string-value wrapped entry should be present");
+        assertTrue(contains(before, new byte[] { 0x09, 0x00, 0x00, 0x08 }), "list-value wrapped entry should be present");
 
         RecipeNbtNormalizer.normalizeIngredients(recipe);
 
         byte[] after = wireBytes(recipe);
-        assertEquals(0x09, declaredElementType(after), "规范化后应声明 TAG_List(9)");
-        assertTrue(!contains(after, new byte[] { 0x08, 0x00, 0x00, 0x00, 0x13 }), "串值包装条目应消失");
-        assertTrue(!contains(after, new byte[] { 0x09, 0x00, 0x00, 0x08 }), "列表值包装条目应消失");
+        assertEquals(0x09, declaredElementType(after), "after normalization it should declare TAG_List(9)");
+        assertTrue(!contains(after, new byte[] { 0x08, 0x00, 0x00, 0x00, 0x13 }), "string-value wrapped entry should be gone");
+        assertTrue(!contains(after, new byte[] { 0x09, 0x00, 0x00, 0x08 }), "list-value wrapped entry should be gone");
     }
 
     /** ⑥ 幂等：每玩家请求全量重跑，二次调用必须同构短路（同一实例、字节稳定）。 */

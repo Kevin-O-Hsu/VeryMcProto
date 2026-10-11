@@ -73,7 +73,7 @@ class TaskSchedulerTest
     {
         StubTask task = new StubTask(true);
         TaskScheduler.getInstance().scheduleTask(task, 0);
-        assertEquals(1, repeatIntervalOf(task), "interval=0 必须钳制为 1");
+        assertEquals(1, repeatIntervalOf(task), "interval=0 must be clamped to 1");
     }
 
     @Test
@@ -92,7 +92,7 @@ class TaskSchedulerTest
 
         TaskScheduler.getInstance().runTasks();
 
-        assertEquals(1, task.executeCalls, "timer 初值 0 = 下一次 runTasks 即首启（上游 setNextDelay(0) 等价）");
+        assertEquals(1, task.executeCalls, "timer initial value 0 = the next runTasks starts it (equivalent to upstream setNextDelay(0))");
     }
 
     @Test
@@ -101,9 +101,9 @@ class TaskSchedulerTest
         StubTask task = new StubTask(false);
         TaskScheduler.getInstance().scheduleTask(task, 2);
 
-        assertTrue(task.isTimerTriggered(), "首启（初值 0）");
-        assertFalse(task.isTimerTriggered(), "周期内不触发");
-        assertTrue(task.isTimerTriggered(), "复位后再触发");
+        assertTrue(task.isTimerTriggered(), "first start (initial value 0)");
+        assertFalse(task.isTimerTriggered(), "no trigger within the period");
+        assertTrue(task.isTimerTriggered(), "triggers again after reset");
     }
 
     @Test
@@ -115,7 +115,7 @@ class TaskSchedulerTest
         TaskScheduler.getInstance().runTasks();
 
         assertEquals(1, done.executeCalls);
-        assertEquals(1, done.stopCalls, "execute 返回 true → stop() 完成链");
+        assertEquals(1, done.stopCalls, "execute returning true -> stop() completion chain");
         assertTrue(TaskScheduler.getInstance().isEmpty());
     }
 
@@ -130,7 +130,7 @@ class TaskSchedulerTest
         TaskScheduler.getInstance().runTasks();
 
         assertEquals(1, first.executeCalls);
-        assertEquals(1, second.executeCalls, "同 tick 双完成：runTasks 索引回退（--i）不得跳过第二个任务");
+        assertEquals(1, second.executeCalls, "two tasks finishing in the same tick: the runTasks index rewind (--i) must not skip the second task");
         assertEquals(1, first.stopCalls);
         assertEquals(1, second.stopCalls);
         assertTrue(TaskScheduler.getInstance().isEmpty());
@@ -143,10 +143,10 @@ class TaskSchedulerTest
         TaskScheduler.getInstance().scheduleTask(task, 1);
 
         TaskScheduler.getInstance().runTasks();
-        assertFalse(TaskScheduler.getInstance().isEmpty(), "未完成任务保留在队列");
+        assertFalse(TaskScheduler.getInstance().isEmpty(), "unfinished task stays in the queue");
 
         TaskScheduler.getInstance().clearTasks();
-        assertEquals(1, task.stopCalls, "clearTasks 逐任务走 stop() 完成链");
+        assertEquals(1, task.stopCalls, "clearTasks runs stop() on each task, completing the chain");
         assertTrue(TaskScheduler.getInstance().isEmpty());
     }
 }

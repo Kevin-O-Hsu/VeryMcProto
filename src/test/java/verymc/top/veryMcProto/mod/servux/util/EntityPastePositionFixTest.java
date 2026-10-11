@@ -64,7 +64,7 @@ class EntityPastePositionFixTest
         apply(tag);
 
         ListTag pos = tag.getListOrEmpty("Pos");
-        assertEquals(Constants.NBT.TAG_DOUBLE, pos.identifyRawElementType(), "Pos wire 形状必须保持双精度列表");
+        assertEquals(Constants.NBT.TAG_DOUBLE, pos.identifyRawElementType(), "Pos wire shape must remain a double-precision list");
         assertEquals(3, pos.size());
         assertEquals(TX, pos.getDoubleOr(0, 0));
         assertEquals(TY, pos.getDoubleOr(1, 0));
@@ -206,7 +206,7 @@ class EntityPastePositionFixTest
 
         apply(zeroRadius);
 
-        assertEquals(new BlockPos(5, 5, 5), zeroRadius.read("home_pos", BlockPos.CODEC).orElse(null), "radius=0 刻意不修正");
+        assertEquals(new BlockPos(5, 5, 5), zeroRadius.read("home_pos", BlockPos.CODEC).orElse(null), "radius=0 is deliberately not fixed");
 
         CompoundTag noRadius = new CompoundTag();
         noRadius.putString("id", "minecraft:cow");
@@ -214,7 +214,7 @@ class EntityPastePositionFixTest
 
         apply(noRadius);
 
-        assertEquals(new BlockPos(5, 5, 5), noRadius.read("home_pos", BlockPos.CODEC).orElse(null), "radius 缺省(-1) 刻意不修正");
+        assertEquals(new BlockPos(5, 5, 5), noRadius.read("home_pos", BlockPos.CODEC).orElse(null), "missing radius (default -1) is deliberately not fixed");
 
         CompoundTag zeroPos = new CompoundTag();
         zeroPos.putString("id", "minecraft:cow");
@@ -223,7 +223,7 @@ class EntityPastePositionFixTest
 
         apply(zeroPos);
 
-        assertEquals(BlockPos.ZERO, zeroPos.read("home_pos", BlockPos.CODEC).orElse(null), "home_pos ZERO 哨兵跳过");
+        assertEquals(BlockPos.ZERO, zeroPos.read("home_pos", BlockPos.CODEC).orElse(null), "home_pos ZERO sentinel is skipped");
 
         CompoundTag noPos = new CompoundTag();
         noPos.putString("id", "minecraft:cow");
@@ -231,7 +231,7 @@ class EntityPastePositionFixTest
 
         apply(noPos);
 
-        assertFalse(noPos.contains("home_pos"), "home_pos 缺失不产生键");
+        assertFalse(noPos.contains("home_pos"), "missing home_pos produces no key");
     }
 
     /** ⑤' 生效分支中 home_radius 值本身保持不改写。 */
@@ -274,6 +274,6 @@ class EntityPastePositionFixTest
         assertEquals(new BlockPos(102, 13, -46), tag.read("leash", BlockPos.CODEC).orElse(null));
         assertEquals(new BlockPos(105, 15, -45), tag.read("home_pos", BlockPos.CODEC).orElse(null));
         assertTrue(java.util.Arrays.equals(new int[] {1, 2, 3, 4},
-                                           tag.getIntArray("UUID").orElse(new int[0])), "UUID 不在本修复族范围");
+                                           tag.getIntArray("UUID").orElse(new int[0])), "UUID is outside this fix family");
     }
 }

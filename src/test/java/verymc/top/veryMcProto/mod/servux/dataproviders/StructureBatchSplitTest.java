@@ -106,12 +106,12 @@ class StructureBatchSplitTest
         List<ListTag> batches = StructureDataProvider.splitStructuresBySize(list, 12_000, PADDING);
 
         int total = batches.stream().mapToInt(ListTag::size).sum();
-        assertEquals(3, total, "空条目被跳过，非空条目总数守恒");
+        assertEquals(3, total, "empty entries skipped, non-empty entry count conserved");
         for (ListTag batch : batches)
         {
             for (int i = 0; i < batch.size(); i++)
             {
-                assertTrue(!batch.getCompoundOrEmpty(i).isEmpty(), "空条目不得进入任何批");
+                assertTrue(!batch.getCompoundOrEmpty(i).isEmpty(), "empty entries must not enter any batch");
             }
         }
     }
