@@ -80,7 +80,7 @@ public class LifecycleBridge implements Listener
         }
         catch (Exception e)
         {
-                    Reference.logger().warning("PacketSplitter.releaseAllSessions exception: " + e.getMessage());
+            Reference.logger().warning("PacketSplitter.releaseAllSessions exception: " + e.getMessage());
         }
     }
 
