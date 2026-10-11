@@ -69,6 +69,6 @@ class LitematicaBitArrayTest
         assertEquals(64L, LitematicaBitArray.roundUp(1L, 64L));
         assertEquals(64L, LitematicaBitArray.roundUp(64L, 64L));
         assertEquals(128L, LitematicaBitArray.roundUp(65L, 64L));
-        assertEquals(0L, LitematicaBitArray.roundUp(10L, 0L), "interval=0 短路返回 0");
+        assertEquals(0L, LitematicaBitArray.roundUp(10L, 0L), "interval=0 short-circuits to 0");
     }
 }

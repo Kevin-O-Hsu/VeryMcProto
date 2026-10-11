@@ -86,7 +86,7 @@ class TaskGroupTest
         // 条目：Type 字面量 = 枚举常量名（客户端 InfoHudSyncType.valueOf 无容错——锁死防漂移）
         CompoundTag entry = syncList.getCompoundOrEmpty(0);
         assertTrue(InfoHudTaskSync.isRemainingChunksType(entry),
-                "Type 必须为枚举常量名 REMAINING_CHUNKS，实际: " + entry.getStringOr("Type", ""));
+                "Type must be the enum constant name REMAINING_CHUNKS, actual: " + entry.getStringOr("Type", ""));
 
         // Data：每条目 = 真实区块行（无 cx=-1 标题条目——上游 TaskBase:165 模板从不入列），
         // 首条目即首个区块：客户端标题由 getFirst() 的 n/rc 合成（InfoHudSyncChunks:73-91）
@@ -114,8 +114,8 @@ class TaskGroupTest
         CompoundTag frame = InfoHudTaskSync.progressFrame("Delete", pending);
         ListTag data = frame.getListOrEmpty("InfoHudSync").getCompoundOrEmpty(0).getListOrEmpty("Data");
 
-        assertEquals(10, data.size(), "最多 10 个区块条目（无标题行占位——上游 wire 形状）");
-        assertEquals(25, data.getCompoundOrEmpty(0).getIntOr("rc", -1), "rc = 待处理总数（非展示行数）");
+        assertEquals(10, data.size(), "at most 10 chunk entries (no title-row placeholder -- upstream wire shape)");
+        assertEquals(25, data.getCompoundOrEmpty(0).getIntOr("rc", -1), "rc = total pending count (not the displayed row count)");
         assertEquals("Delete", data.getCompoundOrEmpty(0).getStringOr("n", ""));
     }
 
@@ -126,6 +126,6 @@ class TaskGroupTest
 
         // 完成帧仅 InfoHudComplete=true、不带 InfoHudSync 键（客户端缺键回空列表，InfoHudSync.java:97 路径）
         assertTrue(frame.getBooleanOr("InfoHudComplete", false));
-        assertFalse(frame.contains("InfoHudSync"), "完成帧不得携带 InfoHudSync 键");
+        assertFalse(frame.contains("InfoHudSync"), "complete frame must not carry the InfoHudSync key");
     }
 }

@@ -66,17 +66,17 @@ class RecipeSyncJoinOrdererTest
         EmbeddedChannel channel = newChannelWithOrderer(60_000);
 
         channel.writeOutbound(updateRecipes());
-        assertNull(channel.readOutbound(), "被扣期间不应有任何 UpdateRecipes 出站");
+        assertNull(channel.readOutbound(), "no UpdateRecipes should go outbound while held");
 
         Object payload = new Object();
-        assertTrue(channel.writeOutbound(payload), "非 UpdateRecipes 消息应透传");
+        assertTrue(channel.writeOutbound(payload), "non-UpdateRecipes messages should pass through");
         assertSame(payload, channel.readOutbound());
         assertNull(channel.readOutbound());
 
         orderer(channel).releaseInternal();
-        assertTrue(channel.readOutbound() instanceof ClientboundUpdateRecipesPacket, "释放后 UpdateRecipes 应出站");
-        assertNull(channel.readOutbound(), "释放后无残留");
-        assertNull(channel.pipeline().get(RecipeSyncJoinOrderer.HANDLER_NAME), "handler 应自移除");
+        assertTrue(channel.readOutbound() instanceof ClientboundUpdateRecipesPacket, "UpdateRecipes should go outbound after release");
+        assertNull(channel.readOutbound(), "no leftovers after release");
+        assertNull(channel.pipeline().get(RecipeSyncJoinOrderer.HANDLER_NAME), "handler should remove itself");
     }
 
     @Test
@@ -90,8 +90,8 @@ class RecipeSyncJoinOrdererTest
         channel.writeOutbound(payload);
         orderer(channel).releaseInternal();
 
-        assertSame(payload, channel.readOutbound(), "wire 序第一 = fabric:recipe_sync payload");
-        assertTrue(channel.readOutbound() instanceof ClientboundUpdateRecipesPacket, "wire 序第二 = UpdateRecipes");
+        assertSame(payload, channel.readOutbound(), "first on the wire = fabric:recipe_sync payload");
+        assertTrue(channel.readOutbound() instanceof ClientboundUpdateRecipesPacket, "second on the wire = UpdateRecipes");
         assertNull(channel.readOutbound());
     }
 
@@ -112,8 +112,8 @@ class RecipeSyncJoinOrdererTest
         }
         channel.runScheduledPendingTasks(); // 执行到期超时任务
 
-        assertTrue(channel.readOutbound() instanceof ClientboundUpdateRecipesPacket, "超时应放行");
-        assertNull(channel.pipeline().get(RecipeSyncJoinOrderer.HANDLER_NAME), "超时路径同样自移除");
+        assertTrue(channel.readOutbound() instanceof ClientboundUpdateRecipesPacket, "timeout should release the held packet");
+        assertNull(channel.pipeline().get(RecipeSyncJoinOrderer.HANDLER_NAME), "timeout path should also self-remove");
     }
 
     @Test
@@ -129,9 +129,9 @@ class RecipeSyncJoinOrdererTest
         channel.writeOutbound(second);
 
         assertSame(payload, channel.readOutbound());
-        assertSame(first, channel.readOutbound(), "被扣包须先于扣留期新包放行");
+        assertSame(first, channel.readOutbound(), "the held packet must flush before packets arriving during the hold");
         assertSame(second, channel.readOutbound());
-        assertNull(channel.pipeline().get(RecipeSyncJoinOrderer.HANDLER_NAME), "竞态路径终结后自移除");
+        assertNull(channel.pipeline().get(RecipeSyncJoinOrderer.HANDLER_NAME), "should self-remove once the race path ends");
     }
 
     @Test
@@ -142,7 +142,7 @@ class RecipeSyncJoinOrdererTest
         RecipeSyncJoinOrderer orderer = orderer(channel); // 先取引用（EmbeddedChannel close 即清空 pipeline）
 
         channel.close().syncUninterruptibly();
-        assertNull(channel.readOutbound(), "断连后无出站");
+        assertNull(channel.readOutbound(), "no outbound after disconnect");
 
         // 迟到的释放必须幂等 no-op（不抛异常、不再出站）；生产入口 release(UUID) 对注册表缺失同样安全
         orderer.releaseInternal();

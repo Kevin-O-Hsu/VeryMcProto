@@ -29,10 +29,10 @@ class FeatureSetTest
         FeatureSet decoded = FeatureSet.fromString(encoded);
         for (Feature f : Feature.values())
         {
-            assertTrue(fs.hasFeature(f), "原始应含 " + f);
-            assertTrue(decoded.hasFeature(f), "round-trip 后应仍含 " + f);
+            assertTrue(fs.hasFeature(f), "original should contain " + f);
+            assertTrue(decoded.hasFeature(f), "should still contain it after round-trip: " + f);
         }
-        assertEquals(encoded, decoded.toString(), "round-trip 后 toString 应一致");
+        assertEquals(encoded, decoded.toString(), "toString should match after round-trip");
     }
 
     @Test

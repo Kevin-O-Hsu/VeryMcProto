@@ -59,10 +59,10 @@ class DataTagIoTest
         int length = buf.readInt();
         byte[] payload = new byte[length];
         buf.readBytes(payload);
-        assertEquals(0, buf.readableBytes(), "写端必须恰好消费 [int32][payload]，无多余字节");
+        assertEquals(0, buf.readableBytes(), "the writer must consume exactly [int32][payload] with no extra bytes");
 
         byte[] raw = gunzip(payload);
-        assertArrayEquals(GOLDEN_FOO1, raw, "GZIP 前流内布局必须与 malilib DataFileUtils.writeToNbtStream 逐字节一致");
+        assertArrayEquals(GOLDEN_FOO1, raw, "the in-stream layout before GZIP must match malilib DataFileUtils.writeToNbtStream byte for byte");
     }
 
     /** 读端黄金向量：手工构造 [int32][gzip(GOLDEN)] 必须解析回 {Foo:1}。 */
@@ -89,7 +89,7 @@ class DataTagIoTest
         buf.writeBytes(GOLDEN_FOO1);
 
         CompoundTag tag = DataTagIo.readTag(buf);
-        assertNotNull(tag, "裸流（非 GZIP）必须经 ZipException 回落解析成功");
+        assertNotNull(tag, "a bare stream (non-GZIP) must parse successfully via the ZipException fallback");
         assertEquals(1, tag.getIntOr("Foo", -1));
     }
 
@@ -105,7 +105,7 @@ class DataTagIoTest
         buf.readBytes(payload);
         byte[] raw = gunzip(payload);
 
-        assertEquals(0x0A, raw[0] & 0xFF, "根 tagType 必须为 10（TAG_COMPOUND），发 0x00 会被 malilib 读端整包丢弃");
+        assertEquals(0x0A, raw[0] & 0xFF, "root tagType must be 10 (TAG_COMPOUND); sending 0x00 would make the malilib reader drop the whole packet");
         assertEquals(0x00, raw[raw.length - 1] & 0xFF);
 
         FriendlyByteBuf rb = new FriendlyByteBuf(Unpooled.buffer());
@@ -126,7 +126,7 @@ class DataTagIoTest
         buf.writeBytes(gz);
 
         CompoundTag tag = DataTagIo.readTag(buf);
-        assertNotNull(tag, "0x00 根应容错为空 compound，而非坏包 null");
+        assertNotNull(tag, "a 0x00 root should be tolerated as an empty compound, not a bad-packet null");
         assertTrue(tag.isEmpty());
     }
 
@@ -162,7 +162,7 @@ class DataTagIoTest
         CompoundTag back = DataTagIo.readTag(buf);
 
         assertNotNull(back);
-        assertEquals(tag, back, "round-trip 必须无损（含嵌套空容器与修改版 UTF-8）");
+        assertEquals(tag, back, "round-trip must be lossless (including nested empty containers and modified UTF-8)");
     }
 
     /** 深层嵌套（上游读端深度上限 512，取 200 层验证）。 */
@@ -195,16 +195,16 @@ class DataTagIoTest
         FriendlyByteBuf negative = new FriendlyByteBuf(Unpooled.buffer());
         negative.writeInt(-1);
         negative.writeByte(0x0A);
-        assertNull(DataTagIo.readTag(negative), "负长度必须拒绝");
+        assertNull(DataTagIo.readTag(negative), "negative length must be rejected");
 
         FriendlyByteBuf overflow = new FriendlyByteBuf(Unpooled.buffer());
         overflow.writeInt(100);
         overflow.writeByte(0x0A);
-        assertNull(DataTagIo.readTag(overflow), "长度超出可读字节必须拒绝");
+        assertNull(DataTagIo.readTag(overflow), "length beyond readable bytes must be rejected");
 
         FriendlyByteBuf overLimit = new FriendlyByteBuf(Unpooled.buffer());
         overLimit.writeInt((int) (DataTagIo.NETWORK_MAX_BYTES + 1));
-        assertNull(DataTagIo.readTag(overLimit), "长度超 64MB 上限必须拒绝");
+        assertNull(DataTagIo.readTag(overLimit), "length over the 64MB limit must be rejected");
     }
 
     /** 写端 64MB 闸：超限 compound 降级为空 compound（恒 tagType=10），不抛穿、不静默截断。 */
@@ -220,7 +220,7 @@ class DataTagIoTest
 
         CompoundTag back = DataTagIo.readTag(buf);
         assertNotNull(back);
-        assertTrue(back.isEmpty(), "超限必须降级为空 compound 而非原样发出");
+        assertTrue(back.isEmpty(), "over-limit must degrade to an empty compound rather than being sent as-is");
     }
 
     /** 与原版 NbtIo 具名根输出的字节级互证：同一 compound 的 NbtIo.write 输出 == DataTag 流内布局。 */
@@ -233,7 +233,7 @@ class DataTagIoTest
             NbtIo.write(foo1(), out);
         }
         assertArrayEquals(GOLDEN_FOO1, raw.toByteArray(),
-                "NbtIo.write(空根名) 必须与 malilib writeToNbtStream 逐字节一致（DataTagIo 的等价性根基）");
+                "NbtIo.write(empty root name) must match malilib writeToNbtStream byte for byte (the foundation of DataTagIo's equivalence)");
     }
 
     /**
@@ -251,7 +251,7 @@ class DataTagIoTest
         buf.writeInt(gz.length);
         buf.writeBytes(gz);
 
-        assertNull(DataTagIo.readTag(buf), "长度字段炸弹（声明 8GB long[]）必须被 64MB 配额闸拦截为 null，不得触发分配");
+        assertNull(DataTagIo.readTag(buf), "a length-field bomb (declaring an 8GB long[]) must be intercepted as null by the 64MB quota gate and must not trigger allocation");
     }
 
     /**
@@ -269,7 +269,7 @@ class DataTagIoTest
         buf.writeBytes(headerOnly);
 
         CompoundTag tag = DataTagIo.readTag(buf);
-        assertNotNull(tag, "截断 gzip（解压期 EOF）应容错为空 compound，而非 null");
+        assertNotNull(tag, "a truncated gzip (EOF during decompression) should be tolerated as an empty compound, not null");
         assertTrue(tag.isEmpty());
     }
 
@@ -282,7 +282,7 @@ class DataTagIoTest
         buf.writeByte(0x0A);
 
         CompoundTag tag = DataTagIo.readTag(buf);
-        assertNotNull(tag, "过短 payload（解压期 EOF）应容错为空 compound，而非 null");
+        assertNotNull(tag, "an over-short payload (EOF during decompression) should be tolerated as an empty compound, not null");
         assertTrue(tag.isEmpty());
     }
 

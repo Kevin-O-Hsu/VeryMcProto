@@ -99,10 +99,10 @@ class SchematicPlacementGuardTest
     {
         SchematicPlacement placement = SchematicPlacement.createFromNbt(tagsWithSubRegions(mixedSubRegions()));
 
-        assertNotNull(placement.getRelativeSubRegionPlacement("good1"), "好条目必须保留");
-        assertNotNull(placement.getRelativeSubRegionPlacement("good2"), "好条目必须保留");
-        assertNull(placement.getRelativeSubRegionPlacement("badNoPos"), "缺 Pos 条目必须跳过（上游 :1210 continue）");
-        assertNull(placement.getRelativeSubRegionPlacement("badWrongType"), "Pos 非 TAG_INT_ARRAY 条目必须跳过");
+        assertNotNull(placement.getRelativeSubRegionPlacement("good1"), "good entries must be kept");
+        assertNotNull(placement.getRelativeSubRegionPlacement("good2"), "good entries must be kept");
+        assertNull(placement.getRelativeSubRegionPlacement("badNoPos"), "entries missing Pos must be skipped (upstream :1210 continue)");
+        assertNull(placement.getRelativeSubRegionPlacement("badWrongType"), "entries whose Pos is not TAG_INT_ARRAY must be skipped");
         assertEquals(2, placement.getAllSubRegionsPlacements().size());
     }
 
@@ -118,10 +118,10 @@ class SchematicPlacementGuardTest
 
         SchematicPlacement placement = SchematicPlacement.createFromNbt(schematic, tags);
 
-        assertNotNull(placement.getRelativeSubRegionPlacement("good1"), "好条目必须保留");
-        assertNotNull(placement.getRelativeSubRegionPlacement("good2"), "好条目必须保留");
-        assertNull(placement.getRelativeSubRegionPlacement("badNoPos"), "缺 Pos 条目必须跳过（上游 :1258 continue）");
-        assertNull(placement.getRelativeSubRegionPlacement("badWrongType"), "Pos 非 TAG_INT_ARRAY 条目必须跳过");
+        assertNotNull(placement.getRelativeSubRegionPlacement("good1"), "good entries must be kept");
+        assertNotNull(placement.getRelativeSubRegionPlacement("good2"), "good entries must be kept");
+        assertNull(placement.getRelativeSubRegionPlacement("badNoPos"), "entries missing Pos must be skipped (upstream :1258 continue)");
+        assertNull(placement.getRelativeSubRegionPlacement("badWrongType"), "entries whose Pos is not TAG_INT_ARRAY must be skipped");
         assertEquals(2, placement.getAllSubRegionsPlacements().size());
     }
 
@@ -157,11 +157,11 @@ class SchematicPlacementGuardTest
     void oversizedRegionRejectedByVolumeConsistencyGuard()
     {
         assertThrows(CommandSyntaxException.class, () -> new LitematicaSchematic(schematicsWithEvilRegion(1_000_000, 1, 1)),
-                "声明体积（1e6）远超 BlockStates 容量背书（32）必须被一致性预检整体拒绝");
+                "declared volume (1e6) far exceeding the BlockStates capacity backing (32) must be rejected wholesale by the consistency precheck");
 
         assertThrows(CommandSyntaxException.class, () -> new LitematicaSchematic(
                         schematicsWithEvilRegion(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE)),
-                "Size 各轴 MAX_VALUE 的三乘积按 2^64 回绕为负 long，必须被 totalVolume<0 守卫拒绝");
+                "the triple product of per-axis MAX_VALUE Size wraps to a negative long under 2^64 and must be rejected by the totalVolume<0 guard");
     }
 
     /** 构造含单个恶意 region 的 Schematics 桩（palette 仅 air → bits=2；BlockStates 仅 1 long → 容量 32 格）。 */
