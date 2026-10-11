@@ -8,6 +8,8 @@ Paper 1.21.11 · Java 21 · paperweight userdev · Version 1.21.11-b3
 Servux ✅  ·  JEI Recipe Bridge ✅  ·  Syncmatica ✅   (all three targets fully implemented and tested)
 ```
 
+> **Author:** Kevin O. Hsu · **GitHub:** https://github.com/Kevin-O-Hsu/VeryMcProto · **Modrinth:** https://modrinth.com/plugin/verymcproto
+
 ---
 
 ## Table of Contents
