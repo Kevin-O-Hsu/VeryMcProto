@@ -63,7 +63,7 @@ public final class Perms
             reason = "exception:" + e.getClass().getSimpleName();
         }
         FrameworkDebug.log("permission", "check " + player.getName().getString()
-                + " node=" + node + " level=" + level + " → " + result + " (" + reason + ")");
+                + " node=" + node + " level=" + level + " -> " + result + " (" + reason + ")");
         return result;
     }
 }

@@ -79,10 +79,10 @@ public class PacketSplitter
             // 上界随数据缩量自停。
             if (len > MAX_REASSEMBLY_SIZE_S2C)
             {
-                Reference.logger().warning("PacketSplitter: 拒发超限帧 channel=" + handler.getPayloadChannel()
+                Reference.logger().warning("PacketSplitter: rejected oversized frame channel=" + handler.getPayloadChannel()
                         + " player=" + (player != null ? player.getName().getString() : "null")
                         + " size=" + len + " > " + MAX_REASSEMBLY_SIZE_S2C
-                        + "（超 1.21.11 客户端分片重组上限，整帧丢弃，零分片发出）");
+                        + " (exceeds the 1.21.11 client fragment reassembly limit; whole frame dropped, zero fragments sent)");
                 return false;
             }
 
@@ -157,7 +157,7 @@ public class PacketSplitter
 
             if (nowMs - entry.getValue().lastReceivedTime > STALE_TIMEOUT_MS)
             {
-                Reference.logger().warning("PacketSplitter: 过期驱逐读取会话 [" + entry.getKey() + "]（超 " + STALE_TIMEOUT_MS + "ms 未收片）");
+                Reference.logger().warning("PacketSplitter: evicted stale reading session [" + entry.getKey() + "] (no fragment received for over " + STALE_TIMEOUT_MS + "ms)");
                 it.remove();
                 entry.getValue().release();
             }

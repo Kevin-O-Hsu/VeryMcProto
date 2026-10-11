@@ -151,18 +151,18 @@ public class EasyPlaceListener implements PacketListener
                     playPlaceSound(level, pos, finalState);
                     // 物品消耗（非创造）
                     if (!player.getAbilities().instabuild) { stack.shrink(1); }
-                    ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "放置 " + finalState + " @ " + pos);
+                    ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "Placed " + finalState + " @ " + pos);
                 }
                 else
                 {
-                    ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "拒绝放置 @ " + pos
+                    ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "Placement rejected @ " + pos
                             + " (" + (finalState == null ? "validator=null"
                                       : !replaceOk ? "target-not-replaceable" : "canSurvive-fail") + ")");
                 }
             }
             catch (Exception ex)
             {
-                ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "异常 @ " + pos + ": " + ex.getMessage());
+                ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "Exception @ " + pos + ": " + ex.getMessage());
             }
             finally
             {

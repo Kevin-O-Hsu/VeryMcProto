@@ -43,8 +43,8 @@ public final class ServerPlayHandler
         // 成功后由 fabric 回调触发的 setPlayRegistered。
         handler.setPlayRegistered(channel);
         FrameworkDebug.log("network", "registerServerPlayHandler: " + channel
-                + (existed ? " (handler 已存在，putIfAbsent 未覆盖)" : "")
-                + " → ChannelManager.register + setPlayRegistered(true)");
+                + (existed ? " (handler already exists, putIfAbsent did not overwrite)" : "")
+                + " -> ChannelManager.register + setPlayRegistered(true)");
     }
 
     /** 反注册 handler + 注销 plugin messaging 通道 + 清除已注册标记。 */
@@ -59,11 +59,11 @@ public final class ServerPlayHandler
             handler.clearPlayRegistered(channel);
             ChannelManager.INSTANCE.unregister(channel);
             FrameworkDebug.log("network", "unregisterServerPlayHandler: " + channel
-                    + " → ChannelManager.unregister + clearPlayRegistered(false)");
+                    + " -> ChannelManager.unregister + clearPlayRegistered(false)");
         }
         else
         {
-            FrameworkDebug.log("network", "unregisterServerPlayHandler: " + channel + " 跳过（existing!=handler 或未注册）");
+            FrameworkDebug.log("network", "unregisterServerPlayHandler: " + channel + " skipped (existing!=handler or not registered)");
         }
     }
 

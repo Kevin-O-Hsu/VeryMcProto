@@ -139,7 +139,7 @@ public class TweaksDataProvider extends DataProviderBase
 
         if (!this.hasPermission(player))
         {
-            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "tweaks register 拒绝 " + player.getName().getString() + " (权限不足)");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "tweaks register denied " + player.getName().getString() + " (insufficient permissions)");
             return;
         }
 
@@ -152,17 +152,17 @@ public class TweaksDataProvider extends DataProviderBase
     {
         if (!this.isEnabled())
         {
-            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "tweaks sendMetadata 跳过: provider disabled");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "tweaks sendMetadata skipped: provider disabled");
             return;
         }
         if (!this.hasPermission(player))
         {
-            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "tweaks sendMetadata 拒绝 " + player.getName().getString() + " (权限不足)");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "tweaks sendMetadata denied " + player.getName().getString() + " (insufficient permissions)");
             return;
         }
 
         boolean ok = HANDLER.sendPlayPayload(player, ServuxTweaksPacket.MetadataResponse(this.metadata));
-        ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "tweaks sendMetadata → " + player.getName().getString()
+        ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "tweaks sendMetadata -> " + player.getName().getString()
                 + " ok=" + ok + " servux=" + this.metadata.getStringOr("servux", "?")
                 + " ver=" + this.metadata.getIntOr("version", -1)
                 + " keys=" + this.metadata.keySet());
@@ -236,7 +236,7 @@ public class TweaksDataProvider extends DataProviderBase
         }
         catch (Exception e)
         {
-            ServuxDebug.log(ServuxDebug.Cat.PACKET, "onEntityRequest 失败 entityId=" + entityId + ": " + e.getMessage());
+            ServuxDebug.log(ServuxDebug.Cat.PACKET, "onEntityRequest failed entityId=" + entityId + ": " + e.getMessage());
         }
     }
 
@@ -253,7 +253,7 @@ public class TweaksDataProvider extends DataProviderBase
         {
             // 名册白名单：仅已注册玩家重发（上游无此补偿路径；deny 语义不被旁路）
             if (!this.isPlayerRegistered(player)) { return; }
-            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "tweaks onPlayerRegisterChannel: 客户端声明 " + channel + " → 重发 metadata");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "tweaks onPlayerRegisterChannel: client declared " + channel + " -> resending metadata");
             this.sendMetadata(player);
         }
     }

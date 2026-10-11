@@ -110,12 +110,12 @@ public class ExchangeTarget
             ok = ChannelManager.INSTANCE.send(SyncmaticaReference.NETWORK_ID, player, bytes);
         }
 
-        SyncmaticaDebug.log(SyncmaticaDebug.Cat.NETWORK, "[syncm] sendPacket(" + route + ") " + type + " → " + persistentName
+        SyncmaticaDebug.log(SyncmaticaDebug.Cat.NETWORK, "[syncm] sendPacket(" + route + ") " + type + " -> " + persistentName
                 + " bytes=" + bytes.length + " ok=" + ok + " listening=" + listening
                 + " hex=" + hexPreview(bytes));
         if (!ok)
         {
-            SyncmaticaLog.warn("ExchangeTarget#sendPacket(): {} 发送失败 type={} partner={}（见 NETWORK 日志）",
+            SyncmaticaLog.warn("ExchangeTarget#sendPacket(): {} send failed type={} partner={} (see NETWORK logs)",
                                route, type.getId(), persistentName);
         }
     }
@@ -146,7 +146,7 @@ public class ExchangeTarget
         catch (Exception e)
         {
             // 显式走 error(String, Throwable) 语义：e 是异常栈，文案直接拼接，避免靠 vararg 重载决议巧合命中
-            SyncmaticaLog.error("ExchangeTarget#sendViaNms(): NMS 直发异常 partner=" + persistentName + " bytes=" + bytes.length, e);
+            SyncmaticaLog.error("ExchangeTarget#sendViaNms(): NMS direct send exception partner=" + persistentName + " bytes=" + bytes.length, e);
             return false;
         }
     }

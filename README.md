@@ -139,12 +139,12 @@ Fundamentally different from Servux (one-way broadcast):
 On startup the console shows:
 
 ```
-[VeryMcProto] 启动中 (MC 1.21.11, paper)...
-[VeryMcProto] 已注册协议 mod: servux
-[VeryMcProto] 已注册协议 mod: jei_recipe_bridge
-[VeryMcProto] 已注册协议 mod: syncmatica
-[VeryMcProto] 服务端启动完成，已捕获 RegistryAccess 并加载 servux.json。
-[VeryMcProto] 框架就绪。
+[VeryMcProto] starting (MC 1.21.11, paper)...
+[VeryMcProto] registered protocol mod: servux
+[VeryMcProto] registered protocol mod: jei_recipe_bridge
+[VeryMcProto] registered protocol mod: syncmatica
+[VeryMcProto] server startup complete, RegistryAccess captured and servux.json loaded.
+[VeryMcProto] framework ready.
 ```
 
 > **Defensive design**: the three mods are assembled each inside its own try-catch; any one failing only logs and degrades gracefully — **it never blocks server startup** and never affects the other mods.

@@ -150,7 +150,7 @@ public class LitematicsDataProvider extends DataProviderBase
 
         if (!this.hasPermission(player))
         {
-            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic register 拒绝 " + player.getName().getString() + " (权限不足)");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic register denied " + player.getName().getString() + " (insufficient permissions)");
             return;
         }
 
@@ -163,16 +163,16 @@ public class LitematicsDataProvider extends DataProviderBase
     {
         if (!this.isEnabled())
         {
-            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic sendMetadata 跳过: provider disabled");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic sendMetadata skipped: provider disabled");
             return;
         }
         if (!this.hasPermission(player))
         {
-            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic sendMetadata 拒绝 " + player.getName().getString() + " (权限不足)");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic sendMetadata denied " + player.getName().getString() + " (insufficient permissions)");
             return;
         }
         boolean ok = HANDLER.sendPlayPayload(player, ServuxLitematicaPacket.MetadataResponse(this.metadata));
-        ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic sendMetadata → " + player.getName().getString()
+        ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic sendMetadata -> " + player.getName().getString()
                 + " ok=" + ok + " servux=" + this.metadata.getStringOr("servux", "?")
                 + " ver=" + this.metadata.getIntOr("version", -1));
     }
@@ -237,7 +237,7 @@ public class LitematicsDataProvider extends DataProviderBase
         }
         catch (Exception e)
         {
-            ServuxDebug.log(ServuxDebug.Cat.PACKET, "onEntityRequest 失败 entityId=" + entityId + ": " + e.getMessage());
+            ServuxDebug.log(ServuxDebug.Cat.PACKET, "onEntityRequest failed entityId=" + entityId + ": " + e.getMessage());
         }
     }
 
@@ -255,7 +255,7 @@ public class LitematicsDataProvider extends DataProviderBase
 
         if (!this.hasPermission(player))
         {
-            Reference.logger().warning("litematic_data: Denying onBulkEntityRequest from " + player.getName().getString() + "（权限不足）");
+            Reference.logger().warning("litematic_data: Denying onBulkEntityRequest from " + player.getName().getString() + " (insufficient permissions)");
             player.sendSystemMessage(net.minecraft.network.chat.Component.literal(MSG_BULK_INSUFFICIENT));
             return;
         }
@@ -278,7 +278,7 @@ public class LitematicsDataProvider extends DataProviderBase
         // getStringOr 对非 String 类型恒回退默认 ""，故「contains && getStringOr().equals」与上游 TAG_STRING 类型校验语义等价
         if (req.contains("Task") && req.getStringOr("Task", "").equals("BulkEntityRequest"))
         {
-            ServuxDebug.log(ServuxDebug.Cat.PACKET, "litematic_data: 批量 NBT ChunkPos " + chunkPos.toString() + " → " + player.getName().getString());
+            ServuxDebug.log(ServuxDebug.Cat.PACKET, "litematic_data: bulk NBT ChunkPos " + chunkPos.toString() + " -> " + player.getName().getString());
 
             long timeStart = System.currentTimeMillis();
             ListTag tileList = new ListTag();
@@ -366,20 +366,20 @@ public class LitematicsDataProvider extends DataProviderBase
 
         if (!this.hasPermission(player) || !this.hasPermissionsForPaste(player))
         {
-            ServuxDebug.log(ServuxDebug.Cat.PERMISSION, "litematic_data: 拒绝粘贴 from " + player.getName().getString() + "（权限不足）");
+            ServuxDebug.log(ServuxDebug.Cat.PERMISSION, "litematic_data: denying paste from " + player.getName().getString() + " (insufficient permissions)");
             player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§cLitematics paste: insufficient permissions."));
             return;
         }
         if (!player.isCreative())
         {
-            ServuxDebug.log(ServuxDebug.Cat.PERMISSION, "litematic_data: 拒绝粘贴 from " + player.getName().getString() + "（非创造模式）");
+            ServuxDebug.log(ServuxDebug.Cat.PERMISSION, "litematic_data: denying paste from " + player.getName().getString() + " (not in creative mode)");
             player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§cLitematics paste: creative mode required."));
             return;
         }
 
         if (tags != null && tags.getStringOr("Task", "").equals("LitematicaPaste"))
         {
-            ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "litematic_data: 执行粘贴 from " + player.getName().getString());
+            ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "litematic_data: performing paste from " + player.getName().getString());
             long timeStart = System.currentTimeMillis();
             SchematicPlacement placement = SchematicPlacement.createFromNbt(tags);
             ReplaceBehavior replaceMode = ReplaceBehavior.fromStringStatic(tags.getStringOr("ReplaceMode", ReplaceBehavior.NONE.name()));
@@ -422,7 +422,7 @@ public class LitematicsDataProvider extends DataProviderBase
         {
             // 名册白名单：仅已注册玩家重发（上游无此补偿路径；deny 语义不被旁路）
             if (!this.isPlayerRegistered(player)) { return; }
-            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic onPlayerRegisterChannel: 客户端声明 " + channel + " → 重发 metadata");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic onPlayerRegisterChannel: client declared " + channel + " -> resending metadata");
             this.sendMetadata(player);
         }
     }

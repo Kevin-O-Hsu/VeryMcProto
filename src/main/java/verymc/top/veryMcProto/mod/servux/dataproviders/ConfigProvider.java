@@ -74,13 +74,13 @@ public class ConfigProvider extends DataProviderBase
     public void doReloadConfig(CommandSender source)
     {
         DataProviderManager.INSTANCE.readFromConfig();
-        source.sendMessage("§aServux 配置已重载。");
+        source.sendMessage("§aServux configuration reloaded.");
     }
 
     public void doSaveConfig(CommandSender source)
     {
         DataProviderManager.INSTANCE.writeToConfig();
-        source.sendMessage("§aServux 配置已保存。");
+        source.sendMessage("§aServux configuration saved.");
     }
 
     public boolean hasDebugMode()
@@ -101,9 +101,9 @@ public class ConfigProvider extends DataProviderBase
         ServuxDebug.SYS.restore(on, this.debugCategories.getValue());
         if (on)
         {
-            ServuxDebug.log(ServuxDebug.Cat.CONFIG, "调试状态已恢复 master=" + on
-                    + "（debug_log=" + debugLogValue + ", DEV_DEBUG=" + ServuxReference.DEV_DEBUG
-                    + "）cats=" + this.debugCategories.getValue());
+            ServuxDebug.log(ServuxDebug.Cat.CONFIG, "Debug state restored master=" + on
+                    + " (debug_log=" + debugLogValue + ", DEV_DEBUG=" + ServuxReference.DEV_DEBUG
+                    + ") cats=" + this.debugCategories.getValue());
         }
     }
 

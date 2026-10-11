@@ -36,14 +36,14 @@ public class JeiCommand implements CommandExecutor, TabCompleter
     {
         if (!sender.hasPermission(PERMISSION))
         {
-            sender.sendMessage("§c权限不足。");
+            sender.sendMessage("§cInsufficient permissions.");
             return true;
         }
 
         final JeiConfiguration config = JeiConfiguration.getInstance();
         if (config == null)
         {
-            sender.sendMessage("§cJEI 模块未加载。");
+            sender.sendMessage("§cJEI module not loaded.");
             return true;
         }
 
@@ -57,15 +57,15 @@ public class JeiCommand implements CommandExecutor, TabCompleter
         {
             case "enable" ->
             {
-                if (config.isEnabled()) { sender.sendMessage("§eJEI 配方同步已处于启用状态。"); return true; }
+                if (config.isEnabled()) { sender.sendMessage("§eJEI recipe sync is already enabled."); return true; }
                 config.setEnabled(true);
-                sender.sendMessage("§aJEI 配方同步已启用 §7（后续进服玩家将同步配方）");
+                sender.sendMessage("§aJEI recipe sync enabled §7(players joining afterwards will receive recipe sync)");
             }
             case "disable" ->
             {
-                if (!config.isEnabled()) { sender.sendMessage("§eJEI 配方同步已处于禁用状态。"); return true; }
+                if (!config.isEnabled()) { sender.sendMessage("§eJEI recipe sync is already disabled."); return true; }
                 config.setEnabled(false);
-                sender.sendMessage("§eJEI 配方同步已禁用 §7（停止进服推送；通道保留、不踢人；在线玩家不受影响）");
+                sender.sendMessage("§eJEI recipe sync disabled §7(join-time push stopped; channel kept, no kick; online players unaffected)");
             }
             default -> sender.sendMessage(USAGE);
         }
@@ -74,10 +74,10 @@ public class JeiCommand implements CommandExecutor, TabCompleter
 
     private void sendStatus(final CommandSender sender, final JeiConfiguration config)
     {
-        sender.sendMessage("§6JEI Recipe Bridge 状态:");
-        sender.sendMessage(" §7配方同步: §f" + (config.isEnabled() ? "§a启用 (ON)" : "§c禁用 (OFF)"));
-        sender.sendMessage(" §7配置: §f" + config.getConfigFile().getFileName());
-        sender.sendMessage("§7用法: " + USAGE);
+        sender.sendMessage("§6JEI Recipe Bridge status:");
+        sender.sendMessage(" §7recipe sync: §f" + (config.isEnabled() ? "§aEnabled (ON)" : "§cDisabled (OFF)"));
+        sender.sendMessage(" §7config: §f" + config.getConfigFile().getFileName());
+        sender.sendMessage("§7Usage: " + USAGE);
     }
 
     @Override

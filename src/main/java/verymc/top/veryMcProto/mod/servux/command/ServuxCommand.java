@@ -40,7 +40,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
     {
         if (!sender.hasPermission(PERM_ROOT + "." + sub))
         {
-            sender.sendMessage("§c权限不足。");
+            sender.sendMessage("§cInsufficient permissions.");
             return false;
         }
         return true;
@@ -52,7 +52,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
         // 根门双查：新树节点 + 旧单节点（对不解析 plugin.yml children 的权限插件双保险）
         if (!(sender.hasPermission(PERM_ROOT) || sender.hasPermission("servux.command")))
         {
-            sender.sendMessage("§c权限不足。");
+            sender.sendMessage("§cInsufficient permissions.");
             return true;
         }
         if (args.length == 0)
@@ -80,7 +80,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
         }
         catch (Exception e)
         {
-            sender.sendMessage("§c命令执行异常: " + e.getMessage());
+            sender.sendMessage("§cCommand execution error: " + e.getMessage());
         }
         return true;
     }
@@ -91,18 +91,18 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
         String name = args[1];
         String value = args[2];
         IServuxSetting<?> setting = DataProviderManager.INSTANCE.getSettingByName(name);
-        if (setting == null) { sender.sendMessage("§c未找到设置: " + name); return; }
+        if (setting == null) { sender.sendMessage("§cSetting not found: " + name); return; }
         try
         {
             // 对齐上游 configModify :302-307：set 纯内存，持久化走显式 /servux save（上游无即时落盘；
             // 优雅停服时 onDisable 仍全量落盘，差异窗口仅 crash 场景）
             setting.setValueFromString(value);
-            sender.sendMessage("§a已设置 " + setting.qualifiedName() + " §7=§f " + setting.valueToString(setting.getValue())
-                    + " §7(未落盘，用 /servux save 持久化)");
+            sender.sendMessage("§aSet " + setting.qualifiedName() + " §7=§f " + setting.valueToString(setting.getValue())
+                    + " §7(not persisted, use /servux save)");
         }
         catch (CommandSyntaxException e)
         {
-            sender.sendMessage("§c无效值: " + e.getMessage());
+            sender.sendMessage("§cInvalid value: " + e.getMessage());
         }
     }
 
@@ -110,9 +110,9 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
     {
         if (args.length < 2) { sender.sendMessage("§e/servux info <provider:setting|setting>"); return; }
         IServuxSetting<?> setting = DataProviderManager.INSTANCE.getSettingByName(args[1]);
-        if (setting == null) { sender.sendMessage("§c未找到设置: " + args[1]); return; }
+        if (setting == null) { sender.sendMessage("§cSetting not found: " + args[1]); return; }
         sender.sendMessage("§6" + setting.qualifiedName() + " §7: §f" + setting.valueToString(setting.getValue())
-                + " §7(默认 " + setting.valueToString(setting.getDefaultValue()) + "§7)");
+                + " §7(default " + setting.valueToString(setting.getDefaultValue()) + "§7)");
     }
 
     /**
@@ -125,7 +125,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
         if (args.length >= 2)
         {
             var provider = DataProviderManager.INSTANCE.getProviderByName(args[1]);
-            if (provider.isEmpty()) { sender.sendMessage("§c未找到 provider: " + args[1]); return; }
+            if (provider.isEmpty()) { sender.sendMessage("§cProvider not found: " + args[1]); return; }
             list = provider.get().getSettings();
         }
         else
@@ -146,7 +146,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
      */
     private void configList(CommandSender sender, List<IServuxSetting<?>> list)
     {
-        if (list.isEmpty()) { sender.sendMessage("§7（无 settings）"); return; }
+        if (list.isEmpty()) { sender.sendMessage("§7(no settings)"); return; }
 
         java.util.Set<String> appearedNames = new java.util.HashSet<>();
         java.util.Set<String> appearedMultiTimes = new java.util.HashSet<>();
@@ -197,7 +197,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
         // 前置拒绝（fe1d92b 双保险之一，先于 manager 调用——否则总闸 false 会走「未找到 provider」误导反馈）
         if (!enable && args[1].equalsIgnoreCase(DataProviderManager.ALWAYS_ENABLED_PROVIDER))
         {
-            sender.sendMessage("§cservux_main 为配置主通道，永不可停用");
+            sender.sendMessage("§cservux_main is the main config channel and cannot be disabled");
             return;
         }
 
@@ -206,21 +206,21 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
         {
             // 我方扩展语义（上游无 enable/disable 子命令）：切换即时落盘——与 set 的上游显式 save 语义并存，属声明性扩展
             DataProviderManager.INSTANCE.writeToConfig();
-            sender.sendMessage("§a" + args[1] + " 已" + (enable ? "启用" : "禁用"));
+            sender.sendMessage("§a" + args[1] + " " + (enable ? "enabled" : "disabled"));
         }
-        else { sender.sendMessage("§c未找到 provider: " + args[1]); }
+        else { sender.sendMessage("§cProvider not found: " + args[1]); }
     }
 
     private void handleSearch(CommandSender sender, String[] args)
     {
-        if (args.length < 2) { sender.sendMessage("§e/servux search <关键词>"); return; }
+        if (args.length < 2) { sender.sendMessage("§e/servux search <keyword>"); return; }
 
         // 对齐上游 configSearch（ServuxCommand:111-133）：空格分词 AND + 三臂匹配 + 大小写敏感
         //（上游无 toLowerCase 归一——行为变更：原实现双侧 toLowerCase，现按上游忠实语义大小写敏感）。
         // Bukkit args 重组回 Brigadier 单串语义。
         String query = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
         String[] searchParts = query.split(" ");
-        sender.sendMessage("§6匹配的设置:");
+        sender.sendMessage("§6Matching settings:");
         for (var p : DataProviderManager.INSTANCE.getAllProviders())
         {
             for (IServuxSetting<?> s : p.getSettings())
@@ -256,7 +256,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
     private void handleLitematic(CommandSender sender, String[] args)
     {
         LitematicsDataProvider prov = LitematicsDataProvider.INSTANCE;
-        if (!prov.isEnabled()) { sender.sendMessage("§clitematic_data provider 未启用（/servux enable litematic_data）"); return; }
+        if (!prov.isEnabled()) { sender.sendMessage("§clitematic_data provider not enabled (/servux enable litematic_data)"); return; }
         if (args.length < 2) { sender.sendMessage("§e/servux litematic <list|transmit <file> [player]>"); return; }
 
         switch (args[1].toLowerCase())
@@ -264,25 +264,25 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
             case "list" ->
             {
                 java.nio.file.Path dir = prov.getTransmitDir();
-                sender.sendMessage("§6schematics 目录: §f" + dir.toAbsolutePath());
+                sender.sendMessage("§6schematics directory: §f" + dir.toAbsolutePath());
                 try (var stream = java.nio.file.Files.list(dir))
                 {
                     var files = stream.filter(f -> f.toString().endsWith(".litematic")).sorted().toList();
-                    if (files.isEmpty()) { sender.sendMessage(" §7（无 .litematic 文件）"); }
+                    if (files.isEmpty()) { sender.sendMessage(" §7(no .litematic files)"); }
                     for (var f : files) { sender.sendMessage(" §7- §f" + f.getFileName()); }
                 }
-                catch (Exception e) { sender.sendMessage("§c读取目录失败: " + e.getMessage()); }
+                catch (Exception e) { sender.sendMessage("§cFailed to read directory: " + e.getMessage()); }
             }
             case "transmit" ->
             {
                 if (args.length < 3) { sender.sendMessage("§e/servux litematic transmit <file> [player]"); return; }
                 if (!(sender instanceof org.bukkit.entity.Player) && args.length < 4)
                 {
-                    sender.sendMessage("§c控制台需指定目标玩家: /servux litematic transmit <file> <player>");
+                    sender.sendMessage("§cConsole must specify a target player: /servux litematic transmit <file> <player>");
                     return;
                 }
                 org.bukkit.entity.Player target = args.length >= 4 ? org.bukkit.Bukkit.getPlayerExact(args[3]) : (org.bukkit.entity.Player) sender;
-                if (target == null) { sender.sendMessage("§c玩家不在线: " + (args.length >= 4 ? args[3] : "")); return; }
+                if (target == null) { sender.sendMessage("§cPlayer not online: " + (args.length >= 4 ? args[3] : "")); return; }
 
                 String fileName = args[2];
                 // 2026-10 安全修复附带收口：命令文件名先过目录包含性守卫（同类模式——C2S 接收链的
@@ -290,16 +290,16 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
                 java.nio.file.Path contained = resolveContained(prov.getTransmitDir(), fileName);
                 if (contained == null)
                 {
-                    sender.sendMessage("§c拒绝：文件名逃逸 schematics 目录（禁止路径分隔符 / .. / 绝对路径）: " + fileName);
+                    sender.sendMessage("§cRejected: file name escapes schematics directory (path separators / .. / absolute paths forbidden): " + fileName);
                     return;
                 }
                 LitematicaSchematic schematic = LitematicaSchematic.createFromFile(prov.getTransmitDir(), fileName);
-                if (schematic == null) { sender.sendMessage("§c加载投影失败（文件不存在或格式错误）: " + fileName); return; }
+                if (schematic == null) { sender.sendMessage("§cFailed to load schematic (file missing or invalid format): " + fileName); return; }
 
                 long sessionKey = net.minecraft.util.RandomSource.create(net.minecraft.util.Util.getMillis()).nextLong();
                 net.minecraft.server.level.ServerPlayer nmsTarget = verymc.top.veryMcProto.framework.nms.Nms.toNms(target);
                 schematic.sendTransmitFile(new net.minecraft.nbt.CompoundTag(), sessionKey, nmsTarget);
-                sender.sendMessage("§a投递投影 §b" + fileName + " §a→ §f" + target.getName());
+                sender.sendMessage("§aTransmitted schematic §b" + fileName + " §a-> §f" + target.getName());
             }
             default -> sender.sendMessage("§e/servux litematic <list|transmit <file> [player]>");
         }
@@ -321,10 +321,10 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
     {
         if (args.length < 2)
         {
-            sender.sendMessage("§6调试状态: §f" + ServuxDebug.statusLine());
-            sender.sendMessage("§7用法: §f/servux debug <on|off|status>§7 —— master 总开关 / 状态");
-            sender.sendMessage("§7用法: §f/servux debug cat <all|none|分类名>§7 —— 分类（master 与分类正交，两者皆开才输出）");
-            sender.sendMessage("§7分类: §flifecycle handshake network packet tick permission provider config easyplace");
+            sender.sendMessage("§6Debug state: §f" + ServuxDebug.statusLine());
+            sender.sendMessage("§7Usage: §f/servux debug <on|off|status>§7 -- master switch / status");
+            sender.sendMessage("§7Usage: §f/servux debug cat <all|none|category>§7 -- categories (master and categories are orthogonal; both must be on for output)");
+            sender.sendMessage("§7Categories: §flifecycle handshake network packet tick permission provider config easyplace");
             return;
         }
 
@@ -335,27 +335,27 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
             case "on" ->
             {
                 ServuxDebug.setMaster(true);
-                String tip = ServuxDebug.active().isEmpty() ? " §7(分类为空，用 §f/servux debug cat all§7 开全分类)" : "";
-                sender.sendMessage("§a调试总开关已开启 §7(仅 master): §f" + ServuxDebug.statusLine() + tip);
+                String tip = ServuxDebug.active().isEmpty() ? " §7(no categories, use §f/servux debug cat all§7 to enable all)" : "";
+                sender.sendMessage("§aDebug master switch enabled §7(master only): §f" + ServuxDebug.statusLine() + tip);
                 persistDebug();
             }
-            case "off" -> { ServuxDebug.setMaster(false); sender.sendMessage("§e调试总开关已关闭 §7(仅 master): §f" + ServuxDebug.statusLine()); persistDebug(); }
-            case "status" -> sender.sendMessage("§6调试状态: §f" + ServuxDebug.statusLine());
+            case "off" -> { ServuxDebug.setMaster(false); sender.sendMessage("§eDebug master switch disabled §7(master only): §f" + ServuxDebug.statusLine()); persistDebug(); }
+            case "status" -> sender.sendMessage("§6Debug state: §f" + ServuxDebug.statusLine());
             // 分类维度：全部归到 cat 下。all/none 是 cat 的特殊值（set 语义，全开/清空）；单个 name 走 toggle。切换即时持久化。
             case "cat" ->
             {
-                if (args.length < 3) { sender.sendMessage("§e/servux debug cat <all|none|分类名>"); return; }
+                if (args.length < 3) { sender.sendMessage("§e/servux debug cat <all|none|category>"); return; }
                 String catName = args[2].toLowerCase();
-                if (catName.equals("all")) { ServuxDebug.enableAll(); sender.sendMessage("§a已开启全分类: §f" + ServuxDebug.statusLine()); persistDebug(); return; }
-                if (catName.equals("none")) { ServuxDebug.clearCats(); sender.sendMessage("§e已清空全分类: §f" + ServuxDebug.statusLine()); persistDebug(); return; }
+                if (catName.equals("all")) { ServuxDebug.enableAll(); sender.sendMessage("§aAll categories enabled: §f" + ServuxDebug.statusLine()); persistDebug(); return; }
+                if (catName.equals("none")) { ServuxDebug.clearCats(); sender.sendMessage("§eAll categories cleared: §f" + ServuxDebug.statusLine()); persistDebug(); return; }
                 ServuxDebug.Cat cat = ServuxDebug.parseCat(args[2]);
-                if (cat == null) { sender.sendMessage("§c未知分类: " + args[2] + " §7(all|none|分类名)"); return; }
+                if (cat == null) { sender.sendMessage("§cUnknown category: " + args[2] + " §7(all|none|category)"); return; }
                 boolean now = ServuxDebug.toggle(cat);
-                sender.sendMessage("§a分类 " + cat.name().toLowerCase() + " → " + (now ? "§aON" : "§cOFF"));
-                sender.sendMessage("§7当前: §f" + ServuxDebug.statusLine());
+                sender.sendMessage("§aCategory " + cat.name().toLowerCase() + " -> " + (now ? "§aON" : "§cOFF"));
+                sender.sendMessage("§7Current: §f" + ServuxDebug.statusLine());
                 persistDebug();
             }
-            default -> sender.sendMessage("§c未知子命令: " + sub + " §7(on/off/cat/status)");
+            default -> sender.sendMessage("§cUnknown subcommand: " + sub + " §7(on/off/cat/status)");
         }
     }
 

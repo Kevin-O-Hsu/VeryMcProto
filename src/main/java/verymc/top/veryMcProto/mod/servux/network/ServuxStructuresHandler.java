@@ -88,7 +88,7 @@ public class ServuxStructuresHandler implements IPluginServerPlayHandler
         {
             return;
         }
-        ServuxDebug.log(ServuxDebug.Cat.PACKET, "C2S structures ← " + player.getName().getString() + " type=" + packet.getType());
+        ServuxDebug.log(ServuxDebug.Cat.PACKET, "C2S structures <- " + player.getName().getString() + " type=" + packet.getType());
         this.decodeServerData(CHANNEL_ID, player, packet);
     }
 
@@ -107,7 +107,7 @@ public class ServuxStructuresHandler implements IPluginServerPlayHandler
             // 仅 NBT 类型包来自 MiniHUD（Structures 通道不走 PacketSplitter 接收）
             case PACKET_C2S_STRUCTURES_REGISTER ->
             {
-                ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeStructuresPacket(): 收到 Structures Register from " + player.getName().getString());
+                ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeStructuresPacket(): received Structures Register from " + player.getName().getString());
                 StructureDataProvider.INSTANCE.unregister(player);
                 StructureDataProvider.INSTANCE.register(player);
             }
@@ -115,10 +115,10 @@ public class ServuxStructuresHandler implements IPluginServerPlayHandler
             case PACKET_C2S_REQUEST_SPAWN_METADATA -> HudDataProvider.INSTANCE.refreshSpawnMetadata(player, packet.getCompound());
             case PACKET_C2S_STRUCTURES_UNREGISTER ->
             {
-                ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeStructuresPacket(): 收到 Structures Un-Register from " + player.getName().getString());
+                ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeStructuresPacket(): received Structures Un-Register from " + player.getName().getString());
                 StructureDataProvider.INSTANCE.unregister(player);
             }
-            default -> Reference.logger().warning("decodeStructuresPacket(): 无效 packetType " + packet.getPacketType()
+            default -> Reference.logger().warning("decodeStructuresPacket(): invalid packetType " + packet.getPacketType()
                     + " from " + player.getName().getString() + ", size=" + packet.getTotalSize());
         }
     }
@@ -139,8 +139,8 @@ public class ServuxStructuresHandler implements IPluginServerPlayHandler
 
         if (packet.getType().equals(ServuxStructuresPacket.Type.PACKET_S2C_STRUCTURE_DATA_START))
         {
-            ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData structures → " + player.getName().getString()
-                    + " type=" + packet.getType() + " → PacketSplitter 分包");
+            ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData structures -> " + player.getName().getString()
+                    + " type=" + packet.getType() + " -> PacketSplitter fragmentation");
             // 大包：NBT，走 PacketSplitter 分片
             FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
             buffer.writeNbt(packet.getCompound());
@@ -155,8 +155,8 @@ public class ServuxStructuresHandler implements IPluginServerPlayHandler
             if (count >= MAX_FAILURES)
             {
                 this.failures.remove(id);
-                ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData structures → " + player.getName().getString()
-                        + " 连续 " + MAX_FAILURES + " 次发送失败，注销该玩家结构订阅（可能未装 MiniHUD）");
+                ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData structures -> " + player.getName().getString()
+                        + " exceeded " + MAX_FAILURES + " consecutive send failures, unregistering the player's structure subscription (MiniHUD possibly not installed)");
 
                 StructureDataProvider.INSTANCE.unregister(player);
             }

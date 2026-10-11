@@ -86,7 +86,7 @@ public class ServuxHudHandler implements IPluginServerPlayHandler
         {
             return;
         }
-        ServuxDebug.log(ServuxDebug.Cat.PACKET, "C2S hud ← " + player.getName().getString() + " type=" + packet.getType());
+        ServuxDebug.log(ServuxDebug.Cat.PACKET, "C2S hud <- " + player.getName().getString() + " type=" + packet.getType());
         this.decodeServerData(CHANNEL_ID, player, packet);
     }
 
@@ -106,7 +106,7 @@ public class ServuxHudHandler implements IPluginServerPlayHandler
             case PACKET_C2S_SPAWN_DATA_REQUEST -> HudDataProvider.INSTANCE.refreshSpawnMetadata(player, packet.getCompound());
             case PACKET_C2S_RECIPE_MANAGER_REQUEST -> HudDataProvider.INSTANCE.refreshRecipeManager(player, packet.getCompound());
             case PACKET_C2S_DATA_LOGGER_REQUEST -> HudDataProvider.INSTANCE.refreshLoggers(player, packet.getCompound());
-            default -> Reference.logger().warning("ServuxHudHandler#decodeServerData: 无效 packetType " + packet.getPacketType()
+            default -> Reference.logger().warning("ServuxHudHandler#decodeServerData: invalid packetType " + packet.getPacketType()
                     + " from " + player.getName().getString() + ", size=" + packet.getTotalSize());
         }
     }
@@ -128,8 +128,8 @@ public class ServuxHudHandler implements IPluginServerPlayHandler
         // 大包 → PacketSplitter 分片
         if (packet.getType().equals(ServuxHudPacket.Type.PACKET_S2C_NBT_RESPONSE_START))
         {
-            ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData hud → " + player.getName().getString()
-                    + " type=" + packet.getType() + " → PacketSplitter 分包");
+            ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData hud -> " + player.getName().getString()
+                    + " type=" + packet.getType() + " -> PacketSplitter fragmentation");
             FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
             buffer.writeNbt(packet.getCompound());
             PacketSplitter.send(this, buffer, player);
@@ -143,8 +143,8 @@ public class ServuxHudHandler implements IPluginServerPlayHandler
             if (count >= MAX_FAILURES)
             {
                 this.failures.remove(id);
-                ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData hud → " + player.getName().getString()
-                        + " 连续 " + MAX_FAILURES + " 次发送失败，触发 onPacketFailure（可能未装 MiniHUD）");
+                ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData hud -> " + player.getName().getString()
+                        + " exceeded " + MAX_FAILURES + " consecutive send failures, triggering onPacketFailure (MiniHUD possibly not installed)");
                 HudDataProvider.INSTANCE.onPacketFailure(player);
             }
             else

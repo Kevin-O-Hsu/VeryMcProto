@@ -33,7 +33,7 @@ public abstract class FeatureExchange extends AbstractExchange
         } else if (type.equals(PacketType.FEATURE))
         {
             final FeatureSet fs = FeatureSet.fromString(packetBuf.readUtf(PACKET_MAX_STRING_SIZE));
-            SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] FeatureExchange: 收到 FEATURE ← " + getPartner().getPersistentName() + " → " + fs);
+            SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] FeatureExchange: received FEATURE <- " + getPartner().getPersistentName() + " -> " + fs);
             getPartner().setFeatureSet(fs);
             onFeatureSetReceive();
         }
@@ -43,7 +43,7 @@ public abstract class FeatureExchange extends AbstractExchange
 
     public void requestFeatureSet()
     {
-        SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] FeatureExchange.requestFeatureSet → " + getPartner().getPersistentName());
+        SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] FeatureExchange.requestFeatureSet -> " + getPartner().getPersistentName());
         getPartner().sendPacket(PacketType.FEATURE_REQUEST, new FriendlyByteBuf(Unpooled.buffer()), getContext());
     }
 
@@ -51,7 +51,7 @@ public abstract class FeatureExchange extends AbstractExchange
     {
         final FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
         final FeatureSet fs = getContext().getFeatureSet();
-        SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] FeatureExchange.sendFeatures → " + getPartner().getPersistentName() + " fs=" + fs);
+        SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] FeatureExchange.sendFeatures -> " + getPartner().getPersistentName() + " fs=" + fs);
         buf.writeUtf(fs.toString(), PACKET_MAX_STRING_SIZE);
         getPartner().sendPacket(PacketType.FEATURE, buf, getContext());
     }

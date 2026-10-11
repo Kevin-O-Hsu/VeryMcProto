@@ -187,7 +187,7 @@ public class ServuxTweaksPacket implements IServerPayloadData
                 try { output.writeNbt(this.nbt); }
                 catch (Exception e) { Reference.logger().warning("ServuxTweaksPacket#toPacket NBT: " + e.getMessage()); }
             }
-            default -> Reference.logger().warning("ServuxTweaksPacket#toPacket: 未知 packet type!");
+            default -> Reference.logger().warning("ServuxTweaksPacket#toPacket: unknown packet type!");
         }
     }
 
@@ -199,7 +199,7 @@ public class ServuxTweaksPacket implements IServerPayloadData
 
         if (type == null)
         {
-            Reference.logger().warning("ServuxTweaksPacket#fromPacket: 无效 packet type");
+            Reference.logger().warning("ServuxTweaksPacket#fromPacket: invalid packet type");
             return null;
         }
 
@@ -215,12 +215,12 @@ public class ServuxTweaksPacket implements IServerPayloadData
                 case PACKET_C2S_NBT_RESPONSE_DATA -> { return ServuxTweaksPacket.ResponseC2SData(new FriendlyByteBuf(input.readBytes(input.readableBytes()))); }
                 case PACKET_C2S_METADATA_REQUEST -> { return ServuxTweaksPacket.MetadataRequest(input.readNbt()); }
                 case PACKET_S2C_METADATA -> { return ServuxTweaksPacket.MetadataResponse(input.readNbt()); }
-                default -> Reference.logger().warning("ServuxTweaksPacket#fromPacket: 未知 packet type!");
+                default -> Reference.logger().warning("ServuxTweaksPacket#fromPacket: unknown packet type!");
             }
         }
         catch (Exception e)
         {
-            Reference.logger().warning("ServuxTweaksPacket#fromPacket: 解析失败 type=" + type + ": " + e.getMessage());
+            Reference.logger().warning("ServuxTweaksPacket#fromPacket: parse failed type=" + type + ": " + e.getMessage());
         }
 
         return null;

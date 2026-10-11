@@ -55,7 +55,7 @@ public class RecipeSyncHandler implements Listener
             final JeiConfiguration config = JeiConfiguration.getInstance();
             if (config == null)
             {
-                Reference.logger().warning("[JEIRecipeBridge] 配置未初始化，跳过进服同步: " + event.getPlayer().getName());
+                Reference.logger().warning("[JEIRecipeBridge] Config not initialized, skipping join sync: " + event.getPlayer().getName());
                 return;
             }
             if (!config.isEnabled())
@@ -66,7 +66,7 @@ public class RecipeSyncHandler implements Listener
         }
         catch (Exception e)
         {
-            Reference.logger().warning("[JEIRecipeBridge] 同步配方失败 (" + event.getPlayer().getName() + "): " + e.getMessage());
+            Reference.logger().warning("[JEIRecipeBridge] Failed to sync recipes (" + event.getPlayer().getName() + "): " + e.getMessage());
         }
     }
 

@@ -75,7 +75,7 @@ public class SyncmaticaModule
                 try
                 {
                     SyncmaticaDebug.log(SyncmaticaDebug.Cat.LIFECYCLE, "[syncm] PlayerJoinEvent: " + e.getPlayer().getName()
-                            + "（注册 target；握手双保险：onJoin 延迟 40t 主路径 + onPlayerRegisterChannel 兜底）");
+                            + " (target registered; handshake dual-path: onJoin delayed 40t main path + onPlayerRegisterChannel fallback)");
                     final ExchangeTarget target = fComMan.getOrCreateTarget(e.getPlayer());
                     fComMan.onPlayerJoin(target);
 
@@ -103,7 +103,7 @@ public class SyncmaticaModule
                             }
                             if (!context.isProtocolEnabled())
                             {
-                                SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] 跳过握手（协议已禁用）: " + bukkitPlayer.getName());
+                                SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] skipping handshake (protocol disabled): " + bukkitPlayer.getName());
                                 return;
                             }
                             try
@@ -112,7 +112,7 @@ public class SyncmaticaModule
                             }
                             catch (Exception ex)
                             {
-                                SyncmaticaLog.error("syncmatica 延迟握手失败 for {}", ex, bukkitPlayer.getName());
+                                SyncmaticaLog.error("syncmatica delayed handshake failed for {}", ex, bukkitPlayer.getName());
                             }
                         }
                     }.runTaskLater(context.getPlugin(), 40L);
@@ -128,7 +128,7 @@ public class SyncmaticaModule
             {
                 try
                 {
-                    SyncmaticaDebug.log(SyncmaticaDebug.Cat.LIFECYCLE, "[syncm] PlayerQuitEvent: " + e.getPlayer().getName() + " → onPlayerLeave");
+                    SyncmaticaDebug.log(SyncmaticaDebug.Cat.LIFECYCLE, "[syncm] PlayerQuitEvent: " + e.getPlayer().getName() + " -> onPlayerLeave");
                     final UUID id = e.getPlayer().getUniqueId();
                     final ExchangeTarget target = fComMan.getTarget(id);
                     if (target != null)
@@ -161,7 +161,7 @@ public class SyncmaticaModule
                 try
                 {
                     SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] onPlayerRegisterChannel: " + e.getPlayer().getName()
-                            + " 声明 syncmatica:main → tryStartHandshake");
+                            + " declared syncmatica:main -> tryStartHandshake");
                     final ExchangeTarget target = fComMan.getOrCreateTarget(e.getPlayer());
                     fComMan.tryStartHandshake(target);
                 }
@@ -173,7 +173,7 @@ public class SyncmaticaModule
         };
         Bukkit.getPluginManager().registerEvents(playerListener, plugin);
 
-        SyncmaticaLog.info("Syncmatica 模块已启用（通道 {} / 投影目录 {}）", SyncmaticaReference.NETWORK_ID, litematicFolder);
+        SyncmaticaLog.info("Syncmatica module enabled (channel {} / schematic directory {})", SyncmaticaReference.NETWORK_ID, litematicFolder);
     }
 
     public void disable()
@@ -226,7 +226,7 @@ public class SyncmaticaModule
                     }
                     catch (Exception ex)
                     {
-                        SyncmaticaLog.error("syncmatica resumeProtocol 握手失败 for {}", ex, player.getName());
+                        SyncmaticaLog.error("syncmatica resumeProtocol handshake failed for {}", ex, player.getName());
                     }
                 }
             }.runTaskLater(context.getPlugin(), 40L);

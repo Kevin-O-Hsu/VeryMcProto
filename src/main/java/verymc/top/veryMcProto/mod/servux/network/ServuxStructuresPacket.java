@@ -95,7 +95,7 @@ public class ServuxStructuresPacket implements IServerPayloadData
             }
             catch (Exception e)
             {
-                Reference.logger().warning("ServuxStructuresPacket#toPacket: 写入 buffer 失败: " + e.getMessage());
+                Reference.logger().warning("ServuxStructuresPacket#toPacket: failed to write buffer: " + e.getMessage());
             }
         }
         else
@@ -107,7 +107,7 @@ public class ServuxStructuresPacket implements IServerPayloadData
             }
             catch (Exception e)
             {
-                Reference.logger().warning("ServuxStructuresPacket#toPacket: 写入 NBT 失败: " + e.getMessage());
+                Reference.logger().warning("ServuxStructuresPacket#toPacket: failed to write NBT: " + e.getMessage());
             }
         }
     }
@@ -120,7 +120,7 @@ public class ServuxStructuresPacket implements IServerPayloadData
 
         if (type == null)
         {
-            Reference.logger().warning("ServuxStructuresPacket#fromPacket: 收到无效 packet type");
+            Reference.logger().warning("ServuxStructuresPacket#fromPacket: received invalid packet type");
         }
         else if (type.equals(Type.PACKET_S2C_STRUCTURE_DATA))
         {
@@ -131,7 +131,7 @@ public class ServuxStructuresPacket implements IServerPayloadData
             }
             catch (Exception e)
             {
-                Reference.logger().warning("ServuxStructuresPacket#fromPacket: 读取 buffer 失败: " + e.getMessage());
+                Reference.logger().warning("ServuxStructuresPacket#fromPacket: failed to read buffer: " + e.getMessage());
             }
         }
         else
@@ -143,7 +143,7 @@ public class ServuxStructuresPacket implements IServerPayloadData
             }
             catch (Exception e)
             {
-                Reference.logger().warning("ServuxStructuresPacket#fromPacket: 读取 NBT 失败: " + e.getMessage());
+                Reference.logger().warning("ServuxStructuresPacket#fromPacket: failed to read NBT: " + e.getMessage());
             }
         }
 

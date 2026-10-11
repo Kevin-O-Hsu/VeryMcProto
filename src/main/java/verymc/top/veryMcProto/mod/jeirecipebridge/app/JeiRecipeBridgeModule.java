@@ -37,7 +37,7 @@ public class JeiRecipeBridgeModule implements ModModule
         Plugin plugin = Reference.plugin();
         if (plugin == null)
         {
-            Reference.logger().warning("[JEIRecipeBridge] 插件句柄未就绪，跳过模块注册。");
+            Reference.logger().warning("[JEIRecipeBridge] Plugin handle not ready, skipping module registration.");
             return;
         }
         Messenger messenger = plugin.getServer().getMessenger();

@@ -289,7 +289,7 @@ syncmatica 有**两套独立**调试日志系统，互不替代，需配合开�
 - `placements.json` 新增记录（owner=发送方玩家；origin=玩家脚下；控制台执行则 owner=随机 UUID、origin=0,0,0）。
 - 玩家与控制台执行**同型**：均走 `comms.addPlacement(target, placement)` 广播臂 → 广播 REGISTER_METADATA（控制台 target=null，由 addPlacement 内部 null 守卫承载——勿随模板回退；此前 console 分支仅注册不广播，客户端需重进服才可见）。
 - 所有在线已握手客户端收到 REGISTER_METADATA（投影出现在列表）——控制台执行同样即时广播（手工回归观察项）。
-- **权限**：无 `syncmatica.command.load` 的玩家执行 `/syncmatica load` 被拒（`§c权限不足。`）；无 `load_each` 执行 `/syncmatica load <file>` 被拒。
+- **权限**：无 `syncmatica.command.load` 的玩家执行 `/syncmatica load` 被拒（`§cInsufficient permissions.`）；无 `load_each` 执行 `/syncmatica load <file>` 被拒。
 
 **失败排查**：
 - 文件未识别 → 文件名是否为合法 UUID；`SyncmaticaUtil.litematicPeek` 解析（`litematica/schematic/` peek 类）；peek 失败的文件不入候选。

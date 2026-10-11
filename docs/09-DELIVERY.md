@@ -184,7 +184,7 @@ verymc.top.veryMcProto/
 
 ### 8.2 M1 验收（HUD）
 1. 把 jar 放 `plugins/`，启动 Paper 1.21.11。
-2. `/plugins` 见 VeryMcProto 已加载；控制台见 `框架就绪` + `已注册协议 mod: servux`。
+2. `/plugins` 见 VeryMcProto 已加载；控制台见 `framework ready` + `registered protocol mod: servux`。
 3. `/servux list` 列出 6 个 provider。
 4. Fabric 客户端（装 MiniHUD）连入，观察 HUD 显示世界信息/出生点/天气/TPS/MobCap。
 5. `/servux set hud_data:share_seed true` + `/servux set hud_data:loggers_enabled true` 测试配置 + TPS/MobCap。

@@ -53,7 +53,7 @@ public class ServuxEntitiesHandler implements IPluginServerPlayHandler
     {
         ServuxEntitiesPacket packet = ServuxEntitiesPacket.fromPacket(data);
         if (packet == null) { return; }
-        ServuxDebug.log(ServuxDebug.Cat.PACKET, "C2S entity ← " + player.getName().getString() + " type=" + packet.getType());
+        ServuxDebug.log(ServuxDebug.Cat.PACKET, "C2S entity <- " + player.getName().getString() + " type=" + packet.getType());
         this.decodeServerData(CHANNEL_ID, player, packet);
     }
 
@@ -68,7 +68,7 @@ public class ServuxEntitiesHandler implements IPluginServerPlayHandler
             case PACKET_C2S_METADATA_REQUEST -> EntitiesDataProvider.INSTANCE.register(player); // 上游 :79 同构：请求即注册（入册+推送）
             case PACKET_C2S_BLOCK_ENTITY_REQUEST -> EntitiesDataProvider.INSTANCE.onBlockEntityRequest(player, packet.getPos());
             case PACKET_C2S_ENTITY_REQUEST -> EntitiesDataProvider.INSTANCE.onEntityRequest(player, packet.getEntityId());
-            default -> Reference.logger().warning("ServuxEntitiesHandler#decodeServerData: 无效 packetType " + packet.getPacketType()
+            default -> Reference.logger().warning("ServuxEntitiesHandler#decodeServerData: invalid packetType " + packet.getPacketType()
                     + " from " + player.getName().getString() + ", size=" + packet.getTotalSize());
         }
     }
@@ -88,8 +88,8 @@ public class ServuxEntitiesHandler implements IPluginServerPlayHandler
 
         if (packet.getType().equals(ServuxEntitiesPacket.Type.PACKET_S2C_NBT_RESPONSE_START))
         {
-            ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData entity → " + player.getName().getString()
-                    + " type=" + packet.getType() + " → PacketSplitter 分包");
+            ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData entity -> " + player.getName().getString()
+                    + " type=" + packet.getType() + " -> PacketSplitter fragmentation");
             // 大包：VarInt transactionId + NBT，走 PacketSplitter
             var buf = new FriendlyByteBuf(io.netty.buffer.Unpooled.buffer());
             buf.writeVarInt(packet.getTransactionId());
@@ -103,8 +103,8 @@ public class ServuxEntitiesHandler implements IPluginServerPlayHandler
             if (count >= MAX_FAILURES)
             {
                 this.failures.remove(id);
-                ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData entity → " + player.getName().getString()
-                        + " 连续 " + MAX_FAILURES + " 次发送失败，触发 onPacketFailure");
+                ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData entity -> " + player.getName().getString()
+                        + " exceeded " + MAX_FAILURES + " consecutive send failures, triggering onPacketFailure");
                 EntitiesDataProvider.INSTANCE.onPacketFailure(player);
             }
             else { this.failures.put(id, count); }

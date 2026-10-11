@@ -80,7 +80,7 @@ public class LifecycleBridge implements Listener
         }
         catch (Exception e)
         {
-            Reference.logger().warning("PacketSplitter.releaseAllSessions 异常: " + e.getMessage());
+            Reference.logger().warning("PacketSplitter.releaseAllSessions exception: " + e.getMessage());
         }
     }
 
@@ -99,7 +99,7 @@ public class LifecycleBridge implements Listener
                 }
                 catch (Exception e)
                 {
-                    Reference.logger().warning("PacketSplitter.evictStaleSessions 异常: " + e.getMessage());
+                    Reference.logger().warning("PacketSplitter.evictStaleSessions exception: " + e.getMessage());
                 }
             }
 
@@ -111,7 +111,7 @@ public class LifecycleBridge implements Listener
         }
         catch (Exception e)
         {
-            Reference.logger().warning("tickProviders 异常: " + e.getMessage());
+            Reference.logger().warning("tickProviders exception: " + e.getMessage());
         }
     }
 
@@ -122,16 +122,16 @@ public class LifecycleBridge implements Listener
         try
         {
             MinecraftServer server = Nms.server();
-            FrameworkDebug.log("lifecycle", "onServerLoad: 捕获 RegistryAccess → readFromConfig → writeToConfig");
+            FrameworkDebug.log("lifecycle", "onServerLoad: captured RegistryAccess -> readFromConfig -> writeToConfig");
             // 须在 server 完全启动后捕获 RegistryAccess，否则 Recipe / NbtView / palette 拿空注册表。
             DataProviderManager.INSTANCE.onCaptureImmutable(server.registryAccess());
             DataProviderManager.INSTANCE.readFromConfig();
             DataProviderManager.INSTANCE.writeToConfig();
-            Reference.logger().info("[" + Reference.PLUGIN_NAME + "] 服务端启动完成，已捕获 RegistryAccess 并加载 servux.json。");
+            Reference.logger().info("[" + Reference.PLUGIN_NAME + "] server startup complete, RegistryAccess captured and servux.json loaded.");
         }
         catch (Exception ex)
         {
-            Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] onServerLoad 异常: " + ex.getMessage());
+            Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] onServerLoad exception: " + ex.getMessage());
         }
     }
 
@@ -142,7 +142,7 @@ public class LifecycleBridge implements Listener
         // 关键诊断点：configuration phase 下此时 getListeningPluginChannels 通常为空——
         // 客户端的 MC|Register（servux:* 声明）在配置阶段之后才到达，故此时直推 metadata 多半失败。
         FrameworkDebug.log("handshake", "onPlayerJoin: " + player.getName().getString()
-                + " | 此时监听通道=" + event.getPlayer().getListeningPluginChannels());
+                + " | listening channels now=" + event.getPlayer().getListeningPluginChannels());
         for (IDataProvider p : DataProviderManager.INSTANCE.getAllProviders())
         {
             if (!p.isEnabled())
@@ -156,7 +156,7 @@ public class LifecycleBridge implements Listener
             }
             catch (Exception ex)
             {
-                Reference.logger().warning("onPlayerJoin[" + p.getName() + "] 异常: " + ex.getMessage());
+                Reference.logger().warning("onPlayerJoin[" + p.getName() + "] exception: " + ex.getMessage());
             }
         }
     }
@@ -165,7 +165,7 @@ public class LifecycleBridge implements Listener
     public void onPlayerQuit(PlayerQuitEvent event)
     {
         ServerPlayer player = Nms.toNms(event.getPlayer());
-        FrameworkDebug.log("handshake", "onPlayerQuit: " + player.getName().getString() + " → 清理 provider 会话");
+        FrameworkDebug.log("handshake", "onPlayerQuit: " + player.getName().getString() + " -> cleaning up provider sessions");
         for (IDataProvider p : DataProviderManager.INSTANCE.getAllProviders())
         {
             try
@@ -174,7 +174,7 @@ public class LifecycleBridge implements Listener
             }
             catch (Exception ex)
             {
-                Reference.logger().warning("onPlayerQuit[" + p.getName() + "] 异常: " + ex.getMessage());
+                Reference.logger().warning("onPlayerQuit[" + p.getName() + "] exception: " + ex.getMessage());
             }
         }
         // 通道级清理：撤销该玩家各通道的 C2S 证明（堵「同账号换 vanilla 客户端重进」时兜底误发的边缘）
@@ -184,7 +184,7 @@ public class LifecycleBridge implements Listener
         }
         catch (Exception ex)
         {
-            Reference.logger().warning("onPlayerQuit[ChannelManager.clearProven] 异常: " + ex.getMessage());
+            Reference.logger().warning("onPlayerQuit[ChannelManager.clearProven] exception: " + ex.getMessage());
         }
     }
 
@@ -204,7 +204,7 @@ public class LifecycleBridge implements Listener
             }
             catch (Exception ex)
             {
-                Reference.logger().warning("onPlayerRespawn[" + p.getName() + "] 异常: " + ex.getMessage());
+                Reference.logger().warning("onPlayerRespawn[" + p.getName() + "] exception: " + ex.getMessage());
             }
         }
     }
@@ -226,7 +226,7 @@ public class LifecycleBridge implements Listener
         //   - 若客户端从不声明某 servux:* 通道 → 该 mod 未装（如未装 Tweakeroo/实体查询 mod）；
         //   - 若声明了但服务端无 provider 主动响应（sendMetadata）→ 该 provider 缺 onPlayerRegisterChannel 钩子。
         FrameworkDebug.log("handshake", "onPlayerRegisterChannel: " + player.getName().getString()
-                + " 声明监听 → " + channel + " | 全部监听=" + event.getPlayer().getListeningPluginChannels());
+                + " declares listening -> " + channel + " | all listening=" + event.getPlayer().getListeningPluginChannels());
         for (IDataProvider p : DataProviderManager.INSTANCE.getAllProviders())
         {
             if (!p.isEnabled())
@@ -239,7 +239,7 @@ public class LifecycleBridge implements Listener
             }
             catch (Exception ex)
             {
-                Reference.logger().warning("onPlayerRegisterChannel[" + p.getName() + "] 异常: " + ex.getMessage());
+                Reference.logger().warning("onPlayerRegisterChannel[" + p.getName() + "] exception: " + ex.getMessage());
             }
         }
     }
