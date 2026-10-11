@@ -77,7 +77,7 @@ class PacketSplitterTest
         {
             result = PacketSplitter.receive(h, key, new FriendlyByteBuf(Unpooled.wrappedBuffer(slice)));
         }
-        assertNotNull(result, "收齐所有分片后应返回完整 buf");
+        assertNotNull(result, "should return the full buffer once all fragments arrive");
         return result;
     }
 
@@ -87,7 +87,7 @@ class PacketSplitterTest
         byte[] payload = payload(100, 1);
         CapturingHandler h = new CapturingHandler();
         PacketSplitter.send(h, wrap(payload), null);
-        assertEquals(1, h.slices.size(), "100 字节应单片");
+        assertEquals(1, h.slices.size(), "100 bytes should fit in a single fragment");
         assertArrayEquals(payload, readAll(reassemble(h, 101L)));
     }
 
@@ -97,7 +97,7 @@ class PacketSplitterTest
         byte[] payload = payload(70_000, 2);
         CapturingHandler h = new CapturingHandler();
         PacketSplitter.send(h, wrap(payload), null);
-        assertEquals(3, h.slices.size(), "70000 字节应跨 3 片（每片 ≈31995）");
+        assertEquals(3, h.slices.size(), "70000 bytes should span 3 fragments (~31995 each)");
         assertArrayEquals(payload, readAll(reassemble(h, 102L)));
     }
 
@@ -109,7 +109,7 @@ class PacketSplitterTest
         malicious.writeVarInt(PacketSplitter.DEFAULT_MAX_RECEIVE_SIZE_S2C + 1); // 常量随线适配（1.21.11=128MB），断言解耦具体值
         malicious.writeBytes(new byte[10]);
         assertThrows(IllegalArgumentException.class, () -> PacketSplitter.receive(h, 103L, malicious),
-                "expectedSize 超接收上限应被拒");
+                "expectedSize over the receive limit should be rejected");
     }
 
     @Test
@@ -119,9 +119,9 @@ class PacketSplitterTest
         FriendlyByteBuf pkt = new FriendlyByteBuf(Unpooled.buffer());
         pkt.writeVarInt(0); // 零总长且无多余字节 → 走正常完成路径
         FriendlyByteBuf full = PacketSplitter.receive(h, 201L, pkt);
-        assertNotNull(full, "==0 且无多余字节：应走正常完成路径返回空 buffer");
-        assertEquals(0, full.readableBytes(), "空流应返回零长 buffer");
-        assertEquals(0, PacketSplitter.readingSessionCount(), "完成后会话应已移除");
+        assertNotNull(full, "==0 with no extra bytes: should take the normal completion path and return an empty buffer");
+        assertEquals(0, full.readableBytes(), "empty stream should return a zero-length buffer");
+        assertEquals(0, PacketSplitter.readingSessionCount(), "session should be removed after completion");
     }
 
     @Test
@@ -131,8 +131,8 @@ class PacketSplitterTest
         FriendlyByteBuf pkt = new FriendlyByteBuf(Unpooled.buffer());
         pkt.writeVarInt(0);
         pkt.writeBytes(new byte[] { 1, 2, 3 }); // 声明 0 却带多余字节 → 坏流
-        assertNull(PacketSplitter.receive(h, 202L, pkt), "==0 且带多余字节：应静默丢弃返回 null（上游 malilib :158-162）");
-        assertEquals(0, PacketSplitter.readingSessionCount(), "丢弃后会话应已移除");
+        assertNull(PacketSplitter.receive(h, 202L, pkt), "==0 with extra bytes: should be silently discarded returning null (upstream malilib :158-162)");
+        assertEquals(0, PacketSplitter.readingSessionCount(), "session should be removed after discard");
     }
 
     @Test
@@ -142,8 +142,8 @@ class PacketSplitterTest
         FriendlyByteBuf pkt = new FriendlyByteBuf(Unpooled.buffer());
         pkt.writeVarInt(50); // 正长度但首片无载荷字节 → 坏流
         assertThrows(IllegalArgumentException.class, () -> PacketSplitter.receive(h, 203L, pkt),
-                ">0 且无载荷应抛 IAE（上游 servux :145-149）");
-        assertEquals(0, PacketSplitter.readingSessionCount(), "异常终态后应清理会话");
+                ">0 with no payload should throw IAE (upstream servux :145-149)");
+        assertEquals(0, PacketSplitter.readingSessionCount(), "session should be cleaned up after the exceptional terminal state");
     }
 
     @Test
@@ -154,10 +154,10 @@ class PacketSplitterTest
         pkt.writeVarInt(100);
         pkt.writeBytes(new byte[10]); // 只收到 10/100，未收齐 → 会话存留（模拟中断上传）
         assertNull(PacketSplitter.receive(h, 204L, pkt));
-        assertEquals(1, PacketSplitter.readingSessionCount(), "未收齐的会话应存留");
+        assertEquals(1, PacketSplitter.readingSessionCount(), "incomplete session should persist");
         // 未来时刻法：now + 20s 使会话视为已过期 20s（与回拨时间戳算术等价；勿用 Long.MAX_VALUE 防减法溢出假绿）
         PacketSplitter.evictExpired(System.currentTimeMillis() + 20_000L);
-        assertEquals(0, PacketSplitter.readingSessionCount(), "超过 10s TTL 的中断会话应被驱逐");
+        assertEquals(0, PacketSplitter.readingSessionCount(), "interrupted session past the 10s TTL should be evicted");
     }
 
     @Test
@@ -176,10 +176,10 @@ class PacketSplitterTest
         FriendlyByteBuf second = new FriendlyByteBuf(Unpooled.buffer());
         second.writeBytes(new byte[10]); // 续片（无长度头）
         assertNull(PacketSplitter.receive(h, 205L, second));
-        assertTrue(PacketSplitter.sessionLastReceived(205L) > t1, "每收一片应刷新 lastReceivedTime（servux 每片刷新语义）");
+        assertTrue(PacketSplitter.sessionLastReceived(205L) > t1, "each received fragment should refresh lastReceivedTime (servux per-fragment refresh semantics)");
 
         PacketSplitter.evictExpired(System.currentTimeMillis()); // 刚收过片 → 未过期
-        assertEquals(1, PacketSplitter.readingSessionCount(), "活跃会话不应被误杀");
+        assertEquals(1, PacketSplitter.readingSessionCount(), "active session should not be mistakenly evicted");
         PacketSplitter.evictExpired(System.currentTimeMillis() + 20_000L); // 清场，勿遗留静态会话给其他用例
         assertEquals(0, PacketSplitter.readingSessionCount());
     }
@@ -191,9 +191,9 @@ class PacketSplitterTest
         FriendlyByteBuf buf = wrap(payload(PacketSplitter.MAX_REASSEMBLY_SIZE_S2C + 1, 3));
         CapturingHandler h = new CapturingHandler();
         boolean sent = PacketSplitter.send(h, buf, null);
-        assertFalse(sent, "超客户端 128MB 重组上限（+1 字节）应整帧拒发返回 false");
-        assertEquals(0, h.slices.size(), "拒发路径应零分片发出（客户端毒会话窗口归零）");
-        assertEquals(0, buf.refCnt(), "入参 buffer 应已被 finally 释放（无泄漏）");
+        assertFalse(sent, "one byte over the client 128MB reassembly limit should reject the whole frame and return false");
+        assertEquals(0, h.slices.size(), "reject path should emit zero fragments (client poisoned-session window zeroed)");
+        assertEquals(0, buf.refCnt(), "input buffer should have been released in finally (no leak)");
     }
 
     @Test
@@ -203,10 +203,10 @@ class PacketSplitterTest
         int size = PacketSplitter.MAX_REASSEMBLY_SIZE_S2C;
         FriendlyByteBuf buf = wrap(payload(size, 4));
         CapturingHandler h = new CapturingHandler();
-        assertTrue(PacketSplitter.send(h, buf, null), "恰好等于客户端上限应放行（严格 >，无 off-by-one）");
+        assertTrue(PacketSplitter.send(h, buf, null), "exactly at the client limit should be accepted (strict >, no off-by-one)");
         int expectedSlices = (size + PacketSplitter.MAX_PAYLOAD_PER_PACKET_S2C - 1) / PacketSplitter.MAX_PAYLOAD_PER_PACKET_S2C;
-        assertEquals(expectedSlices, h.slices.size(), "片数按分片常量表达式断言；只数片不重组（免二次 128MB 分配）");
-        assertEquals(0, buf.refCnt(), "发送完成后入参 buffer 应已释放");
+        assertEquals(expectedSlices, h.slices.size(), "slice count asserted via fragment-constant expression; count slices only without reassembling (avoids a second 128MB allocation)");
+        assertEquals(0, buf.refCnt(), "input buffer should be released after send");
     }
 
     @Test
@@ -224,8 +224,8 @@ class PacketSplitterTest
 
         int before = PacketSplitter.readingSessionCount();
         PacketSplitter.discardSession(206L);
-        assertEquals(before - 1, PacketSplitter.readingSessionCount(), "discardSession 应精确移除指定会话（增量断言，不依赖用例顺序）");
+        assertEquals(before - 1, PacketSplitter.readingSessionCount(), "discardSession should remove exactly the specified session (incremental assertion, independent of test order)");
         PacketSplitter.releaseAllSessions();
-        assertEquals(0, PacketSplitter.readingSessionCount(), "releaseAllSessions 应清空全部会话");
+        assertEquals(0, PacketSplitter.readingSessionCount(), "releaseAllSessions should clear all sessions");
     }
 }
