@@ -4,7 +4,8 @@ main: verymc.top.veryMcProto.VeryMcProto
 api-version: '26.1.2'
 load: POSTWORLD
 softdepend: [packetevents]
-author: VeryMc
+author: Kevin O. Hsu
+website: https://modrinth.com/plugin/verymcproto
 description: Fabric 协议 Mod 的 Paper 插件移植框架（含 Servux 协议 + JEI 服务端协议 + Syncmatica 投影共享）。
 commands:
   servux:
