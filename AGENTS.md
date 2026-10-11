@@ -12,7 +12,7 @@
   （Paper 侧版本可用 https://api.papermc.io/v2/projects/paper 交叉核对。）
 - **分支**：当前 MC 版本的开发一律在 `dev` 分支提交，完成后合入 `main`（= 最新 MC 稳定发布线）。旧 MC 版本冻结为 `ver/<X>` + `ver/<X>-dev` 维护对：修 Bug 在 `ver/<X>-dev`，验证后合入 `ver/<X>`。详见下文「分支模型与版本系统」。
 - **版本**：插件版本 = `<mcVersion>-b<buildNumber>`（当前 `26.2-b2`——26.2 线的上游 id；26.2 为无补丁段的干净 release，26.1+ 客户端 MOD_STRING 硬门禁要求精确 id）。**唯一来源是 `gradle.properties`**——发版只需在 dev 上 `buildNumber` +1，**任何源码、plugin.yml、文档中都不得手写版本号**（注入链路见下文）。
-- **语言与风格**：注释、日志、文档用中文；与现有代码一致（中文 javadoc、常量类 + 源码实证注释）。**唯一例外 `README.md`**：面向国际受众（GitHub/Modrinth 门面）保持英文，且为瘦身门面——命令/权限/配置/排错等运维内容一律指向 `docs/operations.md`，不在 README 重复维护。
+- **语言与风格**：**对外可见面一律英文**——plugin.yml 元数据（全部 description 等字符串）、日志输出、玩家消息/命令回执必须是英文；译文一律 ASCII 化（§ 颜色码除外），禁止 `\uXXXX` 转义等绕过写法。注释与 `docs/` 文档用中文，与现有代码一致（中文 javadoc、常量类 + 源码实证注释）。`README.md`（GitHub/Modrinth 门面）保持英文且为瘦身门面——命令/权限/配置/排错等运维内容一律指向 `docs/operations.md`，不在 README 重复维护。
 - **文档同步强制**：本仓库的**每一个改动**，改的时候都必须同步更改对应的文档——受影响的 [`docs/`](docs/) 篇章、`README.md`、`AGENTS.md` 等；没有合适文档可承载时**新建文档**（放 `docs/` 并在 [`docs/index.md`](docs/index.md) 登记索引；命名不带序号——新文件永不引发重排，见其「文档约定」）。文档更新与代码改动落在**同一个 commit**，禁止"先合代码、事后补文档"。
 - **协议字段语义**改动前必须对照 `OriginImpl/` 下的客户端源码（litematica / malilib / syncmatica 是协议接收端），**不要凭服务端代码猜客户端行为**。26.1 起客户端还带协议版本 + MOD_STRING 前缀**硬门禁**（不匹配即整通道静默退网），协议常量必须与 `OriginImpl/*-LTS-26.2` 逐字对齐（26.1→26.2 协议面零变化，已复核）。
 - **禁止引入 Mixin / AccessWidener / 服务端 patch 依赖**——Paper 无 Mixin 运行时，替代方案见核心约束 §2。
