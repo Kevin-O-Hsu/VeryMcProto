@@ -8,6 +8,8 @@ Paper 26.2 · Java 25 · paperweight userdev · Version 26.2-b2
 Servux ✅  ·  JEI ✅  ·  Syncmatica ✅   (all three targets fully implemented; server-side verified on 26.2)
 ```
 
+> **Author:** Kevin O. Hsu · **GitHub:** https://github.com/Kevin-O-Hsu/VeryMcProto · **Modrinth:** https://modrinth.com/plugin/verymcproto
+
 ---
 
 ## Table of Contents
