@@ -228,7 +228,7 @@ public class ServuxLitematicaPacket implements IServerPayloadData
                 try { DataTagIo.writeTag(output, this.nbt); }
                 catch (Exception e) { Reference.logger().warning("ServuxLitematicaPacket#toPacket Data: " + e.getMessage()); }
             }
-            default -> Reference.logger().warning("ServuxLitematicaPacket#toPacket: 未知 packet type!");
+            default -> Reference.logger().warning("ServuxLitematicaPacket#toPacket: unknown packet type!");
         }
     }
 
@@ -240,7 +240,7 @@ public class ServuxLitematicaPacket implements IServerPayloadData
 
         if (type == null)
         {
-            Reference.logger().warning("ServuxLitematicaPacket#fromPacket: 无效 packet type");
+            Reference.logger().warning("ServuxLitematicaPacket#fromPacket: invalid packet type");
             return null;
         }
 
@@ -264,12 +264,12 @@ public class ServuxLitematicaPacket implements IServerPayloadData
                     CompoundTag taskNbt = DataTagIo.readTag(input);
                     return taskNbt != null ? ServuxLitematicaPacket.TaskPacket(type, taskNbt) : null;
                 }
-                default -> Reference.logger().warning("ServuxLitematicaPacket#fromPacket: 未知 packet type!");
+                default -> Reference.logger().warning("ServuxLitematicaPacket#fromPacket: unknown packet type!");
             }
         }
         catch (Exception e)
         {
-            Reference.logger().warning("ServuxLitematicaPacket#fromPacket: 解析失败 type=" + type + ": " + e.getMessage());
+            Reference.logger().warning("ServuxLitematicaPacket#fromPacket: parse failed type=" + type + ": " + e.getMessage());
         }
 
         return null;

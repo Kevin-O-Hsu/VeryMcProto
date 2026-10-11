@@ -95,12 +95,12 @@ Protocol deep-dives: [docs/02](docs/02-network-protocol.md) (Servux network) · 
 On startup the console shows:
 
 ```
-[VeryMcProto] 启动中 (MC 26.1.2, paper)...
-[VeryMcProto] 已注册协议 mod: servux
-[VeryMcProto] 已注册协议 mod: jei
-[VeryMcProto] 已注册协议 mod: syncmatica
-[VeryMcProto] 服务端启动完成，已捕获 RegistryAccess 并加载 servux.json。
-[VeryMcProto] 框架就绪。
+[VeryMcProto] starting (MC 26.1.2, paper)...
+[VeryMcProto] registered protocol mod: servux
+[VeryMcProto] registered protocol mod: jei
+[VeryMcProto] registered protocol mod: syncmatica
+[VeryMcProto] server startup complete, RegistryAccess captured and servux.json loaded.
+[VeryMcProto] framework ready.
 ```
 
 > **Defensive design**: the three mods are assembled each inside its own try-catch; any one failing only logs and degrades gracefully — **it never blocks server startup** and never affects the other mods.

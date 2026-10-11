@@ -144,16 +144,16 @@ public class EntitiesDataProvider extends DataProviderBase
     {
         if (!this.isEnabled())
         {
-            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "entity sendMetadata 跳过: provider disabled");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "entity sendMetadata skipped: provider disabled");
             return;
         }
         if (!this.hasPermission(player))
         {
-            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "entity sendMetadata 拒绝 " + player.getName().getString() + " (权限不足)");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "entity sendMetadata denied " + player.getName().getString() + " (insufficient permissions)");
             return;
         }
         boolean ok = HANDLER.sendPlayPayload(player, ServuxEntitiesPacket.MetadataResponse(this.metadata));
-        ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "entity sendMetadata → " + player.getName().getString()
+        ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "entity sendMetadata -> " + player.getName().getString()
                 + " ok=" + ok + " servux=" + this.metadata.getStringOr("servux", "?")
                 + " ver=" + this.metadata.getIntOr("version", -1));
     }
@@ -221,7 +221,7 @@ public class EntitiesDataProvider extends DataProviderBase
         }
         catch (Exception e)
         {
-            ServuxDebug.log(ServuxDebug.Cat.PACKET, "onEntityRequest 失败 entityId=" + entityId + ": " + e.getMessage());
+            ServuxDebug.log(ServuxDebug.Cat.PACKET, "onEntityRequest failed entityId=" + entityId + ": " + e.getMessage());
         }
     }
 
@@ -282,7 +282,7 @@ public class EntitiesDataProvider extends DataProviderBase
         // 白名单：声明通常先于客户端首个 REGISTER 到达，此时重发被挡——metadata 首达由 REGISTER 应答链保证。
         if (this.getNetworkChannel().toString().equals(channel) && this.isPlayerRegistered(player))
         {
-            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "entity onPlayerRegisterChannel: 客户端声明 " + channel + " → 重发 metadata");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "entity onPlayerRegisterChannel: client declared " + channel + " -> resending metadata");
             this.sendMetadata(player);
         }
     }

@@ -78,7 +78,7 @@ public final class DataTagIo
         if (root.sizeInBytes() > NETWORK_MAX_BYTES)
         {
             // 上游超限为 SizeTrackerException → 抛 IOException → 包被丢弃；这里同构降级为空包 + 日志
-            Reference.logger().warning("DataTagIo#writeTag: NBT 超过 64MB 网络上限（" + root.sizeInBytes() + " 字节），降级为空 compound");
+            Reference.logger().warning("DataTagIo#writeTag: NBT exceeds 64MB network limit (" + root.sizeInBytes() + " bytes), downgrading to empty compound");
             root = new CompoundTag();
         }
 
@@ -101,7 +101,7 @@ public final class DataTagIo
 
         if (length < 0 || length > input.readableBytes() || length > NETWORK_MAX_BYTES)
         {
-            Reference.logger().warning("DataTagIo#readTag: 非法长度前缀 " + length + "（可读 " + input.readableBytes() + "）");
+            Reference.logger().warning("DataTagIo#readTag: illegal length prefix " + length + " (readable " + input.readableBytes() + ")");
             return null;
         }
 
@@ -160,12 +160,12 @@ public final class DataTagIo
         }
         catch (NbtAccounterException e)
         {
-            Reference.logger().warning("DataTagIo#readTag: NBT 超 64MB 解压域配额（gzip bomb / 长度字段炸弹）: " + e.getMessage());
+            Reference.logger().warning("DataTagIo#readTag: NBT exceeds 64MB decompressed-domain quota (gzip bomb / length-field bomb): " + e.getMessage());
             return null;
         }
         catch (Exception e)
         {
-            Reference.logger().warning("DataTagIo#readTag: NBT 解析失败: " + e.getMessage());
+            Reference.logger().warning("DataTagIo#readTag: NBT parse failed: " + e.getMessage());
             return null;
         }
     }
@@ -184,7 +184,7 @@ public final class DataTagIo
         }
         catch (Exception e)
         {
-            Reference.logger().warning("DataTagIo#gzipNamedRoot: GZIP 序列化失败: " + e.getMessage());
+            Reference.logger().warning("DataTagIo#gzipNamedRoot: GZIP serialization failed: " + e.getMessage());
             // 兜底：空 compound（一个 0 键的 TAG_COMPOUND 根，非 EmptyData 形态）
             try
             {

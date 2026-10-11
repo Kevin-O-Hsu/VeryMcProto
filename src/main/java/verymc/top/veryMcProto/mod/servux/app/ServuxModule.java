@@ -51,11 +51,11 @@ public class ServuxModule implements ModModule
         {
             Class.forName("verymc.top.veryMcProto.mod.servux.easyplace.EasyPlaceBootstrap")
                     .getMethod("register").invoke(null);
-            verymc.top.veryMcProto.Reference.logger().info("[VeryMcProto] EasyPlace 已启用（依赖 PacketEvents）。");
+            verymc.top.veryMcProto.Reference.logger().info("[VeryMcProto] EasyPlace enabled (requires PacketEvents).");
         }
         catch (Throwable ex)
         {
-            verymc.top.veryMcProto.Reference.logger().warning("[VeryMcProto] PacketEvents 未安装，EasyPlace（精确放置）不可用。其余功能不受影响。");
+            verymc.top.veryMcProto.Reference.logger().warning("[VeryMcProto] PacketEvents not installed, EasyPlace (precise placement) unavailable. Other features unaffected.");
         }
     }
 }

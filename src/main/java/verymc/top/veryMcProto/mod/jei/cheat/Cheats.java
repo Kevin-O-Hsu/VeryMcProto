@@ -225,16 +225,16 @@ public final class Cheats
             }
             else if (!playerItem.isEmpty())
             {
-                Reference.logger().warning("[JEI] 玩家 '" + player.getName().getString() + "' (" + player.getUUID()
-                        + ") 尝试删除 '" + itemStack.getDisplayName().getString()
-                        + "' 但手持的是不同物品 '" + playerItem.getDisplayName().getString() + "'。");
+                Reference.logger().warning("[JEI] Player '" + player.getName().getString() + "' (" + player.getUUID()
+                        + ") attempted to delete '" + itemStack.getDisplayName().getString()
+                        + "' but is holding a different item '" + playerItem.getDisplayName().getString() + "'.");
             }
         }
         else
         {
             ItemStack playerItem = player.containerMenu.getCarried();
-            Reference.logger().warning("[JEI] 玩家 '" + player.getName().getString() + "' (" + player.getUUID()
-                    + ") 无 cheat 权限却尝试删除 '" + playerItem.getDisplayName().getString() + "'。");
+            Reference.logger().warning("[JEI] Player '" + player.getName().getString() + "' (" + player.getUUID()
+                    + ") attempted to delete '" + playerItem.getDisplayName().getString() + "' without cheat permission.");
             sendCheatPermissionDenied(context);
         }
     }

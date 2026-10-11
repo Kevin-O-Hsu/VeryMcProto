@@ -49,7 +49,7 @@ public final class BasicRecipeTransferHandlerServer
                 .toList();
         if (!invalidOperationSlotIndexes.isEmpty())
         {
-            Reference.logger().warning("[JEI] 转移请求含越界槽 id: " + invalidOperationSlotIndexes);
+            Reference.logger().warning("[JEI] Transfer request contains out-of-range slot ids: " + invalidOperationSlotIndexes);
             return false;
         }
 
@@ -69,7 +69,7 @@ public final class BasicRecipeTransferHandlerServer
                     .toList();
             if (!invalidRecipeIndexes.isEmpty())
             {
-                Reference.logger().warning("[JEI] 转移请求的目标槽不在 crafting 槽列表内: " + invalidRecipeIndexes);
+                Reference.logger().warning("[JEI] Transfer request target slots not in crafting slot list: " + invalidRecipeIndexes);
                 return false;
             }
         }
@@ -83,7 +83,7 @@ public final class BasicRecipeTransferHandlerServer
                     .toList();
             if (!invalidInventorySlotIndexes.isEmpty())
             {
-                Reference.logger().warning("[JEI] 转移请求的源槽不在 inventory/crafting 槽列表内: " + invalidInventorySlotIndexes);
+                Reference.logger().warning("[JEI] Transfer request source slots not in inventory/crafting slot list: " + invalidInventorySlotIndexes);
                 return false;
             }
         }
@@ -95,7 +95,7 @@ public final class BasicRecipeTransferHandlerServer
                     .collect(Collectors.toSet());
             if (!overlappingSlots.isEmpty())
             {
-                Reference.logger().warning("[JEI] 转移请求的 inventory 槽与 crafting 槽重叠: " + overlappingSlots);
+                Reference.logger().warning("[JEI] Transfer request inventory slots overlap crafting slots: " + overlappingSlots);
                 return false;
             }
         }
@@ -108,7 +108,7 @@ public final class BasicRecipeTransferHandlerServer
                     .toList();
             if (!invalidFakeSlots.isEmpty())
             {
-                Reference.logger().warning("[JEI] 转移请求包含 fake/输出槽: " + invalidFakeSlots);
+                Reference.logger().warning("[JEI] Transfer request contains fake/output slots: " + invalidFakeSlots);
                 return false;
             }
         }
@@ -160,7 +160,7 @@ public final class BasicRecipeTransferHandlerServer
 
         if (recipeSlotToTakenStacks.isEmpty())
         {
-            Reference.logger().warning("[JEI] 转移失败：无法从背包取出任何原料。");
+            Reference.logger().warning("[JEI] Transfer failed: could not take any ingredients from inventory.");
             return false;
         }
 
@@ -186,7 +186,7 @@ public final class BasicRecipeTransferHandlerServer
             ItemStack stack = craftingSlot.getItem();
             if (!stack.isEmpty() && (!craftingSlot.mayPickup(player) || !craftingSlot.mayPlace(stack)))
             {
-                Reference.logger().warning("[JEI] 转移失败：合成槽 " + craftingSlot.index + " 含不可移动物品。");
+                Reference.logger().warning("[JEI] Transfer failed: crafting slot " + craftingSlot.index + " contains a non-removable item.");
                 return false;
             }
         }
@@ -262,26 +262,26 @@ public final class BasicRecipeTransferHandlerServer
             Slot inventorySlot = transferOperation.inventorySlot(player.containerMenu);
             if (!inventorySlot.allowModification(player))
             {
-                Reference.logger().warning("[JEI] 转移失败：源槽 " + inventorySlot.index + " 不允许取物。");
+                Reference.logger().warning("[JEI] Transfer failed: source slot " + inventorySlot.index + " does not allow taking items.");
                 return null;
             }
             final ItemStack slotStack = inventorySlot.getItem();
             if (slotStack.isEmpty())
             {
-                Reference.logger().warning("[JEI] 转移失败：源槽 " + inventorySlot.index + " 为空。");
+                Reference.logger().warning("[JEI] Transfer failed: source slot " + inventorySlot.index + " is empty.");
                 return null;
             }
             ItemStack stack = slotStack.copy();
             stack.setCount(transferOperation.count());
             if (!recipeSlot.mayPlace(stack))
             {
-                Reference.logger().warning("[JEI] 转移失败：目标槽 " + recipeSlot.index + " 不接受该原料。");
+                Reference.logger().warning("[JEI] Transfer failed: target slot " + recipeSlot.index + " does not accept this ingredient.");
                 return null;
             }
             ItemStack targetSlotStack = targetSlotStacks.putIfAbsent(recipeSlot, stack);
             if (targetSlotStack != null && !ItemStack.isSameItemSameComponents(targetSlotStack, stack))
             {
-                Reference.logger().warning("[JEI] 转移失败：目标槽 " + recipeSlot.index + " 被要求放入不同原料。");
+                Reference.logger().warning("[JEI] Transfer failed: target slot " + recipeSlot.index + " was asked to hold a different ingredient.");
                 return null;
             }
             requiredTransfers.add(new RequiredTransfer(recipeSlot, inventorySlot, stack));

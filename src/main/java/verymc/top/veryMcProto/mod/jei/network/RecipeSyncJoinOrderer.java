@@ -124,7 +124,7 @@ public final class RecipeSyncJoinOrderer extends ChannelDuplexHandler
         catch (Throwable t)
         {
             // AGENTS.md §6 教训 5：类加载/反射失败 try-catch 抓不到——这里整链 catch(Throwable) 隔离
-            Reference.logger().warning("[JEI] 配方时序整形器安装失败（降级为现状时序）: " + t);
+            Reference.logger().warning("[JEI] Failed to install recipe join orderer (falling back to existing timing): " + t);
         }
     }
 
@@ -184,7 +184,7 @@ public final class RecipeSyncJoinOrderer extends ChannelDuplexHandler
         }
         catch (Throwable t)
         {
-            Reference.logger().warning("[JEI] 配方时序整形器管线插入失败（降级为现状时序）: " + t);
+            Reference.logger().warning("[JEI] Failed to insert recipe join orderer into pipeline (falling back to existing timing): " + t);
         }
     }
 
@@ -287,7 +287,7 @@ public final class RecipeSyncJoinOrderer extends ChannelDuplexHandler
         if (!this.done)
         {
             // fail-open：绝不让整形器吞掉进服配方包
-            Reference.logger().warning("[JEI] 配方时序整形器异常，放行被扣包: " + cause);
+            Reference.logger().warning("[JEI] Recipe join orderer exception, releasing held packet: " + cause);
             releaseInternal();
         }
         super.exceptionCaught(ctx, cause);

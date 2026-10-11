@@ -125,13 +125,13 @@ public interface IPluginServerPlayHandler
         if (!isPlayRegistered(ch))
         {
             // 真异常：handler 未 setPlayRegistered。setPlayRegistered 修复后正常不触发；保留 warning 以便漏诊时可见。
-            Reference.logger().warning("sendPlayPayload: 通道未注册 " + ch + "（handler 未 setPlayRegistered?）");
+            Reference.logger().warning("sendPlayPayload: channel not registered " + ch + " (handler not setPlayRegistered?)");
             return false;
         }
         Objects.requireNonNull(player, "player");
         byte[] bytes = FriendlyByteBufs.encodePayload(data);
         boolean ok = ChannelManager.INSTANCE.send(ch, player.getBukkitEntity(), bytes);
-        FrameworkDebug.log("packet", "sendPlayPayload(pluginMsg) " + ch + " → " + player.getName().getString()
+        FrameworkDebug.log("packet", "sendPlayPayload(pluginMsg) " + ch + " -> " + player.getName().getString()
                 + " pktType=" + data.getPacketType() + " bytes=" + bytes.length + " ok=" + ok);
         return ok;
     }

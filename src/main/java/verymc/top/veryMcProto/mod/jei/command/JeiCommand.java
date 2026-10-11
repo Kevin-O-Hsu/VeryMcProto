@@ -32,14 +32,14 @@ public class JeiCommand implements CommandExecutor, TabCompleter
     {
         if (!sender.hasPermission(PERMISSION))
         {
-            sender.sendMessage("§c权限不足。");
+            sender.sendMessage("§cInsufficient permissions.");
             return true;
         }
 
         final JeiConfiguration config = JeiConfiguration.getInstance();
         if (config == null)
         {
-            sender.sendMessage("§cJEI 模块未加载。");
+            sender.sendMessage("§cJEI module not loaded.");
             return true;
         }
 
@@ -53,15 +53,15 @@ public class JeiCommand implements CommandExecutor, TabCompleter
         {
             case "enable" ->
             {
-                if (config.isEnabled()) { sender.sendMessage("§eJEI 模块已处于启用状态。"); return true; }
+                if (config.isEnabled()) { sender.sendMessage("§eJEI module is already enabled."); return true; }
                 config.setEnabled(true);
-                sender.sendMessage("§aJEI 模块已启用 §7（配方同步 + jei 通道交互）");
+                sender.sendMessage("§aJEI module enabled §7(recipe sync + jei channel interaction)");
             }
             case "disable" ->
             {
-                if (!config.isEnabled()) { sender.sendMessage("§eJEI 模块已处于禁用状态。"); return true; }
+                if (!config.isEnabled()) { sender.sendMessage("§eJEI module is already disabled."); return true; }
                 config.setEnabled(false);
-                sender.sendMessage("§eJEI 模块已禁用 §7（停止配方推送；通道保留、不踢人；在线玩家不受影响）");
+                sender.sendMessage("§eJEI module disabled §7(recipe push stopped; channels kept, no kicks; online players unaffected)");
             }
             default -> sender.sendMessage(USAGE);
         }
@@ -70,18 +70,18 @@ public class JeiCommand implements CommandExecutor, TabCompleter
 
     private void sendStatus(final CommandSender sender, final JeiConfiguration config)
     {
-        sender.sendMessage("§6JEI 协议模块状态:");
-        sender.sendMessage(" §7模块: §f" + (config.isEnabled() ? "§a启用 (ON)" : "§c禁用 (OFF)"));
-        sender.sendMessage(" §7cheat - op 权限级: §f" + bool(config.isCheatModeEnabledForOp()));
-        sender.sendMessage(" §7cheat - 创造模式: §f" + bool(config.isCheatModeEnabledForCreative()));
-        sender.sendMessage(" §7cheat - /give 权限: §f" + bool(config.isCheatModeEnabledForGive()));
-        sender.sendMessage(" §7配置: §f" + config.getConfigFile().getFileName());
-        sender.sendMessage("§7用法: " + USAGE);
+        sender.sendMessage("§6JEI protocol module status:");
+        sender.sendMessage(" §7Module: §f" + (config.isEnabled() ? "§aEnabled (ON)" : "§cDisabled (OFF)"));
+        sender.sendMessage(" §7cheat - op permission level: §f" + bool(config.isCheatModeEnabledForOp()));
+        sender.sendMessage(" §7cheat - creative mode: §f" + bool(config.isCheatModeEnabledForCreative()));
+        sender.sendMessage(" §7cheat - /give permission: §f" + bool(config.isCheatModeEnabledForGive()));
+        sender.sendMessage(" §7Config: §f" + config.getConfigFile().getFileName());
+        sender.sendMessage("§7Usage: " + USAGE);
     }
 
     private static String bool(boolean value)
     {
-        return value ? "§a开启" : "§c关闭";
+        return value ? "§aEnabled" : "§cDisabled";
     }
 
     @Override

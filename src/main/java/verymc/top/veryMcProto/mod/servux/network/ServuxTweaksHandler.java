@@ -75,8 +75,8 @@ public class ServuxTweaksHandler implements IPluginServerPlayHandler
         }
         else if (this.failures.get(uuid) > this.maxFailures())
         {
-            ServuxDebug.log(ServuxDebug.Cat.PACKET, "tickFailures tweaks → " + player.getName().getString()
-                    + " 超过 " + this.maxFailures() + " 次失败，触发 onPacketFailure");
+            ServuxDebug.log(ServuxDebug.Cat.PACKET, "tickFailures tweaks -> " + player.getName().getString()
+                    + " exceeded " + this.maxFailures() + " failures, triggering onPacketFailure");
             TweaksDataProvider.INSTANCE.onPacketFailure(player);
         }
         else
@@ -90,7 +90,7 @@ public class ServuxTweaksHandler implements IPluginServerPlayHandler
     {
         ServuxTweaksPacket packet = ServuxTweaksPacket.fromPacket(data);
         if (packet == null) { return; }
-        ServuxDebug.log(ServuxDebug.Cat.PACKET, "C2S tweaks ← " + player.getName().getString() + " type=" + packet.getType());
+        ServuxDebug.log(ServuxDebug.Cat.PACKET, "C2S tweaks <- " + player.getName().getString() + " type=" + packet.getType());
         this.decodeServerData(CHANNEL_ID, player, packet);
     }
 
@@ -116,7 +116,7 @@ public class ServuxTweaksHandler implements IPluginServerPlayHandler
             case PACKET_C2S_BLOCK_ENTITY_REQUEST -> TweaksDataProvider.INSTANCE.onBlockEntityRequest(player, packet.getPos());
             case PACKET_C2S_ENTITY_REQUEST -> TweaksDataProvider.INSTANCE.onEntityRequest(player, packet.getEntityId());
             // PACKET_C2S_NBT_RESPONSE_DATA（C2S 分片接收）原版注释禁用，保持注释省略
-            default -> Reference.logger().warning("ServuxTweaksHandler#decodeServerData: 无效 packetType " + packet.getPacketType()
+            default -> Reference.logger().warning("ServuxTweaksHandler#decodeServerData: invalid packetType " + packet.getPacketType()
                     + " from " + player.getName().getString() + ", size=" + packet.getTotalSize());
         }
     }
@@ -138,8 +138,8 @@ public class ServuxTweaksHandler implements IPluginServerPlayHandler
         // Send Response Data via Packet Splitter
         if (packet.getType().equals(ServuxTweaksPacket.Type.PACKET_S2C_NBT_RESPONSE_START))
         {
-            ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData tweaks → " + player.getName().getString()
-                    + " type=" + packet.getType() + " → PacketSplitter 分包");
+            ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData tweaks -> " + player.getName().getString()
+                    + " type=" + packet.getType() + " -> PacketSplitter fragmentation");
             // 大包（26.1：重组整体为 DataTag 帧，无 transactionId 前缀）
             FriendlyByteBuf buffer = new FriendlyByteBuf(io.netty.buffer.Unpooled.buffer());
             DataTagIo.writeTag(buffer, packet.getCompound());

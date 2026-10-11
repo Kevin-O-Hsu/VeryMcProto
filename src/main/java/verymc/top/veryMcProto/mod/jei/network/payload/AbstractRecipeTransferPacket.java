@@ -109,8 +109,8 @@ public abstract class AbstractRecipeTransferPacket
     {
         if (!validateSlotIds(slotIds, container.slots.size()))
         {
-            Reference.logger().warning("[JEI] 转移包槽 id 非法: " + slotIds.size() + " 个（容器仅 "
-                    + container.slots.size() + " 槽）");
+            Reference.logger().warning("[JEI] Invalid slot ids in transfer packet: " + slotIds.size() + " (container only has "
+                    + container.slots.size() + " slots)");
             return null;
         }
 

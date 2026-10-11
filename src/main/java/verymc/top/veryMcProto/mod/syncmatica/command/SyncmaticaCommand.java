@@ -62,7 +62,7 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
     {
         if (!sender.hasPermission("syncmatica.command"))
         {
-            sender.sendMessage("§c权限不足。");
+            sender.sendMessage("§cInsufficient permissions.");
             return true;
         }
         if (args.length == 0)
@@ -75,14 +75,14 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
         {
             if (!sender.hasPermission("syncmatica.command.load"))
             {
-                sender.sendMessage("§c权限不足。");
+                sender.sendMessage("§cInsufficient permissions.");
                 return true;
             }
             if (args.length >= 2)
             {
                 if (!sender.hasPermission("syncmatica.command.load_each"))
                 {
-                    sender.sendMessage("§c权限不足。");
+                    sender.sendMessage("§cInsufficient permissions.");
                     return true;
                 }
                 doLoadEach(sender, args[1]);
@@ -98,7 +98,7 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
         {
             if (!sender.hasPermission("syncmatica.command.debug"))
             {
-                sender.sendMessage("§c权限不足。");
+                sender.sendMessage("§cInsufficient permissions.");
                 return true;
             }
             handleDebug(sender, args);
@@ -112,12 +112,12 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
         }
         if (args[0].equalsIgnoreCase("save"))
         {
-            if (requireAdmin(sender)) { context.saveConfiguration(); sender.sendMessage("§aSyncmatica 配置已保存。"); }
+            if (requireAdmin(sender)) { context.saveConfiguration(); sender.sendMessage("§aSyncmatica configuration saved."); }
             return true;
         }
         if (args[0].equalsIgnoreCase("reload"))
         {
-            if (requireAdmin(sender)) { context.loadConfiguration(); sender.sendMessage("§aSyncmatica 配置已重载。"); }
+            if (requireAdmin(sender)) { context.loadConfiguration(); sender.sendMessage("§aSyncmatica configuration reloaded."); }
             return true;
         }
         if (args[0].equalsIgnoreCase("enable") || args[0].equalsIgnoreCase("disable"))
@@ -135,7 +135,7 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
     {
         if (!sender.hasPermission("syncmatica.command.admin"))
         {
-            sender.sendMessage("§c权限不足。");
+            sender.sendMessage("§cInsufficient permissions.");
             return false;
         }
         return true;
@@ -144,10 +144,10 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
     /** /syncmatica status —— 显示模块状态（协议启停 + 调试状态 + 配置文件）。 */
     private void handleStatus(final CommandSender sender)
     {
-        sender.sendMessage("§6Syncmatica 状态:");
-        sender.sendMessage(" §7协议: §f" + (context.isProtocolEnabled() ? "§a启用 (ON)" : "§c禁用 (OFF)"));
-        sender.sendMessage(" §7调试: §f" + SyncmaticaDebug.statusLine());
-        sender.sendMessage(" §7配置: §f" + context.getConfigFile().getFileName());
+        sender.sendMessage("§6Syncmatica status:");
+        sender.sendMessage(" §7Protocol: §f" + (context.isProtocolEnabled() ? "§aEnabled (ON)" : "§cDisabled (OFF)"));
+        sender.sendMessage(" §7Debug: §f" + SyncmaticaDebug.statusLine());
+        sender.sendMessage(" §7Config: §f" + context.getConfigFile().getFileName());
     }
 
     /** /syncmatica enable|disable —— 软禁用/启用整个协议（通道保留，不踢人）。 */
@@ -156,21 +156,21 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
         final SyncmaticaModule module = SyncmaticaModule.getInstance();
         if (module == null)
         {
-            sender.sendMessage("§cSyncmatica 模块未加载。");
+            sender.sendMessage("§cSyncmatica module not loaded.");
             return;
         }
         if (enable)
         {
-            if (context.isProtocolEnabled()) { sender.sendMessage("§eSyncmatica 协议已处于启用状态。"); return; }
+            if (context.isProtocolEnabled()) { sender.sendMessage("§eSyncmatica protocol is already enabled."); return; }
             context.resumeProtocol();
             module.reconnectOnlinePlayers();
-            sender.sendMessage("§aSyncmatica 协议已启用 §7（在线玩家将重新握手）");
+            sender.sendMessage("§aSyncmatica protocol enabled §7(online players will re-handshake)");
         }
         else
         {
-            if (!context.isProtocolEnabled()) { sender.sendMessage("§eSyncmatica 协议已处于禁用状态。"); return; }
+            if (!context.isProtocolEnabled()) { sender.sendMessage("§eSyncmatica protocol is already disabled."); return; }
             context.suspendProtocol();
-            sender.sendMessage("§eSyncmatica 协议已禁用 §7（软禁用：通道保留、玩家不会被踢；进行中的传输已中断）");
+            sender.sendMessage("§eSyncmatica protocol disabled §7(soft-disable: channels kept, players not kicked; ongoing transfers aborted)");
         }
     }
 
@@ -192,11 +192,11 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
     {
         if (args.length < 2)
         {
-            sender.sendMessage("§6调试状态: §f" + SyncmaticaDebug.statusLine());
-            sender.sendMessage("§7用法: §f/syncmatica debug <on|off|status>§7 —— master 总开关 / 状态");
-            sender.sendMessage("§7用法: §f/syncmatica debug cat <all|none|分类名>§7 —— 分类（master 与分类正交，两者皆开才输出）");
-            sender.sendMessage("§7用法: §f/syncmatica debug s2c <nms|msg>§7 —— S2C 路径（NMS 直发 / plugin messaging）");
-            sender.sendMessage("§7分类: §flifecycle handshake network packet exchange data");
+            sender.sendMessage("§6Debug status: §f" + SyncmaticaDebug.statusLine());
+            sender.sendMessage("§7Usage: §f/syncmatica debug <on|off|status>§7 -- master switch / status");
+            sender.sendMessage("§7Usage: §f/syncmatica debug cat <all|none|category>§7 -- categories (master and categories are orthogonal, both must be on for output)");
+            sender.sendMessage("§7Usage: §f/syncmatica debug s2c <nms|msg>§7 -- S2C path (NMS direct / plugin messaging)");
+            sender.sendMessage("§7Categories: §flifecycle handshake network packet exchange data");
             return;
         }
 
@@ -206,42 +206,42 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
             case "on" ->
             {
                 SyncmaticaDebug.setMaster(true);
-                final String tip = SyncmaticaDebug.active().isEmpty() ? " §7(分类为空，用 §f/syncmatica debug cat all§7 开全分类)" : "";
-                sender.sendMessage("§a调试总开关已开启 §7(仅 master): §f" + SyncmaticaDebug.statusLine() + tip);
+                final String tip = SyncmaticaDebug.active().isEmpty() ? " §7(no categories active, use §f/syncmatica debug cat all§7 to enable all)" : "";
+                sender.sendMessage("§aDebug master switch enabled §7(master only): §f" + SyncmaticaDebug.statusLine() + tip);
                 context.saveConfiguration();
             }
-            case "off" -> { SyncmaticaDebug.setMaster(false); sender.sendMessage("§e调试总开关已关闭 §7(仅 master): §f" + SyncmaticaDebug.statusLine()); context.saveConfiguration(); }
-            case "status" -> sender.sendMessage("§6调试状态: §f" + SyncmaticaDebug.statusLine());
+            case "off" -> { SyncmaticaDebug.setMaster(false); sender.sendMessage("§eDebug master switch disabled §7(master only): §f" + SyncmaticaDebug.statusLine()); context.saveConfiguration(); }
+            case "status" -> sender.sendMessage("§6Debug status: §f" + SyncmaticaDebug.statusLine());
             case "s2c" ->
             {
                 // S2C 发送路径切换（诊断 plugin messaging vs NMS DiscardedPayload 直发哪条客户端能响应）。不持久化（路由诊断开关，非 debug 日志开关）。
                 final boolean now = ExchangeTarget.S2C_VIA_NMS;
                 if (args.length < 3)
                 {
-                    sender.sendMessage("§6S2C 路径: §f" + (now ? "NMS-DiscardedPayload" : "plugin-messaging"));
-                    sender.sendMessage("§7用法: §f/syncmatica debug s2c <nms|msg>");
+                    sender.sendMessage("§6S2C path: §f" + (now ? "NMS-DiscardedPayload" : "plugin-messaging"));
+                    sender.sendMessage("§7Usage: §f/syncmatica debug s2c <nms|msg>");
                     return;
                 }
                 final String mode = args[2].toLowerCase();
                 if (mode.equals("nms")) { ExchangeTarget.S2C_VIA_NMS = true; }
                 else if (mode.equals("msg")) { ExchangeTarget.S2C_VIA_NMS = false; }
-                else { sender.sendMessage("§c未知: " + mode + " §7(nms|msg)"); return; }
-                sender.sendMessage("§aS2C 路径 → §f" + (ExchangeTarget.S2C_VIA_NMS ? "NMS-DiscardedPayload" : "plugin-messaging"));
+                else { sender.sendMessage("§cUnknown: " + mode + " §7(nms|msg)"); return; }
+                sender.sendMessage("§aS2C path -> §f" + (ExchangeTarget.S2C_VIA_NMS ? "NMS-DiscardedPayload" : "plugin-messaging"));
             }
             case "cat" ->
             {
-                if (args.length < 3) { sender.sendMessage("§e/syncmatica debug cat <all|none|分类名>"); return; }
+                if (args.length < 3) { sender.sendMessage("§e/syncmatica debug cat <all|none|category>"); return; }
                 final String catName = args[2].toLowerCase();
-                if (catName.equals("all")) { SyncmaticaDebug.enableAll(); sender.sendMessage("§a已开启全分类: §f" + SyncmaticaDebug.statusLine()); context.saveConfiguration(); return; }
-                if (catName.equals("none")) { SyncmaticaDebug.clearCats(); sender.sendMessage("§e已清空全分类: §f" + SyncmaticaDebug.statusLine()); context.saveConfiguration(); return; }
+                if (catName.equals("all")) { SyncmaticaDebug.enableAll(); sender.sendMessage("§aAll categories enabled: §f" + SyncmaticaDebug.statusLine()); context.saveConfiguration(); return; }
+                if (catName.equals("none")) { SyncmaticaDebug.clearCats(); sender.sendMessage("§eAll categories cleared: §f" + SyncmaticaDebug.statusLine()); context.saveConfiguration(); return; }
                 final SyncmaticaDebug.Cat cat = SyncmaticaDebug.parseCat(args[2]);
-                if (cat == null) { sender.sendMessage("§c未知分类: " + args[2] + " §7(all|none|分类名)"); return; }
+                if (cat == null) { sender.sendMessage("§cUnknown category: " + args[2] + " §7(all|none|category)"); return; }
                 final boolean now = SyncmaticaDebug.toggle(cat);
-                sender.sendMessage("§a分类 " + cat.name().toLowerCase() + " → " + (now ? "§aON" : "§cOFF"));
-                sender.sendMessage("§7当前: §f" + SyncmaticaDebug.statusLine());
+                sender.sendMessage("§aCategory " + cat.name().toLowerCase() + " -> " + (now ? "§aON" : "§cOFF"));
+                sender.sendMessage("§7Current: §f" + SyncmaticaDebug.statusLine());
                 context.saveConfiguration();
             }
-            default -> sender.sendMessage("§c未知子命令: " + sub + " §7(on/off/cat/status/s2c)");
+            default -> sender.sendMessage("§cUnknown subcommand: " + sub + " §7(on/off/cat/status/s2c)");
         }
     }
 

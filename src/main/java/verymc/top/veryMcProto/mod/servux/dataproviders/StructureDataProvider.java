@@ -223,7 +223,7 @@ public class StructureDataProvider extends DataProviderBase
 
         if (!this.hasPermission(player))
         {
-            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "structures register 拒绝 " + player.getName().getString() + " (权限不足)");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "structures register denied " + player.getName().getString() + " (insufficient permissions)");
             return;
         }
 
@@ -240,7 +240,7 @@ public class StructureDataProvider extends DataProviderBase
             this.sendMetadata(player);
             this.initialSyncStructuresToPlayerWithinRange(player, server != null ? server.getPlayerList().getViewDistance() + 2 : this.retainDistance, tickCounter);
 
-            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "structures register OK: " + player.getName().getString() + " → 已加入订阅，推 metadata + initialSync");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "structures register OK: " + player.getName().getString() + " -> subscribed, pushing metadata + initialSync");
         }
     }
 
@@ -267,19 +267,19 @@ public class StructureDataProvider extends DataProviderBase
     {
         if (!this.isEnabled())
         {
-            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "structures sendMetadata 跳过: provider disabled");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "structures sendMetadata skipped: provider disabled");
             return;
         }
         if (!this.hasPermission(player))
         {
-            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "structures sendMetadata 拒绝 " + player.getName().getString() + " (权限不足)");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "structures sendMetadata denied " + player.getName().getString() + " (insufficient permissions)");
             return;
         }
 
         CompoundTag nbt = new CompoundTag();
         nbt.merge(this.metadata);
         boolean ok = HANDLER.sendPlayPayload(player, new ServuxStructuresPacket(ServuxStructuresPacket.Type.PACKET_S2C_METADATA, nbt));
-        ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "structures sendMetadata → " + player.getName().getString()
+        ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "structures sendMetadata -> " + player.getName().getString()
                 + " ok=" + ok + " servux=" + nbt.getStringOr("servux", "?")
                 + " ver=" + nbt.getIntOr("version", -1)
                 + " timeout=" + nbt.getIntOr("timeout", -1));
@@ -424,7 +424,7 @@ public class StructureDataProvider extends DataProviderBase
 
         if (!this.hasPermission(player))
         {
-            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "structures sendStructures 拒绝 " + player.getName().getString() + " (权限不足)");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "structures sendStructures denied " + player.getName().getString() + " (insufficient permissions)");
             return;
         }
 
@@ -555,8 +555,8 @@ public class StructureDataProvider extends DataProviderBase
         // 此处仅记录客户端声明了该通道（= 装了 MiniHUD），不主动推 metadata（避免与 REGISTER 流程重复 / 大数据提前推送）。
         if (this.getNetworkChannel().toString().equals(channel))
         {
-            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "structures onPlayerRegisterChannel: 客户端声明 " + channel
-                    + " → 等待 C2S STRUCTURES_REGISTER（由客户端主动触发 register）");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "structures onPlayerRegisterChannel: client declared " + channel
+                    + " -> waiting for C2S STRUCTURES_REGISTER (register is client-initiated)");
         }
     }
 

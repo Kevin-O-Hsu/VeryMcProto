@@ -87,7 +87,7 @@ public final class JeiServerPlayHandler implements IPluginServerPlayHandler
         {
             return (buf, ctx) -> PacketRecipeTransferCounted.decode(buf).process(ctx);
         }
-        throw new IllegalArgumentException("非 jei:* C2S 通道: " + channel);
+        throw new IllegalArgumentException("Not a jei:* C2S channel: " + channel);
     }
 
     @Override
@@ -147,7 +147,7 @@ public final class JeiServerPlayHandler implements IPluginServerPlayHandler
         {
             // 单行 +e 拼接（同 ProtocolChannel C2S 热路径形态）：每包可控路径防刷屏，
             // 且 toString() 恒非 null——getMessage() 在 NPE 时为 null，只剩「...: null」零信息
-            Reference.logger().warning("[JEI] C2S 处理失败 " + channel + " ← "
+            Reference.logger().warning("[JEI] C2S handling failed " + channel + " from "
                     + player.getName().getString() + ": " + e);
         }
     }

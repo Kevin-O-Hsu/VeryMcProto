@@ -75,7 +75,7 @@ public class NbtView
         }
         catch (Exception e)
         {
-            LOGGER.warn("readNbt: 反射失败: {}", e.toString());
+            LOGGER.warn("readNbt: reflection failed: {}", e.toString());
         }
         return null;
     }

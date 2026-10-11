@@ -81,14 +81,14 @@ public abstract class CommunicationManager
         }
         if (handler == null)
         {
-            SyncmaticaDebug.log(SyncmaticaDebug.Cat.PACKET, "[syncm] onPacket: 无 exchange 认领 " + type
-                    + " → 走一次性 handle（来自 " + source.getPersistentName() + "）");
+            SyncmaticaDebug.log(SyncmaticaDebug.Cat.PACKET, "[syncm] onPacket: no exchange claimed " + type
+                    + " -> falling back to one-shot handle (from " + source.getPersistentName() + ")");
             handle(source, type, packetBuf);
         }
         else
         {
             SyncmaticaDebug.log(SyncmaticaDebug.Cat.PACKET, "[syncm] onPacket: exchange " + handler.getClass().getSimpleName()
-                    + " 认领 " + type + "（来自 " + source.getPersistentName() + "）finished=" + handler.isFinished());
+                    + " claimed " + type + " (from " + source.getPersistentName() + ") finished=" + handler.isFinished());
             if (handler.isFinished())
             {
                 notifyClose(handler);

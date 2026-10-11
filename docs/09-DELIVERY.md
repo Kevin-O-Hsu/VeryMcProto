@@ -223,7 +223,7 @@ verymc.top.veryMcProto/
 ### 26.1.4 实机验证记录（Paper 26.1.2 + Java 25，2026-09-08）
 
 - `./gradlew build`：23/23 单测全绿（PacketSplitter 3 + FeatureSet 4 + LitematicaBitArray 10 + **DataTagIo 6**——2026-09-08 时点快照，当时全库仅此 4 类；现行 19 测试类 / 113 用例，以 `./gradlew test` 实跑为准），产物 `VeryMcProto-26.1.2-b1.jar`（Mojang 映射，无 reobf）。
-- `./gradlew runServer`（`JAVA_HOME=F:\jdk` zulu25.0.4.1）：`Starting minecraft server version 26.1.2` → 插件 `v26.1.2-b1` 加载+启用（api-version '1.21' 接受）→ servux / jei_recipe_bridge / syncmatica 三模块注册 → `框架就绪` → `Done (12.334s)`，无 ERROR/SEVERE；PacketEvents 缺席时 EasyPlace 优雅降级日志正常。（历史记录：jei_recipe_bridge 后于 2026-09 上游重做为 jei 模块，见 docs/30。）
+- `./gradlew runServer`（`JAVA_HOME=F:\jdk` zulu25.0.4.1）：`Starting minecraft server version 26.1.2` → 插件 `v26.1.2-b1` 加载+启用（api-version '1.21' 接受）→ servux / jei_recipe_bridge / syncmatica 三模块注册 → `framework ready` → `Done (12.334s)`，无 ERROR/SEVERE；PacketEvents 缺席时 EasyPlace 优雅降级日志正常。（历史记录：jei_recipe_bridge 后于 2026-09 上游重做为 jei 模块，见 docs/30。）
 - 旧 1.21.11 测试世界保护：`run/server.properties` `level-name=world26` 隔离（旧 world/ 未被触碰），6 个共享配置 `.pre261.bak` 备份，packetevents jar 移出 plugins。
 - **客户端互通冒烟（26.1 Fabric 客户端，用户侧最终验收）**：服务端侧已全部验证；协议常量/载体均经客户端源码逐字钉死，但最终裁决需要真实 26.1.2 客户端连服冒烟（HUD 握手 + litematics 握手，docs/10 流程）——无头环境无法运行模组客户端。
 
@@ -273,5 +273,5 @@ verymc.top.veryMcProto/
 
 - **build.gradle.kts**：runServer 块增 `runDirectory(file("run-" + mcVersion))`——目录名由版本唯一来源派生（升级零维护，runServer 配置无裸版本段的不变量保持为真）。
 - **.gitignore**：run 段改单规则 `run*/`——覆盖旧共享 `run/`、原 `run-data/` 死规则与全部按线目录。教训：改 .gitignore 须逐行自检——2c38ee2 曾把规则粘连进注释行留废规则（该线 .gitignore 已于同日拆粘修复，`821d6d2`）。
-- **验证**（2026-10-11 实机）：`run-26.1.2/` 预置 eula 冷启动——`Starting minecraft server version 26.1.2` + `框架就绪` + `Done` + 新世界 `level.dat` 落位；`git check-ignore` 命中 `run*/`；`git status` 无 `?? run-*`。
+- **验证**（2026-10-11 实机）：`run-26.1.2/` 预置 eula 冷启动——`Starting minecraft server version 26.1.2` + `framework ready` + `Done` + 新世界 `level.dat` 落位；`git check-ignore` 命中 `run*/`；`git status` 无 `?? run-*`。
 - **运维注意**：新目录 packetevents jar 不随目录迁移（`run-26.1.2/plugins/` 已于 2026-10-11 预置 2.14.0）；两线并行需各自在己线 `server.properties` 改 port（一次性持久）；旧共享 `run/` 死遗留已于 2026-10-11 连同仓库根 `logs/` 清除。

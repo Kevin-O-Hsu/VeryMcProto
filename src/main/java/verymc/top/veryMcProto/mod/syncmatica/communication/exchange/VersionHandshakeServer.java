@@ -38,12 +38,12 @@ public class VersionHandshakeServer extends FeatureExchange
         if (type.equals(PacketType.REGISTER_VERSION))
         {
             partnerVersion = packetBuf.readUtf(PACKET_MAX_STRING_SIZE);
-            SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] VersionHandshakeServer: 收到客户端 REGISTER_VERSION[版本="
-                    + partnerVersion + "] ← " + getPartner().getPersistentName());
+            SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] VersionHandshakeServer: received client REGISTER_VERSION[version="
+                    + partnerVersion + "] <- " + getPartner().getPersistentName());
             if (!getContext().checkPartnerVersion(partnerVersion))
             {
-                SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] VersionHandshakeServer: checkPartnerVersion 拒绝（客户端版本 "
-                        + partnerVersion + "）→ close(false)");
+                SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] VersionHandshakeServer: checkPartnerVersion rejected (client version "
+                        + partnerVersion + ") -> close(false)");
                 SyncmaticaLog.warn("Denying syncmatica join due to outdated client with local version {} and client version {} from partner {}",
                         SyncmaticaReference.MOD_VERSION, partnerVersion, getPartner().getPersistentName());
                 // same as client - avoid further packets
@@ -53,12 +53,12 @@ public class VersionHandshakeServer extends FeatureExchange
             final FeatureSet fs = FeatureSet.fromVersionString(partnerVersion);
             if (fs == null)
             {
-                SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] VersionHandshakeServer: fromVersionString 返回 null → requestFeatureSet（FEATURE 交换）");
+                SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] VersionHandshakeServer: fromVersionString returned null -> requestFeatureSet (FEATURE exchange)");
                 requestFeatureSet();
             }
             else
             {
-                SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] VersionHandshakeServer: fromVersionString 命中默认集 → setFeatureSet + onFeatureSetReceive");
+                SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] VersionHandshakeServer: fromVersionString hit default set -> setFeatureSet + onFeatureSetReceive");
                 getPartner().setFeatureSet(fs);
                 onFeatureSetReceive();
             }
@@ -73,9 +73,9 @@ public class VersionHandshakeServer extends FeatureExchange
     public void onFeatureSetReceive()
     {
         final Collection<ServerPlacement> l = getContext().getSyncmaticManager().getAll();
-        SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] VersionHandshakeServer.onFeatureSetReceive: 推 CONFIRM_USER[placementCount="
-                + l.size() + "] → " + getPartner().getPersistentName()
-                + "（local=" + SyncmaticaReference.MOD_VERSION + " client=" + partnerVersion + "）");
+        SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] VersionHandshakeServer.onFeatureSetReceive: sending CONFIRM_USER[placementCount="
+                + l.size() + "] -> " + getPartner().getPersistentName()
+                + " (local=" + SyncmaticaReference.MOD_VERSION + " client=" + partnerVersion + ")");
         SyncmaticaLog.info("Syncmatica client joining with local version {} and client version {}",
                 SyncmaticaReference.MOD_VERSION, partnerVersion);
         final FriendlyByteBuf newBuf = new FriendlyByteBuf(Unpooled.buffer());
@@ -91,8 +91,8 @@ public class VersionHandshakeServer extends FeatureExchange
     @Override
     public void init()
     {
-        SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] VersionHandshakeServer.init: 推 REGISTER_VERSION[服务端版本="
-                + SyncmaticaReference.MOD_VERSION + "] → " + getPartner().getPersistentName());
+        SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] VersionHandshakeServer.init: sending REGISTER_VERSION[server version="
+                + SyncmaticaReference.MOD_VERSION + "] -> " + getPartner().getPersistentName());
         final FriendlyByteBuf newBuf = new FriendlyByteBuf(Unpooled.buffer());
         newBuf.writeUtf(SyncmaticaReference.MOD_VERSION);
         getPartner().sendPacket(PacketType.REGISTER_VERSION, newBuf, getContext());

@@ -66,14 +66,14 @@ public final class JeiModule
         }
         catch (Exception e)
         {
-            Reference.logger().warning("[JEI] 配方通道出站声明失败（不影响 NMS 直发）: " + e.getMessage());
+            Reference.logger().warning("[JEI] Failed to register outgoing recipe channels (NMS direct send unaffected): " + e.getMessage());
         }
 
         // 4. 事件监听（fabric 腿 RegisterChannel + neoforge 腿 join brand）
         plugin.getServer().getPluginManager().registerEvents(new JeiListener(), plugin);
 
         enabled = true;
-        Reference.logger().info("[JEI] 模块已启用（上游 mezz/JustEnoughItems 26.1 · " + JeiReference.C2S_CHANNELS.length + " 条 jei:* C2S 通道）");
+        Reference.logger().info("[JEI] Module enabled (upstream mezz/JustEnoughItems 26.1 / " + JeiReference.C2S_CHANNELS.length + " jei:* C2S channels)");
     }
 
     /** 主类 onDisable 调用（须在 {@code ChannelManager.unregisterAll} 之前）。 */
@@ -89,7 +89,7 @@ public final class JeiModule
             ChannelManager.INSTANCE.unregister(channel);
         }
         // recipe 两条出站通道经 Messenger 直注的，随插件卸载由 Bukkit 自动回收
-        Reference.logger().info("[JEI] 模块已卸载。");
+        Reference.logger().info("[JEI] Module unloaded.");
     }
 
     /** 事件监听器：两条配方同步腿的触发点。 */
@@ -121,7 +121,7 @@ public final class JeiModule
             }
             catch (Exception e)
             {
-                Reference.logger().warning("[JEI] fabric 配方同步失败 (" + event.getPlayer().getName() + "): " + e.getMessage());
+                Reference.logger().warning("[JEI] fabric recipe sync failed (" + event.getPlayer().getName() + "): " + e.getMessage());
             }
             finally
             {
@@ -149,7 +149,7 @@ public final class JeiModule
             }
             catch (Throwable t)
             {
-                Reference.logger().warning("[JEI] 配方时序整形器装配失败（降级为现状时序）: " + t.getMessage());
+                Reference.logger().warning("[JEI] Failed to install recipe join orderer (falling back to existing timing): " + t.getMessage());
             }
         }
 
@@ -179,7 +179,7 @@ public final class JeiModule
             }
             catch (Exception e)
             {
-                Reference.logger().warning("[JEI] neoforge 配方同步失败 (" + event.getPlayer().getName() + "): " + e.getMessage());
+                Reference.logger().warning("[JEI] neoforge recipe sync failed (" + event.getPlayer().getName() + "): " + e.getMessage());
             }
         }
     }
