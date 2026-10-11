@@ -191,7 +191,7 @@ public class ServuxEntitiesPacket implements IServerPayloadData
                 try { DataTagIo.writeTag(output, this.nbt); }
                 catch (Exception e) { Reference.logger().warning("ServuxEntitiesPacket#toPacket Unregister: " + e.getMessage()); }
             }
-            default -> Reference.logger().warning("ServuxEntitiesPacket#toPacket: 未知 packet type!");
+            default -> Reference.logger().warning("ServuxEntitiesPacket#toPacket: unknown packet type!");
         }
     }
 
@@ -203,7 +203,7 @@ public class ServuxEntitiesPacket implements IServerPayloadData
 
         if (type == null)
         {
-            Reference.logger().warning("ServuxEntitiesPacket#fromPacket: 无效 packet type");
+            Reference.logger().warning("ServuxEntitiesPacket#fromPacket: invalid packet type");
             return null;
         }
 
@@ -220,12 +220,12 @@ public class ServuxEntitiesPacket implements IServerPayloadData
                 case PACKET_C2S_METADATA_REQUEST -> { return ServuxEntitiesPacket.MetadataRequest(input.readNbt()); }
                 case PACKET_S2C_METADATA -> { return ServuxEntitiesPacket.MetadataResponse(input.readNbt()); }
                 case PACKET_C2S_UNREGISTER_REPLY -> { return ServuxEntitiesPacket.UnregisterReply(DataTagIo.readTag(input)); }
-                default -> Reference.logger().warning("ServuxEntitiesPacket#fromPacket: 未知 packet type!");
+                default -> Reference.logger().warning("ServuxEntitiesPacket#fromPacket: unknown packet type!");
             }
         }
         catch (Exception e)
         {
-            Reference.logger().warning("ServuxEntitiesPacket#fromPacket: 解析失败 type=" + type + ": " + e.getMessage());
+            Reference.logger().warning("ServuxEntitiesPacket#fromPacket: parse failed type=" + type + ": " + e.getMessage());
         }
 
         return null;

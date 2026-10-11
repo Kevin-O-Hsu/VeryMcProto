@@ -102,8 +102,8 @@ public class ServuxHudHandler implements IPluginServerPlayHandler
         }
         else if (this.failures.get(uuid) > this.maxFailures())
         {
-            ServuxDebug.log(ServuxDebug.Cat.PACKET, "tickFailures hud → " + player.getName().getString()
-                    + " 超过 " + this.maxFailures() + " 次失败，触发 onPacketFailure（未装 MiniHUD 或版本被拒后反复重试）");
+            ServuxDebug.log(ServuxDebug.Cat.PACKET, "tickFailures hud -> " + player.getName().getString()
+                    + " exceeded " + this.maxFailures() + " failures, triggering onPacketFailure (MiniHUD not installed, or repeated retries after version rejection)");
             HudDataProvider.INSTANCE.onPacketFailure(player);
         }
         else
@@ -120,7 +120,7 @@ public class ServuxHudHandler implements IPluginServerPlayHandler
         {
             return;
         }
-        ServuxDebug.log(ServuxDebug.Cat.PACKET, "C2S hud ← " + player.getName().getString() + " type=" + packet.getType());
+        ServuxDebug.log(ServuxDebug.Cat.PACKET, "C2S hud <- " + player.getName().getString() + " type=" + packet.getType());
         this.decodeServerData(CHANNEL_ID, player, packet);
     }
 
@@ -155,7 +155,7 @@ public class ServuxHudHandler implements IPluginServerPlayHandler
             case PACKET_C2S_SPAWN_DATA_REQUEST -> HudDataProvider.INSTANCE.refreshSpawnMetadata(player, packet.getCompound());
             case PACKET_C2S_RECIPE_MANAGER_REQUEST -> HudDataProvider.INSTANCE.refreshRecipeManager(player, packet.getCompound());
             case PACKET_C2S_DATA_LOGGER_REQUEST -> HudDataProvider.INSTANCE.refreshLoggers(player, packet.getCompound());
-            default -> Reference.logger().warning("ServuxHudHandler#decodeServerData: 无效 packetType " + packet.getPacketType()
+            default -> Reference.logger().warning("ServuxHudHandler#decodeServerData: invalid packetType " + packet.getPacketType()
                     + " from " + player.getName().getString() + ", size=" + packet.getTotalSize());
         }
     }
@@ -177,8 +177,8 @@ public class ServuxHudHandler implements IPluginServerPlayHandler
         // 大包 → PacketSplitter 分片（26.1：重组整体内容为 DataTag 帧，客户端按 DataByteBufUtils 解析）
         if (packet.getType().equals(ServuxHudPacket.Type.PACKET_S2C_NBT_RESPONSE_START))
         {
-            ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData hud → " + player.getName().getString()
-                    + " type=" + packet.getType() + " → PacketSplitter 分包");
+            ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData hud -> " + player.getName().getString()
+                    + " type=" + packet.getType() + " -> PacketSplitter fragmentation");
             FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
             DataTagIo.writeTag(buffer, packet.getCompound());
             PacketSplitter.send(this, buffer, player);

@@ -195,7 +195,7 @@ public class EntityUtils
         }
         catch (Exception e)
         {
-            verymc.top.veryMcProto.Reference.logger().severe("EntityUtils#spawnEntityAndPassengersInWorld(): 生成实体失败 id("
+            verymc.top.veryMcProto.Reference.logger().severe("EntityUtils#spawnEntityAndPassengersInWorld(): failed to spawn entity id("
                     + entity.getId() + "): [" + entity.getStringUUID() + "/" + entity.getType().toShortString() + "]; "
                     + e.getMessage());
             result = false;

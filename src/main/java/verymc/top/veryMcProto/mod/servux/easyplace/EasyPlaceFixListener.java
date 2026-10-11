@@ -136,7 +136,7 @@ public class EasyPlaceFixListener implements Listener
             // 误拒后续手动放置）。
             event.setBuildable(false);
             EasyPlacePending.take(uuid, pos.asLong());
-            ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "拒绝放置（写入前 FAIL，对齐上游）@ " + pos);
+            ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "Placement rejected (pre-write FAIL, aligned with upstream) @ " + pos);
             return;
         }
 
@@ -160,7 +160,7 @@ public class EasyPlaceFixListener implements Listener
         BlockState finalState = pending.stash().get();
         if (finalState == null)
         {
-            ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "无需修正（no-op / 无权限 / 病态路径）@ " + pos);
+            ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "No correction needed (no-op / no permission / pathological path) @ " + pos);
             return;
         }
 
@@ -171,12 +171,12 @@ public class EasyPlaceFixListener implements Listener
         // 对事件位世界态的病态扰动面；失败降级保留 vanilla 态（并入既有登记）。
         if (!finalState.canSurvive(level, pos))
         {
-            ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "修正态 canSurvive 复查失败（病态扰动），保留 vanilla 状态 @ " + pos);
+            ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "Corrected-state canSurvive recheck failed (pathological interference), keeping vanilla state @ " + pos);
             return;
         }
 
         level.setBlock(pos, finalState, Block.UPDATE_ALL_IMMEDIATE);
-        ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "修正放置 " + finalState + " @ " + pos);
+        ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "Placement corrected " + finalState + " @ " + pos);
 
         // 双半格（门族/垂滴叶族）：上半格在事件前已由 vanilla setPlacedBy 按 vanilla 态写入，
         // 以修正态重演同一派生恢复两半一致——不依赖 updateShape 邻居自愈（受 BlockPhysicsEvent
@@ -186,7 +186,7 @@ public class EasyPlaceFixListener implements Listener
         {
             finalState.getBlock().setPlacedBy(level, pos, finalState, player,
                     CraftItemStack.asNMSCopy(event.getItemInHand()));
-            ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "双半格上半派生 @ " + pos.above());
+            ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "Double-half block upper-half derivation @ " + pos.above());
         }
     }
 

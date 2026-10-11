@@ -83,8 +83,8 @@ public class ServerCommunicationManager extends CommunicationManager
         broadcastTargets.removeIf(t -> t.getPlayerId().equals(newPlayer.getPlayerId()));
         targets.put(newPlayer.getPlayerId(), newPlayer);
         context.getPlayerIdentifierProvider().updateName(newPlayer.getPlayerId(), newPlayer.getPlayer().getName());
-        SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] onPlayerJoin: 注册 target " + newPlayer.getPersistentName()
-                + "（仅登记；握手由 SyncmaticaModule.onJoin 延迟 40t 发起，见 tryStartHandshake）");
+        SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] onPlayerJoin: registered target " + newPlayer.getPersistentName()
+                + " (registration only; handshake started by SyncmaticaModule.onJoin after 40t delay, see tryStartHandshake)");
         // 此处【不】立即发起 VersionHandshakeServer——原版可行是因为 Fabric 配置阶段已完成通道声明；
         // Paper 下 PlayerJoinEvent 时客户端 codec 尚未就绪，立即推 REGISTER_VERSION 会握手失败并残留 exchange。
         // 握手发起策略（双保险，见 SyncmaticaModule.onJoin）：
@@ -117,22 +117,22 @@ public class ServerCommunicationManager extends CommunicationManager
     {
         if (broadcastTargets.contains(target))
         {
-            SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] tryStartHandshake: 跳过 " + target.getPersistentName()
-                    + "（已在 broadcastTargets，握手已完成）");
+            SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] tryStartHandshake: skipping " + target.getPersistentName()
+                    + " (already in broadcastTargets, handshake completed)");
             return; // 已握手成功（VersionHandshakeServer succeed 后加入 broadcastTargets）
         }
         for (final Exchange ex : target.getExchanges())
         {
             if (ex instanceof VersionHandshakeServer)
             {
-                SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] tryStartHandshake: 跳过 " + target.getPersistentName()
-                        + "（已有进行中的 VersionHandshakeServer）");
+                SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] tryStartHandshake: skipping " + target.getPersistentName()
+                        + " (an ongoing VersionHandshakeServer already exists)");
                 return; // 已有进行中的握手，避免重复发起
             }
         }
-        SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] tryStartHandshake: 发起握手 → " + target.getPersistentName()
-                + "（探针引导，声明尚未到达——声明是握手下游产物，见方法 javadoc）");
-        SyncmaticaLog.info("syncmatica 发起握手 → {}（探针引导，声明尚未到达）", target.getPersistentName());
+        SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] tryStartHandshake: starting handshake -> " + target.getPersistentName()
+                + " (probe-guided, declaration not yet arrived -- declaration is a downstream product of the handshake, see method javadoc)");
+        SyncmaticaLog.info("syncmatica starting handshake -> {} (probe-guided, declaration not yet arrived)", target.getPersistentName());
         final VersionHandshakeServer hi = new VersionHandshakeServer(target, context);
         startExchangeUnchecked(hi);
     }
@@ -140,7 +140,7 @@ public class ServerCommunicationManager extends CommunicationManager
     public void onPlayerLeave(final ExchangeTarget oldPlayer)
     {
         SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] onPlayerLeave: " + oldPlayer.getPersistentName()
-                + "（关闭其 exchange 链 + 移出 targets/broadcastTargets）");
+                + " (closing its exchange chain + removing from targets/broadcastTargets)");
         // exchange 关闭链（close/handleExchange）可能抛异常，removes 必须 finally 保终执行——否则陈旧
         // target 残留，getOrCreateTarget(computeIfAbsent) 会复用死 Player 引用、broadcastTargets 持续对
         // 死连接发广播。异常照旧上抛（由 SyncmaticaModule.onQuit 外层 catch 记日志），仅清理时机不受影响。
@@ -338,13 +338,13 @@ public class ServerCommunicationManager extends CommunicationManager
         if (exchange instanceof VersionHandshakeServer && exchange.isSuccessful())
         {
             broadcastTargets.add(exchange.getPartner());
-            SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] 握手成功 → " + exchange.getPartner().getPersistentName()
-                    + " 已加入 broadcastTargets（共 " + broadcastTargets.size() + " 个）");
+            SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] handshake succeeded -> " + exchange.getPartner().getPersistentName()
+                    + " added to broadcastTargets (total " + broadcastTargets.size() + ")");
         }
         else if (exchange instanceof VersionHandshakeServer)
         {
-            SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] 握手失败 → " + exchange.getPartner().getPersistentName()
-                    + "（未加入 broadcastTargets；版本不兼容或 FeatureSet 交换未完成）");
+            SyncmaticaDebug.log(SyncmaticaDebug.Cat.HANDSHAKE, "[syncm] handshake failed -> " + exchange.getPartner().getPersistentName()
+                    + " (not added to broadcastTargets; incompatible version or FeatureSet exchange incomplete)");
         }
         if (exchange instanceof ModifyExchangeServer && exchange.isSuccessful())
         {

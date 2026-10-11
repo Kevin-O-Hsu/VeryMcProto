@@ -81,9 +81,9 @@ public class EasyPlaceListener implements PacketListener
         if (protocolValue < 0)
         {
             // 普通放置包 → 原样放行（保真重编码），vanilla 全流程处理（原版自回 ack）。
-            // 若持续只有此行而无「★ 编码包」日志 = 客户端从未发送协议编码包（未握手 servux / 协议配置关闭）。
-            ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "放行未编码普通放置包 pos=" + bp.x + "," + bp.y + "," + bp.z
-                    + " cursor.x=" + cursor.x + " pv=" + protocolValue + "（<0：普通右键或客户端未启用 EasyPlace 协议）");
+            // 若持续只有此行而无「[*] Coded packet」日志 = 客户端从未发送协议编码包（未握手 servux / 协议配置关闭）。
+            ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "Allowing unencoded plain placement packet pos=" + bp.x + "," + bp.y + "," + bp.z
+                    + " cursor.x=" + cursor.x + " pv=" + protocolValue + " (<0: plain right-click or client EasyPlace protocol not enabled)");
             return;
         }
 
@@ -96,7 +96,7 @@ public class EasyPlaceListener implements PacketListener
         BlockPos pos = new BlockPos(bp.x, bp.y, bp.z);
         EasyPlacePending.register(bukkitPlayer.getUniqueId(), pos.asLong(), protocolValue);
 
-        ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "★ 编码包→改写放行 pos=" + pos + " cursor=" + cursor.x + "," + cursor.y + "," + cursor.z
-                + " pv=" + protocolValue + " → relX=" + relX + "（已登记待修正）");
+        ServuxDebug.log(ServuxDebug.Cat.EASYPLACE, "[*] Coded packet -> rewrite-allow pos=" + pos + " cursor=" + cursor.x + "," + cursor.y + "," + cursor.z
+                + " pv=" + protocolValue + " -> relX=" + relX + " (registered pending correction)");
     }
 }

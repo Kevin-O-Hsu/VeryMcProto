@@ -160,21 +160,21 @@ public class ServuxHudPacket implements IServerPayloadData
             case PACKET_S2C_NBT_RESPONSE_DATA ->
             {
                 try { output.writeBytes(this.buffer.copy()); }
-                catch (Exception e) { Reference.logger().warning("ServuxHudPacket#toPacket: 写入 buffer 失败: " + e.getMessage()); }
+                catch (Exception e) { Reference.logger().warning("ServuxHudPacket#toPacket: failed to write buffer: " + e.getMessage()); }
             }
             case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA ->
             {
                 try { output.writeNbt(this.nbt); }
-                catch (Exception e) { Reference.logger().warning("ServuxHudPacket#toPacket: 写入 NBT 失败: " + e.getMessage()); }
+                catch (Exception e) { Reference.logger().warning("ServuxHudPacket#toPacket: failed to write NBT: " + e.getMessage()); }
             }
             case PACKET_C2S_SPAWN_DATA_REQUEST, PACKET_S2C_SPAWN_DATA, PACKET_S2C_WEATHER_TICK, PACKET_C2S_RECIPE_MANAGER_REQUEST,
                  PACKET_S2C_DATA_LOGGER_TICK, PACKET_C2S_DATA_LOGGER_REQUEST, PACKET_C2S_UNREGISTER_REPLY ->
             {
                 // 26.1：业务包载体为 malilib DataTag 线格式
                 try { DataTagIo.writeTag(output, this.nbt); }
-                catch (Exception e) { Reference.logger().warning("ServuxHudPacket#toPacket: 写入 Data 失败: " + e.getMessage()); }
+                catch (Exception e) { Reference.logger().warning("ServuxHudPacket#toPacket: failed to write Data: " + e.getMessage()); }
             }
-            default -> Reference.logger().warning("ServuxHudPacket#toPacket: 未知 packet type!");
+            default -> Reference.logger().warning("ServuxHudPacket#toPacket: unknown packet type!");
         }
     }
 
@@ -186,7 +186,7 @@ public class ServuxHudPacket implements IServerPayloadData
 
         if (type == null)
         {
-            Reference.logger().warning("ServuxHudPacket#fromPacket: 收到无效 packet type");
+            Reference.logger().warning("ServuxHudPacket#fromPacket: received invalid packet type");
             return null;
         }
 
@@ -204,12 +204,12 @@ public class ServuxHudPacket implements IServerPayloadData
                 case PACKET_S2C_WEATHER_TICK -> { return ServuxHudPacket.WeatherTick(DataTagIo.readTag(input)); }
                 case PACKET_C2S_RECIPE_MANAGER_REQUEST -> { return ServuxHudPacket.RecipeManagerRequest(DataTagIo.readTag(input)); }
                 case PACKET_C2S_UNREGISTER_REPLY -> { return ServuxHudPacket.UnregisterReply(DataTagIo.readTag(input)); }
-                default -> Reference.logger().warning("ServuxHudPacket#fromPacket: 未知 packet type!");
+                default -> Reference.logger().warning("ServuxHudPacket#fromPacket: unknown packet type!");
             }
         }
         catch (Exception e)
         {
-            Reference.logger().warning("ServuxHudPacket#fromPacket: 解析失败 type=" + type + ": " + e.getMessage());
+            Reference.logger().warning("ServuxHudPacket#fromPacket: parse failed type=" + type + ": " + e.getMessage());
         }
 
         return null;

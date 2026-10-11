@@ -65,7 +65,7 @@ public final class ProtocolChannel
                 return;
             }
             provenPlayers.add(player.getUniqueId());
-            FrameworkDebug.log("network", "C2S 收到 " + channelId + " ← " + player.getName() + " bytes=" + message.length);
+            FrameworkDebug.log("network", "C2S received " + channelId + " <- " + player.getName() + " bytes=" + message.length);
             try
             {
                 FriendlyByteBuf buf = FriendlyByteBufs.wrap(message);
@@ -76,9 +76,9 @@ public final class ProtocolChannel
             {
                 // 单行防刷屏：本 catch 是每包 C2S 解码热路径，恶意客户端畸形包可无限触发，
                 // 全堆栈 log() 会每包一整栈刷屏。"+ e" 拼接走 toString() 恒非 null——NPE 的
-                // getMessage() 为 null，此前线上只见「处理 C2S 失败: null」无法定位。
+                // getMessage() 为 null，此前线上只见「failed to handle C2S: null」无法定位。
                 // 范式边界：每包热路径用本形态；低频失败路径（unregister/NMS 兜底等）维持单行 getMessage()。
-                Reference.logger().warning("ProtocolChannel[" + channelId + "] 处理 C2S 失败: " + e);
+                Reference.logger().warning("ProtocolChannel[" + channelId + "] failed to handle C2S: " + e);
             }
         }
     };
@@ -136,7 +136,7 @@ public final class ProtocolChannel
         }
         catch (Exception e)
         {
-            Reference.logger().warning("ProtocolChannel[" + channelId + "] unregisterIncoming 失败: " + e.getMessage());
+            Reference.logger().warning("ProtocolChannel[" + channelId + "] unregisterIncoming failed: " + e.getMessage());
         }
         try
         {
@@ -148,7 +148,7 @@ public final class ProtocolChannel
         }
         catch (Exception e)
         {
-            Reference.logger().warning("ProtocolChannel[" + channelId + "] unregisterOutgoing 失败: " + e.getMessage());
+            Reference.logger().warning("ProtocolChannel[" + channelId + "] unregisterOutgoing failed: " + e.getMessage());
         }
     }
 
@@ -169,18 +169,18 @@ public final class ProtocolChannel
         if (!outgoing)
         {
             FrameworkDebug.log("network", "send FAIL " + channelId + " bytes=" + bytes.length
-                    + " : outgoing 未注册（provider 未 registerHandler / 通道已注销）");
+                    + " : outgoing not registered (provider did not registerHandler / channel already unregistered)");
             return false;
         }
         if (player == null || !player.isOnline())
         {
-            FrameworkDebug.log("network", "send FAIL " + channelId + " bytes=" + bytes.length + " : player 离线/null");
+            FrameworkDebug.log("network", "send FAIL " + channelId + " bytes=" + bytes.length + " : player offline/null");
             return false;
         }
         if (bytes.length > Messenger.MAX_MESSAGE_SIZE)
         {
-            Reference.logger().warning("ProtocolChannel[" + channelId + "] 拒绝发送超限包: " + bytes.length
-                    + " > Bukkit MAX_MESSAGE_SIZE（应走 PacketSplitter 分包；注意真正 S2C 瓶颈是客户端 32767 上限）");
+            Reference.logger().warning("ProtocolChannel[" + channelId + "] rejected oversized packet: " + bytes.length
+                    + " > Bukkit MAX_MESSAGE_SIZE (should use PacketSplitter; note the real S2C bottleneck is the client 32767 decode limit)");
             return false;
         }
 
@@ -196,13 +196,13 @@ public final class ProtocolChannel
             try
             {
                 NmsHolder.toNms(player).connection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(channelId, bytes)));
-                FrameworkDebug.log("network", "send OK " + channelId + " → " + player.getName()
+                FrameworkDebug.log("network", "send OK " + channelId + " -> " + player.getName()
                         + " bytes=" + bytes.length + " listening=false via=NMS-fallback");
                 return true;
             }
             catch (Exception e)
             {
-                Reference.logger().warning("ProtocolChannel[" + channelId + "] NMS 兜底发送失败: " + e.getMessage());
+                Reference.logger().warning("ProtocolChannel[" + channelId + "] NMS fallback send failed: " + e.getMessage());
                 return false;
             }
         }
@@ -210,14 +210,14 @@ public final class ProtocolChannel
         try
         {
             player.sendPluginMessage(plugin, name(), bytes);
-            FrameworkDebug.log("network", "send OK " + channelId + " → " + player.getName()
+            FrameworkDebug.log("network", "send OK " + channelId + " -> " + player.getName()
                     + " bytes=" + bytes.length + " listening=" + listening + " via=pluginMsg"
-                    + (listening ? "" : "(Paper 将按声明门控丢弃)"));
+                    + (listening ? "" : "(Paper will drop it per registration gate)"));
             return true;
         }
         catch (Exception e)
         {
-            Reference.logger().warning("ProtocolChannel[" + channelId + "] sendPluginMessage 失败: " + e.getMessage());
+            Reference.logger().warning("ProtocolChannel[" + channelId + "] sendPluginMessage failed: " + e.getMessage());
             return false;
         }
     }

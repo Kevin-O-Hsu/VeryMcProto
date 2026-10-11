@@ -101,29 +101,29 @@ tasks {
             val expected = expectedVersion
             ZipFile(jarFile).use { zip ->
                 val propEntry = zip.getEntry("version.properties")
-                    ?: throw GradleException("产物 jar 缺 version.properties：${jarFile.name}")
+                    ?: throw GradleException("output jar missing version.properties: ${jarFile.name}")
                 val props = Properties()
                 zip.getInputStream(propEntry).use { props.load(it) }
                 val propVersion = props.getProperty("version")
-                    ?: throw GradleException("version.properties 缺 version 键：${jarFile.name}")
+                    ?: throw GradleException("version.properties missing version key: ${jarFile.name}")
                 val ymlEntry = zip.getEntry("plugin.yml")
-                    ?: throw GradleException("产物 jar 缺 plugin.yml：${jarFile.name}")
+                    ?: throw GradleException("output jar missing plugin.yml: ${jarFile.name}")
                 val ymlText = zip.getInputStream(ymlEntry).use { it.readBytes().toString(Charsets.UTF_8) }
                 val ymlVersion = Regex("(?m)^version:\\s*'?([^'\\r\\n]+)'?\\s*$").find(ymlText)?.groupValues?.get(1)
-                    ?: throw GradleException("plugin.yml 缺 version 行：${jarFile.name}")
+                    ?: throw GradleException("plugin.yml missing version entry: ${jarFile.name}")
                 val ymlApiVersion = Regex("(?m)^api-version:\\s*'?([^'\\r\\n]+)'?\\s*$").find(ymlText)?.groupValues?.get(1)
-                    ?: throw GradleException("plugin.yml 缺 api-version 行：${jarFile.name}")
+                    ?: throw GradleException("plugin.yml missing api-version entry: ${jarFile.name}")
                 if (ymlApiVersion != expectedApiVersion) {
                     throw GradleException(
-                        "api-version 注入不一致：jar=${jarFile.name} 内 plugin.yml=$ymlApiVersion，期望 $expectedApiVersion" +
-                            "（= mcVersion，plugin.yml 已模板化 '${'$'}{mcVersion}'）——疑似展开陈旧，执行 ./gradlew clean 后重新构建")
+                        "api-version injection mismatch: jar=${jarFile.name} plugin.yml=$ymlApiVersion, expected $expectedApiVersion" +
+                            "(= mcVersion; plugin.yml is templated as '${'$'}{mcVersion}') -- stale expansion suspected, run ./gradlew clean and rebuild")
                 }
                 if (propVersion != expected || ymlVersion != expected) {
                     throw GradleException(
-                        "版本注入不一致：jar=${jarFile.name} 内 version.properties=$propVersion / " +
-                            "plugin.yml=$ymlVersion，期望 $expected——疑似展开陈旧，执行 ./gradlew clean 后重新构建")
+                        "version injection mismatch: jar=${jarFile.name} version.properties=$propVersion / " +
+                            "plugin.yml=$ymlVersion, expected $expected -- stale expansion suspected, run ./gradlew clean and rebuild")
                 }
-                logger.lifecycle("版本注入校验通过：${jarFile.name} 内部版本 = $expected")
+                logger.lifecycle("version injection check passed: ${jarFile.name} internal version = $expected")
             }
         }
     }

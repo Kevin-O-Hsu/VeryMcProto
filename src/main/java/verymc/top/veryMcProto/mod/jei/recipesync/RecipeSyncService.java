@@ -85,9 +85,9 @@ public final class RecipeSyncService
             byte[] bytes = new byte[buffer.writerIndex()];
             buffer.getBytes(0, bytes);
             JeiPacketSender.send(player, JeiReference.CHANNEL_FABRIC_RECIPE_SYNC, bytes);
-            Reference.logger().info("[JEI] fabric 配方同步 → " + player.getName().getString()
-                    + "（" + vanillaRecipes + "/" + recipeMap.values().size() + " 配方（minecraft 命名空间）/ "
-                    + entries.size() + " 组 / " + bytes.length + " 字节）");
+            Reference.logger().info("[JEI] fabric recipe sync -> " + player.getName().getString()
+                    + " (" + vanillaRecipes + "/" + recipeMap.values().size() + " recipes (minecraft namespace) / "
+                    + entries.size() + " groups / " + bytes.length + " bytes)");
         }
         finally
         {
@@ -112,8 +112,8 @@ public final class RecipeSyncService
 
             // neoforge 客户端除配方外还需 tag 表（原版行为）
             player.connection.send(new ClientboundUpdateTagsPacket(TagNetworkSerialization.serializeTagsToNetwork(server.registries())));
-            Reference.logger().info("[JEI] neoforge 配方同步 → " + player.getName().getString()
-                    + "（" + payload.recipes().size() + " 配方 / " + bytes.length + " 字节）");
+            Reference.logger().info("[JEI] neoforge recipe sync -> " + player.getName().getString()
+                    + " (" + payload.recipes().size() + " recipes / " + bytes.length + " bytes)");
         }
         finally
         {

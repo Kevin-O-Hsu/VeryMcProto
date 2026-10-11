@@ -241,7 +241,7 @@ public class HudDataProvider extends DataProviderBase
                     weather.isRaining(),
                     weather.isThundering());
         }
-        catch (Exception e) { ServuxDebug.log(ServuxDebug.Cat.TICK, "pollWeather 天气采集失败（NMS 字段漂移？）: " + e.getMessage()); }
+        catch (Exception e) { ServuxDebug.log(ServuxDebug.Cat.TICK, "pollWeather weather poll failed (NMS field drift?): " + e.getMessage()); }
     }
 
     private void setPlayerInvalid(ServerPlayer player)
@@ -411,12 +411,12 @@ public class HudDataProvider extends DataProviderBase
     {
         if (!this.isEnabled())
         {
-            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud sendMetadata 跳过: provider disabled");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud sendMetadata skipped: provider disabled");
             return;
         }
         if (!this.hasPermission(player))
         {
-            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud sendMetadata 拒绝 " + player.getName().getString() + " (权限不足)");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud sendMetadata denied " + player.getName().getString() + " (insufficient permissions)");
             return;
         }
 
@@ -429,7 +429,7 @@ public class HudDataProvider extends DataProviderBase
 
         // 方案 A：走 plugin messaging（原版走 NMS networkHandler 首发保真，Paper 用握手重试替代）
         boolean ok = HANDLER.sendPlayPayload(player, ServuxHudPacket.MetadataResponse(nbt));
-        ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud sendMetadata → " + player.getName().getString()
+        ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud sendMetadata -> " + player.getName().getString()
                 + " ok=" + ok + " servux=" + nbt.getStringOr("servux", "?")
                 + " ver=" + nbt.getIntOr("version", -1)
                 + " keys=" + nbt.keySet()
@@ -494,7 +494,7 @@ public class HudDataProvider extends DataProviderBase
         // 对齐上游 :572-576：每次刷新重查权限（注册后撤权的玩家不再拉到 spawn 帧——坐标/维度 + 条件种子）
         if (!this.hasPermission(player))
         {
-            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud refreshSpawnMetadata 拒绝 " + player.getName().getString() + " (权限不足)");
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud refreshSpawnMetadata denied " + player.getName().getString() + " (insufficient permissions)");
             return;
         }
 
@@ -558,7 +558,7 @@ public class HudDataProvider extends DataProviderBase
 
         if (data != null)
         {
-            ServuxDebug.log(ServuxDebug.Cat.PACKET, "hudDataChannel: 收到 RecipeManager 请求 from " + player.getName().getString()
+            ServuxDebug.log(ServuxDebug.Cat.PACKET, "hudDataChannel: received RecipeManager request from " + player.getName().getString()
                     + ", client version=" + data.getStringOr("version", "?"));
         }
 
@@ -632,7 +632,7 @@ public class HudDataProvider extends DataProviderBase
             BlockPos pos = new BlockPos(loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
             this.setSpawnPos(new GlobalPos(ServerLevel.OVERWORLD, pos));
         }
-        catch (Exception e) { ServuxDebug.log(ServuxDebug.Cat.TICK, "updateSpawnFromServer 出生点采集失败（NMS 字段漂移？）: " + e.getMessage()); }
+        catch (Exception e) { ServuxDebug.log(ServuxDebug.Cat.TICK, "updateSpawnFromServer spawn collection failed (NMS field drift?): " + e.getMessage()); }
     }
 
     public boolean shouldRefreshSpawnMetadata() { return this.refreshSpawnMetadata; }
@@ -696,7 +696,7 @@ public class HudDataProvider extends DataProviderBase
                 }
             }.runTaskLater(Reference.plugin(), 40L); // 2s
         }
-        catch (Exception e) { ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "onPlayerJoin 延迟 sendMetadata 失败: " + e.getMessage()); }
+        catch (Exception e) { ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "onPlayerJoin delayed sendMetadata failed: " + e.getMessage()); }
     }
 
     @Override
@@ -730,10 +730,10 @@ public class HudDataProvider extends DataProviderBase
             {
                 this.updateSpawnFromServer(server);
                 GlobalPos sp = this.getSpawnPos();
-                ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud onConfigLoaded: 同步出生点 → dim=" + sp.dimension().identifier() + " pos=" + sp.pos());
+                ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud onConfigLoaded: synced spawn -> dim=" + sp.dimension().identifier() + " pos=" + sp.pos());
             }
         }
-        catch (Exception e) { ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud onConfigLoaded 同步出生点异常: " + e.getMessage()); }
+        catch (Exception e) { ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud onConfigLoaded spawn sync exception: " + e.getMessage()); }
     }
 
     public static class BoolCallback implements IServuxSettingCallback<Boolean>

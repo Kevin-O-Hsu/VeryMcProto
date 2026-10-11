@@ -23,18 +23,18 @@ public final class VeryMcProto extends JavaPlugin
     public void onEnable()
     {
         Reference.init(this);
-        Reference.logger().info("[" + Reference.PLUGIN_NAME + "] 启动中 (MC " + Reference.MC_VERSION + ", " + Reference.PLATFORM + ")...");
+        Reference.logger().info("[" + Reference.PLUGIN_NAME + "] starting (MC " + Reference.MC_VERSION + ", " + Reference.PLATFORM + ")...");
 
         try
         {
             if (!getDataFolder().exists() && !getDataFolder().mkdirs())
             {
-                Reference.logger().warning("无法创建插件数据目录: " + getDataFolder());
+                Reference.logger().warning("Unable to create plugin data folder: " + getDataFolder());
             }
         }
         catch (Exception e)
         {
-            Reference.logger().warning("创建插件数据目录失败: " + e.getMessage());
+            Reference.logger().warning("Failed to create plugin data folder: " + e.getMessage());
         }
 
         try
@@ -52,33 +52,33 @@ public final class VeryMcProto extends JavaPlugin
             try
             {
                 new verymc.top.veryMcProto.mod.servux.app.ServuxModule().onRegister(DataProviderManager.INSTANCE);
-                Reference.logger().info("[" + Reference.PLUGIN_NAME + "] 已注册协议 mod: servux");
+                Reference.logger().info("[" + Reference.PLUGIN_NAME + "] registered protocol mod: servux");
             }
             catch (Exception ex)
             {
-                Reference.logger().severe("[" + Reference.PLUGIN_NAME + "] 注册 servux 模块失败: " + ex.getMessage());
+                Reference.logger().severe("[" + Reference.PLUGIN_NAME + "] failed to register servux module: " + ex.getMessage());
             }
 
             // 注册协议 mod 模块（第二个：JEI —— mezz/JustEnoughItems 26.2 完整服务端协议：配方同步 + jei:* 通道交互）
             try
             {
                 verymc.top.veryMcProto.mod.jei.app.JeiModule.enable(this);
-                Reference.logger().info("[" + Reference.PLUGIN_NAME + "] 已注册协议 mod: jei");
+                Reference.logger().info("[" + Reference.PLUGIN_NAME + "] registered protocol mod: jei");
             }
             catch (Exception ex)
             {
-                Reference.logger().severe("[" + Reference.PLUGIN_NAME + "] 注册 jei 模块失败: " + ex.getMessage());
+                Reference.logger().severe("[" + Reference.PLUGIN_NAME + "] failed to register jei module: " + ex.getMessage());
             }
 
             // 注册协议 mod 模块（第三个：Syncmatica —— 投影共享中央仓库，单通道 + Exchange 会话）
             try
             {
                 new verymc.top.veryMcProto.mod.syncmatica.app.SyncmaticaModule().enable(this);
-                Reference.logger().info("[" + Reference.PLUGIN_NAME + "] 已注册协议 mod: syncmatica");
+                Reference.logger().info("[" + Reference.PLUGIN_NAME + "] registered protocol mod: syncmatica");
             }
             catch (Exception ex)
             {
-                Reference.logger().severe("[" + Reference.PLUGIN_NAME + "] 注册 syncmatica 模块失败: " + ex.getMessage());
+                Reference.logger().severe("[" + Reference.PLUGIN_NAME + "] failed to register syncmatica module: " + ex.getMessage());
             }
 
             // 注册 /syncmatica 命令
@@ -98,7 +98,7 @@ public final class VeryMcProto extends JavaPlugin
             }
             catch (Exception ex)
             {
-                Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] 注册 /syncmatica 命令失败: " + ex.getMessage());
+                Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] failed to register /syncmatica command: " + ex.getMessage());
             }
 
             // 注册 /servux 命令
@@ -114,7 +114,7 @@ public final class VeryMcProto extends JavaPlugin
             }
             catch (Exception ex)
             {
-                Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] 注册 /servux 命令失败: " + ex.getMessage());
+                Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] failed to register /servux command: " + ex.getMessage());
             }
 
             // 注册 /jei 命令（JEI 模块：状态/启用/禁用）
@@ -130,14 +130,14 @@ public final class VeryMcProto extends JavaPlugin
             }
             catch (Exception ex)
             {
-                Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] 注册 /jei 命令失败: " + ex.getMessage());
+                Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] failed to register /jei command: " + ex.getMessage());
             }
 
-            Reference.logger().info("[" + Reference.PLUGIN_NAME + "] 框架就绪。");
+            Reference.logger().info("[" + Reference.PLUGIN_NAME + "] framework ready.");
         }
         catch (Exception e)
         {
-            Reference.logger().severe("[" + Reference.PLUGIN_NAME + "] 框架初始化失败: " + e.getMessage());
+            Reference.logger().severe("[" + Reference.PLUGIN_NAME + "] framework initialization failed: " + e.getMessage());
         }
     }
 
@@ -159,19 +159,19 @@ public final class VeryMcProto extends JavaPlugin
             {
                 verymc.top.veryMcProto.mod.syncmatica.app.SyncmaticaModule.getInstance().disable();
             }
-            catch (Exception e) { Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] syncmatica disable 异常（placements.json shutdown 保存可能失败）: " + e.getMessage()); }
+            catch (Exception e) { Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] syncmatica disable exception (placements.json shutdown save may have failed): " + e.getMessage()); }
             // jei 卸载（注销 jei:* 通道；须在 ChannelManager.unregisterAll 前）
             try
             {
                 verymc.top.veryMcProto.mod.jei.app.JeiModule.disable();
             }
-            catch (Exception e) { Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] jei disable 异常: " + e.getMessage()); }
+            catch (Exception e) { Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] jei disable exception: " + e.getMessage()); }
             ChannelManager.INSTANCE.unregisterAll();
         }
         catch (Exception e)
         {
-            Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] 卸载过程异常: " + e.getMessage());
+            Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] exception during unload: " + e.getMessage());
         }
-        Reference.logger().info("[" + Reference.PLUGIN_NAME + "] 已卸载。");
+        Reference.logger().info("[" + Reference.PLUGIN_NAME + "] unloaded.");
     }
 }

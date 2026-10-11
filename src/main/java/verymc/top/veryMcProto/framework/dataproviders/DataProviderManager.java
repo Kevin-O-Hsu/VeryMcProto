@@ -109,7 +109,7 @@ public class DataProviderManager
         //（enabled 字段默认 false 的唯一提升路径，互补而非冗余）
         if (!enabled && ALWAYS_ENABLED_PROVIDER.equals(provider.getName()))
         {
-            FrameworkDebug.log("provider", "setProviderEnabled: 拒绝停用 " + provider.getName() + "（ALWAYS_ENABLED）");
+            FrameworkDebug.log("provider", "setProviderEnabled: refusing to disable " + provider.getName() + " (ALWAYS_ENABLED)");
             return false;
         }
 
@@ -118,7 +118,7 @@ public class DataProviderManager
         if (FrameworkDebug.isOn("provider"))
         {
             FrameworkDebug.log("provider", "setProviderEnabled: " + provider.getName()
-                    + " was=" + wasEnabled + " → now=" + enabled);
+                    + " was=" + wasEnabled + " -> now=" + enabled);
         }
 
         if (enabled || wasEnabled != enabled)
@@ -129,7 +129,7 @@ public class DataProviderManager
             if (enabled && provider.shouldTick() && this.providersTicking.contains(provider) == false)
             {
                 this.providersTicking.add(provider);
-                FrameworkDebug.log("provider", "  → 加入 ticking 列表，interval=" + provider.getTickInterval());
+                FrameworkDebug.log("provider", "  -> added to ticking list, interval=" + provider.getTickInterval());
             }
             else
             {
@@ -158,7 +158,7 @@ public class DataProviderManager
                     }
                     catch (Exception e)
                     {
-                        Reference.logger().warning("tick[" + provider.getName() + "] 异常: " + e.getMessage());
+                        Reference.logger().warning("tick[" + provider.getName() + "] exception: " + e.getMessage());
                     }
                 }
             }
@@ -177,12 +177,12 @@ public class DataProviderManager
     {
         if (provider.isEnabled())
         {
-            FrameworkDebug.log("provider", "updatePacketHandlerRegistration: " + provider.getName() + " → registerHandler()");
+            FrameworkDebug.log("provider", "updatePacketHandlerRegistration: " + provider.getName() + " -> registerHandler()");
             provider.registerHandler();
         }
         else
         {
-            FrameworkDebug.log("provider", "updatePacketHandlerRegistration: " + provider.getName() + " → unregisterHandler() + setRegistered(false)");
+            FrameworkDebug.log("provider", "updatePacketHandlerRegistration: " + provider.getName() + " -> unregisterHandler() + setRegistered(false)");
             provider.unregisterHandler();
             provider.setRegistered(false); // 与 registerHandler 内 setRegistered(true) 对称，消除 provider 级标志撒谎
         }
@@ -309,7 +309,7 @@ public class DataProviderManager
         }
         else
         {
-            FrameworkDebug.log("config", "readFromConfig: 配置文件不存在，首次启动默认全启用");
+            FrameworkDebug.log("config", "readFromConfig: config file not found, first startup enables all by default");
             // 首次无 config：全启用（除 debug_data，本版无）
             for (IDataProvider provider : this.providersImmutable)
             {
@@ -321,13 +321,13 @@ public class DataProviderManager
         for (IDataProvider provider : this.providersImmutable)
         {
             try { provider.onConfigLoaded(); }
-            catch (Exception ex) { Reference.logger().warning("onConfigLoaded[" + provider.getName() + "] 异常: " + ex.getMessage()); }
+            catch (Exception ex) { Reference.logger().warning("onConfigLoaded[" + provider.getName() + "] exception: " + ex.getMessage()); }
         }
 
         // 汇总各 provider 启停结果（一次打印，便于核对 enabled/registered/tick 三态）
         if (FrameworkDebug.isOn("config"))
         {
-            StringBuilder sb = new StringBuilder("readFromConfig 完成 → providers:");
+            StringBuilder sb = new StringBuilder("readFromConfig done -> providers:");
             for (IDataProvider provider : this.providersImmutable)
             {
                 sb.append("\n  - ").append(provider.getName())
@@ -345,7 +345,7 @@ public class DataProviderManager
         JsonObject root = new JsonObject();
         JsonObject objToggles = new JsonObject();
 
-        FrameworkDebug.log("config", "DataProviderManager#writeToConfig() → " + this.getConfigFile());
+        FrameworkDebug.log("config", "DataProviderManager#writeToConfig() -> " + this.getConfigFile());
 
         for (IDataProvider provider : this.providersImmutable)
         {
@@ -381,7 +381,7 @@ public class DataProviderManager
             }
             catch (Exception err)
             {
-                Reference.logger().warning("getConfigFile: 创建配置目录失败 '" + this.configDir.toAbsolutePath() + "': " + err.getMessage());
+                Reference.logger().warning("getConfigFile: failed to create config directory '" + this.configDir.toAbsolutePath() + "': " + err.getMessage());
             }
         }
 

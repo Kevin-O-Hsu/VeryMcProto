@@ -141,14 +141,14 @@ public class SyncmaticaContext
         {
             scm.suspendAll();
         }
-        SyncmaticaLog.info("Syncmatica 协议已禁用（软禁用：通道保留、handler 吞包、玩家不会被踢）");
+        SyncmaticaLog.info("Syncmatica protocol disabled (soft-disable: channels kept, handler swallows packets, players will not be kicked)");
     }
 
     /** 恢复：重新接受 incoming 包。在线玩家的重新握手由 SyncmaticaModule.reconnectOnlinePlayers 负责。 */
     public void resumeProtocol()
     {
         this.protocolEnabled = true;
-        SyncmaticaLog.info("Syncmatica 协议已启用");
+        SyncmaticaLog.info("Syncmatica protocol enabled");
     }
 
     public Path getLitematicFolder() { return litematicFolder; }

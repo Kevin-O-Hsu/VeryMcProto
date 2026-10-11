@@ -81,8 +81,8 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
         }
         else if (this.failures.get(uuid) > this.maxFailures())
         {
-            ServuxDebug.log(ServuxDebug.Cat.PACKET, "tickFailures litematics → " + player.getName().getString()
-                    + " 超过 " + this.maxFailures() + " 次失败，触发 onPacketFailure");
+            ServuxDebug.log(ServuxDebug.Cat.PACKET, "tickFailures litematics -> " + player.getName().getString()
+                    + " exceeded " + this.maxFailures() + " failures, triggering onPacketFailure");
             LitematicsDataProvider.INSTANCE.onPacketFailure(player);
         }
         else
@@ -107,7 +107,7 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
     {
         ServuxLitematicaPacket packet = ServuxLitematicaPacket.fromPacket(data);
         if (packet == null) { return; }
-        ServuxDebug.log(ServuxDebug.Cat.PACKET, "C2S litematics ← " + player.getName().getString() + " type=" + packet.getType());
+        ServuxDebug.log(ServuxDebug.Cat.PACKET, "C2S litematics <- " + player.getName().getString() + " type=" + packet.getType());
         this.decodeServerData(CHANNEL_ID, player, packet);
     }
 
@@ -138,8 +138,8 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
             {
                 // 上游同源忽略：type 15 客户端接收端被 TODO 注释（服务端无发送场景）；type 16 为 S2C 下行，
                 // 服务端收到即异常方向；type 17 上游 handler 分支亦注释（客户端 sendServuxTaskCancel 整体注释）。
-                Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: 收到非预期 task 包 type="
-                        + packet.getPacketType() + " from " + player.getName().getString() + "（上游同源忽略）");
+                Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: received unexpected task packet type="
+                        + packet.getPacketType() + " from " + player.getName().getString() + " (ignored, same as upstream)");
             }
             case PACKET_C2S_NBT_RESPONSE_DATA ->
             {
@@ -162,7 +162,7 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
                     readingSessionKey = this.readingSessionKeys.get(uuid);
                 }
 
-                ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeServerData litematics: 收到投影分片 size=" + packet.getTotalSize() + " key=" + readingSessionKey);
+                ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeServerData litematics: received schematic fragment size=" + packet.getTotalSize() + " key=" + readingSessionKey);
 
                 try
                 {
@@ -170,7 +170,7 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
 
                     if (fullPacket != null)
                     {
-                        ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeServerData litematics: 投影完整包 size=" + fullPacket.readableBytes() + " key=" + readingSessionKey);
+                        ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeServerData litematics: schematic complete packet size=" + fullPacket.readableBytes() + " key=" + readingSessionKey);
                         try
                         {
                             this.readingSessionKeys.remove(uuid);
@@ -179,21 +179,21 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
 
                             if (nbt != null)
                             {
-                                ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeServerData litematics: DataTag 解析成功 keys=" + nbt.keySet()
-                                        + " Task=" + nbt.getStringOr("Task", "(无)"));
+                                ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeServerData litematics: DataTag parsed successfully keys=" + nbt.keySet()
+                                        + " Task=" + nbt.getStringOr("Task", "(none)"));
                                 // 上游 0.10.7 ServuxLitematicaHandler:201 同构：重组完成无条件走 paste 受理
                                 //（Task 门控在 Provider：非 LitematicaPaste 静默忽略）；Transmit* 接收链已随安全修复移除
                                 LitematicsDataProvider.INSTANCE.handleClientPasteRequest(player, nbt);
                             }
                             else
                             {
-                                Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: 投影完整包 DataTag 解析返回 null（size=" + fullPacket.readableBytes()
-                                        + " key=" + readingSessionKey + "——长度/解压/NBT 失败，详见上方 DataTagIo 告警）");
+                                Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: schematic complete packet DataTag parse returned null (size=" + fullPacket.readableBytes()
+                                        + " key=" + readingSessionKey + " -- length/decompression/NBT failure, see DataTagIo warning above)");
                             }
                         }
                         catch (Exception e)
                         {
-                            Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: 投影完整包解析失败: " + e.getMessage());
+                            Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: schematic complete packet parse failed: " + e.getMessage());
                         }
                     }
                 }
@@ -201,11 +201,11 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
                 {
                     // 上游 packet/ServuxLitematicaHandler.java:162-170 同构：分片坏流终态——清键让下次上传换新会话键
                     //（僵尸会话本体由 receive 异常路径移除 / TTL 驱逐兜底）
-                    Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: PacketSplitter 分片异常，废弃会话 key=" + readingSessionKey + ": " + e.getMessage());
+                    Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: PacketSplitter fragment error, discarding session key=" + readingSessionKey + ": " + e.getMessage());
                     this.readingSessionKeys.remove(uuid);
                 }
             }
-            default -> Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: 无效 packetType " + packet.getPacketType()
+            default -> Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: invalid packetType " + packet.getPacketType()
                     + " from " + player.getName().getString() + ", size=" + packet.getTotalSize());
         }
     }
@@ -225,8 +225,8 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
 
         if (packet.getType().equals(ServuxLitematicaPacket.Type.PACKET_S2C_NBT_RESPONSE_START) || packet.getType().equals(ServuxLitematicaPacket.Type.PACKET_C2S_NBT_RESPONSE_START))
         {
-            ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData litematics → " + player.getName().getString()
-                    + " type=" + packet.getType() + " → PacketSplitter 分包");
+            ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData litematics -> " + player.getName().getString()
+                    + " type=" + packet.getType() + " -> PacketSplitter fragmentation");
             // 大包（26.1：重组整体为 DataTag 帧，无 transactionId 前缀）
             var buf = new FriendlyByteBuf(io.netty.buffer.Unpooled.buffer());
             DataTagIo.writeTag(buf, packet.getCompound());
