@@ -4,7 +4,7 @@
 > The client still uses the original Fabric mods; the server swaps from "Fabric server + server-side mod" to "standard Paper server + this plugin", with identical protocol behavior.
 
 ```
-Paper 1.21.11 · Java 21 · paperweight userdev · Version 1.21.11-b4
+Paper 1.21.11 · Java 21 · paperweight userdev · Version 1.21.11-b5
 Servux ✅  ·  JEI ✅  ·  Syncmatica ✅   (all three targets fully implemented and tested)
 ```
 
@@ -79,7 +79,7 @@ A server-side protocol mod that delivers data to masa's client mods (MiniHUD / L
 |  `servux:structures`     |  `structure_bounding_boxes`  |  2                 |  Structures: structure bounding boxes (periodic chunk scan)                                                                     |
 |  `servux:litematics`     |  `litematic_data`            |  1                 |  Litematics: schematic transmit / paste / bulk entities                                                                         |
 
-> Handshake field `MOD_STRING = servux-paper-1.21.11-b4` (keeps the `servux-` prefix so masa's client recognizes that the server runs the Servux protocol; concrete version negotiation goes through each channel's protocol version).
+> Handshake field `MOD_STRING = servux-paper-1.21.11-b5` (keeps the `servux-` prefix so masa's client recognizes that the server runs the Servux protocol; concrete version negotiation goes through each channel's protocol version).
 
 ### 2. JEI
 
@@ -102,7 +102,7 @@ Fundamentally different from Servux (one-way broadcast):
 - File storage + JSON persistence + **upload quota / debug** services.
 - On handshake, both sides exchange a **FeatureSet** to negotiate the optional-field encoding of metadata / position packets.
 
-**Feature enum** (negotiated on handshake): `CORE` `FEATURE` `MODIFY` `MESSAGE` `QUOTA` `DEBUG` `CORE_EX` `VERSION` `DISPLAY_NAME`. This server advertises the **full FeatureSet** (combined with `MOD_VERSION=1.21.11-b4` — the `-b` build suffix never matches the legacy version regex — to trigger FEATURE exchange so both sides encode with the full set).
+**Feature enum** (negotiated on handshake): `CORE` `FEATURE` `MODIFY` `MESSAGE` `QUOTA` `DEBUG` `CORE_EX` `VERSION` `DISPLAY_NAME`. This server advertises the **full FeatureSet** (combined with `MOD_VERSION=1.21.11-b5` — the `-b` build suffix never matches the legacy version regex — to trigger FEATURE exchange so both sides encode with the full set).
 
 ---
 
@@ -635,7 +635,7 @@ See [`docs/10-testing-guide.md`](docs/10-testing-guide.md) (Servux) and [`docs/2
 
 ### Versioning & Branch Model
 
-Plugin version = **`<MC version>-b<build number>`** — currently `1.21.11-b4`; when Mojang shifts to date-style names (e.g. `26.1`) it naturally becomes `26.1-b1`. The **single source of truth** is `gradle.properties` (`mcVersion` / `buildNumber`): Gradle derives `version` from it, injects it into `plugin.yml` / the jar name / `version.properties`, and `Reference.MC_VERSION` / `Reference.PLUGIN_VERSION` (hence every protocol handshake string such as `servux-paper-1.21.11-b4`) read it back from `version.properties`. Never hardcode a version anywhere else.
+Plugin version = **`<MC version>-b<build number>`** — currently `1.21.11-b5`; when Mojang shifts to date-style names (e.g. `26.1`) it naturally becomes `26.1-b1`. The **single source of truth** is `gradle.properties` (`mcVersion` / `buildNumber`): Gradle derives `version` from it, injects it into `plugin.yml` / the jar name / `version.properties`, and `Reference.MC_VERSION` / `Reference.PLUGIN_VERSION` (hence every protocol handshake string such as `servux-paper-1.21.11-b5`) read it back from `version.properties`. Never hardcode a version anywhere else.
 
 | Branch | Purpose |
 | --- | --- |
