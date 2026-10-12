@@ -37,7 +37,7 @@ import verymc.top.veryMcProto.framework.debug.FrameworkDebug;
  * 装有对应 mod、注册了 payload codec（能发即能收），此时若 Paper 声明簿记未跟上（listening=false），改走 NMS
  * {@code new ClientboundCustomPayloadPacket(new DiscardedPayload(channelId, bytes))} 直发——与 Paper 自身放行
  * 路径（{@code CraftPlayer.sendCustomPayload}）逐字同构，生产先例 {@code ExchangeTarget.sendViaNms} /
- * {@code RecipeSyncHandler.sendPayload}。未发过 C2S 的玩家（vanilla / 未装 mod）永不走兜底，维持
+ * {@code JeiPacketSender.send}。未发过 C2S 的玩家（vanilla / 未装 mod）永不走兜底，维持
  * sendPluginMessage 原路径（Paper 按声明丢弃）——vanilla 防护语义构造性保留，不依赖
  * 「vanilla 对未知通道 S2C 的行为」这一未决项（docs/09 §10.6.2）。
  *

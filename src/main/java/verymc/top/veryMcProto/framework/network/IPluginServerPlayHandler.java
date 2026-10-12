@@ -84,7 +84,7 @@ public interface IPluginServerPlayHandler
      * {@code servux:*} 的 payload codec 注册为 {@code DiscardedPayload} 而强转失败（ClassCastException →
      * 踢玩家，实测）——此路仍禁用。但发送<b>字面量 {@code new DiscardedPayload(id, bytes)}</b> 与 Paper 自身
      * 放行路径（{@code CraftPlayer.sendCustomPayload}）逐字同构，是已实证可用的兜底（生产先例：
-     * {@code ExchangeTarget.sendViaNms} / {@code RecipeSyncHandler.sendPayload}）；{@link ProtocolChannel#send}
+     * {@code ExchangeTarget.sendViaNms} / {@code JeiPacketSender.send}）；{@link ProtocolChannel#send}
      * 在「客户端未声明（Paper 将丢弃）且已在本通道发过 C2S（证明可解码）」时自动走该兜底。
      *
      * @return 是否投递（{@link ChannelManager#send} 结果，用于失败计数）。

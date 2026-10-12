@@ -6,7 +6,7 @@ load: POSTWORLD
 softdepend: [packetevents]
 author: Kevin O. Hsu
 website: https://modrinth.com/plugin/verymcproto
-description: A Paper plugin port of Fabric protocol mods (Servux protocol + JEI Recipe Bridge + Syncmatica schematic sharing).
+description: A Paper plugin port of Fabric protocol mods (Servux protocol + JEI server protocol + Syncmatica schematic sharing).
 commands:
   servux:
     description: Servux protocol configuration and diagnostics command
@@ -17,8 +17,8 @@ commands:
     usage: /syncmatica status|save|reload|enable|disable|load [file]|debug [...]
     permission: syncmatica.command
   jei:
-    description: JEI Recipe Bridge recipe sync command (enable-disable module, persisted)
-    usage: /jei enable|disable
+    description: JEI protocol module command (status / enable-disable module, persisted)
+    usage: /jei status|enable|disable
     permission: jei.command
 permissions:
   servux.commands:
@@ -69,7 +69,7 @@ permissions:
     description: Allows the /syncmatica command
     default: true
   jei.command:
-    description: Allows the /jei command (enable-disable JEI recipe sync)
+    description: Allows the /jei command (status / enable-disable the JEI protocol module)
     default: op
   syncmatica.command.admin:
     description: Allows /syncmatica save|reload|enable|disable|status (config and protocol management)

@@ -59,8 +59,8 @@ public class ExchangeTarget
      *
      * <p><b>命门（实测）</b>：plugin messaging（{@code sendPluginMessage}）的 S2C wire 格式，纯 Fabric 客户端
      * （syncmatica）收不到——客户端零响应、零 C2S 回包、连原版 Fabric syncmatica 服务端正常的同一客户端
-     * 进我们服也不回。而 NMS {@link DiscardedPayload} 直发（同 {@code RecipeSyncHandler.sendPayload} 路径）
-     * 已验证 fabric 客户端可解码（JEI Recipe Bridge 实测通过）。故 S2C 默认走 NMS 直发；plugin messaging
+     * 进我们服也不回。而 NMS {@link DiscardedPayload} 直发（同 {@code JeiPacketSender.send} 路径）
+     * 已验证 fabric 客户端可解码（配方同步实测通过——历史由 JEI Recipe Bridge 首验、现役 JeiPacketSender 同路径）。故 S2C 默认走 NMS 直发；plugin messaging
      * 仅作对比 fallback 保留。具体差异（plugin messaging wire vs NMS wire）尚待 wire 抓包确认，但实证上
      * NMS 直发是唯一让 Fabric 客户端响应的路径。
      */
@@ -121,7 +121,7 @@ public class ExchangeTarget
     }
 
     /**
-     * NMS {@link DiscardedPayload} 直发（绕过 plugin messaging；同 {@code RecipeSyncHandler.sendPayload} 路径）。
+     * NMS {@link DiscardedPayload} 直发（绕过 plugin messaging；同 {@code JeiPacketSender.send} 路径）。
      *
      * <p>构造 {@code new ClientboundCustomPayloadPacket(new DiscardedPayload(syncmatica:main, bytes))}，
      * 经 {@code ServerPlayer.connection.send} 投递。DiscardedPayload 本身即 vanilla payload 类型，序列化时

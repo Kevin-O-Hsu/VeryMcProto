@@ -2,13 +2,15 @@
 
 > 本目录是 **VeryMcProto**（Fabric 协议 Mod → Paper 1.21.11 插件移植）的全部技术文档。
 >
+> **文档命名约定（2026-10 立）**：既有 `NN-` 序号体系冻结存量；**新文档一律主题命名（如 `jei.md`），不再新增 NN 序号**——新文件永不引发既有序号重排。
+>
 > **三个协议 mod 全部已完整实现并实测通过**：
 > - **Servux**（masa 服务端协议）—— 5 数据通道 + schematic（投影投递/粘贴）+ EasyPlace。
-> - **JEI Recipe Bridge**（配方同步）—— 玩家进服按 client brand（fabric/neoforge）同步配方表。
+> - **JEI**（完整服务端协议）—— 配方同步双通道（fabric/neoforge）+ `jei:*` 10 通道（cheat 权限/给/删/热键栏/配方转移）+ 进服时序整形（2026-10 从 JEI Recipe Bridge 桥形态完整迁移，见 [jei.md](jei.md)）。
 > - **Syncmatica**（投影共享中央仓库）—— 单通道 + Exchange 会话层 + 文件存储 + JSON 持久化（实现说明见 20–24）。
 >
 > 顶层项目说明见根目录 [`../CLAUDE.md`](../CLAUDE.md)。
-> 原版 Fabric 源码对照：[`../OriginImpl/`](../OriginImpl/)（`servux` / `syncmatica` / `litematica` / `malilib` / `syncmatica` / `JEIRecipeBridge` 各子目录）。
+> 原版 Fabric 源码对照：[`../OriginImpl/`](../OriginImpl/)（`servux` / `syncmatica` / `litematica` / `malilib` / `JustEnoughItems-1.21.11` / `fabric-1.21.11`（fabric:recipe_sync wire 权威）/ `JEIRecipeBridge-1.21.11`（旧桥历史 + neoforge 层参考）各子目录）。
 
 ---
 
@@ -95,6 +97,20 @@
 **了解实现全貌**：[23](23-syncmatica-implementation-plan.md) 实际包结构 + 关键决策表 + 完成状态。
 
 **排错**：[24](24-syncmatica-testing-guide.md) 排错流程 + 症状→病因表。
+
+---
+
+# 三、JEI 完整协议（jei.md）
+
+## 一句话定位
+
+**JEI 服务端协议 = 三层**：配方同步层（`fabric:recipe_sync` / `neoforge:recipe_content`，加载器层 wire）+ `jei:*` 自有层（8 C2S + 2 S2C：cheat 权限/给/删/热键栏/配方转移）+ 服务端行为层（权限三切面 + 转移算法）。客户端功能门禁 `isJeiOnServer()` = 服务端声明过 `jei:delete_player_item` 通道——不声明则 cheat/转移全部静默退网。上游权威 = mezz/JustEnoughItems 分支 `1.21.11`（JEI 27.44.0）+ Fabric API 分支 `1.21.11`。
+
+## 文档地图
+
+| 文档 | 内容速览 | 关键词 |
+|---|---|---|
+| [jei.md](jei.md) ⭐ | 三层协议全景、通道声明契约（功能门禁）、`jei:*` wire 逐字段、cheat 权限模型、配方转移算法、fabric 腿进服时序整形（netty 出站扣包）、尺寸模型、2026-10 迁移实录（互 diff 分诊表/1.21.11 适配面/删桥实录）、实机验证清单 | JEI/cheat/配方转移 |
 
 ---
 

@@ -25,7 +25,7 @@
 每个被移植的 Mod 独占一个目录单元；原版 Fabric 实现统一存放在 `OriginImpl/` 下用于逐行对照（本地参考，已 gitignore，不入库）。**三个移植目标全部已完整实现并实测通过**：
 
 - **Servux**（`mod/servux/`，对照 `OriginImpl/servux-LTS-1.21.11/`）—— masa 开发的服务端协议 Mod，为 masa 的客户端 Mod（**MiniHUD / Litematica / Tweakeroo**）提供**服务端→客户端的数据投递与协议**，通过自定义网络通道（`servux:*`）下发：世界元数据、出生点、天气、TPS/MobCap、结构边界框、Litematica 投影投递/粘贴、实体与方块实体 NBT 查询、EasyPlace 服务端放置协议等。5 通道 + schematic（粘贴/投递）+ EasyPlace 全功能已实现。
-- **JEI Recipe Bridge**（`mod/jeirecipebridge/`，对照 `OriginImpl/JEIRecipeBridge-1.21.11/`）—— 玩家进服时把服务端配方表同步给 JEI 客户端，按 client brand 走 `fabric:recipe_sync` / `neoforge:recipe_content` 两条原版 custom payload 通道（NMS `ClientboundCustomPayloadPacket` 直发，绕过 plugin messaging size 上限）。纯 S2C / 一次性 / 仅 1 个 `enabled` 配置项。
+- **JEI 服务端协议**（`mod/jei/`，对照 `OriginImpl/JustEnoughItems-1.21.11/`（mezz 分支 `1.21.11` = JEI 27.44.0 / MC 1.21.11 / Java 21，commit `2af0130`；与 26.2 分支 network/transfer 互 diff 零字节差））—— **完整 JEI 协议**三层：① 配方同步层：`fabric:recipe_sync`（Fabric API `fabric-recipe-api-v1` wire，对照 `OriginImpl/fabric-1.21.11/`，RegisterChannel 触发 + 进服时序整形 `RecipeSyncJoinOrderer`——netty 出站扣住 UpdateRecipesPacket、等 play register 证据后放行）+ `neoforge:recipe_content`（join + brand 触发，wire 参考 `OriginImpl/JEIRecipeBridge-1.21.11/`）+ NeoForge tag 表补发；② `jei:*` 自有通道 10 条（8 C2S：`request_cheat_permission` / `give_item_stack` / `delete_player_item` / `set_hotbar_item_stack` / `recipe_transfer_with_result` / `recipe_transfer_counted_with_result` / legacy `recipe_transfer` / legacy `recipe_transfer_counted`；2 S2C：`cheat_permission` / `recipe_transfer_result`）——**客户端功能门禁 `isJeiOnServer()` = 服务端声明过 `jei:delete_player_item` 通道（`ChannelManager` 成对注册），与 brand 无关**；③ 服务端行为：cheat 权限三切面（Op=权限级 2 / Give=`minecraft.command.give` / Creative）+ `BasicRecipeTransferHandlerServer` 配方转移算法逐行移植。协议详情见 [`docs/jei.md`](docs/jei.md)。2026-10 从旧 JEI Recipe Bridge 桥形态（`mod/jeirecipebridge/`，已删）完整迁移（jei 跨线 cherry-pick 禁止、手工重写，实录见 docs/jei.md §8）。
 - **Syncmatica**（`mod/syncmatica/`，对照 `OriginImpl/syncmatica-LTS-1.21.11/`）—— **投影共享**协议 Mod：服务端作中央仓库存储 `.litematic`，多玩家上传/下载/协同修改放置位置。单物理通道 `syncmatica:main` + 18 逻辑 PacketType + Exchange 会话层（请求-应答状态机）+ 文件存储 + JSON 持久化 + 配额/调试服务。与 Servux（单向广播）根本不同——**双向、有状态、多玩家共享**。全功能已实现（`modifyState` 锁表有两处本地修复：CHM null 语义翻译 + null placement 守卫——迁移引入 NPE 链 + 上游原生缺陷，勿随模板回退，见 docs/21 §5.4）。
 
 > **本项目的本质是"协议层移植"**：客户端仍是 masa / syncmatica 的 Fabric Mod；我们要在 Paper 服务端复刻它们期待的**网络协议 + 数据采集**，使"Fabric 客户端 + Paper 服务端"的组合能像"Fabric 客户端 + 原版服务端 Mod"一样工作。
@@ -78,7 +78,7 @@ gradle.properties（mcVersion=1.21.11 · buildNumber=1）          ← 唯一改
        ├─ ServuxReference.MOD_STRING   = "servux-paper-1.21.11-b2"（三段式；客户端仅前缀识别）
        ├─ SyncmaticaReference.MOD_VERSION = "1.21.11-b2"（-b 后缀永不命中
        │    FeatureSet.fromVersionString 的 ^\d+(\.\d+){2,4}$ 正则 → 恒触发 FEATURE 交换）
-       └─ JeiRecipeBridgeModule.getModString() = "jei-recipe-bridge-paper-1.21.11-b2"
+       └─ （JEI 无版本握手支腿——jei 协议无 MOD_STRING/版本协商字段，服务端检测走通道声明 jei:delete_player_item）
 ```
 
 要点：
@@ -99,7 +99,7 @@ gradle.properties（mcVersion=1.21.11 · buildNumber=1）          ← 唯一改
 | **反射用 Mojang 名** | `reobf` 不转换反射字符串，Paper 运行时即 Mojang 映射 → 反射私有成员直接用 Mojang 名 |
 | **可选依赖** | PacketEvents `compileOnly("...packetevents-spigot:2.13.0")` + `plugin.yml: softdepend: [packetevents]`（仅供 Servux EasyPlace 用；未装则优雅跳过） |
 | **版本注入** | 见上节；`gradle.properties` 是唯一版本来源 |
-| **当前状态** | 三个 mod（Servux / JEI Recipe Bridge / Syncmatica）全部已实现并实测通过 |
+| **当前状态** | 三个 mod（Servux / JEI / Syncmatica）全部已实现并实测通过 |
 
 构建命令：
 ```bash
@@ -137,10 +137,10 @@ gradle.properties（mcVersion=1.21.11 · buildNumber=1）          ← 唯一改
 | mod | 包结构 | 装配方式 |
 |---|---|---|
 | **servux** | `app/ServuxModule`、`command/`、`dataproviders/`（6 Provider）、`network/`（5 Handler+Packet）、`easyplace/`、`loggers/`、`schematic/`（container/selection/placement/transmit）、`util/` | `ServuxModule.onRegister(DataProviderManager)` 注册 6 Provider + 反射加载 EasyPlace |
-| **jeirecipebridge** | `app/JeiRecipeBridgeModule`、`RecipeSyncHandler`、`payload/`、`config/JeiConfiguration`、`command/JeiCommand` | `JeiRecipeBridgeModule.onRegister(manager)` 注册 outgoing 通道 + PlayerJoinEvent 监听（不注册 Provider） |
+| **jei** | `app/JeiModule`、`JeiReference`、`network/`（JeiServerPlayHandler + JeiPacketSender + RecipeSyncJoinOrderer（fabric 腿进服时序整形——netty 出站扣住 UpdateRecipesPacket、等 play register 证据后放行，见 docs/jei.md §5.2）+ `payload/` 11 文件 = 8 wire 包类 + 1 抽象基类 + `legacy/` 2）、`transfer/`（TransferOperation + BasicRecipeTransferHandlerServer）、`cheat/`（Cheats + GiveMode）、`recipesync/`（Fabric/Neoforge 双 payload + RecipeSyncService）、`config/JeiConfiguration`、`command/JeiCommand` | `JeiModule.enable(plugin)`（**自管**——仿 syncmatica：ChannelManager 注册 8 条 jei:* C2S + Messenger 出站声明配方通道 + RegisterChannel/Join/AsyncConfigure 监听；onDisable 调 `JeiModule.disable()`） |
 | **syncmatica** | `app/SyncmaticaModule`、`SyncmaticaContext`、`communication/`（+`exchange/`）、`data/`（+`litematica/`）、`extended_core/`、`network/`、`service/`、`util/` | `SyncmaticaModule.enable(plugin)`（**不走 DataProviderManager**——Exchange 会话模型，自管通道注册 + 玩家监听） |
 
-主类 `VeryMcProto.onEnable()`：初始化框架（ChannelManager / DataProviderManager / LifecycleBridge）→ 依次注册 servux / jeirecipebridge / syncmatica 三个模块 → 注册 `/servux` `/jei` `/syncmatica` 命令。所有装配均包 try-catch，任何模块失败只记录日志、降级跳过，绝不影响服务端启动。
+主类 `VeryMcProto.onEnable()`：初始化框架（ChannelManager / DataProviderManager / LifecycleBridge）→ 依次注册 servux / jei / syncmatica 三个模块 → 注册 `/servux` `/jei` `/syncmatica` 命令。所有装配均包 try-catch，任何模块失败只记录日志、降级跳过，绝不影响服务端启动。
 
 ### 关键替换点（Fabric → Paper）一句话版
 
@@ -173,7 +173,7 @@ Paper 的 **plugin messaging channel（`namespace:path` 命名）直接映射到
 
 **三种 S2C 路径**（按 mod 选择）：
 - **Servux**：**plugin messaging 优先**（`ProtocolChannel.send` → `player.sendPluginMessage`），大包走 `PacketSplitter` 分片。**同通道 C2S 证明兜底**：Paper `CraftPlayer.sendPluginMessage` 有 `channels().contains(channel)` 门控（26.1.2 反编译实锤），玩家声明包被处理前 S2C **静默丢弃**（声明处理晚于客户端首个 C2S 到达）；若该玩家已在本通道发过 C2S（= 装有对应 mod、注册了 codec，能发即能收），`ProtocolChannel.send` 在 `listening=false` 时改走 NMS `new ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes))`——与 Paper 自身放行路径逐字同构。未发过 C2S 的玩家（vanilla / 未装 mod）永不走兜底（防护语义构造性保留）；证明集合随 `PlayerQuitEvent` 清除。
-- **JEI Recipe Bridge**：**NMS `ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes))` 直发**（`RecipeSyncHandler.sendPayload`），配方包常远超 32KiB，走 `sendPluginMessage` 会被拒。
+- **JEI**：**NMS `ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes))` 直发**（`JeiPacketSender.send`），配方包常超 1MiB（`ProtocolChannel.send` 对超 Bukkit 上限的包硬拒，故不可走框架 send）；jei:* C2S 8 条经 `ChannelManager` 成对注册（声明是客户端 `isJeiOnServer()` 门禁的解锁条件）。
 - **Syncmatica**：默认 **NMS `DiscardedPayload` 直发**（`ExchangeTarget.sendPacket`，`S2C_VIA_NMS=true`），构造 `[Identifier][body]` 复合包体；可用 `/syncmatica debug s2c msg` 切回 plugin messaging 对比（实测 plugin messaging wire 对纯 Fabric syncmatica 客户端不可达，故默认走 NMS）。
 
 **字节限制命门（务必注意）**：
@@ -223,7 +223,7 @@ Servux 共 **26 个 Mixin + 2 个 AccessWidener 字段**；Syncmatica 共 **5 �
 | 节点 | default | 用途 |
 |---|---|---|
 | `servux.commands`（根）+ `.reload/.save/.set/.info/.list/.enable/.disable/.debug/.litematic` | op | `/servux`（search 复用 .list；旧 `servux.command` 经 plugin.yml children 映射兼容） |
-| `jei.command` | op | `/jei enable\|disable` |
+| `jei.command` | op | `/jei status\|enable\|disable` |
 | `syncmatica.command` | true | `/syncmatica` 基础命令 |
 | `syncmatica.command.admin` | op | `/syncmatica save\|reload\|enable\|disable\|status` |
 | `syncmatica.command.load` | true | `/syncmatica load` |
@@ -264,7 +264,7 @@ Litematica 投影子系统（`mod/servux/schematic/`，约 8000 行）已移植�
   - **servux**：`OriginImpl/servux-LTS-1.21.11/`——服务端协议实现。
   - **litematica / malilib**（masa 客户端，**协议的接收端**）：`OriginImpl/litematica-LTS-1.21.11/`、`OriginImpl/malilib-LTS-1.21.11/`。任何协议字段语义、分包重组、Task 分派都要回来对照客户端源码确认，**不要凭服务端代码猜客户端行为**（见 §6 教训 1）。
   - **syncmatica**：`OriginImpl/syncmatica-LTS-1.21.11/`。
-  - **JEIRecipeBridge**：`OriginImpl/JEIRecipeBridge-1.21.11/`。
+  - **JEI**（本线权威）：`OriginImpl/JustEnoughItems-1.21.11/`（mezz 分支 `1.21.11`，clone 命令 `git clone --depth 1 --branch 1.21.11 https://github.com/mezz/JustEnoughItems.git`——协议权威文件：`Common/src/main/java/mezz/jei/common/network/packets/*` + `common/transfer/*` + `common/util/ServerCommandUtil.java` + `fabric/config/ServerConfig.java`）。`fabric:recipe_sync` wire 真权威 = Fabric API 分支 `1.21.11`（`OriginImpl/fabric-1.21.11/` 的 `fabric-recipe-api-v1`）。`OriginImpl/JEIRecipeBridge-1.21.11/`（Mrbysco）保留作 neoforge:recipe_content 层 wire 参考 + 本线旧桥历史。**jei 模块跨线 cherry-pick 禁止，一律手工重写**（本线 2026-10 迁移实录见 docs/jei.md §8）。
   - ⚠️ 原版里**未被调用的公开 API**（如 `LitematicaSchematic.sendTransmitFile`）可能是**未经验证的死代码**、含字段语义 bug——照抄后必须对照客户端源码验证（见 §6 教训 2）。
 
 ---
@@ -304,7 +304,7 @@ Litematica 投影子系统（`mod/servux/schematic/`，约 8000 行）已移植�
 - Minecraft Protocol Wiki：https://wiki.vg/Protocol （`Custom Payload` 包结构）
 - Fabric 网络文档：https://docs.fabricmc.net/develop/networking
 - FabricMC Discussion #4430（Spigot/Paper ↔ Fabric 自定义通道实证）：https://github.com/orgs/FabricMC/discussions/4430
-- masa 全家桶源码（本仓库对照）：servux/litematica/malilib/syncmatica/JEIRecipeBridge 均在 `OriginImpl/` 下
+- 上游源码（本仓库对照）：servux/litematica/malilib/syncmatica/JustEnoughItems-1.21.11/fabric-1.21.11 均在 `OriginImpl/` 下
 - 姊妹项目 VeryMcBot（paperweight userdev + NMS 反射范式参考）：`I:\Programming\VeryMcBot`
 
 **开发环境**：IntelliJ IDEA + Minecraft Dev SDK + Gradle + PaperWeight。

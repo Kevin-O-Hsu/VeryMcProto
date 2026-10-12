@@ -59,15 +59,15 @@ public final class VeryMcProto extends JavaPlugin
                 Reference.logger().severe("[" + Reference.PLUGIN_NAME + "] failed to register servux module: " + ex.getMessage());
             }
 
-            // 注册协议 mod 模块（第二个：JEI Recipe Bridge —— 玩家进服时把服务端配方表同步给 JEI 客户端）
+            // 注册协议 mod 模块（第二个：JEI —— mezz/JustEnoughItems 1.21.11 完整服务端协议：配方同步 + jei:* 通道交互）
             try
             {
-                new verymc.top.veryMcProto.mod.jeirecipebridge.app.JeiRecipeBridgeModule().onRegister(DataProviderManager.INSTANCE);
-                Reference.logger().info("[" + Reference.PLUGIN_NAME + "] registered protocol mod: jei_recipe_bridge");
+                verymc.top.veryMcProto.mod.jei.app.JeiModule.enable(this);
+                Reference.logger().info("[" + Reference.PLUGIN_NAME + "] registered protocol mod: jei");
             }
             catch (Exception ex)
             {
-                Reference.logger().severe("[" + Reference.PLUGIN_NAME + "] failed to register jei_recipe_bridge module: " + ex.getMessage());
+                Reference.logger().severe("[" + Reference.PLUGIN_NAME + "] failed to register jei module: " + ex.getMessage());
             }
 
             // 注册协议 mod 模块（第三个：Syncmatica —— 投影共享中央仓库，单通道 + Exchange 会话）
@@ -117,13 +117,13 @@ public final class VeryMcProto extends JavaPlugin
                 Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] failed to register /servux command: " + ex.getMessage());
             }
 
-            // 注册 /jei 命令（JEI Recipe Bridge：启用/禁用进服配方同步）
+            // 注册 /jei 命令（JEI 模块：状态/启用/禁用）
             try
             {
                 var jeiCmd = getCommand("jei");
                 if (jeiCmd != null)
                 {
-                    var executor = new verymc.top.veryMcProto.mod.jeirecipebridge.command.JeiCommand();
+                    var executor = new verymc.top.veryMcProto.mod.jei.command.JeiCommand();
                     jeiCmd.setExecutor(executor);
                     jeiCmd.setTabCompleter(executor);
                 }
@@ -158,6 +158,12 @@ public final class VeryMcProto extends JavaPlugin
                 verymc.top.veryMcProto.mod.syncmatica.app.SyncmaticaModule.getInstance().disable();
             }
             catch (Exception e) { Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] syncmatica disable exception (placements.json shutdown save may have failed): " + e.getMessage()); }
+            // jei 卸载（注销 jei:* 通道；须在 ChannelManager.unregisterAll 前）
+            try
+            {
+                verymc.top.veryMcProto.mod.jei.app.JeiModule.disable();
+            }
+            catch (Exception e) { Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] jei disable exception: " + e.getMessage()); }
             ChannelManager.INSTANCE.unregisterAll();
         }
         catch (Exception e)
