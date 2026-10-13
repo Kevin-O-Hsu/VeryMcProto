@@ -18,7 +18,7 @@
 /servux                                          显示用法
 /servux list [provider]                          列出全部 settings 现值（上游 configList 形态；值短于 10 字符行内显示）；可选 provider 过滤
 /servux info <provider:setting|setting>          查看某 setting 现值 + 默认值
-/servux set <provider:setting|setting> <value>   修改 setting（纯内存——持久化需 /servux save，上游语义）
+/servux set <provider:setting|setting> <value>   修改 setting（纯内存——持久化需 /servux save，上游语义）；非法值显式拒绝（§cInvalid value，校验与报错对齐上游 :309-312）；value 可含空格（整段重组为单值，对齐上游 greedyString 取值形态）
 /servux enable <provider>                        启用 provider（如 hud_data）——扩展子命令，即时落盘
 /servux disable <provider>                       停用 provider——扩展子命令，即时落盘
 /servux search <keyword>                         搜索 setting（空格分词 AND；命中名/注释/provider 名任一；大小写敏感；零命中回「无匹配的设置: <关键词>」（上游 search.none 形态），非空先报计数与关键词再列条目（search.results 形态））
@@ -177,6 +177,8 @@ commands:
 ### 3.1 `servux.json`
 
 按 Provider 分段，每段承载该 Provider 的 settings。**每个键都可用 `/servux set <provider:key> <value>` 修改**（免手编）。int 范围记法 `[min..max] default`。
+
+`set` 的值语义：非法值（越界 int、非布尔字面、strict 串不在候选、List JSON 元素类型错或畸形）一律显式拒绝回 `Invalid value`，不再静默伪成功；值可含空格——有类型校验的 setting（bool/int/strict string/list）多余 token 会使整值校验失败被拒绝，自由字符串 setting（`default_language`，唯一非 strict 串）整段并入值。校验与报错语义对齐上游 `ServuxCommand:309-312`，但不与上游完全对齐（上游缺 value 参时回退默认值的行为我方不实现——缺参显示用法）。
 
 顶层另有 **`DataProviderToggles`** 段——6 个布尔键 = Provider 逻辑名，即各 Provider 的启用开关；`/servux enable|disable <provider>` 即时写入此段（`servux_main` 恒启用、永不可停用——`/servux disable servux_main` 被命令层拒绝、配置加载期亦强制启用）：
 

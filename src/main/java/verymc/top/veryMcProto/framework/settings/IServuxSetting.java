@@ -38,9 +38,10 @@ public interface IServuxSetting<T>
     void updateExamples(List<String> examples);
 
     /**
-     * 从字符串设值（命令 {@code /servux set} 用）。
-     *
-     * @throws CommandSyntaxException 非法值
+     * 从字符串设值（命令 {@code /servux set} 用）。validateString 不通过时<b>静默不设值</b>——与上游
+     * AbstractServuxSetting:101-107 逐字同构的静默闸；受检 throws 子句为上游同名签名照抄遗留（上游
+     * 同为静默实现、无抛出点），保留以维持上游契约形态。非法值的显式报错职责在命令层前置校验
+     * （对齐上游 ServuxCommand:309-312），勿据此签名期望本方法抛错。
      */
     void setValueFromString(String value) throws CommandSyntaxException;
 

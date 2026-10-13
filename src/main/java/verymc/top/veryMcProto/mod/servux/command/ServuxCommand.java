@@ -90,21 +90,52 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
     {
         if (args.length < 3) { sender.sendMessage("§e/servux set <provider:setting|setting> <value>"); return; }
         String name = args[1];
-        String value = args[2];
+        // 对齐上游 value 参的 greedyString()（上游 ServuxCommand:57）：值可含空格（List 型 JSON 数组
+        // 常态带空格），Bukkit args 重组回单串语义——同款范式见 handleSearch 的 query 重组
+        String value = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
         IServuxSetting<?> setting = DataProviderManager.INSTANCE.getSettingByName(name);
         if (setting == null) { sender.sendMessage("§cSetting not found: " + name); return; }
         try
         {
+            // 对齐上游 configModify :309-312：命令层前置校验非法值并显式拒绝（上游 throw
+            // servux.command.error.invalid_value = "Invalid value"；我方无 lang 资产，Bukkit 形态为
+            // 红字直发固定文案）。基类 setValueFromString 的静默闸与上游 AbstractServuxSetting:101-107
+            // 逐字同构，仅作二道防线，勿改为抛错
+            if (!isValidValue(setting, value)) { sender.sendMessage("§cInvalid value"); return; }
             // 对齐上游 configModify :302-307：set 纯内存，持久化走显式 /servux save（上游无即时落盘；
             // 优雅停服时 onDisable 仍全量落盘，差异窗口仅 crash 场景）
             setting.setValueFromString(value);
-            sender.sendMessage("§aSet " + setting.qualifiedName() + " §7=§f " + setting.valueToString(setting.getValue())
-                    + " §7(not persisted, use /servux save)");
         }
         catch (CommandSyntaxException e)
         {
+            // 契约后备：当前 settings 链无任何 CommandSyntaxException 抛出点（setValueFromString 全库
+            // 唯一调用点即上方 try 内），此 catch 因 IServuxSetting 声明受检 throws 而编译强制存在
             sender.sendMessage("§cInvalid value: " + e.getMessage());
+            return;
         }
+        catch (RuntimeException e)
+        {
+            // 兜底：isValidValue 过闸后 setValueFromString 深处的非受检异常（当前四类实现均不可达，
+            // 防 gson 版本漂移/未来 validator 分叉）。成功回显在 try 外——设值成功后的异常不得误报为非法值
+            sender.sendMessage("§cInvalid value");
+            return;
+        }
+        sender.sendMessage("§aSet " + setting.qualifiedName() + " §7=§f " + setting.valueToString(setting.getValue())
+                + " §7(not persisted, use /servux save)");
+    }
+
+    /**
+     * 命令层前置校验（对齐上游 ServuxCommand:309-312 的 validateString 命令层消费点）。
+     *
+     * <p>List validator 对畸形输入抛非受检异常（实测两形态：Gson 的 {@code JsonSyntaxException}
+     * 与空文档返 null 后 for-each 的 NPE，gson ≥2.10.1 同行为）——此处统一收口为校验失败，属超越
+     * 上游的有意增强（上游同源异常直接穿透 Brigadier）。<b>catch 宽度承重</b>：收窄为
+     * {@code JsonSyntaxException} 会使空串输入重新外溢为 Command execution error，勿改。
+     */
+    private static boolean isValidValue(IServuxSetting<?> setting, String value)
+    {
+        try { return setting.validateString(value); }
+        catch (RuntimeException e) { return false; }
     }
 
     private void handleInfo(CommandSender sender, String[] args)
