@@ -73,3 +73,6 @@ OriginImpl/
 
 # -------- 说明：以下【不忽略】，须保留 --------
 #   - gradle/wrapper/gradle-wrapper.jar  （gradlew 依赖，必须入库）
+
+# -------- 本机专属（不入库） --------
+AGENTS.local.md
