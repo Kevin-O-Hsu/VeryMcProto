@@ -17,7 +17,7 @@
 - **协议字段语义**改动前必须对照 `OriginImpl/` 下的客户端源码（litematica / malilib / syncmatica 是协议接收端），**不要凭服务端代码猜客户端行为**。26.1 起客户端还带协议版本 + MOD_STRING 前缀**硬门禁**（不匹配即整通道静默退网），协议常量必须与 `OriginImpl/*-LTS-26.2` 逐字对齐（26.1→26.2 协议面零变化，已复核）。
 - **禁止引入 Mixin / AccessWidener / 服务端 patch 依赖**——Paper 无 Mixin 运行时，替代方案见核心约束 §2。
 - **可选依赖**（PacketEvents 等 `compileOnly`）的类引用必须隔离到独立引导类 + 反射加载 + `catch(Throwable)`（见核心约束 §6 教训 5）。
-- **构建**：`./gradlew build`（Mojang 映射 jar，26.1 起**无 reobf**）· `./gradlew test`（纯函数单测）· `./gradlew runServer`（本地测试服）。**JDK 25 工具链自动解析**：`settings.gradle.kts` 的 foojay-resolver-convention 插件（探测不到时自动下载）+ 本机 `~/.gradle/gradle.properties` 的 `org.gradle.java.installations.paths` 指向 F:\jdk——IDE / 无 JAVA_HOME 场景直接可用。**配置缓存已开启**：task 配置 lambda 内不得捕获脚本顶层 `val`，用 task 自身的 `providers` 取值。
+- **构建**：`./gradlew build`（Mojang 映射 jar，26.1 起**无 reobf**）· `./gradlew test`（纯函数单测）· `./gradlew runServer`（本地测试服）。**JDK 25 工具链自动解析**：`settings.gradle.kts` 的 foojay-resolver-convention 插件（探测不到时自动下载）+ 本机 `<GRADLE_USER_HOME>=D:	mp\gradle` 的 `gradle.properties` 中 `org.gradle.java.installations.paths=F:\jdks\zulu25.36.205-ca-jdk25.0.4.1-win_x64`（2026-10-18 配置；本机 JDK 仓库在 `F:\jdks`）——IDE / 无 JAVA_HOME 场景直接可用。**配置缓存已开启**：task 配置 lambda 内不得捕获脚本顶层 `val`，用 task 自身的 `providers` 取值。
 
 ## 项目简介
 
