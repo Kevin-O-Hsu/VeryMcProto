@@ -139,7 +139,7 @@
 - `/ban` 只入封禁列表**不移除在线假人**（上游同语义——假人不响应 disconnect；移除走 `/player kill`）；被封名单再 spawn 会被 cantSpawn 拒绝。
 - **插件卸载/reload 自动 kill 全部假人**（防 NMS 对象引用已卸载类 → NoClassDefFoundError）。
 - `use` 对床 = 假人睡下（白天/床边有怪会被 vanilla 拒绝，拒绝消息经假人 no-op 连接不可见——同上游）。
-- 已知缺口：`/tick freeze` 不冻结假人（Paper 无注入点，唯一功能缺口）；击退保真经 `PlayerVelocityEvent` 取消近似（伤害同 tick 内第三方 `setVelocity` 的残余误伤窗口 ≤1 tick）。
+- 已知缺口：`/tick freeze` 不冻结假人（Paper 无注入点，唯一功能缺口）；击退保真经 `PlayerVelocityEvent` 取消近似（伤害同 tick 内第三方 `setVelocity` 的残余误伤窗口 ≤1 tick）。掉落与环境接触伤害（甜浆果丛/仙人掌/凋零玫瑰）已按 vanilla 语义修复（2026-10-18：甜浆果静止不伤/走动伤——vanilla 位移条件；蛛网减速不在列）；生存假人受 `/damage` 与战斗伤害正常。
 
 ---
 

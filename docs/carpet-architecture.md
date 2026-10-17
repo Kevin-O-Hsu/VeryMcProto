@@ -163,7 +163,9 @@ B 侧结构（`mod/carpet/` 下）：
 | 33 | syncmatica 对每个假人发起一次必败握手 | 假人 send 全吞 → 悬挂 exchange 至 quit 清理；不炸（per-target try-catch）、仅 debug 日志噪声；servux/jei 链实证安全（假人不经 configuration 相位、无 C2S 证明永不走 NMS 兜底发送） |
 | 34 | tick-freeze 假人不冻结 = 唯一功能缺口 | Paper `TickRateManager.isEntityFrozen` 恒 `!(entity instanceof Player)` 豁免，插件形态无窄化注入点；解除条件 = Paper 提供冻结查询事件面 |
 | 35 | `Tracer` 迁至 `mod/carpet/util`（上游在 scarpet 工具包） | Scarpet 整体不移植（scope §7）；本类零 scarpet 依赖 |
-| 36 | `tick()` NPE 吞点保留 + 首次触发打一次性 WARN 堆栈（上游静默吞） | 上游逐字保留（其注释自证 Paper 移植防御）；加一次性日志供排错（实机 18 轮零触发） |
+| 36 | `tick()` NPE 吞点保留 + 首次触发打一次性 WARN 堆栈（上游静默吞） | 上游逐字保留（其注释自证 Paper 移植防御）；加一次性日志供排错（实机多轮零触发） |
+| 37 | 掉落伤害 = tick 手动累积 `fallDistance` + 落地直调 `LivingEntity.causeFallDamage`（上游 26.2 逐字移植时双免疫——Fabric 端正常、Paper 端坏） | **Paper 补丁差异**（官方 26.2 未混淆源码对照实证）：① vanilla `ServerPlayer.checkFallDamage` 结尾调 super（伤害在 `Entity.checkFallDamage` → fallOn → causeFallDamage 链），Paper 删掉了该 super 调用（只余落地粒子）；② 物理路径调用入口与 fallDistance 累积被客户端权威门对服务端玩家关闭（实测恒 0/零调用）。真玩家无感（伤害由 move 包路径结算），假人无 move 包 → 双免疫。修复 = 手动累积 + 直调与真玩家 move 包路径同一结算方法（护甲/药水全套公式原样继承）。上游 26.1 的桥接 override（checkFallDamage → doCheckFallDamage）在 26.2 结构下自递归，不可搬运 |
+| 38 | 环境接触伤害 = tick 专项检测（甜浆果丛/仙人掌/凋零玫瑰；上游 Fabric 同样只受一次伤） | vanilla 的 entityInside 检测由 move 包位移驱动，假人静止后无数据源。修复 = AABB 相交方块专项检测 + vanilla 同款 DamageSource；甜浆果带 vanilla 位移条件（横向任一分量 ≥ 0.003 才伤——静止不伤走动伤，`SweetBerryBushBlock.entityInside` 字节码还原）；仙人掌/凋零玫瑰 vanilla 无位移条件（接触即伤）；频率由 hurtServer 无敌帧天然节流（与真玩家节奏一致）。蛛网减速等非伤害 inside 效果不在列（低价值登记） |
 
 ## §15 P2 测试锚
 

@@ -40,6 +40,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ResolvableProfile;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.ValueInput;
@@ -257,6 +258,80 @@ public class EntityPlayerMPFake extends ServerPlayer
             {
                 npeLogged = true;
                 LOG.warn("[Carpet] fake player tick NPE (upstream-known Paper port interaction), first stack trace:", e);
+            }
+        }
+        tickFallDamageDrive();
+        tickInsideDamageBlocks();
+    }
+
+    /**
+     * 掉落伤害驱动（Paper 26.2 差异修复，fabric-carpet 同版本实测正常——差异为 Paper 补丁所致）：
+     *
+     * <ul>
+     *   <li>vanilla 26.2 的 {@code ServerPlayer.checkFallDamage} 结尾调用 super（伤害在
+     *       {@code Entity.checkFallDamage} → fallOn → causeFallDamage 链），<b>Paper 的补丁删掉了
+     *       这个 super 调用</b>（只余落地粒子）；且 vanilla 物理路径的调用入口与 fallDistance 累积
+     *       在 Paper 上均被客户端权威门对服务端玩家关闭（实测 fallDistance 恒 0、checkFallDamage
+     *       物理路径零调用）。真玩家无感（伤害由 move 包路径结算），假人无 move 包 → 双免疫。</li>
+     *   <li>修复：tick 内手动累积 fallDistance（公开字段直写），落地瞬间直调 vanilla 的
+     *       {@code LivingEntity.causeFallDamage(fallDistance, 1.0F, fall)}（伤害本体——护甲/药水/
+     *       荆棘全套公式，与 move 包路径结算点同一方法）。</li>
+     * </ul>
+     */
+    private void tickFallDamageDrive()
+    {
+        double dy = this.getDeltaMovement().y;
+        if (!this.onGround() && dy < 0.0D && !this.isInWater())
+        {
+            this.fallDistance += -dy;
+        }
+        else if (this.onGround() && this.fallDistance > 3.0D)
+        {
+            this.causeFallDamage(this.fallDistance, 1.0F, this.damageSources().fall());
+            this.fallDistance = 0.0D;
+        }
+        else if (this.onGround())
+        {
+            this.fallDistance = 0.0D;
+        }
+    }
+
+    /**
+     * 环境接触伤害检测（甜浆果丛/仙人掌/凋零玫瑰——上游 Fabric 同样只受一次伤：vanilla 的
+     * entityInside 检测由 move 包位移驱动，假人静止后无数据源）。此处按 vanilla 语义专项补驱：
+     * AABB 相交方块命中即伤害，频率由 hurtServer 自带无敌帧（invulnerableTime=10t）节流——
+     * 与 vanilla 真玩家的实际受伤节奏一致。甜浆果带 vanilla 位移条件（横向任一分量 ≥ 0.003
+     * 才伤——静止不伤，走动/挣扎才伤，{@code SweetBerryBushBlock.entityInside} 字节码逐字还原）；
+     * 仙人掌/凋零玫瑰 vanilla 无位移条件（接触即伤）。蛛网减速等非伤害 inside 效果不在此列（登记）。
+     */
+    private void tickInsideDamageBlocks()
+    {
+        if (this.isSpectator())
+        {
+            return;
+        }
+        net.minecraft.world.phys.AABB box = this.getBoundingBox();
+        for (BlockPos pos : BlockPos.betweenClosed(
+                BlockPos.containing(box.minX, box.minY, box.minZ),
+                BlockPos.containing(box.maxX, box.maxY, box.maxZ)))
+        {
+            BlockState state = this.level().getBlockState(pos);
+            if (state.getBlock() instanceof net.minecraft.world.level.block.SweetBerryBushBlock)
+            {
+                boolean moving = Math.abs(this.getX() - this.xOld) >= 0.003D || Math.abs(this.getZ() - this.zOld) >= 0.003D;
+                if (moving)
+                {
+                    int age = state.getValue(net.minecraft.world.level.block.SweetBerryBushBlock.AGE);
+                    this.hurtServer(this.level(), this.damageSources().sweetBerryBush(), age >= 2 ? 2.0F : 1.0F);
+                }
+            }
+            else if (state.getBlock() instanceof net.minecraft.world.level.block.CactusBlock)
+            {
+                this.hurtServer(this.level(), this.damageSources().cactus(), 1.0F);
+            }
+            else if (state.getBlock() instanceof net.minecraft.world.level.block.WitherRoseBlock)
+            {
+                this.hurtServer(this.level(), this.damageSources().wither(), 1.0F);
             }
         }
     }
