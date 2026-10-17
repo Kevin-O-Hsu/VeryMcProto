@@ -213,7 +213,7 @@ commandScript、commandScriptACE、scriptsAutoload、scriptsDebugging、scriptsO
 |---|---|---|
 | `ServerPlayer_actionPackMixin` | 给所有 ServerPlayer 挂 actionPack 字段 + tick 头部钩子 | 侧表 `Map<UUID, ActionPack>` + 框架现成 BukkitRunnable tick 调度 |
 | `PlayerList_fakePlayersMixin` ① | `placeNewPlayer` 内 `new ServerGamePacketListenerImpl` 重定向为 Fake 版 | `placeNewPlayer` 返回后反射替换 `player.connection` 字段（`framework/reflect/Reflect` 现成） |
-| `PlayerList_fakePlayersMixin` ② | `respawn` 内 `new ServerPlayer` 重定向为 fake 版 | 手工重组 respawn：`newFake.restoreFrom(old, keepEverything)` + 重走 placeNewPlayer + remove 旧实体（vanilla respawn 本体即这三步，重写而非钩入） |
+| `PlayerList_fakePlayersMixin` ② | `respawn` 内 `new ServerPlayer` 重定向为 fake 版 | 手工重组 respawn：`newFake.restoreFrom(old, keepEverything)` + 重走 placeNewPlayer + remove 旧实体（vanilla respawn 本体即这三步，重写而非钩入）。**勘误（2026-10-18 P2 as-built）**：本行机制描述对 Paper 不成立且"重走 placeNewPlayer"在任何现代实现中均会重复 PlayerJoinEvent/名册双计入——Paper respawn 为**实例复用**（无 `new ServerPlayer`），假人子类身份天然保留，**零重组代码**即等价（as-built 见 carpet-architecture.md §13）；表行 3 的替代方案作废，行 5 唯一缺口结论不变 |
 | `Player_fakePlayersMixin` | 击退时假人 `hurtMarked` 判定 | 每 tick 清 `hurtMarked` 近似，或接受细微差异 |
 | `TickRateManager_fakePlayersMixin` | /tick freeze 时假人也冻结的判定 | 无注入点，**接受差异**（唯一功能缺口） |
 

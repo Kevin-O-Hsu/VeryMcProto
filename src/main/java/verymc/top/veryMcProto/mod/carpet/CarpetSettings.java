@@ -125,4 +125,16 @@ public class CarpetSettings
             category = {"survival", "client"}
     )
     public static volatile boolean cleanLogs = false;
+
+    // ───── 上游 :595-596（commandPlayer → /player 根 requires 门；COMMAND 类目自动挂 _COMMAND/CommandLevel）─────
+    @Rule(desc = "Enables /player command to control/spawn players", category = "command")
+    public static volatile String commandPlayer = "ops";
+
+    // ───── 上游 :598-599（allowSpawningOfflinePlayers → createFake 离线 UUID 兜底 + cantSpawn 双检）─────
+    @Rule(desc = "Spawn offline players in online mode if online-mode player with specified name does not exist", category = "command")
+    public static volatile boolean allowSpawningOfflinePlayers = true;
+
+    // ───── 上游 :601-602（allowListingFakePlayers → EntityPlayerMPFake.allowsListing 覆写）─────
+    @Rule(desc = "Allows listing fake players on the multiplayer screen", category = "command")
+    public static volatile boolean allowListingFakePlayers = false;
 }

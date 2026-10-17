@@ -3,6 +3,7 @@ package verymc.top.veryMcProto.mod.carpet.util;
 import org.bukkit.command.CommandSender;
 import org.bukkit.craftbukkit.command.VanillaCommandWrapper;
 
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 
 import verymc.top.veryMcProto.Reference;
@@ -66,6 +67,31 @@ public final class CommandHelper
             Reference.logger().warning("[Carpet] permission check failed for sender " + source.getClass().getSimpleName() + ": " + t.getMessage());
             return false;
         }
+    }
+
+    /**
+     * NMS 源直判重载（上游 {@code canUseCommand(CommandSourceStack, String)} :44-60 逐字同构）——
+     * /player 等 Paper Brigadier 命令的 requires 谓词供给（{@link CommandSourceStack} 直达，
+     * 无需 Bukkit sender 转换）。级别判定与 {@link #canUseCommand(CommandSender, String)} 同一
+     * {@code Commands.LEVEL_*.check(permissions())} 事实源。
+     */
+    public static boolean canUseCommand(CommandSourceStack source, String commandLevel)
+    {
+        switch (commandLevel)
+        {
+            case "true":
+                return true;
+            case "false":
+                return false;
+            default:
+                break;
+        }
+        int level = parseLevel(commandLevel);
+        if (level < 0)
+        {
+            return false;
+        }
+        return checkLevel(source.permissions(), level);
     }
 
     private static boolean checkLevel(net.minecraft.server.permissions.PermissionSet permissions, int level)

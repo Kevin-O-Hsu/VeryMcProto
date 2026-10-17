@@ -162,7 +162,7 @@
 | Phase | 名称 | 状态 | 完成线 | commit |
 |---|---|---|---|---|
 | P1 | 基础（模块地基） | ✅ 已完成 | 2026-10-17：四判据全过——①四子命令实机可用（run1：list 8 规则/query/setDefault×3/removeDefault）②conf 往返（run2 重启 `Loaded 2 settings` + modified 标记）③list=注册表（单测锁）④四模块起服无错零回归；单测 144/0/0（新增 15）+ cleanLogs 双极性探针 | 见交付 commit（feat: Carpet Phase 1） |
-| P2 | 假人（/player 全族） | ⬜ 未开始 | — | — |
+| P2 | 假人（/player 全族） | ✅ 已完成 | 2026-10-18：判据全过——①全子命令逐条实测（runServer 控制台 18 轮：spawn 含 at 坐标/look/turn/move/sneak/sprint/attack/use/jump × 三模式/drop 族/hotbar/swapHands/mount/dismount/stop/kill/shadow 门禁回执）②占 tab 栏（list）+ **入睡跳夜**（peaceful 夜 use 对床 → 跳夜分支堆栈实证）+ playerdata 持久（players/data 落盘读回）+ /tp //ban 原版命令识别（ban 后 cantSpawn 拒）③缺口显式登记（tick-freeze 唯一功能缺口 + 击退 PlayerVelocityEvent 门控 ≤1tick 残余窗口）；速度保真标定 5.6 m/s（超平坦 sprint 8s 位移 44.84 格）；单测 148/0（新增 ActionPackTest 4 + 规则表扩 11 锁）；三裁决落地（kick 终端拦截 / respawn 实例复用改锚 / brigadier 载体） | 见交付 commit（feat: Carpet Phase 2） |
 | P3 | 协议（carpet:hello） | ⬜ 未开始 | — | — |
 | P4 | 日志（/log + tps/mobcaps） | ⬜ 未开始 | — | — |
 | P5 | 命令族（纯计算类） | ⬜ 未开始 | — | — |

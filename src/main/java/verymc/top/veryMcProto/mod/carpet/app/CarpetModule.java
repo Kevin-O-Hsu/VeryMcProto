@@ -55,6 +55,23 @@ public final class CarpetModule implements ModModule
         // 行为规则事件挂点（常驻注册 + 事件时读值）
         Bukkit.getPluginManager().registerEvents(new CarpetRuleListener(), Reference.plugin());
 
+        // 假人子系统（Phase 2）：侧表 tick 驱动 + quit/respawn/velocity 事件处理
+        Bukkit.getPluginManager().registerEvents(new verymc.top.veryMcProto.mod.carpet.listener.FakePlayerListener(), Reference.plugin());
+        verymc.top.veryMcProto.mod.carpet.helpers.ActionPackManager.start(Reference.plugin());
+
+        // /player 命令（Paper Brigadier API——上游 brigadier 树的 B 侧注册面；requires = commandPlayer
+        // 规则门，plugin.yml 无条目）。注册面失败仅降级日志，不影响规则框架
+        try
+        {
+            Reference.plugin().getLifecycleManager().registerEventHandler(
+                    io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents.COMMANDS,
+                    event -> event.registrar().register(verymc.top.veryMcProto.mod.carpet.command.PlayerCommand.build()));
+        }
+        catch (Throwable t)
+        {
+            Reference.logger().severe("[Carpet] failed to register /player command: " + t.getMessage());
+        }
+
         // cleanLogs 日志过滤器（install 幂等）
         CleanLogsFilter.install();
     }
@@ -62,6 +79,15 @@ public final class CarpetModule implements ModModule
     /** 主类 onDisable 调用（须无异常抛出）。 */
     public static void disable()
     {
+        // 假人子系统清理：kill 全假人（NMS 对象引用插件类，reload 后存活假人将 NoClassDefFoundError）→ 停驱动 → 清侧表
+        try
+        {
+            verymc.top.veryMcProto.mod.carpet.helpers.ActionPackManager.shutdown();
+        }
+        catch (Exception e)
+        {
+            Reference.logger().warning("[Carpet] action pack shutdown exception: " + e.getMessage());
+        }
         CleanLogsFilter.uninstall();
     }
 

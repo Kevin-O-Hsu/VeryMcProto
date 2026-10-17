@@ -1,8 +1,8 @@
-# Carpet 模块 as-built（Phase 1 模块地基）
+# Carpet 模块 as-built（Phase 1 模块地基 + Phase 2 假人子系统）
 
-> **状态**：Phase 1 已实现（2026-10-17，dev 线）。范围判定唯一权威 = [carpet-porting-scope.md](carpet-porting-scope.md)（scope）；推进状态 = [carpet-phases.md](carpet-phases.md) §11；命令/权限/配置运维键 = [operations.md](operations.md) §1.6/§2.1/§3.4。本文承载 as-built 细节与**全量偏差清单**（上游对照树 = `OriginImpl/fabric-carpet-26.2/`，tag `v26.2`）。
+> **状态**：Phase 1 已实现（2026-10-17，dev 线）；**Phase 2「假人——/player 全族」已实现（2026-10-18，dev 线，§11-§14）**。范围判定唯一权威 = [carpet-porting-scope.md](carpet-porting-scope.md)（scope）；推进状态 = [carpet-phases.md](carpet-phases.md) §11；命令/权限/配置运维键 = [operations.md](operations.md) §1.6-§1.7/§2.1/§3.4。本文承载 as-built 细节与**全量偏差清单**（上游对照树 = `OriginImpl/fabric-carpet-26.2/`，tag `v26.2`）。
 >
-> 上游本质是**行为注入型** mod（171 服务端 Mixin）——与既有三 mod（协议投递型）根本不同；本模块只移植 scope 判定为可完整等价的子集，P1 = 模块地基（规则框架 + `/carpet` 壳 + 8 条地基规则）。
+> 上游本质是**行为注入型** mod（171 服务端 Mixin）——与既有三 mod（协议投递型）根本不同；本模块只移植 scope 判定为可完整等价的子集，P1 = 模块地基（规则框架 + `/carpet` 壳 + 8 条地基规则），P2 = 假人子系统（patches 三件套 + ActionPack + `/player` 全族 + 3 条假人规则）。
 
 ---
 
@@ -81,7 +81,7 @@
 |---|---|---|
 | 1 | conf 位置 = 插件数据目录（上游 = 世界根 `LevelResource.ROOT`） | 宿主差异（对账登记）；构造注入目录兼使纯 JVM 单测可用 |
 | 2 | 写盘原子 tmp/move（上游直写 `Files.newBufferedWriter`） | 仓库配置落盘纪律（architecture.md §3.7） |
-| 3 | 命令面解耦到 Bukkit `CarpetCommand`（上游内嵌 brigadier 树） | Paper 无 brigadier 注册面；plugin.yml + CommandExecutor 为仓库既定范式 |
+| 3 | 命令面解耦到 Bukkit `CarpetCommand`（上游内嵌 brigadier 树） | ~~Paper 无 brigadier 注册面~~ **勘误（2026-10-18，P2 实证）**：paper-api 26.2 实存 `io.papermc.paper.command.brigadier.Commands`（54 个 brigadier 条目）——P1 当时断言错误；P2 的 `/player` 已改用 Paper Brigadier API（§12），`/carpet` 维持 CommandExecutor 形态（四子命令面无参数树需求，Bukkit 形态与 `/player` brigadier 形态并存） |
 | 4 | 弃上游裸 `/carpet <rule> [value]` 会话级 set | 锚点四子命令面（会话级 set 与 setDefault 语义重叠，P1 不设）；上游对应 `setRule`/`displayRuleMenu` |
 | 5 | 弃 `list defaults`（`findStartupOverrides`）与 `list <tag>` 子面 | 同上；conf 本身即覆盖视图（只含覆盖项） |
 | 6 | 裸 `/carpet` = 版本行+计数+用法（上游 = 非默认规则 + 版本 + 类目跳转按钮） | B 无 Messenger 交互按钮面 |
@@ -102,4 +102,71 @@
 
 - `SettingsManager.notifyRuleChanged(source, rule, userInput)`：空扩展点——P3 `carpet:hello` Rules 全量同步的挂载位（phases §5 交付物 3，数据源 = 本框架）。
 - `CarpetReference.CARPET_CHANNEL/KEY_HI/KEY_HELLO`：P1 仅常量占位（上游 `CarpetClient.java:40-48` 逐字），P3 接线；**P3 HI 帧版本串 = `CARPET_VERSION`（上游 mod_version 逐字，禁发插件版本号**——`26.2-b3` 必触发客户端 `equals` 严格比较 warn，phases §5 裁决；ver 线 per-line 取值如 1.21.11 = `1.4.194`）。
-- P2（假人）/P4（log）/P5（命令族）复用本框架：规则表新增即 `CarpetSettings` 加注解字段；`/carpet` 面无需改动。
+- P2（假人）已按此接入（`CarpetSettings` 加 3 注解字段即自动注册）；P4（log）/P5（命令族）复用同路径。
+
+---
+
+## §11 P2 假人子系统总览（2026-10-18 as-built）
+
+上游对照 = `OriginImpl/fabric-carpet-26.2/` 的 `patches/`（三件套 286/47/43 行，纯子类零 Mixin）+ `helpers/EntityPlayerActionPack.java`（629 行纯逻辑）+ `commands/PlayerCommand.java`（362 行 brigadier 树）+ `script/utils/Tracer.java`（90 行纯算法）。**判定结论（scope §6）"可完整实现，约 95% 等价"经实机实证成立**——缺口 = tick-freeze（唯一功能缺口）+ 击退近似残余窗口（§14）。
+
+B 侧结构（`mod/carpet/` 下）：
+
+| B 侧类 | 上游对照 | 说明 |
+|---|---|---|
+| `patches/EntityPlayerMPFake` | `carpet/patches/EntityPlayerMPFake.java`（286 行同构） | spawn/kill/die/tick/teleport(override) 链逐字 + 三处 Paper 适配（cookie 7 参 / shadow 名册守卫 / kill 链注释） |
+| `patches/FakeClientConnection` | 同名（47 行照抄） | EmbeddedChannel 直赋 public `channel` 字段（上游经 duck 接口）；五 no-op 覆写不可省（`setupInboundProtocol` 会碰裸 channel 的 netty pipeline） |
+| `patches/NetHandlerPlayServerFake` | 同名（kick 拦截面重推导） | 拦 Paper kick 漏斗**终端** `disconnect(DisconnectionDetails)`（上游单参 `disconnect(Component)` 已退化为转发壳）：idling/duplicate_login 两 key → `kill(reason)`，其余 return 吞掉 |
+| `helpers/EntityPlayerActionPack` | 同名（629 行照抄） | 4 处 `ServerPlayerInterface.getActionPack()` → `ActionPackManager.get(player)` |
+| `helpers/ActionPackManager` | 上游 = Mixin 字段 + tick HEAD 注入 | B 侧等价：`Map<UUID,ActionPack>` 侧表 + BukkitRunnable 每 tick `tickAll` + 生命周期（quit 清/respawn 复位/卸载 kill 全假人） |
+| `util/Tracer` | `carpet/script/utils/Tracer.java`（90 行照抄） | 零 scarpet 依赖纯算法，迁包 |
+| `command/PlayerCommand` | 同名（362 行树移植） | Paper Brigadier API 载体（§12） |
+| `listener/FakePlayerListener` | 上游 = Mixin 字段生命周期 + `Player_fakePlayersMixin` | quit（侧表 remove）/respawn（动作归零）/velocity（击退保真，hurtMarked 门控）三事件 |
+
+装配（`CarpetModule.onRegister` 追加）：`FakePlayerListener` 注册 → `ActionPackManager.start(plugin)`（runTaskTimer(0,1)）→ `LifecycleEvents.COMMANDS` 注册 `PlayerCommand.build()`（失败降级日志）；`disable()` 追加 `ActionPackManager.shutdown()`（kill 全假人——NMS 对象引用插件类，reload 后存活假人将 NoClassDefFoundError，必须先行移除）。
+
+**判据实证（runServer 控制台 18 轮，2026-10-18）**：①全子命令逐条实测通过（spawn 含 `at <pos>` 相对/绝对坐标、look/turn/move/sneak/sprint/attack/use/jump/hotbar/drop/swapHands/mount/dismount/stop/kill/shadow 门禁回执）②占 tab 栏（`list` 显示 1 online）/ **计入睡比例跳夜**（peaceful 夜间 `use` 对床 → 睡下 → `ServerLevel.tick` 跳夜分支执行 → `wakeUpAllPlayers` 叫醒，堆栈实证）/ playerdata 持久（`world/players/data/<uuid>.dat` 落盘 + 再 spawn 读回）/ `/tp` 识别（Teleported + data get 确认）/ `/ban` 识别（入封禁列表 + 再 spawn 被 cantSpawn 拒）③速度保真标定（超平坦世界 sprint+move 8 秒位移 44.84 格 = **5.6 m/s 精确 vanilla 疾跑速度**）④四模块起服零回归。**已知缺口显式登记**：tick-freeze 不冻结假人（Paper `isEntityFrozen` 恒豁免一切 Player，无注入点）；击退 `PlayerVelocityEvent` 门控存在伤害同 tick 内第三方 `setVelocity` 的残余误伤窗口（≤1 tick，事件无 cause 字段无更窄判别面）。
+
+## §12 /player 命令载体（Paper Brigadier API）
+
+- 注册面：`Reference.plugin().getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> event.registrar().register(PlayerCommand.build()))`——paper-api 实存 `io.papermc.paper.command.brigadier.Commands`（P1 偏差 #3 勘误的实证基础）。
+- **source 类型层**：树泛型 = Paper 接口 `io.papermc.paper.command.brigadier.CommandSourceStack`（NMS `net.minecraft.commands.CommandSourceStack` 实现之）——上游逻辑全操作 NMS source，经 `PlayerCommand.nms()` 单点 cast（实现即 NMS 对象，零开销）。
+- NMS 参数类直用：`Vec3Argument/RotationArgument/GameModeArgument/DimensionArgument`（相对坐标/旋转解析语义免费获得）；**NMS Argument 静态 get 方法绑定 NMS context 泛型**——取值改用 brigadier 标准 `context.getArgument(name, Class)`（`Coordinates.getPosition(nmsSource)` / `.getRotation(nmsSource)`、`ServerLevel.dimension()`、`GameType`），语义等价（上游静态 get 内部即此模式）；26.2 的 `RotationArgument` 泛型返回 `Coordinates`（无 `Rotation` 类）。
+- 权限：根 `.requires(canUseCommand(commandPlayer))`——`CommandHelper` 新增 NMS `CommandSourceStack` 重载（上游 `CommandHelper.java:44-60` 同构）；requires 每次执行求值 → 规则动态性天然成立。gamemode 子节点 requires = LEVEL_GAMEMASTERS 谓词（上游同构）。**plugin.yml 无 /player 条目**（brigadier 注册自足，权限模型 = 规则门非 Bukkit 节点）。
+- 补全建议 = Steve/Alex + 在线玩家名（上游 `getPlayerSuggestions` 同构）。
+
+## §13 spawn / kill / respawn 三链（Paper 补丁栈交互 as-built）
+
+- **spawn**：`createFake` 异步 profile 解析（`spawning` 名册防重入）→ `placeNewPlayer(FakeClientConnection, fake, CommonListenerCookie.createInitial(profile, false))` 走原版进服管线（读 playerdata/入名册/入世界/PlayerJoinEvent）→ 返回后 `new NetHandlerPlayServerFake(...)` 替换监听器（ctor 自动 `player.connection = this`；被弃的真实例无全局注册面；Paper `createTextFilterForPlayer` 恒 DUMMY，双 join 无害——placeNewPlayer 内对真监听器的 suspendFlushing/teleport 调用落在被弃实例，无害）→ loadPlayerData/teleportTo/setHealth/STEP_HEIGHT/gameMode/广播 RotateHead+PositionSync/model layers/flying。**Paper 26.2 的 `CommonListenerCookie` 为 7 组件 record**（vanilla 4 参已扩：clientBrand/channels/KeepAlive）——createFake 用 `createInitial`（cli=createDefault 逐字段等价），createShadow 用 7 参 canonical（cli 沿用原玩家自定义）。
+- **kill**（假人唯一移除协议）：`shakeOff`（卸载玩家乘客）→ duplicate_login 立即 / 其余 schedule 下 tick → `this.connection.onDisconnect(details)`——`this.connection` 静态类型 = **SGPL**（`ServerPlayer.connection` 字段声明），`SGPL.onDisconnect` = 完整退出链（`removePlayerFromWorld` → PlayerQuitEvent + 名册/世界移除 + 存档），不经 kick 终端、与 `NetHandlerPlayServerFake.disconnect` 覆写无递归。`die()` = shakeOff + super.die + setHealth(20) + new FoodData + kill(deathMessage)——假人死亡即移除不留尸。
+- **respawn**：**Paper `PlayerList.respawn` 为实例复用**（`ServerPlayer serverPlayer = player`，vanilla `new ServerPlayer` 已被 CraftBukkit 移除，playerweight 源码实证）——上游 Mixin ② 的 respawnFake 重定向在 B 侧**无对应现实**，假人子类身份与 fake 监听器 respawn 后天然保留，零重组代码（scope §6.2 表行 3 的"手工三步重组"方案作废，勘误记档）。唯一触发源 = 上游 `teleport(TeleportTransition)` override 的 wonGame 分支（PERFORM_RESPAWN 经 `connection.handleClientCommand` 走 vanilla respawn 链，末地门场景）——照抄。`fixStartingPosition` 字段删除（其唯一消费点 = 上游 Mixin ① 的 placeNewPlayer 内注入；B 侧定位由 spawn 后 `teleportTo` 承载，差异 = placeNewPlayer 过程中假人短暂处于读档位置，调参级）。
+- **shadow**：原玩家 `disconnect(duplicate_login)` → **名册守卫**（`getPlayer(uuid) != null` → 中止——Paper 的顶号踢线可被第三方插件取消（PlayerKickEvent），上游 Fabric 无事件面不存在此竞态）→ 复用 GameProfile/ClientInformation placeNewPlayer → ActionPack copyFrom（侧表覆盖真实玩家语义的来源）。
+
+## §14 P2 偏差清单（B ↔ 上游）
+
+| # | 偏差 | 理由 |
+|---|---|---|
+| 19 | kick 拦截面 = `disconnect(DisconnectionDetails)` 终端（上游 = `disconnect(Component)` 单参壳） | Paper 26.2 kick 重载族全部收敛于终端（PlayerKickEvent fire 点亦在终端内）；单参壳已退化为转发壳，照抄即失效 → 幽灵假人 |
+| 20 | kick 对假人不 fire PlayerKickEvent | fire 点位于被覆写吞掉的终端方法内部（上游 Fabric 无事件面，同语义；第三方插件不会观察到假人被踢） |
+| 21 | respawn 不做 Mixin ② 替代（respawnFake 删除） | Paper 实例复用天然保留假人身份（§13） |
+| 22 | 击退 = `PlayerVelocityEvent` cancel + `hurtMarked` 门控（上游 = `Player.causeExtraKnockback` @Redirect） | Paper 注入点不存在（该方法仍在但无 Mixin 运行时）；事件 cancelled 路径跳过"回滚服务端速度"三件套 = 上游 Mixin 语义逐位等价；门控字段 = 上游被 redirect 的同位字段（攻击路径事件恰在 hurtMarked 置位后 fire，插件主动 setVelocity 路径无此不变量）；残余窗口见 §11 |
+| 23 | actionPack = 侧表（上游 = Mixin 字段，所有 ServerPlayer 含真人都有包） | 禁 Mixin；侧表 `computeIfAbsent` 按需创建，shadow copyFrom 与 op 操控真人两消费面语义保持 |
+| 24 | respawn 动作归零经 `PlayerRespawnEvent` 显式 `stopAllFor`（上游 = 新实例新包天然归零） | Paper 实例复用，包不换新 |
+| 25 | tick 驱动 = BukkitRunnable 每 tick 遍历侧表（上游 = `ServerPlayer.tick` HEAD 注入） | scheduler 阶段早于同 tick 玩家 tick——运动输入写的消费不错过；实机 5.6 m/s 标定实证等价 |
+| 26 | 命令载体 = Paper Brigadier API lifecycle 注册（上游 = Fabric Dispatcher） | §12；P1 偏差 #3 勘误的前置 |
+| 27 | NMS Argument 取值 = `context.getArgument`（上游 = NMS 静态 get） | Paper 树泛型与 NMS context 泛型不兼容；语义等价 |
+| 28 | `Messenger` 输出 → `sendFailure`/bold 组件（消息文本逐字英文） | B 侧无 carpet Messenger |
+| 29 | `CommonListenerCookie` = `createInitial` / 7 参 canonical（上游 = vanilla 4 参） | Paper 26.2 扩展 record（§13） |
+| 30 | 插件卸载 kill 全假人（上游 = CarpetServer 关服链） | 防插件 reload 后 NMS 对象引用已卸载类 → NoClassDefFoundError |
+| 31 | shadow 名册守卫（上游无） | Paper 特有：顶号踢线可被插件取消 → 同 UUID 双实体 |
+| 32 | `/ban` 只入 userbanlist 不移除在线假人 | 上游同语义（假人不响应 disconnect；移除走 `/player kill`；再 spawn 被 cantSpawn 拒） |
+| 33 | syncmatica 对每个假人发起一次必败握手 | 假人 send 全吞 → 悬挂 exchange 至 quit 清理；不炸（per-target try-catch）、仅 debug 日志噪声；servux/jei 链实证安全（假人不经 configuration 相位、无 C2S 证明永不走 NMS 兜底发送） |
+| 34 | tick-freeze 假人不冻结 = 唯一功能缺口 | Paper `TickRateManager.isEntityFrozen` 恒 `!(entity instanceof Player)` 豁免，插件形态无窄化注入点；解除条件 = Paper 提供冻结查询事件面 |
+| 35 | `Tracer` 迁至 `mod/carpet/util`（上游在 scarpet 工具包） | Scarpet 整体不移植（scope §7）；本类零 scarpet 依赖 |
+| 36 | `tick()` NPE 吞点保留 + 首次触发打一次性 WARN 堆栈（上游静默吞） | 上游逐字保留（其注释自证 Paper 移植防御）；加一次性日志供排错（实机 18 轮零触发） |
+
+## §15 P2 测试锚
+
+- `EntityPlayerActionPackTest`（4 用例）：Action 四工厂计时字段初值反射断言（once=(1,1,0)/continuous=(-1,1,0,true)/interval(5)=(−1,5,0,next=5)/interval(5,2) next=7）——命令面 `once|continuous|interval <ticks>` 的核心参数语义锁。Action.tick/retry 执行路径依赖 NMS ServerPlayer，不入纯 JVM 单测面（实机判据承载）。
+- `CarpetRuleRegistryTest` 扩 11 规则锁（3 假人规则默认值/类型/选项域 + commandPlayer CommandLevel 推断）。
+- 实机矩阵（phases §4 判据）：见 §11 实证清单。

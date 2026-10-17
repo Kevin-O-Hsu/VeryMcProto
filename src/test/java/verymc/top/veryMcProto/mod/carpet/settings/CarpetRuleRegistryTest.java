@@ -51,7 +51,7 @@ class CarpetRuleRegistryTest
     }
 
     @Test
-    void exactlyEightFoundationRulesRegistered()
+    void exactlyElevenRulesRegistered()
     {
         Set<String> names = manager.getRules().stream().map(r -> r.name).collect(Collectors.toSet());
         assertEquals(Set.of(
@@ -62,7 +62,11 @@ class CarpetRuleRegistryTest
                 "customMOTD",
                 "cleanLogs",
                 "commandTick",
-                "perfPermissionLevel"), names, "P1 foundation rule set (scope §5.1)");
+                "perfPermissionLevel",
+                // P2 假人家族 3 条（scope §5.1，上游 :595-602）
+                "commandPlayer",
+                "allowSpawningOfflinePlayers",
+                "allowListingFakePlayers"), names, "P1 foundation (8) + P2 fake-player family (3) rule set");
     }
 
     @Test
@@ -79,6 +83,13 @@ class CarpetRuleRegistryTest
         assertEquals(4, manager.getRule("perfPermissionLevel").defaultValue);
         assertEquals(Integer.class, manager.getRule("perfPermissionLevel").type);
         assertEquals(false, manager.getRule("cleanLogs").defaultValue);
+        // P2 假人家族（上游 :595-602 逐字）
+        assertEquals("ops", manager.getRule("commandPlayer").defaultValue);
+        assertEquals(String.class, manager.getRule("commandPlayer").type);
+        assertEquals(true, manager.getRule("allowSpawningOfflinePlayers").defaultValue);
+        assertEquals(Boolean.class, manager.getRule("allowSpawningOfflinePlayers").type);
+        assertEquals(false, manager.getRule("allowListingFakePlayers").defaultValue);
+        assertEquals(Boolean.class, manager.getRule("allowListingFakePlayers").type);
     }
 
     @Test
@@ -96,10 +107,17 @@ class CarpetRuleRegistryTest
         assertEquals(Validator.CommandLevel.OPTIONS, manager.getRule("commandTick").options);
         assertTrue(manager.getRule("commandTick").options.contains("false"), "locked 时 disableBooleanCommands 需要 'false' 建议");
 
+        // commandPlayer：String + COMMAND 类目同款推断（P2）
+        assertEquals(Validator.CommandLevel.OPTIONS, manager.getRule("commandPlayer").options);
+
         assertEquals(List.of("2", "4"), manager.getRule("perfPermissionLevel").options);
 
         assertEquals(List.of("_"), manager.getRule("customMOTD").options);
         assertFalse(manager.getRule("customMOTD").isStrict, "customMOTD is strict=false (any value)");
+
+        // P2 boolean 规则 options 自动推断 [true, false]
+        assertEquals(List.of("true", "false"), manager.getRule("allowSpawningOfflinePlayers").options);
+        assertEquals(List.of("true", "false"), manager.getRule("allowListingFakePlayers").options);
     }
 
     @Test

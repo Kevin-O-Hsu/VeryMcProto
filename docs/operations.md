@@ -2,7 +2,7 @@
 
 > **本文是 docs/ 内运维信息的唯一权威**（英文 README 不再承载这些表格）：四 mod 全命令参考、权限节点（命令 + Provider 运行时）、四个配置文件全键表（含 `carpet.conf` 纯文本例外）、磁盘数据布局、调试系统与排错速查（§1–§5），以及 **MC 版本升级 SOP 与观察项**（§6）。
 >
-> - **键权威 = src 配置类**：`servux.json` 各 Provider settings 声明（`ConfigProvider` / `HudDataProvider` / … / `StructureDataProvider.java:83` 等）、`jei.json` = `mod/jei/config/JeiConfiguration.java`、`syncmatica-config.json` = `service/QuotaService.java` + `service/DebugService.java` + `util/SyncmaticaDebug.java`、`carpet.conf` = `mod/carpet/settings/SettingsManager.java` + `mod/carpet/CarpetSettings.java`（8 规则声明）。**改键必须同步本文**（仓库"文档同步强制"约定）。
+> - **键权威 = src 配置类**：`servux.json` 各 Provider settings 声明（`ConfigProvider` / `HudDataProvider` / … / `StructureDataProvider.java:83` 等）、`jei.json` = `mod/jei/config/JeiConfiguration.java`、`syncmatica-config.json` = `service/QuotaService.java` + `service/DebugService.java` + `util/SyncmaticaDebug.java`、`carpet.conf` = `mod/carpet/settings/SettingsManager.java` + `mod/carpet/CarpetSettings.java`（11 规则声明 = P1 地基 8 + P2 假人 3）。**改键必须同步本文**（仓库"文档同步强制"约定）。
 > - **三载体边界**：本文 = docs 内运维全键唯一权威；根 [`AGENTS.md`](../AGENTS.md) §5 权限表 = AI 上下文自包含安全网（豁免声明）；[`servux-providers.md`](servux-providers.md) = 设置语义视角（讲每个设置的含义与采集联动，不维护节点全表）。
 > - 命令/权限的**语义与上游对照**见各 mod 协议文档（[`servux-protocol.md`](servux-protocol.md) / [`servux-providers.md`](servux-providers.md) / [`syncmatica-protocol.md`](syncmatica-protocol.md) / [`jei.md`](jei.md)）。
 
@@ -112,6 +112,35 @@
 
 > 上游 `/carpet <rule> [value]` 会话级 set 与 `list defaults` / `list <tag>` 子面未移植（B 侧四子命令面，偏差清单见 [`carpet-architecture.md`](carpet-architecture.md)）；规则全表与各键行为面见 §3.4。
 
+### 1.7 `/player`（Carpet 假人，Phase 2）
+
+**权限**：无 Bukkit 权限节点（plugin.yml 无条目）——命令经 Paper Brigadier API 注册，门禁 = **`commandPlayer` 规则**（`ops`/`true`/`false`/`0`-`4`，requires 每次执行求值 → 规则动态生效，上游同构）。非 op 玩家对**他人真实玩家**的操控被拒（cantManipulate 上游同款）；kill/move 仅限假人。
+
+```
+/player <name> spawn [at <pos> [facing <rot> [in <dim> [in <gamemode>]]]] [in <gamemode>]
+    生成假人（默认位置/朝向/维度 = 发送者上下文；gamemode 节点需 op 2；离线名受 allowSpawningOfflinePlayers 门禁）
+/player <name> kill                                移除假人（完整退出链：PlayerQuitEvent + playerdata 存档）
+/player <name> shadow                              影子化真实在线玩家（原玩家被顶号断开，假人接管其档案）
+/player <name> stop                                停止全部动作并复位移动输入
+/player <name> mount [anything]                    骑乘周界 3×1×3 载具（anything = 任意实体）
+/player <name> dismount                            下载具
+/player <name> sneak|unsneak|sprint|unsprint       潜行/疾跑开关（互斥语义同上游）
+/player <name> look north|south|east|west|up|down|at <pos>|<rot>
+/player <name> turn left|right|back|<rot>
+/player <name> move [forward|backward|left|right]  裸 move = 停止移动；子向 = 持续移动（实测定速 5.6 m/s 疾跑）
+/player <name> use|jump|attack [once|continuous|interval <ticks>]
+/player <name> drop|dropStack [all|mainhand|offhand|<slot 0-40>] [once|continuous|interval <ticks>]
+/player <name> swapHands [once|continuous|interval <ticks>]
+/player <name> hotbar <1-9>                        切换主手栏位
+```
+
+运维要点（as-built 见 [`carpet-architecture.md`](carpet-architecture.md)）：
+- **假人占 tab 栏 / 计入睡比例跳夜（实测）/ playerdata 持久（重启后再 spawn 读回位置背包）/ 可被 `/tp` `/ban` 原版命令识别**——全部由 vanilla 进服/退出链原生承载。
+- `/ban` 只入封禁列表**不移除在线假人**（上游同语义——假人不响应 disconnect；移除走 `/player kill`）；被封名单再 spawn 会被 cantSpawn 拒绝。
+- **插件卸载/reload 自动 kill 全部假人**（防 NMS 对象引用已卸载类 → NoClassDefFoundError）。
+- `use` 对床 = 假人睡下（白天/床边有怪会被 vanilla 拒绝，拒绝消息经假人 no-op 连接不可见——同上游）。
+- 已知缺口：`/tick freeze` 不冻结假人（Paper 无注入点，唯一功能缺口）；击退保真经 `PlayerVelocityEvent` 取消近似（伤害同 tick 内第三方 `setVelocity` 的残余误伤窗口 ≤1 tick）。
+
 ---
 
 ## 2. 权限节点
@@ -131,6 +160,7 @@
 | `syncmatica.command.load_each` | true | `/syncmatica load <file>`（单个注册） |
 | `syncmatica.command.debug` | op | `/syncmatica debug` |
 | `carpet.command` | op | `/carpet` 规则壳（运行时另受 `carpetCommandPermissionLevel` 规则动态门禁——ops/2/4 级 NMS 判级） |
+| —（无节点） | — | `/player` 假人命令**无 Bukkit 节点**——Paper Brigadier 注册，门禁 = `commandPlayer` 规则（ops/true/false/0-4，§1.7） |
 
 ### 2.2 Provider 运行时权限（Perms 语义）
 
@@ -330,6 +360,9 @@ commands:
 | `cleanLogs` | bool | `false` | — | log4j 过滤器（默认 false=**抑制**命名实体死亡日志行；true=放行——极性勿反转，代数见 carpet-architecture.md） |
 | `commandTick` | string | `ops` | CommandLevel OPTIONS | 零行为死规则（上游 /tick 即原版命令，Paper 天然同构；注册仅为规则面完整） |
 | `perfPermissionLevel` | int | `4` | `2`\|`4` | **只读登记**：值 4 = Paper 天然同构（vanilla /perf 恒要求级 4）；值 2 = 结构性不可达（上游靠 Mixin redirect 换 requires，Paper 无替换面）；控制面 = ops.json op level；`minecraft.command.perf` 节点仅影响 console/API dispatch，玩家聊天命令链绕过 commandMap |
+| `commandPlayer` | string | `ops` | CommandLevel OPTIONS | /player 命令门禁（Brigadier requires 每次执行求值——规则动态生效，上游同构） |
+| `allowSpawningOfflinePlayers` | bool | `true` | — | 允许在正版服 spawn 不存在的离线玩家（offline UUID 兜底，上游同构） |
+| `allowListingFakePlayers` | bool | `false` | — | 假人在多人屏列表的可见性（`allowsListing` 覆写） |
 
 ---
 
@@ -378,7 +411,7 @@ S2C 路径排查：`/syncmatica debug s2c`（查看）→ `/syncmatica debug s2c
 
 **JEI**：无独立调试引擎；`/jei status` 查看状态，看服务端日志（fabric 腿在通道声明时触发日志、neoforge 腿在进服时触发）。
 
-**Carpet**：无独立调试引擎（P1 四子命令无 debug 面）；`/carpet query <rule>` 查看规则详情，conf 读写问题看 `[Carpet]` 前缀日志。
+**Carpet**：无独立调试引擎；`/carpet query <rule>` 查看规则详情，conf 读写问题看 `[Carpet]` 前缀日志。假人排错：spawn/kill 全链异常看 `[Carpet]` 前缀日志；`EntityPlayerMPFake.tick()` 有上游同源的 NPE 吞点（首次触发打一次性 WARN 堆栈）；假人卡死不消失时先 `/player <name> kill`（kill 走完整退出链含 PlayerQuitEvent 与存档）；syncmatica 对每个假人会发起一次必败握手（debug 日志噪声，quit 自动清理，无害）。
 
 ### 5.2 症状速查表
 
@@ -467,7 +500,8 @@ S2C 路径排查：`/syncmatica debug s2c`（查看）→ `/syncmatica debug s2c
 | `EntityPastePositionFixTest`（11 用例） | 实体修复族 ①-⑤ 全守卫（字面串防同源共错 + wire 形状 + 负数截断 + UUID 不变） | 同上 §6.1 |
 | `DataTagIoTest`（13 用例） | 异常三分语义（空 tag / null / ZipException 裸读回落）+ 黄金向量 | [`servux-protocol.md`](servux-protocol.md) §5.5 |
 | `SettingsManagerConfRoundtripTest`（8 用例） | carpet.conf 往返（落盘格式/重启读回/locked/未知键/注释怪 quirks/严格校验/removeDefault/从不主动创建） | [`carpet-architecture.md`](carpet-architecture.md) §5 |
-| `CarpetRuleRegistryTest`（4 用例） | 判据③：8 规则名/默认值/类型/选项域锁 + 排序视图 | 同上 |
+| `CarpetRuleRegistryTest`（4 用例） | 规则注册面锁：11 规则名/默认值/类型/选项域（P1 地基 8 + P2 假人 3） + 排序视图 | 同上 |
+| `EntityPlayerActionPackTest`（4 用例） | P2：Action 工厂计时语义锁（once 达限/continuous 永续/interval 节拍/offset 相位——反射断言，NMS 面走实机） | 同上 |
 | `CommandHelperTest`（3 用例） | parseLevel 纯函数矩阵（ops→2 / 0-4 / 其他→-1） | 同上 |
 | `PacketSplitterTest` / `FeatureSet` / `LitematicaBitArray` | 分片重组 / 版本正则 / 位打包纯函数 | — |
 
