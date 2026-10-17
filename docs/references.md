@@ -87,7 +87,7 @@
 
 ---
 
-## 8. 文档索引速查（现行 14 文件）
+## 8. 文档索引速查（现行 15 文件）
 
 > 全量登记与阅读路线见 [index.md](index.md)；此处仅一句话速查。
 
@@ -103,7 +103,8 @@
 | [syncmatica-protocol.md](syncmatica-protocol.md) | **Syncmatica 单通道协议**：`[Identifier][body]` 包体、18 PacketType 全表（拼写陷阱）、Feature 协商、字段表、Exchange 状态机、stop-and-wait 分片、hash |
 | [syncmatica-testing.md](syncmatica-testing.md) | **Syncmatica 客户端兼容测试**：握手/分享/下载/修改/删除/命令/持久化/配额/多玩家步骤、判官逻辑、排错 + 症状表 |
 | [jei.md](jei.md) | **JEI 完整协议**：三层全景、通道声明契约（isJeiOnServer 门禁）、12 通道 wire 逐字段、cheat 权限模型、配方转移算法、进服时序整形、尺寸模型、上游源码索引 |
-| [operations.md](operations.md) | **运维全键唯一权威 + 升级 SOP**：三 mod 命令/权限/配置全键/数据布局/排错速查（§1–§5）+ MC 版本升级标准作业程序（§6） |
+| [operations.md](operations.md) | **运维全键唯一权威 + 升级 SOP**：四 mod 命令/权限/配置全键（含 carpet.conf 纯文本例外）/数据布局/排错速查（§1–§5）+ MC 版本升级标准作业程序（§6） |
+| [carpet-architecture.md](carpet-architecture.md) | **Carpet 模块 as-built**：装配、注解规则框架（上游 SettingsManager 同构 + 偏差清单）、/carpet 四子命令与双层门禁、8 地基规则表、carpet.conf 格式、cleanLogs 过滤器代数、perf 真因果 |
 | [carpet-porting-scope.md](carpet-porting-scope.md) | **Carpet 移植范围全量清单（预研结论）**：上游画像、协议/命令/logger/规则逐条三判定、假人子系统深潜、Scarpet 不可行论证 |
 | [carpet-phases.md](carpet-phases.md) | **Carpet 分阶段推进规划**：Phase 依赖图（基础→假人→协议置前）、逐 Phase 判据与验证、三线铺开策略、非目标终判、状态登记表 |
 | [references.md](references.md) | 本文件：外部参考链接全仓库唯一登记处 |

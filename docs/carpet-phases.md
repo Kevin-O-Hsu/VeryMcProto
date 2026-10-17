@@ -1,6 +1,6 @@
 # Carpet → Paper 移植分阶段推进规划（phases）
 
-> **状态**：推进规划（2026-10-17 制定，未立项实现）。基于 [carpet-porting-scope.md](carpet-porting-scope.md)（2026-10 预研结论）制定；本文回答「按什么顺序做、每阶段做到什么程度算完成」——**范围可行性判定唯一权威 = [carpet-porting-scope.md](carpet-porting-scope.md)（下称 scope），Mixin 处置与降级矩阵唯一权威 = [architecture.md](architecture.md) §5**，本文只引用不复制。
+> **状态**：推进规划（2026-10-17 制定；**P1 已实现**，状态登记见 §11）。基于 [carpet-porting-scope.md](carpet-porting-scope.md)（2026-10 预研结论）制定；本文回答「按什么顺序做、每阶段做到什么程度算完成」——**范围可行性判定唯一权威 = [carpet-porting-scope.md](carpet-porting-scope.md)（下称 scope），Mixin 处置与降级矩阵唯一权威 = [architecture.md](architecture.md) §5**，本文只引用不复制。
 >
 > 行号口径：本文对 `OriginImpl/fabric-carpet-*` 源码的行号锚为 **26.2 树**值（与 scope 相同，其「实现落地时以真实源码为准复核」兜底适用）；对 scope 的引用以**节号**为主（避免 scope 后续修订引起行号漂移）。
 
@@ -54,7 +54,7 @@
      - `customMOTD` —— `ServerListPingEvent` 原生等价（scope §5.1）
      - `cleanLogs` —— 日志框架 filter 等价（scope §5.1）
      - `commandTick` —— **上游三线零使用死规则，注册仅为规则浏览器面完整、零行为（与上游同构）**（scope §3 /tick 行勘误后口径）
-     - `perfPermissionLevel` —— Paper 原生命令权限节点等价（`PerfCommand_permissionMixin` 在册，scope §5.1）
+     - `perfPermissionLevel` —— Paper 原生命令权限节点等价（`PerfCommand_permissionMixin` 在册，scope §5.1）。**as-built 勘误（2026-10-17）**：实机与映射源实证——值 4（默认）= Paper 天然同构（vanilla /perf requires LEVEL_OWNERS 原样，零动作等价）；值 2 = 结构性不可达（上游靠 Mixin redirect 换 requires，Paper 无替换面；玩家聊天命令链绕过 bukkit commandMap，`minecraft.command.perf` 节点授权对玩家无效）——B 侧为规则面注册 + 只读登记，详见 [carpet-architecture.md](carpet-architecture.md)
 - **明确不进本 Phase**（scope §5.1 其余 12 条去向）：假人 3 条（`commandPlayer` / `allowSpawningOfflinePlayers` / `allowListingFakePlayers`）随 P2；log 2 条（`commandLog` / `defaultLoggers`）随 P4；commandXxx 5 条（`commandDistance` / `commandInfo` / `commandPerimeterInfo` / `commandSpawn` / `commandDraw`）随 P5；`viewDistance` / `simulationDistance` 2 条**永不移植**（Paper 原生 per-world 配置自带，scope §5.1）
 - **完成判据**：① `/carpet` 四子命令实机可用 ② `setDefault` → `carpet.conf` 落盘 → 重启 → 读回往返一致 ③ 规则表 `list` 输出与注册表一致（单测覆盖）④ 三既有 mod 回归无影响（起服无错，servux / jei / syncmatica 通道抽测正常）
 - **验证方式**：单测（规则解析 / 持久化往返）+ `runServer` 实机
@@ -161,7 +161,7 @@
 
 | Phase | 名称 | 状态 | 完成线 | commit |
 |---|---|---|---|---|
-| P1 | 基础（模块地基） | ⬜ 未开始 | — | — |
+| P1 | 基础（模块地基） | ✅ 已完成 | 2026-10-17：四判据全过——①四子命令实机可用（run1：list 8 规则/query/setDefault×3/removeDefault）②conf 往返（run2 重启 `Loaded 2 settings` + modified 标记）③list=注册表（单测锁）④四模块起服无错零回归；单测 144/0/0（新增 15）+ cleanLogs 双极性探针 | 见交付 commit（feat: Carpet Phase 1） |
 | P2 | 假人（/player 全族） | ⬜ 未开始 | — | — |
 | P3 | 协议（carpet:hello） | ⬜ 未开始 | — | — |
 | P4 | 日志（/log + tps/mobcaps） | ⬜ 未开始 | — | — |

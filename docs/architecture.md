@@ -8,7 +8,7 @@
 
 ## 1. 项目定位与可行性结论
 
-**VeryMcProto 把 Fabric 端独特的 Mod Protocol（协议 Mod）以纯 Paper 插件形式重新实现**。客户端仍是 masa / syncmatica / JEI 的 Fabric Mod；本插件在 Paper 服务端复刻它们期待的网络协议与数据采集，使「Fabric 客户端 + Paper 服务端」像「Fabric 客户端 + 原版服务端 Mod」一样工作。三个 mod（Servux / JEI / Syncmatica）已全部落地并实机验证。
+**VeryMcProto 把 Fabric 端独特的 Mod Protocol（协议 Mod）以纯 Paper 插件形式重新实现**。客户端仍是 masa / syncmatica / JEI 的 Fabric Mod；本插件在 Paper 服务端复刻它们期待的网络协议与数据采集，使「Fabric 客户端 + Paper 服务端」像「Fabric 客户端 + 原版服务端 Mod」一样工作。三个 mod（Servux / JEI / Syncmatica）已全部落地并实机验证；第四模块 **Carpet**（行为注入型 mod 的可移植子集，非协议投递型）Phase 1「模块地基」已落地——见 [carpet-architecture.md](carpet-architecture.md) 与 [carpet-phases.md](carpet-phases.md)。
 
 | 问题 | 结论 | 依据 |
 |---|---|---|
@@ -28,7 +28,7 @@
 
 ```
 verymc.top.veryMcProto/
-├── VeryMcProto.java              JavaPlugin 主类（框架入口 + 装配 + 依次注册三个 mod + 命令）
+├── VeryMcProto.java              JavaPlugin 主类（框架入口 + 装配 + 依次注册四个 mod + 命令）
 ├── Reference.java                框架级常量（MC_VERSION / PLUGIN_VERSION——类加载时读 version.properties）
 │
 ├── framework/                    ★ 协议 mod 移植框架（与具体 mod 无关，所有 mod 复用）
@@ -48,8 +48,11 @@ verymc.top.veryMcProto/
     │                             + easyplace/ + loggers/ + scheduler/（task 组五类）+ schematic/ + util/
     ├── jei/                      app/JeiModule + network/（含 RecipeSyncJoinOrderer；payload/ 为其子包、含 legacy/ 子层）
     │                             + transfer/ + cheat/ + recipesync/ + config/ + command/
-    └── syncmatica/               app/SyncmaticaModule + communication/（+exchange/）+ data/（+litematica/）
-                                  + extended_core/ + network/ + service/ + util/
+    ├── syncmatica/               app/SyncmaticaModule + communication/（+exchange/）+ data/（+litematica/）
+    │                             + extended_core/ + network/ + service/ + util/
+    └── carpet/                   CarpetReference + CarpetSettings（8 规则声明）+ app/CarpetModule + command/ + settings/
+                                  （规则框架五类）+ util/CommandHelper + listener/ + logging/CleanLogsFilter
+                                  （Phase 1 地基；行为注入型 mod 子集，见 carpet-architecture.md）
 ```
 
 **新增协议 mod 的步骤**：在 `mod/<newmod>/` 实现 `ModModule`（或自管装配如 syncmatica/jei），在主类 `onEnable` 注册，在 `plugin.yml` 加命令/权限——**无需改动框架**。
@@ -59,8 +62,8 @@ verymc.top.veryMcProto/
 ```
 VeryMcProto.onEnable():
   1. 初始化框架（ChannelManager / DataProviderManager / LifecycleBridge）
-  2. 依次注册 servux / jei / syncmatica 三个模块（各自 try-catch，单点失败降级不阻断）
-  3. 注册 /servux /jei /syncmatica 命令
+  2. 依次注册 servux / jei / syncmatica / carpet 四个模块（各自 try-catch，单点失败降级不阻断）
+  3. 注册 /servux /jei /syncmatica /carpet 命令
   4. ServerLoadEvent(STARTED) 后捕获 RegistryAccess → DataProviderManager.onCaptureImmutable
      + readFromConfig（servux.json 加载）
   5. LifecycleBridge：PlayerJoin/Quit/Respawn/RegisterChannel 事件桥 + runTaskTimer 每 tick tickProviders
@@ -459,4 +462,4 @@ JDK 25 工具链经 foojay-resolver-convention 自动解析（探测不到时自
 
 ---
 
-> **相关**：[index.md](index.md)（文档地图与约定）· [servux-protocol.md](servux-protocol.md) · [servux-providers.md](servux-providers.md) · [servux-schematic.md](servux-schematic.md) · [servux-testing.md](servux-testing.md) · [syncmatica-architecture.md](syncmatica-architecture.md) · [syncmatica-protocol.md](syncmatica-protocol.md) · [syncmatica-testing.md](syncmatica-testing.md) · [jei.md](jei.md) · [operations.md](operations.md) · [references.md](references.md) · [../AGENTS.md](../AGENTS.md)
+> **相关**：[index.md](index.md)（文档地图与约定）· [servux-protocol.md](servux-protocol.md) · [servux-providers.md](servux-providers.md) · [servux-schematic.md](servux-schematic.md) · [servux-testing.md](servux-testing.md) · [syncmatica-architecture.md](syncmatica-architecture.md) · [syncmatica-protocol.md](syncmatica-protocol.md) · [syncmatica-testing.md](syncmatica-testing.md) · [jei.md](jei.md) · [carpet-architecture.md](carpet-architecture.md) · [operations.md](operations.md) · [references.md](references.md) · [../AGENTS.md](../AGENTS.md)

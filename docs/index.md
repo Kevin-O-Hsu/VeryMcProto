@@ -7,7 +7,7 @@
 > - **JEI 服务端协议**（最上游 mezz/JustEnoughItems 分支 `26.2`）—— 完整三层：配方同步（fabric/neoforge 双腿）+ jei:* 自有 10 通道 + 服务端行为层。
 > - **Syncmatica**（投影共享中央仓库）—— 单通道 + Exchange 会话层 + 文件存储 + JSON 持久化。
 >
-> **第四模块候选 · Carpet**：移植范围预研已完成（2026-10，未实现）——假人子系统（/player）与 MobCap 日志可移植，行为规则 / Scarpet 不可行，全量判定见 [carpet-porting-scope.md](carpet-porting-scope.md)；分阶段推进规划见 [carpet-phases.md](carpet-phases.md)（基础→假人→协议置前）。
+> **第四模块 · Carpet**（行为注入型 mod 的可移植子集）：**Phase 1「模块地基」已实现**（2026-10-17——规则框架 + /carpet 壳 + 8 地基规则，as-built 见 [carpet-architecture.md](carpet-architecture.md)）；后续 Phase（假人/协议/log/命令族/三线铺开）规划与状态见 [carpet-phases.md](carpet-phases.md)；范围判定基线见 [carpet-porting-scope.md](carpet-porting-scope.md)。
 >
 > 顶层项目说明见根 [`../AGENTS.md`](../AGENTS.md)（唯一权威；`CLAUDE.md` 已收敛为指向它的薄指针）。项目门面见根 [`../README.md`](../README.md)（英文）。
 > 原版 Fabric 源码对照：[`../OriginImpl/`](../OriginImpl/) 各子目录（详见 [references.md](references.md) §6）。
@@ -28,14 +28,14 @@
 
 ---
 
-# 文档地图（14 文件）
+# 文档地图（15 文件）
 
 ## 全局层
 
 | 文档 | 内容速览 |
 |---|---|
 | [architecture.md](architecture.md) ⭐ | **全局架构与迁移参考**：分层架构与框架契约（DataProviderManager/IDataProvider/settings）、网络框架与三种 S2C 投递路径、PacketSplitter 分片与字节限制裸值（唯一权威）、生命周期映射、**Mixin→Paper 统一处置矩阵（唯一权威）**、Fabric↔Paper 逐域对照、构建工具链、NMS 实测坑清单 |
-| [operations.md](operations.md) ⭐ | **运维全键唯一权威 + 升级 SOP**：三 mod 命令/权限/配置全键/数据布局/排错速查（§1–§5）+ MC 版本升级标准作业程序、已知漂移模式表、验证判据索引、观察项（§6） |
+| [operations.md](operations.md) ⭐ | **运维全键唯一权威 + 升级 SOP**：四 mod 命令/权限/配置全键（含 carpet.conf 纯文本例外）/数据布局/排错速查（§1–§5）+ MC 版本升级标准作业程序、已知漂移模式表、验证判据索引、观察项（§6） |
 | [references.md](references.md) | 外部参考链接汇总（全仓库唯一登记处） |
 
 ## Servux（`servux-*`）
@@ -61,10 +61,11 @@
 |---|---|
 | [jei.md](jei.md) ⭐ | **完整协议**：三层全景、通道声明契约（isJeiOnServer 门禁）、12 通道 wire 逐字段、cheat 权限模型、配方转移算法、配方同步双触发、尺寸模型、上游源码索引、实机验证清单 |
 
-## Carpet（`carpet-*`，预研 · 规划（未实现））
+## Carpet（`carpet-*`，Phase 1 已实现 · 后续 Phase 规划中）
 
 | 文档 | 内容速览 |
 |---|---|
+| [carpet-architecture.md](carpet-architecture.md) ⭐ | **Carpet 模块 as-built**：模块装配、注解规则框架（上游 SettingsManager 同构 + 全量偏差清单）、/carpet 四子命令与双层门禁、8 地基规则表（默认值/等价机制/上游行号）、carpet.conf 格式与怪癖、cleanLogs 过滤器代数、perfPermissionLevel 真因果 |
 | [carpet-porting-scope.md](carpet-porting-scope.md) | **移植范围全量清单（预研结论）**：上游版本规划实证、carpet:hello 协议消息面、14 命令族 / 9 logger / 89 条规则逐条三判定（✅/⚠️/⛔）、假人子系统深潜（机制 + Mixin 替代 + 三线稳定性）、Scarpet 不可行性论证、建议落地范围 |
 | [carpet-phases.md](carpet-phases.md) | **分阶段推进规划**：Phase 依赖图（基础→假人→协议置前，用户决策序）、逐 Phase 范围锚/交付物/完成判据/验证方式、三线铺开策略（假人近零漂移、/tick 三线同构）、非目标终判清单（83 活跃规则全覆盖基线）、状态登记表 |
 

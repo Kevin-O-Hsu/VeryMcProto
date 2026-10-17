@@ -1,8 +1,8 @@
 # 运维参考（命令 / 权限 / 配置全键 / 数据布局 / 排错）+ 版本升级 SOP
 
-> **本文是 docs/ 内运维信息的唯一权威**（英文 README 不再承载这些表格）：三 mod 全命令参考、权限节点（命令 + Provider 运行时）、三个配置文件全键表、磁盘数据布局、调试系统与排错速查（§1–§5），以及 **MC 版本升级 SOP 与观察项**（§6）。
+> **本文是 docs/ 内运维信息的唯一权威**（英文 README 不再承载这些表格）：四 mod 全命令参考、权限节点（命令 + Provider 运行时）、四个配置文件全键表（含 `carpet.conf` 纯文本例外）、磁盘数据布局、调试系统与排错速查（§1–§5），以及 **MC 版本升级 SOP 与观察项**（§6）。
 >
-> - **键权威 = src 配置类**：`servux.json` 各 Provider settings 声明（`ConfigProvider` / `HudDataProvider` / … / `StructureDataProvider.java:83` 等）、`jei.json` = `mod/jei/config/JeiConfiguration.java`、`syncmatica-config.json` = `service/QuotaService.java` + `service/DebugService.java` + `util/SyncmaticaDebug.java`。**改键必须同步本文**（仓库"文档同步强制"约定）。
+> - **键权威 = src 配置类**：`servux.json` 各 Provider settings 声明（`ConfigProvider` / `HudDataProvider` / … / `StructureDataProvider.java:83` 等）、`jei.json` = `mod/jei/config/JeiConfiguration.java`、`syncmatica-config.json` = `service/QuotaService.java` + `service/DebugService.java` + `util/SyncmaticaDebug.java`、`carpet.conf` = `mod/carpet/settings/SettingsManager.java` + `mod/carpet/CarpetSettings.java`（8 规则声明）。**改键必须同步本文**（仓库"文档同步强制"约定）。
 > - **三载体边界**：本文 = docs 内运维全键唯一权威；根 [`AGENTS.md`](../AGENTS.md) §5 权限表 = AI 上下文自包含安全网（豁免声明）；[`servux-providers.md`](servux-providers.md) = 设置语义视角（讲每个设置的含义与采集联动，不维护节点全表）。
 > - 命令/权限的**语义与上游对照**见各 mod 协议文档（[`servux-protocol.md`](servux-protocol.md) / [`servux-providers.md`](servux-providers.md) / [`syncmatica-protocol.md`](syncmatica-protocol.md) / [`jei.md`](jei.md)）。
 
@@ -98,6 +98,20 @@
 
 > **生效范围**：只影响**之后**的交互。disable 时**从不注销通道**——注销会使后续客户端包命中未注册通道而被踢。cheat 三开关在 `jei.json`（文件管理，同上游 `jei-server.properties`；无命令切换）。
 
+### 1.6 `/carpet`
+
+**权限**：`carpet.command`（default: op）+ 运行时**动态规则门禁**（`carpetCommandPermissionLevel` 规则——`ops`/`2`/`4` 经 NMS PermissionSet 精确判级，上游 root requires 同构；`locked` 时全部子命令拒绝）。
+
+```
+/carpet                                          版本行 + 规则计数 + 用法
+/carpet list                                     全量规则（按名排序，含现值与 default/modified 标记）
+/carpet query <rule>                             规则详情（desc/extra/类目/现值/默认/选项域/验证器说明）
+/carpet setDefault <rule> <value>                设规则默认值：即时生效 + 持久化 carpet.conf（value 可含空格）
+/carpet removeDefault <rule>                     移除 conf 覆盖并复位默认值
+```
+
+> 上游 `/carpet <rule> [value]` 会话级 set 与 `list defaults` / `list <tag>` 子面未移植（B 侧四子命令面，偏差清单见 [`carpet-architecture.md`](carpet-architecture.md)）；规则全表与各键行为面见 §3.4。
+
 ---
 
 ## 2. 权限节点
@@ -116,6 +130,7 @@
 | `syncmatica.command.load` | true | `/syncmatica load`（批量注册） |
 | `syncmatica.command.load_each` | true | `/syncmatica load <file>`（单个注册） |
 | `syncmatica.command.debug` | op | `/syncmatica debug` |
+| `carpet.command` | op | `/carpet` 规则壳（运行时另受 `carpetCommandPermissionLevel` 规则动态门禁——ops/2/4 级 NMS 判级） |
 
 ### 2.2 Provider 运行时权限（Perms 语义）
 
@@ -170,7 +185,7 @@ commands:
 
 ---
 
-## 3. 配置文件（全部 JSON：Gson pretty + 原子 tmp/move 写）
+## 3. 配置文件（JSON：Gson pretty + 原子 tmp/move 写；例外 `carpet.conf` 为上游同构纯文本）
 
 目录 `plugins/VeryMcProto/`。
 
@@ -301,6 +316,21 @@ commands:
 
 > 配额只约束 `DownloadExchange`（玩家上传方向）；`UploadExchange`（玩家下载）不检查。原版 `DebugService` 字段拼写曾为 `doPackageLogging`，Paper 版修正为 `doPacketLogging`（配置文件以真实拼写为准）。
 
+### 3.4 `carpet.conf`（纯文本——上游 `SettingsManager` 同构，非 JSON）
+
+逐行 `<rule> <value>`（值含空格整段保留，`split("\s+",2)` 读回）；`#` 注释行跳过；**首行 `locked` = 锁定**（全部子命令拒绝 + COMMAND 类可关规则置 false，上游语义）；未知规则名 error 日志后跳过；**文件从不主动创建**（首次写盘仅由 `/carpet setDefault|removeDefault` 触发）；写盘带原子 tmp/move。完整怪癖与偏差清单见 [`carpet-architecture.md`](carpet-architecture.md)。
+
+| 规则键 | 类型 | 默认 | 选项域 | 行为面 |
+|---|---|---|---|---|
+| `language` | string | `en_us` | 6 语言 strict | 纯壳注册（B 侧无 i18n，对外恒英文） |
+| `carpetCommandPermissionLevel` | string | `ops` | `ops`\|`2`\|`4` | /carpet 动态门禁（NMS 判级；conf 载入自由、命令路径改需 op 4） |
+| `superSecretSetting` | bool | `false` | — | 纯壳注册（上游 debug 行为不随 P1 移植） |
+| `explosionNoBlockDamage` | bool | `false` | — | `EntityExplodeEvent` + `BlockExplodeEvent` 双挂点 `blockList().clear()`（即时生效） |
+| `customMOTD` | string | `_` | 非 strict | `_` = server.properties 原生；否则 `ServerListPingEvent` 改写 ping MOTD（即时生效） |
+| `cleanLogs` | bool | `false` | — | log4j 过滤器（默认 false=**抑制**命名实体死亡日志行；true=放行——极性勿反转，代数见 carpet-architecture.md） |
+| `commandTick` | string | `ops` | CommandLevel OPTIONS | 零行为死规则（上游 /tick 即原版命令，Paper 天然同构；注册仅为规则面完整） |
+| `perfPermissionLevel` | int | `4` | `2`\|`4` | **只读登记**：值 4 = Paper 天然同构（vanilla /perf 恒要求级 4）；值 2 = 结构性不可达（上游靠 Mixin redirect 换 requires，Paper 无替换面）；控制面 = ops.json op level；`minecraft.command.perf` 节点仅影响 console/API dispatch，玩家聊天命令链绕过 commandMap |
+
 ---
 
 ## 4. 数据布局
@@ -310,6 +340,7 @@ plugins/VeryMcProto/
 ├── servux.json                 Servux 全局配置（DataProviderToggles + 6 个 Provider settings 段）
 ├── jei.json                    JEI 配置（enabled + cheat 三开关；迁移旧 jei-recipe-bridge.json）
 ├── syncmatica-config.json      Syncmatica 配置（quota / debug / debugLog 段）
+├── carpet.conf                 Carpet 规则持久化（纯文本逐行 key value；仅 setDefault/removeDefault 写入——§3.4）
 ├── placements.json             Syncmatica placement 元数据持久化（+ .bak / .new 原子写）
 ├── syncmatics/                 Syncmatica .litematic 中央仓库（上传 / 下载 / 共享）
 │   └── <hash-uuid>.litematic   文件名 = hash UUID（/syncmatica load 按它识别文件）
@@ -346,6 +377,8 @@ syncmatica 不工作的排查：`on` + `cat all`（或单开 `handshake`/`networ
 S2C 路径排查：`/syncmatica debug s2c`（查看）→ `/syncmatica debug s2c nms|msg`（切换对照）。
 
 **JEI**：无独立调试引擎；`/jei status` 查看状态，看服务端日志（fabric 腿在通道声明时触发日志、neoforge 腿在进服时触发）。
+
+**Carpet**：无独立调试引擎（P1 四子命令无 debug 面）；`/carpet query <rule>` 查看规则详情，conf 读写问题看 `[Carpet]` 前缀日志。
 
 ### 5.2 症状速查表
 
@@ -392,7 +425,7 @@ S2C 路径排查：`/syncmatica debug s2c`（查看）→ `/syncmatica debug s2c
 
 > **静默失败重灾区，编译器不可见**——必须逐字对照客户端源码（`OriginImpl/*-LTS/<版本>`），不要凭服务端代码猜客户端行为。
 
-1. **五路全树逐文件字节级 diff**（`git diff --no-index` / `diff -rq`），非抽样：servux / malilib+litematica / minihud+tweakeroo / syncmatica / JEI（+ Fabric API `fabric:recipe_sync` 所在分支）。
+1. **六路全树逐文件字节级 diff**（`git diff --no-index` / `diff -rq`），非抽样：servux / malilib+litematica / minihud+tweakeroo / syncmatica / JEI（+ Fabric API `fabric:recipe_sync` 所在分支）/ fabric-carpet（对照 `OriginImpl/fabric-carpet-<线>/`）。
 2. 核对面：协议版本常量表（客户端 `!=` 严格相等）、MOD_STRING 期待前缀（`servux-fabric-<精确上游id>`）、DataTag 载体与逐 Type 分界、C2S 枚举增删、PacketSplitter 常量与重组上限、JEI 通道/权限/转移算法、syncmatica 18 PacketType/FeatureSet/Exchange。
 3. **wire diff 基线**：当前线（26.1→26.2）协议面**零变化**已实证；旧线维护时以各线上游树为准（如 Schema 两表各随各的上游树，勿互相对齐）。上游 HEAD 锚（commit hash）在升级 commit 中记录。
 4. Schema/DataVersion 表：整表照抄上游（含上游主动携带的前瞻条目与特有序型，保序）；上游删除的条目跟随删除（非回归）。
@@ -406,7 +439,7 @@ S2C 路径排查：`/syncmatica debug s2c`（查看）→ `/syncmatica debug s2c
 1. **单测**：`./gradlew test` 全绿（规模基线以实跑为准；新增漂移应补锁定用例——见 §6.8 判据索引）。
 2. **构建终检**：`./gradlew build` + `verifyVersionInjection`（解包断言 plugin.yml / version.properties 与 project.version 一致）。
 3. **runServer 环境隔离（运行目录按线派生）**：runServer 运行目录由 mcVersion 派生为 `run-<mcVersion>/`（build.gradle.kts），各线世界/配置/plugins/logs 物理隔离。根因：共享 `run/` 的 server.properties 残留跨线泄漏（level-name 指向别线格式世界）——1.21.11 线实撞 `No key dimensions in MapLike[{}]`、26.x 两线间为静默互开互写；旧「level-name 三件套」SOP 已废弃（其 .bak 备份正是此事故的制度化来源）。注意：新目录首启需预置 `eula.txt`（eula=true，不入库）；packetevents jar 不随目录迁移（各线 `run-<mcVersion>/plugins/` 自行放置，2026-10-11 起已预置 2.14.0）；两线并行需各自在己线 server.properties 改 port（一次性持久）；旧共享 `run/` 死遗留已于 2026-10-11 连同仓库根 `logs/`（手工 java -jar 残骸）清除。教训：改 .gitignore 须逐行自检——2c38ee2 曾把规则粘连进注释行留废规则。
-4. **起服检查**：版本横幅正确 → 三模块注册 + `framework ready` + `Done`，无 ERROR/SEVERE。
+4. **起服检查**：版本横幅正确 → 四模块注册（servux / jei / syncmatica / carpet）+ `framework ready` + `Done`，无 ERROR/SEVERE。
 5. **客户端互通冒烟（用户侧最终验收）三要素**：
    - HUD/litematics 握手（按 [`servux-testing.md`](servux-testing.md) 流程）；
    - **EasyPlace 编码包改写放行回归**（packetevents 跨版本 read/write 对称性是活风险点）；
@@ -433,6 +466,9 @@ S2C 路径排查：`/syncmatica debug s2c`（查看）→ `/syncmatica debug s2c
 | `TaskSchedulerTest`（7 用例） | timer 首启 / interval 钳制 / 周期复位 / 完成移除 / 同 tick 双任务 / clearTasks | 同上 |
 | `EntityPastePositionFixTest`（11 用例） | 实体修复族 ①-⑤ 全守卫（字面串防同源共错 + wire 形状 + 负数截断 + UUID 不变） | 同上 §6.1 |
 | `DataTagIoTest`（13 用例） | 异常三分语义（空 tag / null / ZipException 裸读回落）+ 黄金向量 | [`servux-protocol.md`](servux-protocol.md) §5.5 |
+| `SettingsManagerConfRoundtripTest`（8 用例） | carpet.conf 往返（落盘格式/重启读回/locked/未知键/注释怪 quirks/严格校验/removeDefault/从不主动创建） | [`carpet-architecture.md`](carpet-architecture.md) §5 |
+| `CarpetRuleRegistryTest`（4 用例） | 判据③：8 规则名/默认值/类型/选项域锁 + 排序视图 | 同上 |
+| `CommandHelperTest`（3 用例） | parseLevel 纯函数矩阵（ops→2 / 0-4 / 其他→-1） | 同上 |
 | `PacketSplitterTest` / `FeatureSet` / `LitematicaBitArray` | 分片重组 / 版本正则 / 位打包纯函数 | — |
 
 ### 6.9 观察项（升级窗口消费）

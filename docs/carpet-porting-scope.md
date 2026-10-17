@@ -1,6 +1,6 @@
 # Carpet → Paper 插件移植范围全量清单（预研结论）
 
-> **状态**：预研评估（2026-10），未立项实现。评估对象 = gnembon/fabric-carpet（Fabric 端行为注入型 mod），目的是判定其各子系统以纯 Paper 插件形态（无 Mixin / 无服务端 fork，本仓库铁律）复刻的可行性，并给出建议落地范围。
+> **状态**：预研评估（2026-10）。**落地进展：Phase 1「模块地基」已于 2026-10-17 实现**（规则框架 + /carpet 壳 + 8 条地基规则，as-built 与偏差清单见 [carpet-architecture.md](carpet-architecture.md)，推进状态见 [carpet-phases.md](carpet-phases.md) §11）——本文判定结论不变（预研快照）。评估对象 = gnembon/fabric-carpet（Fabric 端行为注入型 mod），目的是判定其各子系统以纯 Paper 插件形态（无 Mixin / 无服务端 fork，本仓库铁律）复刻的可行性，并给出建议落地范围。
 >
 > **对照源**（`OriginImpl/`，gitignore，不入库）：
 >

@@ -81,6 +81,17 @@ public final class VeryMcProto extends JavaPlugin
                 Reference.logger().severe("[" + Reference.PLUGIN_NAME + "] failed to register syncmatica module: " + ex.getMessage());
             }
 
+            // 注册协议 mod 模块（第四个：Carpet —— gnembon/fabric-carpet 26.2 移植 Phase 1：规则框架 + /carpet 壳 + 8 地基规则）
+            try
+            {
+                new verymc.top.veryMcProto.mod.carpet.app.CarpetModule().onRegister(DataProviderManager.INSTANCE);
+                Reference.logger().info("[" + Reference.PLUGIN_NAME + "] registered protocol mod: carpet");
+            }
+            catch (Exception ex)
+            {
+                Reference.logger().severe("[" + Reference.PLUGIN_NAME + "] failed to register carpet module: " + ex.getMessage());
+            }
+
             // 注册 /syncmatica 命令
             try
             {
@@ -133,6 +144,22 @@ public final class VeryMcProto extends JavaPlugin
                 Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] failed to register /jei command: " + ex.getMessage());
             }
 
+            // 注册 /carpet 命令（Carpet 规则壳：list/setDefault/query/removeDefault）
+            try
+            {
+                var carpetCmd = getCommand("carpet");
+                if (carpetCmd != null)
+                {
+                    var executor = new verymc.top.veryMcProto.mod.carpet.command.CarpetCommand();
+                    carpetCmd.setExecutor(executor);
+                    carpetCmd.setTabCompleter(executor);
+                }
+            }
+            catch (Exception ex)
+            {
+                Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] failed to register /carpet command: " + ex.getMessage());
+            }
+
             Reference.logger().info("[" + Reference.PLUGIN_NAME + "] framework ready.");
         }
         catch (Exception e)
@@ -166,6 +193,12 @@ public final class VeryMcProto extends JavaPlugin
                 verymc.top.veryMcProto.mod.jei.app.JeiModule.disable();
             }
             catch (Exception e) { Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] jei disable exception: " + e.getMessage()); }
+            // carpet 卸载（摘除 cleanLogs 的 log4j 过滤器——全局资源须显式回收，防插件 reload 类加载器泄漏）
+            try
+            {
+                verymc.top.veryMcProto.mod.carpet.app.CarpetModule.disable();
+            }
+            catch (Exception e) { Reference.logger().warning("[" + Reference.PLUGIN_NAME + "] carpet disable exception: " + e.getMessage()); }
             ChannelManager.INSTANCE.unregisterAll();
         }
         catch (Exception e)
