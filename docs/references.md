@@ -68,6 +68,7 @@
 | — 投影系统 | `.../schematic/` | [servux-schematic.md](servux-schematic.md) |
 | **Syncmatica 原版（26.2 线对照权威）** | [`../OriginImpl/syncmatica-LTS-26.2/`](../OriginImpl/syncmatica-LTS-26.2/) | [syncmatica-architecture.md](syncmatica-architecture.md)–[syncmatica-testing.md](syncmatica-testing.md) |
 | **JEI 原版（26.2 线对照权威）** | `../OriginImpl/JustEnoughItems-26.2/`（mezz，分支 `26.2`） | [jei.md](jei.md)；clone 命令与协议权威文件清单见 [../AGENTS.md](../AGENTS.md) §参考源码 |
+| **fabric-carpet 原版（预研对照，四树并存）** | `../OriginImpl/fabric-carpet-26.2/`（dev 线，tag `v26.2`）；`fabric-carpet-26.1/`（ver/26.1.2 线，分支 `26.1`）；`fabric-carpet-1.21.11/`（ver/1.21.11 线，分支 `1.21.11`）；`fabric-carpet-master/`（26.4-snapshot 观望线） | [carpet-porting-scope.md](carpet-porting-scope.md)（移植判定权威）+ [carpet-phases.md](carpet-phases.md)（分阶段推进规划）；线↔目录映射见 scope 文档首表 |
 | masa 客户端（litematica/malilib/minihud/tweakeroo） | `../OriginImpl/*-LTS-26.2/` | **协议接收端与硬门禁所在**，字段语义必查 |
 | **姊妹项目 VeryMcBot（paperweight+NMS 范式参考）** | `I:\Programming\VeryMcBot` | `build.gradle.kts`（userdev）、`reflect/Reflect`（反射工具）、其自身 CLAUDE.md（文档风格） |
 | 本项目权威说明 | [`../AGENTS.md`](../AGENTS.md) | 架构、分支/版本模型、核心设计约束、工作约定 |
@@ -86,7 +87,7 @@
 
 ---
 
-## 8. 文档索引速查（12 文件）
+## 8. 文档索引速查（现行 14 文件）
 
 > 全量登记与阅读路线见 [index.md](index.md)；此处仅一句话速查。
 
@@ -103,4 +104,6 @@
 | [syncmatica-testing.md](syncmatica-testing.md) | **Syncmatica 客户端兼容测试**：握手/分享/下载/修改/删除/命令/持久化/配额/多玩家步骤、判官逻辑、排错 + 症状表 |
 | [jei.md](jei.md) | **JEI 完整协议**：三层全景、通道声明契约（isJeiOnServer 门禁）、12 通道 wire 逐字段、cheat 权限模型、配方转移算法、进服时序整形、尺寸模型、上游源码索引 |
 | [operations.md](operations.md) | **运维全键唯一权威 + 升级 SOP**：三 mod 命令/权限/配置全键/数据布局/排错速查（§1–§5）+ MC 版本升级标准作业程序（§6） |
+| [carpet-porting-scope.md](carpet-porting-scope.md) | **Carpet 移植范围全量清单（预研结论）**：上游画像、协议/命令/logger/规则逐条三判定、假人子系统深潜、Scarpet 不可行论证 |
+| [carpet-phases.md](carpet-phases.md) | **Carpet 分阶段推进规划**：Phase 依赖图（基础→假人→协议置前）、逐 Phase 判据与验证、三线铺开策略、非目标终判、状态登记表 |
 | [references.md](references.md) | 本文件：外部参考链接全仓库唯一登记处 |

@@ -28,14 +28,14 @@ Servux / JEI / Syncmatica 是**协议投递型** mod——客户端期待一套�
 - **26.2 / 26.3 只有 tag、没有长命分支**（`v26.2` = master 提交 `dbedd4c`，发布后就地打 tag 继续前进）。
 - 版本号 = MC 版本即 mod 版本（26.1 线叫 `26.1`；1.21.x 线沿用语义版本 `1.4.194`）。
 
-### §0.3 规模盘点（26.1 分支实测；26.2 = 422 文件 / 190 mixin 同量级）
+### §0.3 规模盘点（26.1 分支实测；26.2 = 422 文件 / 187 mixin 同量级，计数按 carpet.mixins.json 注册面）
 
 | 子系统 | 规模 | 性质 |
 |---|---|---|
-| `mixins/` | **189 个 Mixin**（171 服务端 + 15 客户端） | 行为注入，Paper 不可移植层 |
+| `mixins/` | **186 个 Mixin**（171 服务端 + 15 客户端，按 carpet.mixins.json 注册面计；mixins 数组为双端 common，"服务端"系移植语义表述；每树另有 3 个未注册死文件不计，26.2 = ChunkAccess_warningsMixin / Ingredient_scarpetMixin / ShulkerBoxAccessMixin） | 行为注入，Paper 不可移植层 |
 | `script/`（Scarpet） | 123 文件 | 纯 Java 引擎为主，事件面靠 ~34 个 `*scarpet*` mixin |
 | `fakes/` | 42 个 Accessor/Invoker 接口 | Paper 侧全部可用反射替代 |
-| 规则 `CarpetSettings.java` | ~90 条 `@Rule`，1022 行 | 规则的行为 = 对应 Mixin |
+| 规则 `CarpetSettings.java` | 83 条活跃 `@Rule` + 3 个注释态死块（8 处提及），1022 行 | 规则的行为 = 对应 Mixin |
 | `commands/` | 11 个命令文件（14 命令族） | 混合 |
 | `patches/`（假人三件套） | 3 文件共 381 行 | **纯子类，无 Mixin 依赖** |
 | `network/`（carpet:hello） | 3 文件约 515 行 | 单 CompoundTag 自定义 payload 协议 |
@@ -96,7 +96,7 @@ Servux / JEI / Syncmatica 是**协议投递型** mod——客户端期待一套�
 | `/script` | 28 个子命令 | 🔗 | 随 Scarpet（§7） |
 | `/test` | testcarpet、dump | N/A | 上游自测框架 |
 | `/carpet` | list/setDefault/query/removeDefault | ✅ 壳 | SettingsManager（.conf 持久化 + 注解规则表）可整体移植，管理我方可移植规则 |
-| `/tick` | （原版命令） | ✅ 零成本 | 26.x 上游已删自研 tick warp（无 TickSpeed 类），`commandTick` 只是权限门 → Paper 原生命令权限节点等价 |
+| `/tick` | （原版命令） | ✅ 零成本 | 三线同构：四棵对照树均无 TickSpeed 类（CarpetServer.java:95 同位死注释）、`commandTick` 四树零使用（死规则）→ /tick 即原版命令，Paper 天然同构；commandTick 注册仅保规则面完整、零行为 |
 
 ---
 
@@ -118,9 +118,11 @@ Servux / JEI / Syncmatica 是**协议投递型** mod——客户端期待一套�
 
 ---
 
-## §5 规则层全表（~90 条，按判定分组）
+## §5 规则层全表（按判定分组）
 
-### §5.1 ✅ 可完整移植（19 条）
+> **判定基线（26.2 线实测）**：活跃 `@Rule` 字段 83 个（唯一注册路径 = `api/settings/SettingsManager.java:180-186` 反射扫描 CarpetSettings 声明字段；注释态代码不入字节码）；`@Rule(` 文本命中 91 = 83 活跃 + 3 个注释态死块共 8 处提及（:86-132 五处：commandCamera/commandOverlay/commandAITracker + commandDraw:123/commandDistance:131 旧副本，活跃声明分别在 commandDraw:490 / commandDistance:470；:162-176 两处：growingUpWallJump/reloadSuffocationFix；:695-703 一处：waterFlow）。本表判定基线 = **89 个唯一规则名**（83 活跃全覆盖 + 6 上游注释态死名，标†；creativeNoClip 服务端/渲染两半分记 §5.3/§5.4、按一名计）。
+
+### §5.1 ✅ 可完整移植（20 条）
 
 | 规则 | 等价手段 |
 |---|---|
@@ -135,7 +137,7 @@ Servux / JEI / Syncmatica 是**协议投递型** mod——客户端期待一套�
 | viewDistance / simulationDistance | **Paper 原生 per-world 配置自带，无需移植** |
 | cleanLogs | 日志框架 filter 等价 |
 
-### §5.2 ⚠️ 可近似移植（20 条）
+### §5.2 ⚠️ 可近似移植（23 条）
 
 | 规则 | 近似路径 / 差距 |
 |---|---|
@@ -156,12 +158,13 @@ Servux / JEI / Syncmatica 是**协议投递型** mod——客户端期待一套�
 | forceloadLimit | 命令重写近似 |
 | creativeFlySpeed | Abilities 反射 + 同步包 |
 | commandTrackAI | AI 目标反射采样，保真低 |
+| pingPlayerListLimit | `MinecraftServer_pingPlayerSampleLimit` mixin；Paper `ServerListPingEvent` 玩家样本操控面近似（粒度实现时核对） |
 
-### §5.3 ⛔ 不可移植（35 条——注入即产品）
+### §5.3 ⛔ 不可移植（37 条——注入即产品）
 
 | 规则 | 不可原因 |
 |---|---|
-| persistentParrots / growingUpWallJump / reloadSuffocationFix | 实体行为 bugfix 深钩（`Player_parrotMixin` 等） |
+| persistentParrots / growingUpWallJump† / reloadSuffocationFix† | 实体行为 bugfix 深钩（`Player_parrotMixin` 等；† = 上游注释态死规则） |
 | xpNoCooldown | `Player.takeXpDelay` 内部字段钩 |
 | stackableShulkerBoxes | 改 NMS 全局堆叠（与本项目 servux 同判：MAX_STACK_SIZE 污染序列化） |
 | optimizedTNT / tntRandomRange | Explosion 内部算法/半径，无 API |
@@ -171,22 +174,25 @@ Servux / JEI / Syncmatica 是**协议投递型** mod——客户端期待一套�
 | hopperCounters | 拦截点在 `HopperBlockEntity_counterMixin`，Paper 无对应事件（暴力逐 tick 扫描不推荐） |
 | movableAmethyst / movableBlockEntities / chainStone | 活塞系统重写（PistonBaseBlock 3+ mixin 家族） |
 | pushLimit / railPowerLimit / structureBlockLimit / structureBlockIgnored / sculkSensorRange / creativeFlyDrag | vanilla 常量 / static final 深字段，新 JVM 反射不可靠 |
-| maxEntityCollisions / waterFlow / lagFreeSpawning | 性能优化深钩 |
+| maxEntityCollisions / waterFlow† / lagFreeSpawning | 性能优化深钩（waterFlow† = 上游注释态死规则） |
 | missingTools | 挖掘速度无 API |
 | moreBlueSkulls | wither 射击内部逻辑（`WitherBoss_moreBlueMixin`） |
 | updateSuppressionBlock | 与本项目 servux UpdateSuppression 同判：⛔ 省略 |
 | creativePlayersLoadChunks | 区块加载系统钩（`ChunkMap_creativePlayersLoadChunksMixin`） |
 | creativeNoClip（服务端半边） | 碰撞豁免无 API（客户端渲染半边 ➖） |
-| commandProfile / commandCamera / commandOverlay | profiler 深钩 / scarpet app |
-| commandAITracker | 绑 scarpet app 生态（其采样子命令的近似已单列 §5.2） |
+| commandProfile / commandCamera† / commandOverlay† | profiler 深钩 / scarpet app（camera / overlay† = 上游注释态死规则） |
+| commandAITracker† | 绑 scarpet app 生态（其采样子命令的近似已单列 §5.2；† = 上游注释态死规则） |
+| quasiConnectivity | 红石 / 发射器 QC 行为注入（`DispenserBlock_qcMixin` + `PistonBaseBlock_qcMixin` + `helpers/QuasiConnectivity`；fastRedstoneDust 同族） |
+| thickFungusGrowth | 巨型真菌生长世界生成钩（`HugeFungusFeatureMixin`；plop 世界生成钩同族） |
+| lightningKillsDropsFix | 雷击击杀掉落修复深钩（`ItemEntityMixin` thunderHit；persistentParrots 同族 bugfix 深钩） |
 
 ### §5.4 ➖ 纯客户端（4 条）
 
 fogOff、smoothClientAnimations、structureBlockOutlineDistance、creativeNoClip 渲染半边——装 carpet 客户端的玩家自带。
 
-### §5.5 🔗 随 Scarpet 判定（5 条）
+### §5.5 🔗 随 Scarpet 判定（6 条）
 
-commandScript、scriptsAutoload、scriptsDebugging、scriptsOptimization、scriptsAppStore。
+commandScript、commandScriptACE、scriptsAutoload、scriptsDebugging、scriptsOptimization、scriptsAppStore。
 
 ---
 
@@ -224,7 +230,7 @@ commandScript、scriptsAutoload、scriptsDebugging、scriptsOptimization、scrip
 
 - 引擎（Expression/词法/值系统，123 文件纯 Java，仅 5 文件 import fakes）：理论可移植，但**不经济**（数万行 + vanilla 桥接层重写）。
 - 事件系统：17 个 `*_scarpetEventsMixin`（entity died/jumped/removed、player 全周期、container click、explosion 等）——主体无事件面，少数可 Bukkit 事件近似。
-- chunk/光照控制：8 个 `*scarpetChunkCreation*` mixin（set_chunk/load_chunk/light）⛔。
+- chunk/光照控制：6 个 `*scarpetChunkCreation*` mixin（set_chunk/load_chunk/light）⛔。
 - 图形渲染（scShapes + 2 个客户端 render mixin）🔗 随引擎。
 - AppStore 在线仓库：网络功能可做，但 app 生态全部依赖上述 ⛔ 面 → 无意义。
 
@@ -237,7 +243,7 @@ commandScript、scriptsAutoload、scriptsDebugging、scriptsOptimization、scrip
 | 假人 | `/player` 全族（§6，约 95% 等价） |
 | 日志 | `/log mobcaps`、`/log tps`（HUD 走原版 tab 包，零协议成本） |
 | 命令 | `/spawn mobcaps,entities`、`/distance`、`/info`、`/perimeterinfo`、`/draw` 基础形状、`/carpet` 配置壳 |
-| 规则 | §5.1 全部 19 条 + §5.2 按需自选近似项 |
+| 规则 | §5.1 全部 20 条 + §5.2 按需自选近似项 |
 | 协议 | `carpet:hello` 握手（可选——不做握手 HUD 照常工作） |
 | 红线 | TNT/爆炸优化、红石、活塞可移动方块、刷怪表、漏斗计数器、性能剖析/优化类规则、Scarpet——这些的实现就是对 vanilla 字节码的注入本身，插件形态物理不存在等价物 |
 
