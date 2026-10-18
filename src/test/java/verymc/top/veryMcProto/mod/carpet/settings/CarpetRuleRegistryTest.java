@@ -66,7 +66,10 @@ class CarpetRuleRegistryTest
                 // P2 假人家族 3 条（scope §5.1，上游 :595-602）
                 "commandPlayer",
                 "allowSpawningOfflinePlayers",
-                "allowListingFakePlayers"), names, "P1 foundation (8) + P2 fake-player family (3) rule set");
+                "allowListingFakePlayers",
+                // P4 日志 2 条（scope §5.1，上游 :453-463）
+                "commandLog",
+                "defaultLoggers"), names, "P1 foundation (8) + P2 fake-player family (3) + P4 log family (2) rule set");
     }
 
     @Test
@@ -90,6 +93,11 @@ class CarpetRuleRegistryTest
         assertEquals(Boolean.class, manager.getRule("allowSpawningOfflinePlayers").type);
         assertEquals(false, manager.getRule("allowListingFakePlayers").defaultValue);
         assertEquals(Boolean.class, manager.getRule("allowListingFakePlayers").type);
+        // P4 日志家族（上游 :453-463 逐字）
+        assertEquals("true", manager.getRule("commandLog").defaultValue);
+        assertEquals(String.class, manager.getRule("commandLog").type);
+        assertEquals("none", manager.getRule("defaultLoggers").defaultValue);
+        assertEquals(String.class, manager.getRule("defaultLoggers").type);
     }
 
     @Test
@@ -118,6 +126,12 @@ class CarpetRuleRegistryTest
         // P2 boolean 规则 options 自动推断 [true, false]
         assertEquals(List.of("true", "false"), manager.getRule("allowSpawningOfflinePlayers").options);
         assertEquals(List.of("true", "false"), manager.getRule("allowListingFakePlayers").options);
+
+        // P4：commandLog = String + COMMAND 类目 → 推断 CommandLevel.OPTIONS（commandTick/commandPlayer 同款）
+        assertEquals(Validator.CommandLevel.OPTIONS, manager.getRule("commandLog").options);
+        // defaultLoggers：显式 options（上游 :460 逐字含复合值 "mobcaps,tps"）+ 非 strict
+        assertEquals(List.of("none", "tps", "mobcaps,tps"), manager.getRule("defaultLoggers").options);
+        assertFalse(manager.getRule("defaultLoggers").isStrict, "defaultLoggers is strict=false (csv values)");
     }
 
     @Test

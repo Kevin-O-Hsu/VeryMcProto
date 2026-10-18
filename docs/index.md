@@ -7,7 +7,7 @@
 > - **JEI 服务端协议**（最上游 mezz/JustEnoughItems 分支 `26.2`）—— 完整三层：配方同步（fabric/neoforge 双腿）+ jei:* 自有 10 通道 + 服务端行为层。
 > - **Syncmatica**（投影共享中央仓库）—— 单通道 + Exchange 会话层 + 文件存储 + JSON 持久化。
 >
-> **第四模块 · Carpet**（行为注入型 mod 的可移植子集）：**Phase 1「模块地基」+ Phase 2「假人 /player 全族」+ Phase 3「carpet:hello 协议」已实现**（规则框架 + /carpet 壳 + 11 规则 + 假人子系统 + carpet:hello 握手/规则同步/clientCommand，as-built 见 [carpet-architecture.md](carpet-architecture.md) 与 [carpet-protocol.md](carpet-protocol.md)）；后续 Phase（log/命令族/三线铺开）规划与状态见 [carpet-phases.md](carpet-phases.md)；范围判定基线见 [carpet-porting-scope.md](carpet-porting-scope.md)。
+> **第四模块 · Carpet**（行为注入型 mod 的可移植子集）：**Phase 1「模块地基」+ Phase 2「假人 /player 全族」+ Phase 3「carpet:hello 协议」+ Phase 4「/log 日志（tps/mobcaps HUD）」已实现**（规则框架 + /carpet 壳 + 13 规则 + 假人子系统 + carpet:hello 握手/规则同步/clientCommand + /log 订阅框架与跨会话持久，as-built 见 [carpet-architecture.md](carpet-architecture.md) 与 [carpet-protocol.md](carpet-protocol.md)）；后续 Phase（命令族/三线铺开）规划与状态见 [carpet-phases.md](carpet-phases.md)；范围判定基线见 [carpet-porting-scope.md](carpet-porting-scope.md)。
 >
 > 顶层项目说明见根 [`../AGENTS.md`](../AGENTS.md)（唯一权威；`CLAUDE.md` 已收敛为指向它的薄指针）。项目门面见根 [`../README.md`](../README.md)（英文）。
 > 原版 Fabric 源码对照：[`../OriginImpl/`](../OriginImpl/) 各子目录（详见 [references.md](references.md) §6）。
@@ -61,11 +61,11 @@
 |---|---|
 | [jei.md](jei.md) ⭐ | **完整协议**：三层全景、通道声明契约（isJeiOnServer 门禁）、12 通道 wire 逐字段、cheat 权限模型、配方转移算法、配方同步双触发、尺寸模型、上游源码索引、实机验证清单 |
 
-## Carpet（`carpet-*`，Phase 1-3 已实现 · 后续 Phase 规划中）
+## Carpet（`carpet-*`，Phase 1-4 已实现 · 后续 Phase 规划中）
 
 | 文档 | 内容速览 |
 |---|---|
-| [carpet-architecture.md](carpet-architecture.md) ⭐ | **Carpet 模块 as-built**：模块装配、注解规则框架（上游 SettingsManager 同构 + 全量偏差清单）、/carpet 四子命令与双层门禁、8 地基规则表（默认值/等价机制/上游行号）、carpet.conf 格式与怪癖、cleanLogs 过滤器代数、perfPermissionLevel 真因果 |
+| [carpet-architecture.md](carpet-architecture.md) ⭐ | **Carpet 模块 as-built**：模块装配、注解规则框架（上游 SettingsManager 同构 + 全量偏差清单）、/carpet 四子命令与双层门禁、8 地基规则表（默认值/等价机制/上游行号）、carpet.conf 格式与怪癖、cleanLogs 过滤器代数、perfPermissionLevel 真因果、/log 日志子系统（LoggerRegistry 同构 + 订阅跨会话持久墓碑模型 + tps/mobcaps HUD 公式逐字） |
 | [carpet-protocol.md](carpet-protocol.md) ⭐ | **carpet:hello 协议 as-built（Phase 3）**：通道与载体（S2C NMS 直发唯一性）、消息面全表（HI "69"/hello "420"/Rules/clientCommand/自定义 NBT）、握手时序与名册、规则同步链（全量帧+增量推送+gate 封闭清单）、clientCommand（Snoopy 移植+审计行）、装配生命周期（reload 补扫）、偏差清单 |
 | [carpet-porting-scope.md](carpet-porting-scope.md) | **移植范围全量清单（预研结论）**：上游版本规划实证、carpet:hello 协议消息面、14 命令族 / 9 logger / 89 条规则逐条三判定（✅/⚠️/⛔）、假人子系统深潜（机制 + Mixin 替代 + 三线稳定性）、Scarpet 不可行性论证、建议落地范围 |
 | [carpet-phases.md](carpet-phases.md) | **分阶段推进规划**：Phase 依赖图（基础→假人→协议置前，用户决策序）、逐 Phase 范围锚/交付物/完成判据/验证方式、三线铺开策略（假人近零漂移、/tick 三线同构）、非目标终判清单（83 活跃规则全覆盖基线）、状态登记表 |

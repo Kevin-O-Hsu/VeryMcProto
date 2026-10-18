@@ -137,4 +137,18 @@ public class CarpetSettings
     // ───── 上游 :601-602（allowListingFakePlayers → EntityPlayerMPFake.allowsListing 覆写）─────
     @Rule(desc = "Allows listing fake players on the multiplayer screen", category = "command")
     public static volatile boolean allowListingFakePlayers = false;
+
+    // ───── 上游 :453-454（commandLog → /log 根 requires 门；COMMAND 类目自动挂 _COMMAND/CommandLevel）─────
+    @Rule(desc = "Enables /log command to monitor events via chat and overlays", category = "command")
+    public static volatile String commandLog = "true";
+
+    // ───── 上游 :455-463（defaultLoggers → LoggerListener 每 join 墓碑感知重评估；选项域逐字含复合值）─────
+    @Rule(
+            desc = "sets these loggers in their default configurations for all new players",
+            extra = "use csv, like 'tps,mobcaps' for multiple loggers, none for nothing",
+            category = {"creative", "survival"},
+            options = {"none", "tps", "mobcaps,tps"},
+            strict = false
+    )
+    public static volatile String defaultLoggers = "none";
 }

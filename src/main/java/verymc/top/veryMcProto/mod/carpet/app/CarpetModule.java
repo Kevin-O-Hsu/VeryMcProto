@@ -29,6 +29,8 @@ public final class CarpetModule implements ModModule
     private static volatile SettingsManager settingsManager;
     /** carpet:hello 协议处理器（Phase 3；disable 置 null——null = 已卸载）。 */
     private static volatile CarpetHelloHandler carpetHelloHandler;
+    /** /log 订阅持久册（Phase 4；disable 置 null）。 */
+    private static volatile verymc.top.veryMcProto.mod.carpet.logging.LogSubscriptionStore logStore;
 
     @Override
     public String getModId()
@@ -100,6 +102,35 @@ public final class CarpetModule implements ModModule
         {
             Reference.logger().warning("[Carpet] failed to send HI to already-online players: " + t.getMessage());
         }
+
+        // /log 日志子系统（Phase 4）：注册 tps/mobcaps 两 logger → 持久册载入 → join/quit 监听 →
+        // /log 命令注册（Brigadier，plugin.yml 无条目）→ HUD 20 tick 任务 → 在线玩家补扫（reload 时
+        // 无 join 事件，hello 补扫同款 B 侧增补）。整块失败只降级日志，不影响规则框架与其余子系统
+        try
+        {
+            verymc.top.veryMcProto.mod.carpet.logging.LogSubscriptionStore store =
+                    new verymc.top.veryMcProto.mod.carpet.logging.LogSubscriptionStore(
+                            Reference.plugin().getDataFolder().toPath());
+            store.load();
+            logStore = store;
+            verymc.top.veryMcProto.mod.carpet.logging.LoggerRegistry.initLoggers();
+            verymc.top.veryMcProto.mod.carpet.logging.LoggerListener logListener =
+                    new verymc.top.veryMcProto.mod.carpet.logging.LoggerListener(store);
+            Bukkit.getPluginManager().registerEvents(logListener, Reference.plugin());
+            Reference.plugin().getLifecycleManager().registerEventHandler(
+                    io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents.COMMANDS,
+                    event -> event.registrar().register(
+                            verymc.top.veryMcProto.mod.carpet.command.LogCommand.build(store)));
+            verymc.top.veryMcProto.mod.carpet.logging.HUDController.start(Reference.plugin());
+            for (org.bukkit.entity.Player online : Bukkit.getOnlinePlayers())
+            {
+                logListener.handleJoin(online);
+            }
+        }
+        catch (Throwable t)
+        {
+            Reference.logger().severe("[Carpet] failed to start /log subsystem: " + t.getMessage());
+        }
     }
 
     /** 主类 onDisable 调用（须无异常抛出；须在框架 ChannelManager.unregisterAll 之前——jei 先例）。 */
@@ -127,6 +158,22 @@ public final class CarpetModule implements ModModule
         catch (Exception e)
         {
             Reference.logger().warning("[Carpet] action pack shutdown exception: " + e.getMessage());
+        }
+        // /log 子系统清理（Phase 4）：停 HUD 任务并清在线订阅者 footer（须先于 stopLoggers——订阅名册
+        // 仍存活）→ 持久册兜底落盘（对冲最后一次变更写失败窗口）→ 注册表清空
+        try
+        {
+            verymc.top.veryMcProto.mod.carpet.logging.HUDController.shutdown();
+            if (logStore != null)
+            {
+                logStore.save();
+                logStore = null;
+            }
+            verymc.top.veryMcProto.mod.carpet.logging.LoggerRegistry.stopLoggers();
+        }
+        catch (Exception e)
+        {
+            Reference.logger().warning("[Carpet] /log subsystem shutdown exception: " + e.getMessage());
         }
         CleanLogsFilter.uninstall();
     }

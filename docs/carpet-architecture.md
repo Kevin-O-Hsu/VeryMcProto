@@ -1,6 +1,6 @@
-# Carpet 模块 as-built（Phase 1 模块地基 + Phase 2 假人子系统 + Phase 3 carpet:hello 协议）
+# Carpet 模块 as-built（Phase 1 模块地基 + Phase 2 假人子系统 + Phase 3 carpet:hello 协议 + Phase 4 /log 日志）
 
-> **状态**：Phase 1 已实现（2026-10-17，dev 线）；**Phase 2「假人——/player 全族」已实现（2026-10-18，dev 线，§11-§14）**；**Phase 3「carpet:hello 协议」已实现（2026-10-18，dev 线——wire as-built 专文 [carpet-protocol.md](carpet-protocol.md)，本文只保留装配/接口视角）**。范围判定唯一权威 = [carpet-porting-scope.md](carpet-porting-scope.md)（scope）；推进状态 = [carpet-phases.md](carpet-phases.md) §11；命令/权限/配置运维键 = [operations.md](operations.md) §1.6-§1.7/§2.1/§3.4。本文承载 as-built 细节与**全量偏差清单**（上游对照树 = `OriginImpl/fabric-carpet-26.2/`，tag `v26.2`）。
+> **状态**：Phase 1 已实现（2026-10-17，dev 线）；**Phase 2「假人——/player 全族」已实现（2026-10-18，dev 线，§11-§14）**；**Phase 3「carpet:hello 协议」已实现（2026-10-18，dev 线——wire as-built 专文 [carpet-protocol.md](carpet-protocol.md)，本文只保留装配/接口视角）**；**Phase 4「/log 日志框架 + tps/mobcaps」已实现（2026-10-19，dev 线，§16-§18）**。范围判定唯一权威 = [carpet-porting-scope.md](carpet-porting-scope.md)（scope）；推进状态 = [carpet-phases.md](carpet-phases.md) §11；命令/权限/配置运维键 = [operations.md](operations.md) §1.6-§1.8/§2.1/§3.4-§3.5。本文承载 as-built 细节与**全量偏差清单**（上游对照树 = `OriginImpl/fabric-carpet-26.2/`，tag `v26.2`）。
 >
 > 上游本质是**行为注入型** mod（171 服务端 Mixin）——与既有三 mod（协议投递型）根本不同；本模块只移植 scope 判定为可完整等价的子集，P1 = 模块地基（规则框架 + `/carpet` 壳 + 8 条地基规则），P2 = 假人子系统（patches 三件套 + ActionPack + `/player` 全族 + 3 条假人规则）。
 
@@ -170,5 +170,74 @@ B 侧结构（`mod/carpet/` 下）：
 ## §15 P2 测试锚
 
 - `EntityPlayerActionPackTest`（4 用例）：Action 四工厂计时字段初值反射断言（once=(1,1,0)/continuous=(-1,1,0,true)/interval(5)=(−1,5,0,next=5)/interval(5,2) next=7）——命令面 `once|continuous|interval <ticks>` 的核心参数语义锁。Action.tick/retry 执行路径依赖 NMS ServerPlayer，不入纯 JVM 单测面（实机判据承载）。
-- `CarpetRuleRegistryTest` 扩 11 规则锁（3 假人规则默认值/类型/选项域 + commandPlayer CommandLevel 推断）。
+- `CarpetRuleRegistryTest` 扩 11 规则锁（3 假人规则默认值/类型/选项域 + commandPlayer CommandLevel 推断；P4 再扩至 13——§18）。
 - 实机矩阵（phases §4 判据）：见 §11 实证清单。
+
+---
+
+## §16 P4 /log 日志子系统总览（2026-10-19 as-built）
+
+上游对照 = `carpet/logging/`（LoggerRegistry 173 行 + Logger 255 行 + HUDLogger 53 行 + HUDController 149 行）+ `carpet/commands/LogCommand.java`（222 行）+ `carpet/utils/SpawnReporter.java:93,:99-152`（mobcaps 切片）+ `carpet/utils/Messenger.java:30-123`（色表）。范围 = scope §4 的 tps/mobcaps 两条 HUD logger + 框架（scope §3 `/log` 行）；chat 型五条（tnt/explosions/projectiles/fallingBlocks/pathfinding）后置、counter/packets 不做。
+
+B 侧结构（`mod/carpet/` 下）：
+
+| B 侧类 | 上游对照 | 说明 |
+|---|---|---|
+| `logging/Logger` | `carpet/logging/Logger.java`（逐段同构） | 名键 online/offline 双桶 + 桶迁移 + 两 log 重载 + isOptionValid；删上游 6 死成员（偏差 #45） |
+| `logging/HUDLogger` | 同名（同构） | removePlayer→clearPlayer / sendPlayerMessage→HUD 缓冲 |
+| `logging/LoggerRegistry` | 同名（同构减 seenPlayers/toggle） | 双 Map + `__tps`/`__mobcaps` 反射快捷位（上游 Field 机制保留）+ 订阅三原语；注册面 = tps(null,null) + mobcaps("dynamic",四选项) 两条（上游 :44/:47 逐字） |
+| `logging/HUDController` | `HUDController.java:70-129`（P4 面） | tps 行（MSPT/TPS 公式逐字）+ mobcaps 行（option→维度 switch）+ footer flush + runTaskTimer(20,20) 任务 |
+| `logging/SpawnReport` | `SpawnReporter.java:99-152` 切片 + Messenger 色表 | MAGIC_NUMBER=289 硬编码 + 先除后乘公式逐字 + 热力色/类别色 § 码化 |
+| `logging/LogSubscriptionStore` | —（B 侧新增层） | 跨会话持久（上游无）：显式订阅 + 退订墓碑双表、UUID 键 + 名字快照、`""`↔null 哨兵、变更即原子写、空册不主动建文件 |
+| `logging/LoggerListener` | 上游 = PlayerList/SGPL 双 Mixin 挂点 | join/quit Bukkit 事件；join 谓词见 §16.1；假人全链豁免；handleJoin 供启用期补扫 |
+| `command/LogCommand` | `carpet/commands/LogCommand.java` | Paper Brigadier 载体（PlayerCommand 范式）；subscribe/clear 形（phases §6 交付物①） |
+
+装配（`CarpetModule.onRegister` 追加）：`store.load()` → `LoggerRegistry.initLoggers()` → `LoggerListener` 注册 → `LifecycleEvents.COMMANDS` 注册 `LogCommand.build(store)` → `HUDController.start(plugin)` → 在线玩家补扫 `handleJoin`（reload 空窗闭合，hello 补扫同款 B 侧增补）。`disable()` 追加三连清：`HUDController.shutdown()`（停任务 + 清在线订阅者 footer——须先于 stopLoggers，订阅名册仍存活）→ `store.save()` 兜底 → `LoggerRegistry.stopLoggers()`。plugin.yml 无 /log 条目（Brigadier 注册自足，/player 先例）。
+
+### §16.1 订阅状态模型（设计要点：显式订阅 + 退订墓碑 + 默认不落盘三性质）
+
+**内存册**（上游同构）：`playerSubscriptions`（名→logger→option，HashMap 容 null 值——tps 默认 option 即 null）+ 每 Logger 内 online/offline 名键双桶（quit/connect 桶迁移，会话内重登保活）。
+
+**持久册**（`carpet-logs.json`，B 侧新增——判据②跨会话持久）双信号模型：
+
+- `subs` = **显式**订阅（/log 命令产生），UUID 键 + 名字快照；
+- `off` = **退订墓碑**（/log clear 产生）——压制默认施用对已显式退订者的重施（防「退订项重登复活」）；
+- **默认订阅永不落盘**——每次 join 由 LoggerListener 按当前 `defaultLoggers` 规则值对「未订阅且无墓碑」的 logger 重评估（防规则变更对存量玩家永久冻结；管理员改默认对未显式选择者下次 join 生效）；
+- join 谓词（钉死）：当前名**在内存册**（`getPlayerSubscriptions != null`——主表即名册，清空删键、离线条目亦镜像）→ 仅桶迁移；**不在册**（新玩家/重启首连/**改名重登**）→ store 经 UUID 载入 + 以当前名入册 + 名字快照更新。
+
+**假人豁免**：join/quit/补扫全跳过（`EntityPlayerMPFake` 判定，shadow 共享真人 UUID 一并豁免）——假人 HUD 天然 void（上游发往假人同样不可见 = 可见行为等价），B 侧持久层新增故须显式豁免（防 /player 反复 spawn/kill 灌永久死记录）。
+
+### §16.2 HUD 投递
+
+每 20 tick（`runTaskTimer(20,20)`）`updateHud`：`__tps` 门 → tps 行（MSPT = `getAverageTickTimeNanos()`/1e6、TPS = `1000/max(sprint?0:目标mspt, MSPT)`、frozen→0、热力色，上游 :116-129 公式逐字）；`__mobcaps` 门 → 按 (option, player) 维度行（switch：overworld/nether/end 固定，dynamic/未知落玩家当前维度，上游 :86-92）；flush = 逐名 `setPlayerListFooter(String.join("\n", lines))`——**只写脚、零 header 触碰**（paper-api 实 jar 实证 setter 存在）。快捷位为 false 时整段跳过（零订阅零成本）。已知限制：外部写 footer 的 tab 类插件与本插件每秒互覆写（上游同源行为，上游 :109-113 亦裸覆写）——见 operations.md §5.1。
+
+### §16.3 规则（上游 CarpetSettings.java:453-463 逐字）
+
+`commandLog`（默认 `"true"`，COMMAND 类目→CommandLevel OPTIONS 推断）= /log 根 requires 规则门；`defaultLoggers`（默认 `"none"`，options `{none,tps,mobcaps,tps}` 含复合值、strict=false、extra csv 说明、category `{creative,survival}`）= join 重评估值源——CSV 语法 `split(",")→split(" ",2)`，条目 = "logger" 或 "logger option"（"mobcaps overworld" 合法），未知名经 getLogger==null 自然跳过。
+
+## §17 P4 偏差清单（B ↔ 上游，续 §9/§14 编号）
+
+| # | 偏差 | 理由 |
+|---|---|---|
+| 39 | HUD 投递 = Bukkit `setPlayerListFooter(String)` 单写（上游 = NMS `ClientboundTabListPacket` 头脚齐发，头=scarpet 保留） | phases §6 交付物②点名 Bukkit 面；零 header 触碰（scarpet 不移植、他插件 header 不覆写）；§ 码 String 为该 API 原生输入 |
+| 40 | 节流 = `runTaskTimer(period 20)`（上游每 tick 被调 + `%20` 内部门） | 同拍率的任务参数化承载（ActionPackManager 先例）；初相 20 = 首帧不抢跑 |
+| 41 | HUD 缓冲键 = 玩家名（上游 ServerPlayer 实例） | Bukkit Player 引用不持有（reload 防泄漏）；flush 经 getPlayerExact 复查在线 |
+| 42 | 行分隔 = `String.join("\n")`（上游 `Component.literal("\n")` 组件） | String 载体等价物 |
+| 43 | 消息载体 = § 码 String[]（上游 Messenger Component DSL + 色字母） | tab footer API 的 String 形态；色字母→§ 码映射 SpawnReport 静态化（g=§7/e=§2/y=§e/r=§c/m=§d/n=§4/f=§8/v=§1/q=§3/w=§f） |
+| 44 | 跨会话持久层 `carpet-logs.json` 新增（上游纯内存、重启即失，stopLoggers 全清） | 判据②明确要求跨会话持久——上游无对应物；双信号模型（显式+墓碑+默认不落盘）见 §16.1 |
+| 45 | 命令形状 = `/log`（裸列表）/`subscribe <logger> [option]`/`clear [logger]`（上游 flat 树 `/log <name> [option] [player]` + toggle + `<name> clear`） | phases §6 交付物①字面 subscribe/clear 形；自用面无 `<player>` 定向参、无 toggle |
+| 46 | listLogs 纯文本 + 命令提示行（上游可点击/悬停组件 `!`/`^`） | P2 #28 Messenger 替换范式同判；option-less logger（tps）分支结构保持 |
+| 47 | console/非玩家全子命令统一 "For players only" 拒绝（上游各执行体经 getPlayerByName(null) 恒失败走 "No player specified"） | 自用面无目标参，收敛为同一句（上游裸 /log 文案同源） |
+| 48 | 假人全链豁免（上游对假人照常施用默认与订阅——会话即清无累积面） | B 侧持久层新增：防 /player 反复 spawn/kill 灌永久死记录 + shadow 污染真人册 |
+| 49 | Logger 删上游 6 死成员：`stardardLogger` 工厂/`log(lMessageIgnorePlayer)`/`getAcceptedOption`/两 4 参 `@Deprecated` 构造器/`togglePlayerSubscription` | 上游全树零调用或消费点全在本期范围外（counter/packets/chat 五条）——AGENTS.md §6 教训 2「勿照抄死 API」；后置 chat logger 期回填 |
+| 50 | `seenPlayers`/`firstTime` 整体删除（上游 :139-164 会话级首连判定） | 唯一消费点（默认施用 else-if :215-226）已随持久化模型迁 LoggerListener 每 join 重评估——无第二消费方 |
+| 51 | 注册面 = tps/mobcaps 两条（上游 9 条） | scope §4：chat 型五条后置、counter/packets 不做——框架留有注册位 |
+| 52 | mobcaps chunkcount 数据源 = `SpawnState.getSpawnableChunkCount()`（上游自有 `chunkCounts` 事件计数 map，ServerChunkCacheMixin 维护） | phases §6 交付物④钉死 SpawnState 公开 API（上游 Monitoring.java:61 自用同款、servux DataLoggerMobCaps 同路径）——两谱系数值可偏差（事件计数 vs 刷怪周期快照）；公式仍 carpet 逐字（先除后乘 :119） |
+| 53 | 持久文件空册且不存在时跳过写盘 | 「文件从不主动创建」仓库纪律（carpet.conf 先例）；records 只增不删，空册恒处女态 |
+
+## §18 P4 测试锚与实机判据
+
+- `CarpetLoggerTest`（18 用例，纯 JVM）：注册表订阅语义（null 归一/清空删键/桶迁移翻快捷位——纯 JVM 环境 playerFromName 恒 null = 恒离线桶，恰好使 onPlayerConnect 迁移可测）；store round-trip（`""` 哨兵/墓碑三态/clearAll 全墓碑/坏 JSON 空册/改名快照/空册不建文件）；join 分支矩阵（新玩家默认不落盘/改名重登 UUID 复原/墓碑拦截/显式优先/同会话重登桶迁移/未知名跳过）；defaultLoggers CSV 解析（"logger option" 语法）；heatmap 阈值边界（严格 >，0.5r/0.8r/r 升色）；mobcaps 行格式（--UNAVAILABLE-- 逐字/cur<0 显"-"/末分隔符去除/公式锁值）。
+- `CarpetRuleRegistryTest` 扩 13 规则锁（commandLog/defaultLoggers 名/默认/类型/选项域 + CommandLevel 推断 + 复合 option "mobcaps,tps"）。
+- **实机判据（phases §6）**：① carpet 客户端 HUD 显示 tps/mobcaps（**用户侧终验**——服务端侧以 footer 写入路径 + 单测/冒烟承载）② 订阅跨会话持久（状态机单测全矩阵 + carpet-logs.json 往返；真玩家会话往返属客户端联测）③ tab 头脚无冲突（仓内零占用 grep + 只写 footer 设计）。
+- runServer 冒烟（2026-10-19）：四模块零回归起服；console 三入口（裸/subscribe/clear）全部 "For players only"（命令注册 + commandLog=true 门放行 console + 执行体拒绝链）；`/carpet list` 13 规则（commandLog=true/defaultLoggers=none 默认标记）；`setDefault defaultLoggers tps` → conf 落盘 → `removeDefault` 复位（往返干净）；假人 spawn/kill 零 /log 写入（豁免实证）；停服 disable 三连清无异常。
