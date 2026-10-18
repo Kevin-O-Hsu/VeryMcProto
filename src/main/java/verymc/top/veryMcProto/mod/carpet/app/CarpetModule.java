@@ -131,6 +131,67 @@ public final class CarpetModule implements ModModule
         {
             Reference.logger().severe("[Carpet] failed to start /log subsystem: " + t.getMessage());
         }
+
+        // Phase 5 命令族（纯计算类）：/distance /info /spawn 三条免上下文命令逐条注册（plugin.yml
+        // 无条目，Brigadier 自足）。逐命令独立 try-catch——单命令注册失败只降级，不影响其余命令与子系统
+        try
+        {
+            Reference.plugin().getLifecycleManager().registerEventHandler(
+                    io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents.COMMANDS,
+                    event -> event.registrar().register(
+                            verymc.top.veryMcProto.mod.carpet.command.DistanceCommand.build()));
+        }
+        catch (Throwable t)
+        {
+            Reference.logger().severe("[Carpet] failed to register /distance command: " + t.getMessage());
+        }
+        try
+        {
+            Reference.plugin().getLifecycleManager().registerEventHandler(
+                    io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents.COMMANDS,
+                    event -> event.registrar().register(
+                            verymc.top.veryMcProto.mod.carpet.command.InfoCommand.build()));
+        }
+        catch (Throwable t)
+        {
+            Reference.logger().severe("[Carpet] failed to register /info command: " + t.getMessage());
+        }
+        try
+        {
+            Reference.plugin().getLifecycleManager().registerEventHandler(
+                    io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents.COMMANDS,
+                    event -> event.registrar().register(
+                            verymc.top.veryMcProto.mod.carpet.command.SpawnCommand.build()));
+        }
+        catch (Throwable t)
+        {
+            Reference.logger().severe("[Carpet] failed to register /spawn command: " + t.getMessage());
+        }
+        // /perimeterinfo 与 /draw：参数树含 BlockState/BlockPredicate/Resource 参数类（上游由 vanilla
+        // Commands 构建期注入 CommandBuildContext）——B 侧等价 = CommandBuildContext.simple 公开
+        // 静态工厂（registryAccess + VANILLA_SET，javap 实证），commandContext() 懒加载单点
+        try
+        {
+            Reference.plugin().getLifecycleManager().registerEventHandler(
+                    io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents.COMMANDS,
+                    event -> event.registrar().register(
+                            verymc.top.veryMcProto.mod.carpet.command.PerimeterInfoCommand.build(commandContext())));
+        }
+        catch (Throwable t)
+        {
+            Reference.logger().severe("[Carpet] failed to register /perimeterinfo command: " + t.getMessage());
+        }
+        try
+        {
+            Reference.plugin().getLifecycleManager().registerEventHandler(
+                    io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents.COMMANDS,
+                    event -> event.registrar().register(
+                            verymc.top.veryMcProto.mod.carpet.command.DrawCommand.build(commandContext())));
+        }
+        catch (Throwable t)
+        {
+            Reference.logger().severe("[Carpet] failed to register /draw command: " + t.getMessage());
+        }
     }
 
     /** 主类 onDisable 调用（须无异常抛出；须在框架 ChannelManager.unregisterAll 之前——jei 先例）。 */
@@ -181,6 +242,28 @@ public final class CarpetModule implements ModModule
     public static SettingsManager getSettingsManager()
     {
         return settingsManager;
+    }
+
+    /** CommandBuildContext 懒加载单点（/perimeterinfo /draw 参数类工厂入参；registryAccess 只读快照可安全缓存）。 */
+    private static volatile net.minecraft.commands.CommandBuildContext commandBuildContext;
+
+    private static net.minecraft.commands.CommandBuildContext commandContext()
+    {
+        net.minecraft.commands.CommandBuildContext ctx = commandBuildContext;
+        if (ctx == null)
+        {
+            synchronized (CarpetModule.class)
+            {
+                if (commandBuildContext == null)
+                {
+                    commandBuildContext = net.minecraft.commands.CommandBuildContext.simple(
+                            Nms.server().registryAccess(),
+                            net.minecraft.world.flag.FeatureFlags.VANILLA_SET);
+                }
+                ctx = commandBuildContext;
+            }
+        }
+        return ctx;
     }
 
     /**

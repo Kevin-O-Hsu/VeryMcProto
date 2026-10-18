@@ -51,7 +51,7 @@ class CarpetRuleRegistryTest
     }
 
     @Test
-    void exactlyElevenRulesRegistered()
+    void exactlyEighteenRulesRegistered()
     {
         Set<String> names = manager.getRules().stream().map(r -> r.name).collect(Collectors.toSet());
         assertEquals(Set.of(
@@ -69,7 +69,14 @@ class CarpetRuleRegistryTest
                 "allowListingFakePlayers",
                 // P4 日志 2 条（scope §5.1，上游 :453-463）
                 "commandLog",
-                "defaultLoggers"), names, "P1 foundation (8) + P2 fake-player family (3) + P4 log family (2) rule set");
+                "defaultLoggers",
+                // P5 命令族 5 条（scope §5.1，上游 :411-412/:465-490）
+                "commandSpawn",
+                "commandDistance",
+                "commandInfo",
+                "commandPerimeterInfo",
+                "commandDraw"), names,
+                "P1 foundation (8) + P2 fake-player family (3) + P4 log family (2) + P5 command family (5) rule set");
     }
 
     @Test
@@ -98,6 +105,17 @@ class CarpetRuleRegistryTest
         assertEquals(String.class, manager.getRule("commandLog").type);
         assertEquals("none", manager.getRule("defaultLoggers").defaultValue);
         assertEquals(String.class, manager.getRule("defaultLoggers").type);
+        // P5 命令族（上游 :411-412/:465-490 逐字）
+        assertEquals("ops", manager.getRule("commandSpawn").defaultValue);
+        assertEquals(String.class, manager.getRule("commandSpawn").type);
+        assertEquals("true", manager.getRule("commandDistance").defaultValue);
+        assertEquals(String.class, manager.getRule("commandDistance").type);
+        assertEquals("true", manager.getRule("commandInfo").defaultValue);
+        assertEquals(String.class, manager.getRule("commandInfo").type);
+        assertEquals("true", manager.getRule("commandPerimeterInfo").defaultValue);
+        assertEquals(String.class, manager.getRule("commandPerimeterInfo").type);
+        assertEquals("ops", manager.getRule("commandDraw").defaultValue);
+        assertEquals(String.class, manager.getRule("commandDraw").type);
     }
 
     @Test
@@ -132,6 +150,14 @@ class CarpetRuleRegistryTest
         // defaultLoggers：显式 options（上游 :460 逐字含复合值 "mobcaps,tps"）+ 非 strict
         assertEquals(List.of("none", "tps", "mobcaps,tps"), manager.getRule("defaultLoggers").options);
         assertFalse(manager.getRule("defaultLoggers").isStrict, "defaultLoggers is strict=false (csv values)");
+
+        // P5：五条 command 规则均为 String + COMMAND 类目无显式 options → 推断 CommandLevel.OPTIONS
+        //（上游 :412/:470/:480/:487/:490 均无 options，commandTick/commandPlayer/commandLog 同款推断）
+        assertEquals(Validator.CommandLevel.OPTIONS, manager.getRule("commandSpawn").options);
+        assertEquals(Validator.CommandLevel.OPTIONS, manager.getRule("commandDistance").options);
+        assertEquals(Validator.CommandLevel.OPTIONS, manager.getRule("commandInfo").options);
+        assertEquals(Validator.CommandLevel.OPTIONS, manager.getRule("commandPerimeterInfo").options);
+        assertEquals(Validator.CommandLevel.OPTIONS, manager.getRule("commandDraw").options);
     }
 
     @Test

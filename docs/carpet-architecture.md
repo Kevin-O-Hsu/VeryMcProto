@@ -1,6 +1,6 @@
-# Carpet 模块 as-built（Phase 1 模块地基 + Phase 2 假人子系统 + Phase 3 carpet:hello 协议 + Phase 4 /log 日志）
+# Carpet 模块 as-built（Phase 1 模块地基 + Phase 2 假人子系统 + Phase 3 carpet:hello 协议 + Phase 4 /log 日志 + Phase 5 命令族）
 
-> **状态**：Phase 1 已实现（2026-10-17，dev 线）；**Phase 2「假人——/player 全族」已实现（2026-10-18，dev 线，§11-§14）**；**Phase 3「carpet:hello 协议」已实现（2026-10-18，dev 线——wire as-built 专文 [carpet-protocol.md](carpet-protocol.md)，本文只保留装配/接口视角）**；**Phase 4「/log 日志框架 + tps/mobcaps」已实现（2026-10-19，dev 线，§16-§18）**。范围判定唯一权威 = [carpet-porting-scope.md](carpet-porting-scope.md)（scope）；推进状态 = [carpet-phases.md](carpet-phases.md) §11；命令/权限/配置运维键 = [operations.md](operations.md) §1.6-§1.8/§2.1/§3.4-§3.5。本文承载 as-built 细节与**全量偏差清单**（上游对照树 = `OriginImpl/fabric-carpet-26.2/`，tag `v26.2`）。
+> **状态**：Phase 1 已实现（2026-10-17，dev 线）；**Phase 2「假人——/player 全族」已实现（2026-10-18，dev 线，§11-§14）**；**Phase 3「carpet:hello 协议」已实现（2026-10-18，dev 线——wire as-built 专文 [carpet-protocol.md](carpet-protocol.md)，本文只保留装配/接口视角）**；**Phase 4「/log 日志框架 + tps/mobcaps」已实现（2026-10-19，dev 线，§16-§18）**；**Phase 5「命令族——纯计算类」已实现（2026-10-19，dev 线，§19-§21）**。范围判定唯一权威 = [carpet-porting-scope.md](carpet-porting-scope.md)（scope）；推进状态 = [carpet-phases.md](carpet-phases.md) §11；命令/权限/配置运维键 = [operations.md](operations.md) §1.6-§1.13/§2.1/§3.4-§3.5。本文承载 as-built 细节与**全量偏差清单**（上游对照树 = `OriginImpl/fabric-carpet-26.2/`，tag `v26.2`）。
 >
 > 上游本质是**行为注入型** mod（171 服务端 Mixin）——与既有三 mod（协议投递型）根本不同；本模块只移植 scope 判定为可完整等价的子集，P1 = 模块地基（规则框架 + `/carpet` 壳 + 8 条地基规则），P2 = 假人子系统（patches 三件套 + ActionPack + `/player` 全族 + 3 条假人规则）。
 
@@ -241,3 +241,50 @@ B 侧结构（`mod/carpet/` 下）：
 - `CarpetRuleRegistryTest` 扩 13 规则锁（commandLog/defaultLoggers 名/默认/类型/选项域 + CommandLevel 推断 + 复合 option "mobcaps,tps"）。
 - **实机判据（phases §6）**：① carpet 客户端 HUD 显示 tps/mobcaps（**用户侧终验**——服务端侧以 footer 写入路径 + 单测/冒烟承载）② 订阅跨会话持久（状态机单测全矩阵 + carpet-logs.json 往返；真玩家会话往返属客户端联测）③ tab 头脚无冲突（仓内零占用 grep + 只写 footer 设计）。
 - runServer 冒烟（2026-10-19）：四模块零回归起服；console 三入口（裸/subscribe/clear）全部 "For players only"（命令注册 + commandLog=true 门放行 console + 执行体拒绝链）；`/carpet list` 13 规则（commandLog=true/defaultLoggers=none 默认标记）；`setDefault defaultLoggers tps` → conf 落盘 → `removeDefault` 复位（往返干净）；假人 spawn/kill 零 /log 写入（豁免实证）；停服 disable 三连清无异常。
+
+---
+
+## §19 P5 命令族总览（2026-10-19 as-built）
+
+上游对照 = `carpet/commands/{DistanceCommand(44),InfoCommand(87),PerimeterInfoCommand(84),DrawCommand(451),SpawnCommand(250 行——仅 mobcaps/entities 两子树)}.java` + `carpet/utils/{DistanceCalculator,BlockInfo,PerimeterDiagnostics,Messenger}.java` + `carpet/script/utils/Colors.java` + `carpet/utils/SpawnReporter.java:99-152,:234-258`（多行 mobcaps 与实体清单切片）。**上游语义勘误（本 Phase 落地时实证，scope §3 / phases §7 已同步勘误）**：`/distance` = 两点三距离公式（Spherical/Cylindrical/Manhattan，`DistanceCalculator`——非寻路、零 Tracer 消费）；`/info` = block-only 属性清单（`BlockInfo`——无实体分支、非 NBT dump）。
+
+B 侧结构（`mod/carpet/` 下）：
+
+| B 侧类 | 上游对照 | 说明 |
+|---|---|---|
+| `util/Messenger` | `carpet/utils/Messenger.java`（~320 行全量逐字） | **P5 起新增的命令输出层**：色字母码→Style、可点击/悬停（`!`/`?`/`^`/`@`/`&`）、`tp` 坐标行、`heatmap_color`/`creatureTypeColor` 字母码版。imports 全 vanilla chat API + slf4j（NMS 自带）——零 Mixin/scarpet 依赖。**三代输出面并存**：/player /log = § 码（#28/#43/#46 已裁决面，不回改）；HUD footer = § 码 String（传输载体）；P5 命令 = Messenger 组件（上游一致，锚点扩展①裁决） |
+| `util/DistanceCalculator` | 同名（逐字） | `START_POINT_STORAGE` 按源名键控 + 三距离公式（`Mth.abs((float)a-(float)b)` float 域逐字）+ setEnd 无起点回落；`findDistanceBetweenTwoPoints(Vec3,Vec3)` 返回组件列表**零 source 依赖 → 纯 JVM 单测直调**（测试缝隙抽取取消——比原计划更贴上游） |
+| `util/BlockInfo` | 同名（逐字） | 属性清单 + `wander_chances`（1000 次采样 + 最坏 1000×36000 次 canUse 评估——上游同构照抄，继承风险登记 §20 #61） |
+| `util/Colors` | `carpet/script/utils/Colors.java`（逐字迁包） | 仅包位迁移（scarpet 工具包 → util，Tracer P2 同判）；BlockInfo 同包直用 |
+| `util/PerimeterDiagnostics` | 同名（逐字） | ±128 圆柱 + 24²-128² 球壳 + liquid/ground/specific + samples≤10 + check_entity_spawn 全 vanilla 公开 API；深 ServerLevel/Mob 依赖 → 实机覆盖 |
+| `command/DistanceCommand` | 同名（六分支嵌套树逐字） | `from` 裸→setStart(当前位)/`from <v>` 裸→setStart/`from <v> to` 裸→**直算回显不触存储**/`from <v> to <v>`→distance/顶层 `to` 裸→setEnd(当前位)/`to <v>`→setEnd |
+| `command/InfoCommand` | 同名（逐字） | grep 跑 `line.getString()` **纯文本层**（§ 码层会把 "grep 7" 变行行命中）+ 首行恒输出 + 非 gamemasters 双守卫（hasChunkAt/isInWorldBounds） |
+| `command/PerimeterInfoCommand` | 同名（逐字 + suggests 桥接） | 根裸 = 当前位为心；mob = `ResourceArgument.resource(ctx, ENTITY_TYPE)`；`loadEntityRecursive` 26.2 新形态（`EntitySpawnRequest(COMMAND,true)`）@minY-10 + addWithUUID；非 Mob 拒绝行 |
+| `command/DrawCommand` | 同名（七 literal 树 + 四算法内联逐字） | sphere/ball/diamond/pyramid/cone/cylinder/cuboid + `drawShape` 尾部（block + [replace filter]）；setBlock = Container clearContent → `BlockInput.place(world,pos,2)`；**fillUpdates 固定 true 语义**（偏差 #57）；plop 零耦合实证不涉 |
+| `command/SpawnCommand` | `SpawnCommand.java:95-107` 两子树逐字 | mobcaps [\<dimension>] + entities [\<type> [all]]；`entities <type>` = `string()` + MobCategory 名建议 + `getCategory` 校验（**type 是类别词如 monster，非实体 id**）；`mobcaps set` 裁剪（偏差 #58） |
+| `logging/SpawnReport`（追加） | `SpawnReporter.java:99-152,:234-258` 切片 | +`cachedMobCategories()`/多行 mobcaps 组件报告/`printEntitiesByType`——append-only，P4 短行 § 码面与 18 测试零触碰；rounds 段恒空（spawn_tries 追踪面未移植） |
+
+装配（`CarpetModule.onRegister` 追加）：五命令各独立 try-catch 经 `LifecycleEvents.COMMANDS` 注册（单命令失败只降级）；`/perimeterinfo` `/draw` 的参数类工厂需 `CommandBuildContext` = `CommandBuildContext.simple(Nms.server().registryAccess(), FeatureFlags.VANILLA_SET)`（公开静态工厂，javap 实证；懒加载单点缓存——registryAccess 只读快照）。规则五条 = 上游活跃声明逐字（`commandSpawn="ops"`/`commandDistance`/`commandInfo`/`commandPerimeterInfo`=`"true"`/`commandDraw="ops"`，COMMAND 类目自动 CommandLevel OPTIONS）；conf 持久化与 carpet:hello Rules 增量同步均既有链路自动承载。plugin.yml 零改动；`disable()` 零新清理面（命令树无资源句柄）。
+
+**`/spawn mobcaps` 与 `/log mobcaps` 交叉一致判据由构造保证**：同一 `SpawnReport` 类、同一 `getLastSpawnState().getSpawnCategoryCounts()/getSpawnableChunkCount()` 数据源、同一先除后乘公式与热力色阈值（§ 码/字母码两形态同值映射，偏差 #43 映射表）。
+
+## §20 P5 偏差清单（B ↔ 上游，续 §9/§14/§17 编号）
+
+| # | 偏差 | 理由 |
+|---|---|---|
+| 54 | P5 命令输出 = `Messenger` 组件面（含可点击 tp 坐标——上游一致）；/player /log /HUD 保留 § 码面不回改 | 锚点扩展①「一切语义与输出形态以上游源码为准」——P5 新命令按上游组件形态；P2 #28/P4 #43/#46 为已裁决已交付面（回改超锚点，登记双轨并存） |
+| 55 | `/perimeterinfo` suggests 桥 = 直接 unchecked cast `(SuggestionProvider<paper>) SuggestionProviders.SUMMONABLE_ENTITIES`（上游 = `SuggestionProviders.cast(...)`） | `cast` 的泛型界 `<S extends SharedSuggestionProvider>` 在 paper 树泛型上不可推断（paper CommandSourceStack 不继承该接口）；运行时安全字节码级实证——provider 对 `context.getSource()` 做 `checkcast SharedSuggestionProvider` + `enabledFeatures()`（触 source），而 Paper 派发链运行时对象即 NMS `CommandSourceStack`（implements 之，javap 类声明实证）→ checkcast 必过；失败模式双重可观测（服务端 CCE 日志 + 客户端补全空）。**本项目首个触 source 的 NMS suggestion provider**——tab 补全实测 = 硬判据（`/perimeterinfo <tab>` 出可召唤实体 id 全集） |
+| 56 | `/perimeterinfo` mob 参数取值 = `getArgument(Holder.Reference.class)` 直取，canSummon 复检省略 | vanilla `ResourceArgument.getSummonableEntityType` 的 `ERROR_NOT_SUMMONABLE_ENTITY` 非 public 不可引用；suggests 已过滤 + 非 Mob 拒绝行双兜底（不可达面经 loadEntityRecursive 后仍落上游同款拒绝文案） |
+| 57 | `/draw` fillUpdates 固定 true 语义：`impendingFillSkipUpdates` ThreadLocal 删除、收尾 `updateNeighborsAt` 无条件 | ThreadLocal 消费端 = 6 个 fillUpdates Mixin（BlockInput/Level/LevelChunk/StructureBlockEntity/Commands/SGPL），Paper 无 Mixin 物理不可移植——机械照抄得无消费者死代码 + 虚假保真；上游 `fillUpdates` 规则（scope §5.2 ⚠️）不随 P5 移植；false 路径（放置态邻居形状后处理剥离）随之不可达 |
+| 58 | `/spawn mobcaps set` 子分支裁剪 | 写场 `SpawnReporter.mobcap_exponent` 的消费端全在 Mixin（`MobCategory_spawnMixin.java:21` + `NaturalSpawnerMixin.java:233`）——移植即得"打印成功实为 no-op"的说谎命令（P4 MAGIC_NUMBER=289 硬编码连显示都不变） |
+| 59 | `/spawn` 数据面 = `SpawnReport`（P4 切片类 + P5 追加多行/实体清单）；rounds 段恒 `"w "` 空段 | 上游单类 `SpawnReporter` 的 B 侧承载——chunkcount 谱系随偏差 #52（SpawnState 公开 API）；`spawn_tries` 属 tracking 面（⛔ 未移植）→ rounds 恒 1，上游 :124-128 rounds==1 分支同位行为 |
+| 60 | NMS 参数取值等价体族：`Vec3Argument.getVec3`/`BlockPosArgument.getSpawnablePos`/`BlockStateArgument.getBlock`/`BlockPredicateArgument.getBlockPredicate`/`DimensionArgument.getDimension`/`ResourceArgument.getSummonableEntityType` → `context.getArgument(name, Result.class)` 直取 | P2 #27 同判扩展：这些 vanilla 静态助手签名钉死 NMS 泛型上下文、paper 树泛型不可直调；javap 实证各助手体即 `getArgument` 直取（BlockStateArgument.getBlock = 单条 getArgument 指令；getBlockPredicate = getArgument(Result)——Result implements Predicate 直接可用） |
+| 61 | `wander_chances` 照抄不加限（已知继承风险） | 上游同构同步重计算（主线程最坏 1000×36000 次 goal 评估——实体被困 1×1 场景分钟级停顿）；保真裁决 R5；上游 Fabric 同风险 |
+| 62 | `CommandBuildContext` = `CommandBuildContext.simple(registryAccess, VANILLA_SET)` 懒加载单点（上游 = vanilla `Commands` 构建期注入同一实例） | paper lifecycle 注册面无 ctx 注入位；公开静态工厂（javap 实证签名）+ registryAccess 只读快照可安全缓存 |
+
+## §21 P5 测试锚与实机判据
+
+- `DistanceCalculatorTest`（4 用例，纯 JVM 直调 `findDistanceBetweenTwoPoints`）：3-4-5 三角锁三公式与四行结构（` - Spherical: 5.00`/` - Cylindrical: 5.00`/` - Manhattan: 7.0`）；纯垂直（cylindrical 归零）；float 域减法格式面；两点对称性。setStart/setEnd 状态机（NMS source 依赖）与命令树归实机。
+- `CarpetRuleRegistryTest` 扩 18 规则锁（五条 P5 规则名/默认/类型 + CommandLevel OPTIONS 推断断言；方法名 `exactlyElevenRulesRegistered`→`exactlyEighteenRulesRegistered` 事实更名——原名自 13 规则期已陈旧）。
+- **纯测不可行面如实声明**：PerimeterDiagnostics（ServerLevel/Mob 深依赖）、DrawCommand 几何（setBlock 依赖世界）、InfoCommand grep（依附 BlockInfo 行列表）→ 实机承载。
+- **实机判据（phases §7）**：runServer 已验（2026-10-19）——`carpet list` 18 规则全列；`distance from 0 -60 0 to 100 -60 0` 三行输出逐字（含 Vec3Argument 整数居中 0.5——上游同构）；`spawn mobcaps` 八类别多行 + `spawn entities monster` 空表回执；`draw sphere 0 -60 0 3 minecraft:glass` → "Filled 98 blocks"（r=3 空心球壳正确）；`help perimeterinfo`/`help info` 树形（`[<center position>] [<mob>]`/`block <block position> [grep]`——CommandBuildContext + ResourceArgument 链路注册实证）；零 `[Carpet] failed to register` 日志。**用户侧终验**：`/info block` 属性清单对照上游、`/perimeterinfo` 周界报告（慢路径）、`/perimeterinfo <tab>` 补全全集（#55 硬判据）、可点击 tp 组件点击行为、`/spawn mobcaps` 与 `/log mobcaps` 数值交叉目检。

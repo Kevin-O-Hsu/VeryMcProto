@@ -86,8 +86,8 @@ Servux / JEI / Syncmatica 是**协议投递型** mod——客户端期待一套�
 | `/player` | spawn（in/at/facing/gamemode）、kill、shadow、stop、mount [anything]、dismount、sneak/unsneak、sprint/unsprint、look north/south/east/west/up/down/at、turn left/right/back、move forward/backward/left/right（组合）、attack/use/jump × once/continuous/interval、drop all/mainhand/offhand/\<slot>（+ dropStack 变体）、hotbar \<slot> | ✅ 全族 | §6 深潜；上游 ~1400 行 + Paper 适配层 |
 | `/log` | subscribe \<logger> [option]、clear | ✅ 框架 | 订阅状态纯服务端；logger 逐条见 §4 |
 | `/spawn` | `mobcaps`、`entities <type> [all]` ✅；`list` ⚠️（依赖 tracking 统计）；`tracking start/stop`、`test`、`mocking`、`rates reset` ⛔ | ⚠️ 部分 | tracking 五连 = `NaturalSpawnerMixin` 5+ 个 @Redirect 深钩刷怪循环（`carpet/mixins/NaturalSpawnerMixin.java:49-271`），无事件面 |
-| `/distance` | from/to | ✅ | A* 寻路成本计算，vanilla 寻路 NMS 直调（`carpet/script/utils/Tracer`，纯算法） |
-| `/info` | block、grep | ✅ | 方块/实体 NBT dump，NMS 直连 |
+| `/distance` | from/to | ✅ | 两点三距离公式（Spherical/Cylindrical/Manhattan，`carpet/utils/DistanceCalculator` 纯算法——**非寻路、零 Tracer 消费**，原文"A* 寻路/Tracer"系笔误，2026-10 按上游源码勘误） |
+| `/info` | block、grep | ✅ | block-only 属性清单（`carpet/utils/BlockInfo`：registry key/属性/map colour/sound/光照/hardness/红石/wander_chances）——**无实体分支、非 NBT dump**，原文按上游源码勘误 |
 | `/perimeterinfo` | — | ✅ | 周界刷怪诊断，纯计算大活（`carpet/utils/PerimeterDiagnostics`） |
 | `/draw` | sphere/ball/cuboid/cylinder/cone/diamond/pyramid/replace ✅（setBlock 循环）；plop ⛔ | ⚠️ 部分 | plop = `WorldGenRegion_scarpetPlopMixin` 等 4 个世界生成钩 |
 | `/profile` | health、entities | ⛔ | `CarpetProfiler` 采样本体即 mixin 注入；替代 = Paper 生态 spark，非移植 |

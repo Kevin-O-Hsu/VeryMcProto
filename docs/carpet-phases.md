@@ -117,12 +117,12 @@
 ## §7 Phase 5 命令族——纯计算类
 
 - **范围锚**：scope §3 ✅ 项 + §8 命令行；规则 = scope §5.1 commandXxx 5 条
-- **交付物**：`/distance`（Tracer 纯算法寻路成本）、`/info`（方块/实体 NBT dump）、`/perimeterinfo`（PerimeterDiagnostics 周界诊断）、`/draw` 基础形状（setBlock 循环）、`/spawn mobcaps,entities` + 五条规则实名接入（`commandDistance` / `commandInfo` / `commandPerimeterInfo` / `commandSpawn` / `commandDraw`）
+- **交付物**：`/distance`（**两点三距离公式**——Spherical/Cylindrical/Manhattan，`DistanceCalculator` 纯算法；原文"Tracer 纯算法寻路成本"系笔误，2026-10 按上游源码勘误，上游 /distance 零 Tracer 消费）、`/info`（**block-only 属性清单**——`BlockInfo` 属性报表 + grep，无实体分支非 NBT dump，原文勘误）、`/perimeterinfo`（PerimeterDiagnostics 周界诊断）、`/draw` 基础形状（setBlock 循环）、`/spawn mobcaps,entities` + 五条规则实名接入（`commandDistance` / `commandInfo` / `commandPerimeterInfo` / `commandSpawn` / `commandDraw`）
 - **后置可选**：`/spawn list` ⚠️（依赖 tracking 统计）、`/mobai` ⚠️（反射采样保真低）（scope §3 各行）
-- **不做**：`/spawn` tracking 五连 ⛔、`/profile` ⛔（Paper 生态 spark 替代）、`/counter` ⛔、`/draw` plop ⛔、`/script` 🔗、`/test` N/A、`/tick`（已随 P1 权限面，scope §3 /tick 行）
-- **依赖**：P1；`/spawn mobcaps` 消费 P4 采集点（软依赖 + §1.6 回退条款）
-- **完成判据**：逐命令实测——`/info` 输出语义对照原版、`/distance` 两点寻路成本、`/perimeterinfo` 周界报告、`/draw` 形状落块正确、`/spawn mobcaps` 数值与 `/log mobcaps` **交叉一致**
-- **验证方式**：实机 + 纯算法单测（Tracer / PerimeterDiagnostics）
+- **不做**：`/spawn` tracking 五连 ⛔、`/spawn mobcaps set` ⛔（写场 `mobcap_exponent` 消费端全在 Mixin，物理不可移植）、`/profile` ⛔（Paper 生态 spark 替代）、`/counter` ⛔、`/draw` plop ⛔、`/script` 🔗、`/test` N/A、`/tick`（已随 P1 权限面，scope §3 /tick 行）
+- **依赖**：P1；`/spawn mobcaps` 消费 P4 采集点（软依赖 + §1.6 回退条款——P4 已落地，直接消费 `SpawnReport` 同源数据）
+- **完成判据**：逐命令实测——`/info` 输出语义对照原版、`/distance` 两点三距离、`/perimeterinfo` 周界报告、`/draw` 形状落块正确、`/spawn mobcaps` 数值与 `/log mobcaps` **交叉一致**（同 `SpawnReport`/`SpawnState` 数据源，构造性成立）
+- **验证方式**：实机 + 纯算法单测（DistanceCalculator——`findDistanceBetweenTwoPoints` 零 source 依赖纯 JVM 直测；PerimeterDiagnostics 深 ServerLevel/Mob 依赖纯测不可行，实机覆盖）
 
 ---
 
@@ -166,6 +166,6 @@
 | P2 | 假人（/player 全族） | ✅ 已完成 | 2026-10-18：判据全过——①全子命令逐条实测（runServer 控制台 18 轮：spawn 含 at 坐标/look/turn/move/sneak/sprint/attack/use/jump × 三模式/drop 族/hotbar/swapHands/mount/dismount/stop/kill/shadow 门禁回执）②占 tab 栏（list）+ **入睡跳夜**（peaceful 夜 use 对床 → 跳夜分支堆栈实证）+ playerdata 持久（players/data 落盘读回）+ /tp //ban 原版命令识别（ban 后 cantSpawn 拒）③缺口显式登记（tick-freeze 唯一功能缺口 + 击退 PlayerVelocityEvent 门控 ≤1tick 残余窗口）；速度保真标定 5.6 m/s（超平坦 sprint 8s 位移 44.84 格）；单测 148/0（新增 ActionPackTest 4 + 规则表扩 11 锁）；三裁决落地（kick 终端拦截 / respawn 实例复用改锚 / brigadier 载体） | 见交付 commit（feat: Carpet Phase 2） |
 | P3 | 协议（carpet:hello） | ✅ 已完成 | 2026-10-18：判据②③④待 carpet 客户端实机终验（用户侧）；判据①已按 javap/上游 build.gradle 实证改写口径（真实客户端版本串带 `+v` 日期后缀 → 本地 LOG.warn 属上游 equals 语义同源产物，接受——无 chat 可见/断连级警告）；S2C 全 NMS DiscardedPayload 直发（carpet 客户端无 minecraft:register 声明 → plugin messaging 结构性不可达，静态全链实证）；单测 153/0（新增 CarpetHelloFrameTest 5：帧形状/撞名"2"/回执缺省键/版本串字面守卫）；runServer 冒烟（四模块+假人 join+/carpet 回归）通过；as-built = [carpet-protocol.md](carpet-protocol.md) | 见交付 commit（feat: Carpet Phase 3） |
 | P4 | 日志（/log + tps/mobcaps） | ✅ 已完成 | 2026-10-19：判据①服务端侧全链就绪（HUD 行公式逐字 + footer 只写路径 + 单测/冒烟）——carpet 客户端 HUD 终验留用户侧（phases §6 验证方式即"客户端实机"）；判据②状态机全矩阵单测（墓碑双信号模型 + join 谓词 + carpet-logs.json 往返）+ conf/13 规则往返；判据③仓内零占用 grep + 只写 footer（零 header 触碰）；runServer 冒烟（console 三入口拒绝面/13 规则/conf 往返/假人豁免/disable 三连清）+ 单测 171/0/0（新增 CarpetLoggerTest 18）；as-built = [carpet-architecture.md](carpet-architecture.md) §16-§18 | 见交付 commit（feat: Carpet Phase 4） |
-| P5 | 命令族（纯计算类） | ⬜ 未开始 | — | — |
+| P5 | 命令族（纯计算类） | ✅ 已完成 | 2026-10-19：五命令 runServer 实测（distance 三距离 100.00/100.00/100.0 含 Vec3Argument 居中、spawn mobcaps 八类别多行 + entities monster 空表、draw sphere r3 → Filled 98 blocks、help 树含 perimeterinfo [\<center>] [\<mob>] 与 info block [grep]）+ 18 规则全列（五新规则在册，上游 :411-490 实名逐字）；`/spawn mobcaps` 与 `/log mobcaps` 同 `SpawnReport`/`SpawnState` 数据源（交叉一致构造性成立）；单测 175/0/0（新增 DistanceCalculatorTest 4 + 规则表扩 18 锁 + 方法名更名）；`/info` `/perimeterinfo` 执行面与玩家侧（tab 补全/点击组件）终验留用户实机（wander_chances/全扫为慢路径）；as-built = [carpet-architecture.md](carpet-architecture.md) §19-§20；scope §3 /distance /info 两行已按上游源码勘误 | 见交付 commit（feat: Carpet Phase 5） |
 | P6 | 近似规则自选池 | ⬜ 未开始（可选） | — | — |
 | P7 | 三线铺开 | ⬜ 未开始 | — | — |

@@ -151,4 +151,39 @@ public class CarpetSettings
             strict = false
     )
     public static volatile String defaultLoggers = "none";
+
+    // ───── 上游 :411-412（commandSpawn → /spawn mobcaps,entities 根 requires 门；COMMAND 类目自动挂 _COMMAND/CommandLevel）─────
+    @Rule(desc = "Enables /spawn command for spawn tracking", category = "command")
+    public static volatile String commandSpawn = "ops";
+
+    // ───── 上游 :465-470（commandDistance → /distance 根 requires 门）─────
+    @Rule(
+            desc = "Enables /distance command to measure in game distance between points",
+            extra = "Also enables brown carpet placement action if 'carpets' rule is turned on as well",
+            category = "command"
+    )
+    public static volatile String commandDistance = "true";
+
+    // ───── 上游 :472-480（commandInfo → /info 根 requires 门）─────
+    @Rule(
+            desc = "Enables /info command for blocks",
+            extra = {
+                    "Also enables gray carpet placement action",
+                    "if 'carpets' rule is turned on as well"
+            },
+            category = "command"
+    )
+    public static volatile String commandInfo = "true";
+
+    // ───── 上游 :482-487（commandPerimeterInfo → /perimeterinfo 根 requires 门）─────
+    @Rule(
+            desc = "Enables /perimeterinfo command",
+            extra = "... that scans the area around the block for potential spawnable spots",
+            category = "command"
+    )
+    public static volatile String commandPerimeterInfo = "true";
+
+    // ───── 上游 :489-490（commandDraw → /draw 根 requires 门）─────
+    @Rule(desc = "Enables /draw commands", extra = {"... allows for drawing simple shapes or", "other shapes which are sorta difficult to do normally"}, category = "command")
+    public static volatile String commandDraw = "ops";
 }

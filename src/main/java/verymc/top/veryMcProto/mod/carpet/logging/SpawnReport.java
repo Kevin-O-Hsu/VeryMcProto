@@ -5,16 +5,24 @@ import java.util.List;
 
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.NaturalSpawner;
+import net.minecraft.world.level.entity.EntityTypeTest;
+import verymc.top.veryMcProto.mod.carpet.util.Messenger;
 
 /**
- * mobcaps 采集与短行格式化（上游 {@code carpet/utils/SpawnReporter.java:93,:99-152} 的 P4 切片 +
- * {@code carpet/utils/Messenger.java:30-123} 色表的 § 码化）。
+ * mobcaps 采集与格式化（上游 {@code carpet/utils/SpawnReporter.java} 的 B 侧承载切片：
+ * P4 = :93,:99-152 短行 HUD 面 + {@code Messenger.java:30-123} 色表的 § 码化；P5 追加 =
+ * :99-152 多行组件面与 :234-258 实体清单，供 /spawn mobcaps,entities——见文件尾部 P5 节，
+ * P4 短行 § 码面与其单测零触碰）。
  *
  * <p><b>硬编码魔数</b>：{@value #MAGIC_NUMBER} = 17×17（上游 SpawnReporter.java:93 亦为硬编码
  * {@code (int)Math.pow(17.0, 2.0)}；vanilla 来源 = NaturalSpawner 私有常量）——注释标来源防漂移，
@@ -125,5 +133,109 @@ public final class SpawnReport
             case WATER_AMBIENT -> "§3"; // q
             default -> "§f"; // w（MISC / UNDERGROUND_WATER_CREATURE / AXOLOTLS——上游未列，default 白）
         };
+    }
+
+    // ───── Phase 5（/spawn mobcaps,entities）命令侧扩展——append-only，P4 短行面零触碰 ─────
+
+    /** 上游 cachedMobCategories()（SpawnReporter.java:295-297 = MobCategory.values() 缓存副本）同构。 */
+    public static MobCategory[] cachedMobCategories()
+    {
+        return MobCategory.values();
+    }
+
+    /**
+     * 维度 mobcaps 组件报告（上游 printMobcapsForDimension(world, multiline) :99-152 的组件面——
+     * 表头 + 逐类整行 / 短码单行，/spawn mobcaps 与 entities 裸分支消费）。
+     *
+     * <p>rounds 段：上游读 spawn_tries 追踪 map（tracking 面 ⛔ 未移植）→ rounds 恒 1 → {@code "w "}
+     * 空段（上游 :124-127 rounds==1 同位行为）。色走 {@link Messenger} 字母码（本类 § 码私有函数
+     * 为 HUD footer String 传输面，双体系并存——传输载体差异，非冗余）。
+     */
+    public static List<Component> printMobcapsForDimension(ServerLevel world, boolean multiline)
+    {
+        ResourceKey<Level> dim = world.dimension();
+        String name = dim.identifier().getPath();
+        List<Component> lst = new ArrayList<>();
+        if (multiline)
+            lst.add(Messenger.s(String.format("Mobcaps for %s:",name)));
+        NaturalSpawner.SpawnState lastSpawner = world.getChunkSource().getLastSpawnState();
+        // B 侧谱系（偏差 #52）：上游 chunkcount 来自 chunkCounts 事件计数 map（Mixin 维护）；此处走
+        // SpawnState 公开 API——两谱系数值可偏差，公式仍逐字
+        Object2IntMap<MobCategory> dimCounts = lastSpawner == null ? null : lastSpawner.getMobCategoryCounts();
+        int chunkcount = lastSpawner == null ? -1 : lastSpawner.getSpawnableChunkCount();
+        if (dimCounts == null || chunkcount < 0)
+        {
+            lst.add(Messenger.c("g   --UNAVAILABLE--"));
+            return lst;
+        }
+
+        List<String> shortCodes = new ArrayList<>();
+        for (MobCategory category : cachedMobCategories())
+        {
+            int cur = dimCounts.getOrDefault(category, -1);
+            // 上游 :119 逐字：先除后乘
+            int max = (int)(chunkcount * ((double)category.getMaxInstancesPerChunk() / MAGIC_NUMBER)); // from ServerChunkManager.CHUNKS_ELIGIBLE_FOR_SPAWNING
+            String color = Messenger.heatmap_color(cur, max);
+            String mobColor = Messenger.creatureTypeColor(category);
+            if (multiline)
+            {
+                // rounds==1 恒空段（spawn_tries 追踪面未移植，见 javadoc；上游 :124-128 同位三元）
+                lst.add(Messenger.c(String.format("w   %s: ", category.getName()),
+                        (cur < 0) ? "g -" : (color + " " + cur), "g  / ", mobColor + " " + max,
+                        "w "
+                ));
+            }
+            else
+            {
+                shortCodes.add(color+" "+((cur<0)?"-":cur));
+                shortCodes.add("g /");
+                shortCodes.add(mobColor+" "+max);
+                shortCodes.add("g ,");
+            }
+        }
+        if (!multiline)
+        {
+            if (shortCodes.size() > 0)
+            {
+                shortCodes.remove(shortCodes.size() - 1);
+                lst.add(Messenger.c(shortCodes.toArray(new Object[0])));
+            }
+            else
+            {
+                lst.add(Messenger.c("g   --UNAVAILABLE--"));
+            }
+
+        }
+        return lst;
+    }
+
+    /**
+     * 类别实体清单（上游 printEntitiesByType :234-258 逐字——persistent 判定 =
+     * {@code isPersistenceRequired() || requiresCustomPersistence()}，默认排除、all 含）。
+     */
+    public static List<Component> printEntitiesByType(MobCategory cat, ServerLevel worldIn, boolean all)
+    {
+        List<Component> lst = new ArrayList<>();
+        lst.add(Messenger.s(String.format("Loaded entities for %s category:", cat)));
+        for (Entity entity : worldIn.getEntities(EntityTypeTest.forClass(Entity.class), (e) -> e.getType().getCategory() == cat))
+        {
+            boolean persistent = entity instanceof Mob mob && (mob.isPersistenceRequired() || mob.requiresCustomPersistence());
+            if (!all && persistent)
+                continue;
+
+            EntityType<?> type = entity.getType();
+            net.minecraft.core.BlockPos pos = entity.blockPosition();
+            lst.add(Messenger.c(
+                    "w  - ",
+                    Messenger.tp(persistent ? "gb" : "wb", pos),
+                    String.format(persistent ? "g : %s" : "w : %s", type.getDescription().getString())
+            ));
+
+        }
+        if (lst.size() == 1)
+        {
+            lst.add(Messenger.s(" - Empty."));
+        }
+        return lst;
     }
 }

@@ -27,7 +27,7 @@
 - **C2S 接收**：`ChannelManager.register(CARPET_CHANNEL, handler)`（incoming + outgoing 成对）——
   Paper 26.2 路由补丁把已注册通道的 C2S 交给 Messenger 分发（不踢人）；敌意 NBT 由 vanilla
   `readNbt()` 自带 `NbtAccounter.defaultQuota()`（2MiB + 512 深度，javap 实证）封顶。
-- **帧尺寸**：恒 KB 级（13 规则全量帧 < 10KB），零分片需求，不涉 `PacketSplitter`。
+- **帧尺寸**：恒 KB 级（18 规则全量帧 < 10KB），零分片需求，不涉 `PacketSplitter`。
 - **vanilla / 未装 carpet 客户端**：HI 对所有进服玩家无条件发送（上游同构，无客户端类型 gate）——
   vanilla 把未知通道 payload 解码为 DiscardedPayload 后静默丢弃（clientbound 未知通道上限 1MiB，
   HI 约 30 字节），构造性零影响；假人 join 同样触发 HI，被 `FakeClientConnection.send` no-op 吸收
@@ -80,8 +80,9 @@ carpet 客户端（装 carpet mod）            vanilla / 未装 carpet / 假人
   免疫（上游以 ServerPlayer 实例为键，靠 connection 存续送达——B 侧加固，偏差 #1）。
 - **客户端规则可达集 = 我方规则集 ∩ 客户端本地同名规则集**（客户端 `ClientNetworkHandler.java:60-61`
   按 `Manager`+`Rule` 在自身注册表查名，查不到静默跳过、零报错）——**硬门禁：进 Rules 帧的规则名
-  必须逐字存在于上游 `CarpetSettings` 注册表**（当前 13 条已逐一核验——P4 的 commandLog/defaultLoggers
-  为上游 :453-463 实名；P5 新增规则接入时同守此门）。
+  必须逐字存在于上游 `CarpetSettings` 注册表**（当前 18 条已逐一核验——P4 的 commandLog/defaultLoggers
+  为上游 :453-463 实名；P5 的 commandSpawn/commandDistance/commandInfo/commandPerimeterInfo/commandDraw
+  为上游 :411-412/:465-490 实名逐字；后续新增规则接入时同守此门）。
 - Manager 键恒 `"carpet"`（= `SettingsManager.identifier()`，`CarpetModule` 构造注入 `MOD_ID`）——
   与客户端主管理器查找分支精确匹配。
 

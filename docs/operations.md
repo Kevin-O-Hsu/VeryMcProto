@@ -2,7 +2,7 @@
 
 > **本文是 docs/ 内运维信息的唯一权威**（英文 README 不再承载这些表格）：四 mod 全命令参考、权限节点（命令 + Provider 运行时）、四个配置文件全键表（含 `carpet.conf` 纯文本例外）、磁盘数据布局、调试系统与排错速查（§1–§5），以及 **MC 版本升级 SOP 与观察项**（§6）。
 >
-> - **键权威 = src 配置类**：`servux.json` 各 Provider settings 声明（`ConfigProvider` / `HudDataProvider` / … / `StructureDataProvider.java:83` 等）、`jei.json` = `mod/jei/config/JeiConfiguration.java`、`syncmatica-config.json` = `service/QuotaService.java` + `service/DebugService.java` + `util/SyncmaticaDebug.java`、`carpet.conf` = `mod/carpet/settings/SettingsManager.java` + `mod/carpet/CarpetSettings.java`（13 规则声明 = P1 地基 8 + P2 假人 3 + P4 日志 2）。**改键必须同步本文**（仓库"文档同步强制"约定）。
+> - **键权威 = src 配置类**：`servux.json` 各 Provider settings 声明（`ConfigProvider` / `HudDataProvider` / … / `StructureDataProvider.java:83` 等）、`jei.json` = `mod/jei/config/JeiConfiguration.java`、`syncmatica-config.json` = `service/QuotaService.java` + `service/DebugService.java` + `util/SyncmaticaDebug.java`、`carpet.conf` = `mod/carpet/settings/SettingsManager.java` + `mod/carpet/CarpetSettings.java`（18 规则声明 = P1 地基 8 + P2 假人 3 + P4 日志 2 + P5 命令族 5）。**改键必须同步本文**（仓库"文档同步强制"约定）。
 > - **三载体边界**：本文 = docs 内运维全键唯一权威；根 [`AGENTS.md`](../AGENTS.md) §5 权限表 = AI 上下文自包含安全网（豁免声明）；[`servux-providers.md`](servux-providers.md) = 设置语义视角（讲每个设置的含义与采集联动，不维护节点全表）。
 > - 命令/权限的**语义与上游对照**见各 mod 协议文档（[`servux-protocol.md`](servux-protocol.md) / [`servux-providers.md`](servux-providers.md) / [`syncmatica-protocol.md`](syncmatica-protocol.md) / [`jei.md`](jei.md)）。
 
@@ -159,6 +159,38 @@
 - 假人整体豁免 /log 子系统（不施默认、不入册、不持久化）。
 - **已知限制**：外部写 tab 脚的插件（TAB 类）会与本插件每秒互覆写（上游 carpet 同源行为）；tab 头零触碰（他插件 header 不受影响）。
 
+### 1.9 Carpet 纯计算命令族（Phase 5：`/distance` `/info` `/perimeterinfo` `/draw` `/spawn`）
+
+**权限**：五命令均**无 Bukkit 节点**（plugin.yml 无条目——Paper Brigadier 注册，/player /log 先例），门禁 = 各自规则（`commandDistance`/`commandInfo`/`commandPerimeterInfo`/`commandDraw`/`commandSpawn`，ops/true/false/0-4 经 NMS 判级，requires 每次执行求值动态生效）。输出 = 上游 Messenger 组件形态（**坐标可点击传送**，与 /player /log 的纯文本面不同代——P5 按上游一致裁决）。
+
+```
+/distance from                                设起点 = 执行者当前位（回执坐标）
+/distance from <x y z>                        设起点
+/distance from <a> to                         直算 a ↔ 当前位三距离（不触碰存储起点）
+/distance from <a> to <b>                     直算 a ↔ b 三距离（Spherical/Cylindrical/Manhattan 三行）
+/distance to                                  设终点 = 当前位（无起点时回落设为起点并回执）
+/distance to <x y z>                          设终点 → 输出与存储起点的三距离
+/info block <pos> [grep <regexp>]             方块属性清单（registry key/属性/map colour/sound/
+    光照/hardness/红石/wander_chances 等约 25 行；grep = 按正则过滤行，首行恒输出，
+    匹配层为纯文本非色码；非 op 对未加载区块/越界坐标有守卫拒绝）
+/perimeterinfo [center <pos> [mob <type>]]    周界刷怪诊断：±128 圆柱内 potential in-liquid/
+    on-ground 计数；mob 参数（可召唤实体 id，tab 补全全集）追加 specific 计数 + 采样坐标
+/draw <shape> <center> <radius> [height] [pointing up|down] [orientation x|y|z] <block> [replace <filter>]
+    七形状：sphere（空心）/ball（实心）/diamond/pyramid/cone/cylinder/cuboid；
+    replace filter = 只替换命中方块谓词的格；回执 "Filled N blocks"
+/spawn mobcaps [dimension]                    当前/指定维度生物容量多行报告（热力色）——
+    与 /log mobcaps 同数据源，数值一致
+/spawn entities [type [all]]                  裸 = 同 mobcaps；type = MobCategory 名
+    （monster/creature/ambient/water_creature/...，非实体 id）列出该类别加载实体
+    （默认排除 persistent，all 含）
+```
+
+运维要点（as-built 与偏差清单见 [`carpet-architecture.md`](carpet-architecture.md) §19-§21）：
+- **语义勘误（2026-10 按上游源码）**：`/distance` = 两点三距离公式（**非寻路**、零 Tracer）；`/info` = block 属性清单（**无实体分支、非 NBT dump**）。
+- **慢路径警示（上游同构继承）**：`/perimeterinfo` 同步全扫 ±128 圆柱（秒级）；`/info` 的 wander_chances 行每次执行做 1000 次采样（实体被困 1×1 最坏分钟级主线程停顿）；`/draw` 大半径同步放置（r=50 球 ≈ 52 万块）——生产环境避免大参数。
+- `/draw` 更新抑制固定为 fillUpdates=true 路径（上游 ThreadLocal+Mixin 消费端不可移植）；`/spawn mobcaps set` 不存在（上游写场消费端全在 Mixin）；tracking 五连（list/tracking/test/mocking/rates）不在移植面。
+- `/spawn mobcaps` 数值与 `/log mobcaps` HUD 行**同源一致**（同一 SpawnReport/SpawnState 数据源与公式）。
+
 ---
 
 ## 2. 权限节点
@@ -180,6 +212,7 @@
 | `carpet.command` | op | `/carpet` 规则壳（运行时另受 `carpetCommandPermissionLevel` 规则动态门禁——ops/2/4 级 NMS 判级） |
 | —（无节点） | — | `/player` 假人命令**无 Bukkit 节点**——Paper Brigadier 注册，门禁 = `commandPlayer` 规则（ops/true/false/0-4，§1.7） |
 | —（无节点） | — | `/log` 日志命令**无 Bukkit 节点**——Paper Brigadier 注册，门禁 = `commandLog` 规则（默认 true 全员；ops/true/false/0-4，§1.8） |
+| —（无节点） | — | `/distance` `/info` `/perimeterinfo` `/draw` `/spawn` **无 Bukkit 节点**——Paper Brigadier 注册，门禁 = 各自规则（commandDistance/commandInfo/commandPerimeterInfo/commandDraw/commandSpawn；§1.9） |
 
 ### 2.2 Provider 运行时权限（Perms 语义）
 
@@ -384,6 +417,11 @@ commands:
 | `allowListingFakePlayers` | bool | `false` | — | 假人在多人屏列表的可见性（`allowsListing` 覆写） |
 | `commandLog` | string | `true` | CommandLevel OPTIONS | /log 命令门禁（Brigadier requires 每次执行求值——规则动态生效，上游同构；默认 true 全员可订阅自身 HUD） |
 | `defaultLoggers` | string | `none` | `none`\|`tps`\|`mobcaps,tps`（非 strict，任意 csv） | 新玩家默认订阅：csv 条目 = "logger" 或 "logger option"（如 `mobcaps overworld`）；每进服对「未订阅且未显式退订」者重评估（显式退订墓碑拦截，§3.5；显式订阅优先） |
+| `commandSpawn` | string | `ops` | CommandLevel OPTIONS | /spawn mobcaps,entities 命令门禁（§1.9；上游 desc 逐字） |
+| `commandDistance` | string | `true` | CommandLevel OPTIONS | /distance 命令门禁（§1.9） |
+| `commandInfo` | string | `true` | CommandLevel OPTIONS | /info 命令门禁（§1.9） |
+| `commandPerimeterInfo` | string | `true` | CommandLevel OPTIONS | /perimeterinfo 命令门禁（§1.9） |
+| `commandDraw` | string | `ops` | CommandLevel OPTIONS | /draw 命令门禁（§1.9） |
 
 ### 3.5 `carpet-logs.json`（/log 订阅持久化——B 侧新增，上游无对应物）
 
@@ -526,9 +564,10 @@ S2C 路径排查：`/syncmatica debug s2c`（查看）→ `/syncmatica debug s2c
 | `EntityPastePositionFixTest`（11 用例） | 实体修复族 ①-⑤ 全守卫（字面串防同源共错 + wire 形状 + 负数截断 + UUID 不变） | 同上 §6.1 |
 | `DataTagIoTest`（13 用例） | 异常三分语义（空 tag / null / ZipException 裸读回落）+ 黄金向量 | [`servux-protocol.md`](servux-protocol.md) §5.5 |
 | `SettingsManagerConfRoundtripTest`（8 用例） | carpet.conf 往返（落盘格式/重启读回/locked/未知键/注释怪 quirks/严格校验/removeDefault/从不主动创建） | [`carpet-architecture.md`](carpet-architecture.md) §5 |
-| `CarpetRuleRegistryTest`（4 用例） | 规则注册面锁：13 规则名/默认值/类型/选项域（P1 地基 8 + P2 假人 3 + P4 日志 2） + 排序视图 | 同上 |
+| `CarpetRuleRegistryTest`（4 用例） | 规则注册面锁：18 规则名/默认值/类型/选项域（P1 地基 8 + P2 假人 3 + P4 日志 2 + P5 命令族 5——方法名随 18 更名） + CommandLevel OPTIONS 推断断言 + 排序视图 | 同上 |
 | `EntityPlayerActionPackTest`（4 用例） | P2：Action 工厂计时语义锁（once 达限/continuous 永续/interval 节拍/offset 相位——反射断言，NMS 面走实机） | 同上 |
 | `CarpetLoggerTest`（18 用例） | P4：订阅语义/桶迁移快捷位 + carpet-logs.json round-trip（哨兵/墓碑/坏 JSON/空册不建文件）+ join 分支矩阵 + defaultLoggers CSV 解析 + 热力色阈值 + mobcaps 行格式 | [`carpet-architecture.md`](carpet-architecture.md) §18 |
+| `DistanceCalculatorTest`（4 用例） | P5：三距离公式数值锚（3-4-5 / 纯垂直 cylindrical 归零 / float 域减法 / 对称性——`findDistanceBetweenTwoPoints` 零 source 依赖纯 JVM 直调） | [`carpet-architecture.md`](carpet-architecture.md) §21 |
 | `CommandHelperTest`（3 用例） | parseLevel 纯函数矩阵（ops→2 / 0-4 / 其他→-1） | 同上 |
 | `PacketSplitterTest` / `FeatureSet` / `LitematicaBitArray` | 分片重组 / 版本正则 / 位打包纯函数 | — |
 
