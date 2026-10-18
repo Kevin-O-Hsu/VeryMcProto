@@ -155,10 +155,12 @@ public final class ProtocolChannel
     /**
      * 发送 S2C（plugin messaging 优先；未声明且已 C2S 证明时 NMS 兜底）。
      *
-     * <p><b>包大小命门</b>：1.21.x Bukkit {@code Messenger.MAX_MESSAGE_SIZE} 已上调至 ~1MiB（Spigot API 1048576），
-     * 故本方法对 Bukkit API 合约而言不会因 32KiB 拒绝；真正的 S2C 瓶颈是<b>原版客户端对 ClientboundCustomPayload
-     * 的 32767 字节解码上限</b>——超过会让客户端断连。故 {@link PacketSplitter} S2C 分片用 32000（留余量给 VarInt 头），
-     * 大包必须走分包，不能直接 send。
+     * <p><b>包大小命门（26.2 javap 双向实证勘误，2026-10）</b>：1.21.x Bukkit {@code Messenger.MAX_MESSAGE_SIZE}
+     * 已上调至 ~1MiB（Spigot API 1048576）；原版两端对<b>未知通道</b> discarded payload 的解码上限——
+     * clientbound（S2C）= 1048576、<b>serverbound（C2S）= 32767</b>（旧文档把 32767 记为 S2C 瓶颈系方向
+     * 记反，自 1.21.11 起即如此——两线 jar javap 实证 {@code ClientboundCustomPayloadPacket.MAX_PAYLOAD_SIZE=1048576}）。
+     * 已知通道（客户端注册过 codec）不受此限。{@link PacketSplitter} S2C 分片 32000 在两值下均保守安全
+     * （分片同时还压平 Bukkit ~1MiB 与存量客户端实现差异），大包仍应走分包。
      *
      * @return 是否成功投递。返回 false 含义：通道未注册 outgoing / 玩家离线 / 两条路径发送异常。
      *         注意：listening=false 且未证明时仍走 sendPluginMessage 并返回 true——Paper 按声明门控丢弃该包，
@@ -180,7 +182,7 @@ public final class ProtocolChannel
         if (bytes.length > Messenger.MAX_MESSAGE_SIZE)
         {
             Reference.logger().warning("ProtocolChannel[" + channelId + "] rejected oversized packet: " + bytes.length
-                    + " > Bukkit MAX_MESSAGE_SIZE (should use PacketSplitter; note the real S2C bottleneck is the client 32767 decode limit)");
+                    + " > Bukkit MAX_MESSAGE_SIZE (should use PacketSplitter; unknown-channel decode caps: clientbound 1MiB / serverbound 32767)");
             return false;
         }
 

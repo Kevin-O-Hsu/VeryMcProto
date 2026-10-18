@@ -108,7 +108,7 @@ VarInt entryCount
 
 **机制**：config 相位末（`AsyncPlayerConnectionConfigureEvent`，Paper 26.1 起官方事件、异步阻塞语义）向连接 netty 管线 `addAfter(HandlerNames.ENCODER)` 安装一次性出站拦截器——扣住首个出站 UpdateRecipesPacket；play register 证据到达（现有 RegisterChannel 触发路径）→ `sendFabric` 提交 payload 写 → `release(uuid)` 放行被扣包。主线程同步提交序 + eventLoop FIFO ⇒ **wire 序恒为 payload → UpdateRecipesPacket**（与上游不变量逐字节同源）。netty 出站沿 tail→head 传播，拦截器必须在 encoder 的 **tail 侧**（addAfter）才能在编码前看到 Packet 对象（addBefore 在编码后收到 ByteBuf、拦截永不命中）。
 
-**防护与降级**：无证据绝不发送（~100KB 载荷给 vanilla 客户端会命中未知通道 32767 断连）；vanilla/慢网客户端走 **3s 超时放行**（配方书晚到上界，`ClientboundRecipeBookAddPacket.Entry` 自包含 RecipeDisplay 无损坏面）；一切内部失败（反射漂移 `packetListener`→`handle` 双名回退 / 管线异常 fail-open / reconfigure 经 `Channel.attr` 跳过）降级为现状时序（JEI 警告依旧，无新增损害）。扣留期又来 UpdateRecipes（进服 3s 内 /reload 竞态）按原 wire 序放行被扣包再透传新包。
+**防护与降级**：无证据绝不发送（对 vanilla 客户端发未知通道载荷属无接收端死信；未知通道 clientbound 解码上限 1MiB——2026-10 javap 勘误，旧记述的「32767 断连」系方向记反，32767 实为 serverbound/C2S 值）；vanilla/慢网客户端走 **3s 超时放行**（配方书晚到上界，`ClientboundRecipeBookAddPacket.Entry` 自包含 RecipeDisplay 无损坏面）；一切内部失败（反射漂移 `packetListener`→`handle` 双名回退 / 管线异常 fail-open / reconfigure 经 `Channel.attr` 跳过）降级为现状时序（JEI 警告依旧，无新增损害）。扣留期又来 UpdateRecipes（进服 3s 内 /reload 竞态）按原 wire 序放行被扣包再透传新包。
 
 **已知局限（后续工单）**：① reconfigure（服务端发起重配）后不重发——通道集合从 play 相位携带、无 register 事件可作证据，JEI 用旧 synced 配方重启（无警告但配方陈旧）；② `/reload` 后不重发（上游 `reloadResources` 对全体玩家重发——`PlayerList.reloadResources` mache:849-862 对应物）；③ neoforge 腿（join+brand）仍为旧时序，NeoForge 客户端同样晚于 UpdateRecipes（需 NeoForge 实机环境验证后再对齐）。
 
@@ -124,7 +124,7 @@ recipes:    VarInt(count) + RecipeHolder.STREAM_CODEC 列表
 
 ## 6. 尺寸模型（字节上限真值见 [architecture.md](architecture.md) §3.4）
 
-- **32767** = 客户端对**未知通道** custom payload 的 discarded 解码上限（超过断连）——对发给 vanilla/未装 mod 客户端的任意通道成立，servux 的 PacketSplitter 32000 分片防的就是它。
+- **未知通道解码上限（2026-10 javap 勘误口径，裸值唯一权威 architecture.md §3.4）**：clientbound（S2C）= 1MiB、**serverbound（C2S）= 32767**——旧记述把 32767 记为客户端 S2C 值系方向记反。对发给 vanilla/未装 mod 客户端的任意通道，1MiB 内静默丢弃、超限解码拒绝。
 - **已知通道不受此限**：Fabric API 把 `fabric:recipe_sync` 注册为 64MB large payload（客户端 codec + mixin 提限）。我方单包直发给 Fabric API 客户端安全（26.1.2 实机验证，配方表全量 >1MiB 场景）。
 - jei:* S2C 恒小包（几十字节）；C2S 每帧 ≤32767 字节（vanilla 未知通道 `DiscardedPayload` 解码上限，超限在 netty 解码期拒绝、到不了插件代码）。
 - **包长只限字节流，不限列表声明容量**（2026-09 修复记录：修复前转移包列表解码把声明 count 直达 `ArrayList` 构造容量——5 字节 VarInt 可声明 2^31，GB 级预分配的 `OutOfMemoryError` 是 Error，穿透全部 catch(Exception)，可达主线程）。现行防护：列表预分配容量按 vanilla 26.1.2（26.2 同构）`ByteBufCodecs.collection(...)` decode 同源的 `Math.min(count, 65536)` 封顶（`AbstractRecipeTransferPacket.MAX_INITIAL_LIST_CAPACITY`）——超大声明在元素循环内字节耗尽 fail-fast、负数由 ArrayList 构造器抛 IAE，均被 `JeiServerPlayHandler` 逐包 catch(Exception) 记日志丢弃、连接保持（`RecipeTransferListBoundTest` 回归覆盖）。**已声明的平台级对照差异（2026-09 升格）**：上游畸形 C2S 在 Fabric API/vanilla 协议层解码（STREAM_CODEC 于 netty 层执行），异常即断连；我方 C2S 经 plugin messaging 裸字节进入、解码发生在 handler 内，逐包 catch 记日志丢弃、连接保持——属 plugin messaging 路径的结构性设计（排错靠 `[JEI] C2S 处理失败` 日志而非客户端断连），非疏漏。

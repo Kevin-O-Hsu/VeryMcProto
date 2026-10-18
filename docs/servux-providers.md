@@ -92,7 +92,7 @@ CompoundTag:
   ]
 ```
 - 采集：`player.level().recipeAccess().getRecipes()` → 对每个 `RecipeHolder`，用 `Recipe.CODEC.encodeStart(NbtOps.INSTANCE, recipeEntry.value())` 序列化。
-- **Paper 迁移**：`Recipe.CODEC` + `NbtOps` 是 NMS，paperweight 可直连；或遍历 Bukkit `Bukkit.recipeIterator()` 自行拼装（保真度略低）。**必须走 PacketSplitter 分包**（配方表常超 1MiB，且需防御客户端 32767 解码上限）。
+- **Paper 迁移**：`Recipe.CODEC` + `NbtOps` 是 NMS，paperweight 可直连；或遍历 Bukkit `Bukkit.recipeIterator()` 自行拼装（保真度略低）。**必须走 PacketSplitter 分包**（配方表常超 Bukkit ~1MiB 单包上限；分片常量为 32KiB 时代历史取值，双向保守——字节上限教义见 [architecture.md](architecture.md) §3.4）。
 
 #### 1.5.1 RecipeNbtNormalizer——混合 ingredients wire 兼容层
 

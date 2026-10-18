@@ -18,7 +18,8 @@ import net.minecraft.server.level.ServerPlayer;
  * 「同通道 C2S 证明兜底」不可用，而 Paper 对未声明通道的 {@code sendPluginMessage} 会静默丢弃——
  * NMS 直发无此门控。生产先例：{@code ExchangeTarget.sendViaNms} / 原 {@code RecipeSyncHandler.sendPayload}。
  *
- * <p><b>尺寸模型（docs/jei.md §6 详述）</b>：32767 上限仅适用于客户端<b>未知通道</b>的 discarded 解码；
+ * <p><b>尺寸模型（docs/jei.md §6 详述，2026-10 javap 勘误后口径）</b>：未知通道 discarded 解码上限
+ * = clientbound 1MiB / serverbound 32767（旧记述把 32767 记为客户端 S2C 值系方向记反）；
  * {@code fabric:recipe_sync} 是 Fabric API 客户端已注册 codec 的已知通道（上游注册上限 64MB），
  * 单包大 payload 安全（26.1.2 实机验证）。jei:* S2C 恒小包。
  */

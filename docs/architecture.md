@@ -182,8 +182,8 @@ public void register() {
 | 常量/上限 | 值 | 方向与语义 |
 |---|---|---|
 | Bukkit `Messenger.MAX_MESSAGE_SIZE` | **1048576**（~1MiB） | plugin messaging API 层（1.21.x 起；旧文档称 32768 已过时） |
-| 原版客户端 `ClientboundCustomPayload` 解码上限（未知通道 discarded） | **32767** | **真正 S2C 瓶颈**，超过客户端断连；已知通道（客户端已注册 codec，如 `fabric:recipe_sync` 注册为 64MB large payload）不受此限 |
-| `PacketSplitter.MAX_TOTAL_PER_PACKET_S2C` | **32_000** | 我方发送单片总上限（防御 32767） |
+| 原版未知通道 discarded payload 解码上限（2026-10 javap 双线勘误，26.2 与 1.21.11 两 jar 实证） | clientbound（S2C）**1048576** / serverbound（C2S）**32767** | 未知通道超限解码拒绝；已知通道（客户端已注册 codec，如 `fabric:recipe_sync` 注册为 64MB large payload）不受此限。**旧记述把 32767 记为「客户端 S2C 瓶颈」系方向记反**——32767 是 C2S 值 |
+| `PacketSplitter.MAX_TOTAL_PER_PACKET_S2C` | **32_000** | 我方发送单片总上限（32KiB 时代历史取值，对 1MiB 与历史两代上限均保守——**勿上调**） |
 | `PacketSplitter.MAX_PAYLOAD_PER_PACKET_S2C` | **31_995**（=32000−5） | 留余量给 VarInt 头 |
 | `PacketSplitter.DEFAULT_MAX_RECEIVE_SIZE_S2C` | **67_108_864**（64MB） | 我方接收（C2S 上传）缓冲上限 |
 | `PacketSplitter.MAX_REASSEMBLY_SIZE_S2C` | **16_777_216**（16MB） | 客户端（malilib，当前线）重组上限——我方发送前预检阈值，`send` 入口严格 `>` 判定（恰好相等放行），超限**整帧拒发** + warn（log-and-drop，有意不限频） |
@@ -220,7 +220,7 @@ C2S 接收方向的解压配额闸（gzip bomb / 长度字段炸弹拦截）见 
 | `List.copyOf(enum[])` 不接受数组 | 用 `Arrays.asList(values())` |
 | `ChunkPos` 变 record | `pos.x()`/`pos.z()`；`ChunkPos.unpack(long)`；`pack(x,z)`/`pack()`；`ChunkPos.containing(BlockPos)` |
 | `displayClientMessage(comp, bool)` | 用 `sendSystemMessage(comp)`（单参） |
-| `Messenger.MAX_MESSAGE_SIZE` | 1.21.x 已上调 ~1MiB；真瓶颈是客户端 32767（§3.4） |
+| `Messenger.MAX_MESSAGE_SIZE` | 1.21.x 已上调 ~1MiB；未知通道解码上限 clientbound 1MiB / serverbound 32767（§3.4） |
 | `@NotNull`/`@Environment` 注解 | Fabric 专有，全部删除 |
 
 26.2 线新增漂移：`EntityType.PLAYER` 等常量迁至 `EntityTypes` 常量类；`EntityType.create` 第三参 `new EntitySpawnRequest(EntitySpawnReason.LOAD, true)`；`BlockTags.CONCRETE_POWDER`→`CONCRETE_POWDERS`。
@@ -348,7 +348,7 @@ syncmatica 原版 19 Mixin（`mixin/` 9 + `litematica_mixin/` 10），服务端�
 | `ServerPlayNetworking.canSend(player, type)` | `player.getListeningPluginChannels().contains(channel)` + 同通道 C2S 证明兜底（§3.2） |
 | `record Payload implements CustomPacketPayload` + `StreamCodec` | 照抄（NMS 直连；§3.5） |
 | `FriendlyByteBuf` / `Unpooled` | NMS 同名；`byte[]`↔buf 用 `Unpooled.wrappedBuffer`/`buf.array()` |
-| 单包上限 | Bukkit ~1MiB；真瓶颈客户端 32767 → 分片 32000/31995（§3.4） |
+| 单包上限 | Bukkit ~1MiB；未知通道解码上限 clientbound 1MiB / serverbound 32767 → 分片 32000/31995 保守覆盖（§3.4） |
 | 未知 payload | Fabric 客户端注册即收；**Paper 注册 incoming channel 即不踢玩家** |
 
 ### 6.3 权限 / 配置 / 命令 / NBT / 杂项
@@ -387,7 +387,7 @@ tick 调度        MixinMinecraftServer.tickServer → BukkitScheduler runTaskTi
 网络收(C2S)      ServerPlayNetworking → Messenger.registerIncomingPluginChannel
 网络发(S2C)      ServerPlayNetworking.send → sendPluginMessage 或 NMS ClientboundCustomPayloadPacket
 字节流            FriendlyByteBuf → NMS FriendlyByteBuf（paperweight 直连）
-分包             PacketSplitter → 照抄（S2C 常量 32000/31995，防客户端 32767）
+分包             PacketSplitter → 照抄（S2C 常量 32000/31995——32KiB 时代历史取值，对新旧上限均保守，勿上调）
 NBT              CompoundTag/NbtIo → NMS 直连
 Mixin 读私有     → 反射 / NMS 直接调用（多数已是公开方法）
 Mixin 改行为     → 降级省略 / PacketEvents / 投影代码内联
@@ -452,7 +452,7 @@ JDK 25 工具链经 foojay-resolver-convention 自动解析（探测不到时自
 
 | 风险 | 影响 | 缓解 |
 |---|---|---|
-| 客户端 32767 解码上限（未知通道） | S2C 大包断连 | 分片 32000/31995 + 16MB 重组预检（§3.4）；已知通道大包走 NMS 直发（§3.2） |
+| 未知通道解码上限（clientbound 1MiB / serverbound 32767，§3.4 勘误后口径） | 大包/畸形包解码拒绝 | 分片 32000/31995（历史取值双向保守）+ 16MB 重组预检；已知通道大包走 NMS 直发（§3.2） |
 | 客户端未装对应 Mod | 发包失败/无响应 | `MAX_FAILURES` 计数 + invalid 标记；`PlayerRegisterChannelEvent` + C2S 主动请求自愈 |
 | MOD_STRING 协议握手字段 | 客户端版本门禁 | `servux-fabric-<mcVersion>-b<buildNumber>`（`MOD_TYPE` 恒 "fabric" 伪装）——真值见 [servux-protocol.md](servux-protocol.md) 版本约束节 |
 | NMS 签名随版本漂移 | 升级 MC 时编译失败 | 反射点集中在 `framework/reflect/`；升级按 §3.6 坑清单 + [operations.md](operations.md) 升级 SOP 核对 |

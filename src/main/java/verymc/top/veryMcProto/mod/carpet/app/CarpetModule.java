@@ -5,10 +5,13 @@ import org.bukkit.Bukkit;
 import verymc.top.veryMcProto.Reference;
 import verymc.top.veryMcProto.framework.ModModule;
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderManager;
+import verymc.top.veryMcProto.framework.nms.Nms;
+import verymc.top.veryMcProto.framework.network.ChannelManager;
 import verymc.top.veryMcProto.mod.carpet.CarpetReference;
 import verymc.top.veryMcProto.mod.carpet.CarpetSettings;
 import verymc.top.veryMcProto.mod.carpet.listener.CarpetRuleListener;
 import verymc.top.veryMcProto.mod.carpet.logging.CleanLogsFilter;
+import verymc.top.veryMcProto.mod.carpet.network.CarpetHelloHandler;
 import verymc.top.veryMcProto.mod.carpet.settings.SettingsManager;
 
 /**
@@ -24,6 +27,8 @@ import verymc.top.veryMcProto.mod.carpet.settings.SettingsManager;
 public final class CarpetModule implements ModModule
 {
     private static volatile SettingsManager settingsManager;
+    /** carpet:hello 协议处理器（Phase 3；disable 置 null——null = 已卸载）。 */
+    private static volatile CarpetHelloHandler carpetHelloHandler;
 
     @Override
     public String getModId()
@@ -74,11 +79,46 @@ public final class CarpetModule implements ModModule
 
         // cleanLogs 日志过滤器（install 幂等）
         CleanLogsFilter.install();
+
+        // carpet:hello 协议（Phase 3）：通道注册（incoming 接收 + outgoing 声明成对，黄金模板
+        // JeiModule.enable 注册形态）→ join/quit 监听 → 规则推送回调挂载 → 在线玩家补扫 HI。
+        // 插件中途启用（reload）时在线玩家无 join 事件——补发 HI 闭合握手空窗（上游 init 期无在线
+        // 玩家、无此路径，B 侧增补，偏差登记 docs/carpet-protocol.md）
+        carpetHelloHandler = new CarpetHelloHandler();
+        ChannelManager.INSTANCE.register(CarpetReference.CARPET_CHANNEL, carpetHelloHandler);
+        carpetHelloHandler.setPlayRegistered(CarpetReference.CARPET_CHANNEL);
+        Bukkit.getPluginManager().registerEvents(carpetHelloHandler, Reference.plugin());
+        sm.setRuleChangedCallback(carpetHelloHandler::onRuleChanged);
+        try
+        {
+            for (org.bukkit.entity.Player online : Bukkit.getOnlinePlayers())
+            {
+                carpetHelloHandler.sendHi(Nms.toNms(online));
+            }
+        }
+        catch (Throwable t)
+        {
+            Reference.logger().warning("[Carpet] failed to send HI to already-online players: " + t.getMessage());
+        }
     }
 
-    /** 主类 onDisable 调用（须无异常抛出）。 */
+    /** 主类 onDisable 调用（须无异常抛出；须在框架 ChannelManager.unregisterAll 之前——jei 先例）。 */
     public static void disable()
     {
+        // carpet:hello 协议清理：注销通道（名册清空随 shutdown；上游 close :173-177 同构）
+        try
+        {
+            if (carpetHelloHandler != null)
+            {
+                ChannelManager.INSTANCE.unregister(CarpetReference.CARPET_CHANNEL);
+                carpetHelloHandler.shutdown();
+                carpetHelloHandler = null;
+            }
+        }
+        catch (Exception e)
+        {
+            Reference.logger().warning("[Carpet] hello handler shutdown exception: " + e.getMessage());
+        }
         // 假人子系统清理：kill 全假人（NMS 对象引用插件类，reload 后存活假人将 NoClassDefFoundError）→ 停驱动 → 清侧表
         try
         {

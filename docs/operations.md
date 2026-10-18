@@ -411,7 +411,7 @@ S2C 路径排查：`/syncmatica debug s2c`（查看）→ `/syncmatica debug s2c
 
 **JEI**：无独立调试引擎；`/jei status` 查看状态，看服务端日志（fabric 腿在通道声明时触发日志、neoforge 腿在进服时触发）。
 
-**Carpet**：无独立调试引擎；`/carpet query <rule>` 查看规则详情，conf 读写问题看 `[Carpet]` 前缀日志。假人排错：spawn/kill 全链异常看 `[Carpet]` 前缀日志；`EntityPlayerMPFake.tick()` 有上游同源的 NPE 吞点（首次触发打一次性 WARN 堆栈）；假人卡死不消失时先 `/player <name> kill`（kill 走完整退出链含 PlayerQuitEvent 与存档）；syncmatica 对每个假人会发起一次必败握手（debug 日志噪声，quit 自动清理，无害）。
+**Carpet**：无独立调试引擎；`/carpet query <rule>` 查看规则详情，conf 读写问题看 `[Carpet]` 前缀日志。carpet:hello 握手排错（Phase 3）：carpet 客户端进服后服务端日志应出现 `Player <名> joined with a matching carpet client`（或 `another carpet version: <v>`——真实发布客户端版本带 `+v` 日期后缀时属上游 equals 语义的正常 warn，非故障）；规则浏览器空 = 查该日志确认 hello 是否到达 + 规则名是否存在于上游注册表（[carpet-protocol.md](carpet-protocol.md) §3/§7）；`[Carpet] clientCommand from <名>: <命令>` = 远端命令执行审计行。假人排错：spawn/kill 全链异常看 `[Carpet]` 前缀日志；`EntityPlayerMPFake.tick()` 有上游同源的 NPE 吞点（首次触发打一次性 WARN 堆栈）；假人卡死不消失时先 `/player <name> kill`（kill 走完整退出链含 PlayerQuitEvent 与存档）；syncmatica 对每个假人会发起一次必败握手（debug 日志噪声，quit 自动清理，无害）。
 
 ### 5.2 症状速查表
 

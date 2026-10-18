@@ -42,8 +42,9 @@ import verymc.top.veryMcProto.framework.reflect.Reflect;
  * payload 写 → {@link #release(UUID)} 放行被扣包。主线程同步提交序 + eventLoop FIFO ⇒ wire 序
  * 恒为 payload → UpdateRecipesPacket，与上游不变量逐字节同源。
  *
- * <p><b>防护语义</b>：只发给声明过通道的客户端（无证据绝不发送——~100KB 载荷发给 vanilla 客户端
- * 会命中未知通道 32767 解码上限断连）。vanilla / 慢网客户端走超时放行（配方书晚到上界 3s，无感知）。
+ * <p><b>防护语义</b>：只发给声明过通道的客户端（无证据绝不发送——对 vanilla 客户端发未知通道载荷
+ * 属无接收端死信；未知通道 clientbound 解码上限 1MiB，2026-10 javap 勘误——旧记述的「32767 断连」
+ * 系方向记反，32767 实为 serverbound/C2S 值）。vanilla / 慢网客户端走超时放行（配方书晚到上界 3s，无感知）。
  * 一切内部失败（反射漂移 / 管线异常）fail-open 降级为现状时序（JEI 警告依旧，无新增损害）。
  *
  * <p><b>线程模型</b>：held/done 等可变状态仅在 eventLoop 线程读写（write 回调与释放任务都被其串行化）；

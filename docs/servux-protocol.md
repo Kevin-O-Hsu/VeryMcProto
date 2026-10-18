@@ -151,7 +151,7 @@ public interface IServerPayloadData {
 
 ### 5.4 字节上限（行为语义）
 
-字节上限**裸值唯一权威**见 [architecture.md](architecture.md) §3.4（32000/31995 分片、16MB 重组预检、64MB 接收缓冲、32767 客户端解码上限、1MiB Bukkit 限制）。协议侧语义：客户端（malilib）重组上限为 16MB——我方 `PacketSplitter.send` 入口对超限帧整帧拒发 + warn（log-and-drop），覆盖 RecipeManager 全量帧 / BulkEntityReply / Structures 全量帧等全部 S2C 分片帧；**上游 servux 无此预检——我方增强，勿随上游模板回退**。
+字节上限**裸值唯一权威**见 [architecture.md](architecture.md) §3.4（32000/31995 分片、16MB 重组预检、64MB 接收缓冲、未知通道解码上限 clientbound 1MiB/serverbound 32767、1MiB Bukkit 限制）。协议侧语义：客户端（malilib）重组上限为 16MB——我方 `PacketSplitter.send` 入口对超限帧整帧拒发 + warn（log-and-drop），覆盖 RecipeManager 全量帧 / BulkEntityReply / Structures 全量帧等全部 S2C 分片帧；**上游 servux 无此预检——我方增强，勿随上游模板回退**。
 
 ### 5.5 C2S 解析双闸（`DataTagIo` 配额闸）
 

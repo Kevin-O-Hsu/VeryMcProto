@@ -10,7 +10,7 @@
 | 资源 | 用途 | 结论 |
 |---|---|---|
 | [FabricMC Discussion #4430 — Sending data from Spigot server to Fabric 1.21 client](https://github.com/orgs/FabricMC/discussions/4430) | Spigot/Paper ↔ Fabric 自定义通道互通 | **决定性证据**：plugin messaging channel（`namespace:path`）直接映射原版 `CustomPacketPayload`；`byte[]` = `FriendlyByteBuf` 裸字节；`sendPluginMessage`/`onPluginMessageReceived` 可直收发。见 [servux-protocol.md](servux-protocol.md) §1、[architecture.md](architecture.md) §3 |
-| [Bukkit `Messenger` Javadoc](https://hub.spigotmc.org/javadocs/spigot/org/bukkit/plugin/messaging/Messenger.html) | plugin messaging 单包上限 | 1.21.x 起 `MAX_MESSAGE_SIZE = 1048576`（~1MiB）——**旧版 32768（32KiB）的说法已过时**；**真正 S2C 瓶颈是原版客户端对 `ClientboundCustomPayload`（未知通道）的 32767 字节解码上限**。字节限制教义见 [architecture.md](architecture.md) §3.4 与 [../AGENTS.md](../AGENTS.md) §1 |
+| [Bukkit `Messenger` Javadoc](https://hub.spigotmc.org/javadocs/spigot/org/bukkit/plugin/messaging/Messenger.html) | plugin messaging 单包上限 | 1.21.x 起 `MAX_MESSAGE_SIZE = 1048576`（~1MiB）——**旧版 32768（32KiB）的说法已过时**。原版两端对**未知通道** discarded payload 的解码上限（2026-10 javap 双线勘误）：**clientbound（S2C）= 1048576、serverbound（C2S）= 32767**（旧文档把 32767 记为 S2C 瓶颈系方向记反）。字节限制教义见 [architecture.md](architecture.md) §3.4 与 [../AGENTS.md](../AGENTS.md) §1 |
 | [SpigotMC — How to get around 32767 byte limit for plugin messaging](https://www.spigotmc.org/threads/how-to-get-around-32767-byte-limit-for-plugin-messaging.256652/) | 大包社区解法（历史参考） | 分片重组（与 PacketSplitter 思路一致；该帖语境是客户端 32767 解码上限，非 Bukkit Messenger 限制） |
 
 ---
@@ -87,7 +87,7 @@
 
 ---
 
-## 8. 文档索引速查（现行 15 文件）
+## 8. 文档索引速查（现行 16 文件）
 
 > 全量登记与阅读路线见 [index.md](index.md)；此处仅一句话速查。
 
@@ -105,6 +105,7 @@
 | [jei.md](jei.md) | **JEI 完整协议**：三层全景、通道声明契约（isJeiOnServer 门禁）、12 通道 wire 逐字段、cheat 权限模型、配方转移算法、进服时序整形、尺寸模型、上游源码索引 |
 | [operations.md](operations.md) | **运维全键唯一权威 + 升级 SOP**：四 mod 命令/权限/配置全键（含 carpet.conf 纯文本例外）/数据布局/排错速查（§1–§5）+ MC 版本升级标准作业程序（§6） |
 | [carpet-architecture.md](carpet-architecture.md) | **Carpet 模块 as-built**：装配、注解规则框架（上游 SettingsManager 同构 + 偏差清单）、/carpet 四子命令与双层门禁、8 地基规则表、carpet.conf 格式、cleanLogs 过滤器代数、perf 真因果 |
+| [carpet-protocol.md](carpet-protocol.md) | **carpet:hello 协议 as-built（P3）**：通道/载体/S2C NMS 直发、消息面全表（HI "69"/hello "420"/Rules/clientCommand）、握手名册、规则同步链、Snoopy 移植、偏差清单 |
 | [carpet-porting-scope.md](carpet-porting-scope.md) | **Carpet 移植范围全量清单（预研结论）**：上游画像、协议/命令/logger/规则逐条三判定、假人子系统深潜、Scarpet 不可行论证 |
 | [carpet-phases.md](carpet-phases.md) | **Carpet 分阶段推进规划**：Phase 依赖图（基础→假人→协议置前）、逐 Phase 判据与验证、三线铺开策略、非目标终判、状态登记表 |
 | [references.md](references.md) | 本文件：外部参考链接全仓库唯一登记处 |

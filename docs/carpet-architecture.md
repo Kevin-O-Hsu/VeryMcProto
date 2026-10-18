@@ -1,6 +1,6 @@
-# Carpet 模块 as-built（Phase 1 模块地基 + Phase 2 假人子系统）
+# Carpet 模块 as-built（Phase 1 模块地基 + Phase 2 假人子系统 + Phase 3 carpet:hello 协议）
 
-> **状态**：Phase 1 已实现（2026-10-17，dev 线）；**Phase 2「假人——/player 全族」已实现（2026-10-18，dev 线，§11-§14）**。范围判定唯一权威 = [carpet-porting-scope.md](carpet-porting-scope.md)（scope）；推进状态 = [carpet-phases.md](carpet-phases.md) §11；命令/权限/配置运维键 = [operations.md](operations.md) §1.6-§1.7/§2.1/§3.4。本文承载 as-built 细节与**全量偏差清单**（上游对照树 = `OriginImpl/fabric-carpet-26.2/`，tag `v26.2`）。
+> **状态**：Phase 1 已实现（2026-10-17，dev 线）；**Phase 2「假人——/player 全族」已实现（2026-10-18，dev 线，§11-§14）**；**Phase 3「carpet:hello 协议」已实现（2026-10-18，dev 线——wire as-built 专文 [carpet-protocol.md](carpet-protocol.md)，本文只保留装配/接口视角）**。范围判定唯一权威 = [carpet-porting-scope.md](carpet-porting-scope.md)（scope）；推进状态 = [carpet-phases.md](carpet-phases.md) §11；命令/权限/配置运维键 = [operations.md](operations.md) §1.6-§1.7/§2.1/§3.4。本文承载 as-built 细节与**全量偏差清单**（上游对照树 = `OriginImpl/fabric-carpet-26.2/`，tag `v26.2`）。
 >
 > 上游本质是**行为注入型** mod（171 服务端 Mixin）——与既有三 mod（协议投递型）根本不同；本模块只移植 scope 判定为可完整等价的子集，P1 = 模块地基（规则框架 + `/carpet` 壳 + 8 条地基规则），P2 = 假人子系统（patches 三件套 + ActionPack + `/player` 全族 + 3 条假人规则）。
 
@@ -9,7 +9,7 @@
 ## §1 模块装配
 
 - `app/CarpetModule implements ModModule`（仓库第二个 ModModule 实现，黄金模板 `ServuxModule`）：`getModId()/getModString()` 返 `CarpetReference` 常量；`onRegister(DataProviderManager)` **忽略 manager 形参**（carpet 上游是 SettingsManager 体系，无 Provider 概念——诚实降级）。
-- 装配链：`SettingsManager` 单例（构造注入 `Reference.plugin().getDataFolder()`）→ `parseSettingsClass(CarpetSettings.class)` → `loadConfigurationFromConf()` → 行为监听器注册（`CarpetRuleListener`，`Bukkit.getPluginManager().registerEvents`）→ `CleanLogsFilter.install()`（幂等）。
+- 装配链：`SettingsManager` 单例（构造注入 `Reference.plugin().getDataFolder()`）→ `parseSettingsClass(CarpetSettings.class)` → `loadConfigurationFromConf()` → 行为监听器注册（`CarpetRuleListener`，`Bukkit.getPluginManager().registerEvents`）→ `CleanLogsFilter.install()`（幂等）→ **P3：`CarpetHelloHandler`（ChannelManager 注册 `carpet:hello` + join/quit 监听 + 规则推送回调挂载 + 在线玩家补扫 HI，见 carpet-protocol.md §6）**。
 - 主类接线：`VeryMcProto.onEnable` 第四 try-catch 模块块 + `/carpet` 注册块（既有同构形态）；`onDisable` 调 `CarpetModule.disable()`（摘除 log4j 过滤器——防插件 reload 类加载器泄漏，见 §7）。
 - **即时生效构造**：行为规则监听器常驻注册、事件发生时读当前规则值——`setDefault` 的 live set 由构造保证即时生效，无 observer 热切换接线。
 
@@ -20,7 +20,7 @@
 | `Rule`（注解） | `carpet/settings/Rule.java`（legacy——上游 `CarpetSettings` 实际使用者） | 七元素 name/desc/extra/category/options/strict/validate 逐字；删 `appSource`/`condition`（§9） |
 | `Validator` | `carpet/api/settings/Validator.java` + legacy 嵌套类 | source 类型换 `CommandSender`；内置 `_COMMAND`（值变更→全服 `Player#updateCommands()` 重发命令树）/`StrictValidator`（索引 0 前置）/`CommandLevel`（OPTIONS 常量） |
 | `ParsedRule` | `carpet/settings/ParsedRule.java` | 反射解析：类型换壳（primitive→wrapper）、boolean→options `[true,false]`、String+COMMAND 类目→`CommandLevel.OPTIONS` 推断、COMMAND 类目自动挂 `_COMMAND`（+ String 型加 `CommandLevel`）、strict+options→`StrictValidator`@0；`set()` 验证器链 + 上游写场条件 `!value.equals(value()) || source == null`（命令路径 no-op 免写免通知；conf 载入恒写） |
-| `SettingsManager` | `carpet/api/settings/SettingsManager.java` | 见 §3/§4；`notifyRuleChanged` 为空体扩展点（P3 Rules 全量同步挂载位，phases §5 交付物 3） |
+| `SettingsManager` | `carpet/api/settings/SettingsManager.java` | 见 §3/§4；`notifyRuleChanged` 经注入回调转发规则推送（P3 已接线，见 §10 与 carpet-protocol.md §4） |
 | `InvalidRuleValueException` | 同名 | notifySource → §c 英文提示 |
 
 规则值由 `CarpetSettings` 静态字段承载（**volatile**——监听器/日志过滤器跨线程读，上游同病的加固）。
@@ -100,9 +100,9 @@
 
 ## §10 P1→后续 Phase 接口
 
-- `SettingsManager.notifyRuleChanged(source, rule, userInput)`：空扩展点——P3 `carpet:hello` Rules 全量同步的挂载位（phases §5 交付物 3，数据源 = 本框架）。
-- `CarpetReference.CARPET_CHANNEL/KEY_HI/KEY_HELLO`：P1 仅常量占位（上游 `CarpetClient.java:40-48` 逐字），P3 接线；**P3 HI 帧版本串 = `CARPET_VERSION`（上游 mod_version 逐字，禁发插件版本号**——`26.2-b3` 必触发客户端 `equals` 严格比较 warn，phases §5 裁决；ver 线 per-line 取值如 1.21.11 = `1.4.194`）。
-- P2（假人）已按此接入（`CarpetSettings` 加 3 注解字段即自动注册）；P4（log）/P5（命令族）复用同路径。
+- ~~`SettingsManager.notifyRuleChanged(source, rule, userInput)`：空扩展点~~ **已接线（P3，2026-10-18）**——经 `setRuleChangedCallback` 注入回调转发给 `CarpetHelloHandler.onRuleChanged`（单规则帧多播；回调经 setter 注入保持 settings/ 包零 network/ 依赖），wire 链见 [carpet-protocol.md](carpet-protocol.md) §4。
+- ~~`CarpetReference.CARPET_CHANNEL/KEY_HI/KEY_HELLO`：P1 仅常量占位，P3 接线~~ **已接线（P3）**——`CarpetHelloHandler`/`CarpetPacketSender`/`CarpetSnoopyCommandSource` 三类落地（`network/` 子包）；**HI 帧版本串 = `CARPET_VERSION`（上游 mod_version 逐字，禁发插件版本号**——`26.2-b3` 必触发客户端 `equals` 严格比较 warn，phases §5 裁决；ver 线 per-line 取值如 1.21.11 = `1.4.194`）。
+- P2（假人）已按此接入（`CarpetSettings` 加 3 注解字段即自动注册）；P4（log）/P5（命令族）复用同路径——**新规则名必须逐字存在于上游 `CarpetSettings` 注册表**（客户端规则浏览器可达性硬门禁，carpet-protocol.md §3）。
 
 ---
 

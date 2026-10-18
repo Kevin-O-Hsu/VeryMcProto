@@ -18,6 +18,8 @@ import java.util.logging.Level;
 
 import org.bukkit.command.CommandSender;
 
+import java.util.function.BiConsumer;
+
 import verymc.top.veryMcProto.Reference;
 
 /**
@@ -32,8 +34,10 @@ import verymc.top.veryMcProto.Reference;
  *       兼使纯 JVM 单测可用（Reference.plugin() 在测试环境为 null）；</li>
  *   <li>写盘加原子 tmp/move（仓库配置落盘纪律，上游为直写）；</li>
  *   <li>命令面解耦到 Bukkit {@code CarpetCommand}（上游内嵌 brigadier 命令树，B 侧无该注册面）；</li>
- *   <li>删 Translations/scarpet/网络推送——{@link #notifyRuleChanged} 保留为 P3 Rules 全量同步的
- *       扩展点（docs/carpet-phases.md §5 交付物 3：数据源 = 本框架）。</li>
+ *   <li>删 Translations/scarpet/网络推送的<b>内嵌实现</b>——{@link #notifyRuleChanged} 经注入的
+ *       回调（{@link #setRuleChangedCallback}）转发给 Phase 3 的 carpet:hello 规则推送
+ *       （docs/carpet-protocol.md）；回调经 setter 注入以保持本包零 network/ 依赖（纯 JVM 单测
+ *       可独立构造本类，P1 测试形态不被破坏）。</li>
  * </ul>
  */
 public class SettingsManager
@@ -44,6 +48,8 @@ public class SettingsManager
     private final String fancyName;
     private final Path configDir;
     private boolean locked;
+    /** 规则变更回调（Phase 3 carpet:hello 推送挂载；null = 无网络推送——单测/P1 形态）。 */
+    private volatile BiConsumer<CommandSender, ParsedRule<?>> ruleChangedCallback;
 
     record ConfigReadResult(Map<String, String> ruleMap, boolean locked) { }
 
@@ -310,11 +316,23 @@ public class SettingsManager
     }
 
     /**
-     * 规则变更通知（上游 :261-267 的空壳保留——上游此处推 observers/网络客户端/scarpet 三支）。
-     * P3 的 carpet:hello Rules 全量同步在此挂载（docs/carpet-phases.md §5 交付物 3，数据源 = 本框架）；
-     * P1 无观察者。仅命令路径（source != null）经 ParsedRule.set 触发。
+     * 规则变更通知（上游 :261-267 的 Paper 形态——上游此处推 observers/网络客户端/scarpet 三支，
+     * B 侧仅网络推送一支，经注入回调转发给 carpet:hello 的规则推送）。
+     * 仅命令路径（source != null）经 ParsedRule.set 触发；conf 载入（source==null）不通知——
+     * 上游同构，载入后的首帧由 hello 应答的全量 Rules 承载。
      */
     public void notifyRuleChanged(CommandSender source, ParsedRule<?> rule, String userInput)
     {
+        BiConsumer<CommandSender, ParsedRule<?>> callback = ruleChangedCallback;
+        if (callback != null)
+        {
+            callback.accept(source, rule);
+        }
+    }
+
+    /** 注入规则变更回调（Phase 3 装配期由 CarpetModule 挂 CarpetHelloHandler::onRuleChanged）。 */
+    public void setRuleChangedCallback(BiConsumer<CommandSender, ParsedRule<?>> callback)
+    {
+        this.ruleChangedCallback = callback;
     }
 }

@@ -6,7 +6,7 @@
 ```
 Paper 26.2 · Java 25 · paperweight userdev · Version 26.2-b3
 Servux ✅  ·  JEI ✅  ·  Syncmatica ✅   (all three protocol targets fully implemented; server-side verified on 26.2)
-Carpet 🔧 Phase 1+2           (rule framework + /carpet shell + fake players via /player; later phases planned)
+Carpet 🔧 Phase 1+2+3         (rule framework + /carpet shell + fake players via /player + carpet:hello protocol; later phases planned)
 ```
 
 > **Author:** Kevin O. Hsu · **GitHub:** https://github.com/Kevin-O-Hsu/VeryMcProto · **Modrinth:** https://modrinth.com/plugin/verymcproto
@@ -51,7 +51,7 @@ This project uses **paperweight `userdev`** to reference fully-deobfuscated Moja
 | **Servux** | masa's **MiniHUD / Litematica / Tweakeroo** | Server→client **one-way broadcast** (6 providers over `servux:*` channels) | ✅ Full |
 | **JEI** | **JEI** (mezz/JustEnoughItems 26.2) | **Full server protocol**: recipe sync + cheat + recipe transfer (`fabric:recipe_sync` / `neoforge:recipe_content` + 10 `jei:*` channels) | ✅ Full |
 | **Syncmatica** | **endte syncmatica** | **Bidirectional, stateful, multi-player shared** schematic repository (`syncmatica:main` + 18 PacketTypes + Exchange sessions) | ✅ Full |
-| **Carpet** | none needed (server-side only) | **Behavior-injection mod, portable subset** (not a protocol mod): rule framework + `/carpet` shell + fake players via the full `/player` command family | 🔧 Phase 2 |
+| **Carpet** | carpet client (optional; protocol features only) | **Behavior-injection mod, portable subset**: rule framework + `/carpet` shell + fake players via `/player` + `carpet:hello` handshake / rule sync / `/call` clientCommand | 🔧 Phase 3 |
 
 **Servux** delivers world metadata / spawn / weather / TPS / MobCap, structure bounding boxes, entity & block-entity NBT queries, and Litematica schematic paste (C2S upload + server-side paste). EasyPlace (Tweakeroo precise placement) is served via PacketEvents. The S2C file-transmit path was removed — the stock 26.1+ client has no receiver for it (re-confirmed on 26.2).
 
@@ -59,7 +59,7 @@ This project uses **paperweight `userdev`** to reference fully-deobfuscated Moja
 
 **Syncmatica**: the server acts as a central `.litematic` repository; players upload / download / collaboratively modify placements through Exchange request-acknowledgement sessions, with JSON persistence and upload quotas.
 
-**Carpet** (Phase 1 foundation + Phase 2 fake players): an annotation-based rule framework ported in lockstep with upstream `SettingsManager` (`carpet.conf` plain-text persistence, `locked` semantics, validator chains), the `/carpet list|setDefault|query|removeDefault` shell, 11 rules wired to Paper equivalents (explosion block-damage off via explode events, custom MOTD via ping event, `cleanLogs` via a log4j filter, `/perf` permission registry, plus shell/zero-behavior rules), and the **fake-player subsystem** — the upstream `patches/` trio (pure `ServerPlayer`/`Connection`/`ServerGamePacketListenerImpl` subclasses, zero Mixin) plus the 629-line action-pack state machine and the full `/player` command family (spawn/kill/shadow/mount/sneak/sprint/look/turn/move/attack/use/jump/drop/hotbar ...) on the Paper Brigadier API. Fake players occupy the tab list, count toward the sleep percentage (night skip verified in-game), persist to playerdata, and are recognized by vanilla `/tp` and `/ban`. Scope verdicts and the phased roadmap (`carpet:hello` protocol, loggers, command family, three-line rollout) live in `docs/carpet-porting-scope.md` and `docs/carpet-phases.md`; as-built notes in `docs/carpet-architecture.md`.
+**Carpet** (Phase 1 foundation + Phase 2 fake players + Phase 3 `carpet:hello` protocol): an annotation-based rule framework ported in lockstep with upstream `SettingsManager` (`carpet.conf` plain-text persistence, `locked` semantics, validator chains), the `/carpet list|setDefault|query|removeDefault` shell, 11 rules wired to Paper equivalents (explosion block-damage off via explode events, custom MOTD via ping event, `cleanLogs` via a log4j filter, `/perf` permission registry, plus shell/zero-behavior rules), and the **fake-player subsystem** — the upstream `patches/` trio (pure `ServerPlayer`/`Connection`/`ServerGamePacketListenerImpl` subclasses, zero Mixin) plus the 629-line action-pack state machine and the full `/player` command family (spawn/kill/shadow/mount/sneak/sprint/look/turn/move/attack/use/jump/drop/hotbar ...) on the Paper Brigadier API. Fake players occupy the tab list, count toward the sleep percentage (night skip verified in-game), persist to playerdata, and are recognized by vanilla `/tp` and `/ban`. Phase 3 adds the **`carpet:hello` protocol**: single-CompoundTag channel with the upstream `HI`("69")/`hello`("420") handshake (version string = upstream `mod_version` literal, `"26.2"` — never the plugin version), full & incremental `Rules` sync feeding the carpet client's rule browser, and the `clientCommand` request/reply (`/call`) with output capture via the ported `SnoopyCommandSource`; all S2C frames go via NMS `DiscardedPayload` (the carpet client never registers the channel, so plugin messaging is structurally unreachable). Scope verdicts and the phased roadmap (loggers, command family, three-line rollout) live in `docs/carpet-porting-scope.md` and `docs/carpet-phases.md`; as-built notes in `docs/carpet-architecture.md` and `docs/carpet-protocol.md`.
 
 > 26.1 introduced hard client-side gates (protocol versions must match exactly; the `servux` handshake string must start with `servux-fabric-<exact upstream MC id>`), a new DataTag NBT wire carrier, and a 16MB client reassembly cap. All of this is implemented and documented in [`docs/servux-protocol.md`](docs/servux-protocol.md) §5 (version constraints).
 
@@ -131,7 +131,7 @@ verymc.top.veryMcProto
     ├── servux/            Servux (app/command/dataproviders/network/easyplace/loggers/schematic/scheduler/util)
     ├── jei/               JEI full server protocol (recipe sync + jei:* channels)
     ├── syncmatica/        Syncmatica (communication/exchange/data/litematica/service/...)
-    └── carpet/            Carpet portable subset, Phase 1+2 (rule framework + command shells + fake-player patches/actions/commands)
+    └── carpet/            Carpet portable subset, Phase 1+2+3 (rule framework + command shells + fake-player patches/actions/commands + carpet:hello protocol)
 ```
 
 **Assembly** (`VeryMcProto.onEnable`): initialize the framework → register `servux` → `jei` → `syncmatica` → `carpet` → register the four commands; every step is individually try-catch guarded.
@@ -174,7 +174,7 @@ The original Servux has **26 Mixins + 2 AccessWideners**; Syncmatica has **5 ser
 | [`docs/servux-testing.md`](docs/servux-testing.md) / [`docs/syncmatica-testing.md`](docs/syncmatica-testing.md) | Client compatibility testing (Servux / Syncmatica) |
 | [`docs/syncmatica-architecture.md`](docs/syncmatica-architecture.md) + [`docs/syncmatica-protocol.md`](docs/syncmatica-protocol.md) | Syncmatica implementation notes (architecture / protocol) |
 | [`docs/jei.md`](docs/jei.md) ⭐ | Full JEI protocol |
-| [`docs/carpet-architecture.md`](docs/carpet-architecture.md) | Carpet module as-built (rule framework, /carpet shell, fake-player subsystem, deviation list) · scope & roadmap: `docs/carpet-porting-scope.md` / `docs/carpet-phases.md` |
+| [`docs/carpet-architecture.md`](docs/carpet-architecture.md) + [`docs/carpet-protocol.md`](docs/carpet-protocol.md) | Carpet module as-built (rule framework, /carpet shell, fake-player subsystem, deviation list) + `carpet:hello` protocol as-built · scope & roadmap: `docs/carpet-porting-scope.md` / `docs/carpet-phases.md` |
 
 Building from source: `./gradlew build` (Mojang-mapped jar) · `./gradlew test` · `./gradlew runServer` — JDK 25 resolves automatically via the foojay toolchain plugin. Everything else a developer needs (NMS constraints, versioning & branch model) lives in [`AGENTS.md`](AGENTS.md); the MC upgrade runbook lives in [`docs/operations.md`](docs/operations.md) §6.
 

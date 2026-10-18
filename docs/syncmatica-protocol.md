@@ -392,7 +392,7 @@ UUID hash = UUID.nameUUIDFromBytes(md5.digest());   // type-3 UUID
 | 限制 | 值 | 来源 |
 |---|---|---|
 | Bukkit `Messenger.MAX_MESSAGE_SIZE` | ~1MiB（1.21.x） | Spigot API 1048576 |
-| **客户端 `ClientboundCustomPayload` 解码上限** | **32767** | 原版硬限制（超此客户端断连） |
+| **未知通道 discarded 解码上限** | clientbound（S2C）**1MiB** / serverbound（C2S）**32767** | 原版硬限制（2026-10 javap 勘误——旧记述的「客户端 32767」系方向记反；裸值唯一权威 architecture.md §3.4） |
 | syncmatica 文件分片 `BUFFER_SIZE` | **16384** | `UploadExchange.java:26`（取 32767 的半，留余量给包头 UUID+size 字段） |
 | `PACKET_MAX_STRING_SIZE` | 32767 | `FriendlyByteBuf.MAX_STRING_LENGTH`（metadata 各 UTF 字段上限） |
 
@@ -400,7 +400,7 @@ UUID hash = UUID.nameUUIDFromBytes(md5.digest());   // type-3 UUID
 
 - 文件传输走自写的 stop-and-wait 分片（16KB/片），天然远低于 32767 上限，无需额外分包。
 - metadata 单包（CONFIRM_USER 含全量 placement）：每个 placement 的 metadata 较小（数百字节），即便几十个 placement 也不会超限。原版未对 CONFIRM_USER 分片（`VersionHandshakeServer.onFeatureSetReceive` 一次性 `writeInt(count)` + 全部 metadata），本实现照此；若实测极多 placement 超限再考虑分批。
-- S2C 默认走 NMS `DiscardedPayload` 直发（§1.4），仍受同一客户端 32767 上限，分片不变。
+- S2C 默认走 NMS `DiscardedPayload` 直发（§1.4），受未知通道 clientbound 1MiB 上限约束，分片不变。
 - C2S 接收：物理通道 `syncmatica:main` 由 framework `ProtocolChannel` 注册路由，Paper 不会因「未注册 custom payload」踢玩家。
 
 ---

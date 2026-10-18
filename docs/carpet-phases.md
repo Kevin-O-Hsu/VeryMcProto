@@ -91,6 +91,7 @@
   5. 自定义 NBT 广播机制面（scope §2 表行 6——上游唯一在用者 scShapes 随 Scarpet，内容不做）
 - **依赖**：P1（Rules 数据源）；与 P2/P4 无依赖
 - **完成判据**：① carpet Fabric 客户端进服无版本不匹配警告 ② 客户端规则浏览器显示我方规则集 ③ clientCommand 请求-回执往返 ④ 未握手（vanilla / 未装 carpet）玩家零影响
+  - **as-built 勘误（2026-10-18，判据①口径）**：真实发布的 carpet 客户端版本串带 `+v<构建日期>` 后缀（上游 build.gradle:10 无条件拼接）→ 发逐字 mod_version `"26.2"` 时此类客户端必打一条**本地 LOG.warn**（非聊天、不断连，equals 严格比较的确定性产物——与两个不同日期构建的上游 carpet 服互连同源）。判据①落地口径 = **无 chat 可见/断连级警告**；服务端镜像日志照抄上游（info=匹配/warn=不匹配）。详见 [carpet-protocol.md](carpet-protocol.md) §2。
 - **验证方式**：carpet 客户端实机 + 对照 `OriginImpl/fabric-carpet-26.2/` 客户端源码核对 wire
 - **注**：协议本身为可选件（HUD logger 不依赖握手，scope §2 要点行 / §8 协议行）——P3 置前是用户顺序约束的结果；后续若决策跳过 P3，不阻塞 P4+ 与 P7
 
@@ -163,7 +164,7 @@
 |---|---|---|---|---|
 | P1 | 基础（模块地基） | ✅ 已完成 | 2026-10-17：四判据全过——①四子命令实机可用（run1：list 8 规则/query/setDefault×3/removeDefault）②conf 往返（run2 重启 `Loaded 2 settings` + modified 标记）③list=注册表（单测锁）④四模块起服无错零回归；单测 144/0/0（新增 15）+ cleanLogs 双极性探针 | 见交付 commit（feat: Carpet Phase 1） |
 | P2 | 假人（/player 全族） | ✅ 已完成 | 2026-10-18：判据全过——①全子命令逐条实测（runServer 控制台 18 轮：spawn 含 at 坐标/look/turn/move/sneak/sprint/attack/use/jump × 三模式/drop 族/hotbar/swapHands/mount/dismount/stop/kill/shadow 门禁回执）②占 tab 栏（list）+ **入睡跳夜**（peaceful 夜 use 对床 → 跳夜分支堆栈实证）+ playerdata 持久（players/data 落盘读回）+ /tp //ban 原版命令识别（ban 后 cantSpawn 拒）③缺口显式登记（tick-freeze 唯一功能缺口 + 击退 PlayerVelocityEvent 门控 ≤1tick 残余窗口）；速度保真标定 5.6 m/s（超平坦 sprint 8s 位移 44.84 格）；单测 148/0（新增 ActionPackTest 4 + 规则表扩 11 锁）；三裁决落地（kick 终端拦截 / respawn 实例复用改锚 / brigadier 载体） | 见交付 commit（feat: Carpet Phase 2） |
-| P3 | 协议（carpet:hello） | ⬜ 未开始 | — | — |
+| P3 | 协议（carpet:hello） | ✅ 已完成 | 2026-10-18：判据②③④待 carpet 客户端实机终验（用户侧）；判据①已按 javap/上游 build.gradle 实证改写口径（真实客户端版本串带 `+v` 日期后缀 → 本地 LOG.warn 属上游 equals 语义同源产物，接受——无 chat 可见/断连级警告）；S2C 全 NMS DiscardedPayload 直发（carpet 客户端无 minecraft:register 声明 → plugin messaging 结构性不可达，静态全链实证）；单测 153/0（新增 CarpetHelloFrameTest 5：帧形状/撞名"2"/回执缺省键/版本串字面守卫）；runServer 冒烟（四模块+假人 join+/carpet 回归）通过；as-built = [carpet-protocol.md](carpet-protocol.md) | 见交付 commit（feat: Carpet Phase 3） |
 | P4 | 日志（/log + tps/mobcaps） | ⬜ 未开始 | — | — |
 | P5 | 命令族（纯计算类） | ⬜ 未开始 | — | — |
 | P6 | 近似规则自选池 | ⬜ 未开始（可选） | — | — |

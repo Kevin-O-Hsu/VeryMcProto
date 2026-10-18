@@ -114,7 +114,7 @@ Litematic 文件 (5 MiB)
 ```
 
 - **第一级（对端约定）**：客户端按 **16KiB** 切片上传（原 `SchematicBuffer.BUFFER_SIZE=16384` 的 wire 约定；与 syncmatica 的 `UploadExchange.BUFFER_SIZE` 无关）。
-- **第二级（网络层）**：每个 slice 装进一个 `*_DATA` Payload；16KiB 远小于客户端 32767 解码上限与 Bukkit 1MiB 上限，**单 slice 通常不触发二次分包**，但 PacketSplitter 重组路径保留作为保险。
+- **第二级（网络层）**：每个 slice 装进一个 `*_DATA` Payload；16KiB 远小于 serverbound（C2S）32767 解码上限与 Bukkit 1MiB 上限，**单 slice 通常不触发二次分包**，但 PacketSplitter 重组路径保留作为保险。
 - 重组完成后无条件走 `handleClientPasteRequest`（§6）；收端缓冲上限 64MB（见 [architecture.md](architecture.md) §3.4）。
 
 ---
