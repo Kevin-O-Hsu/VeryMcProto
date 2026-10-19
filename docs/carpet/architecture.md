@@ -1,7 +1,7 @@
 # Carpet 模块 as-built（26.1.2 线）
 
 > **状态**：已实现（2026-10-19，自 dev 线 26.2 as-built 铺开）。本文是本线 Carpet 模块（行为注入型 mod 的可移植子集）的**自含 as-built**：模块装配与规则框架（§1）、假人子系统（§2）、/log 日志（§3）、命令族（§4）、移植范围与非目标（§5）、**本线适配记录与验收（§6）**。
-> wire 协议（carpet:hello）专文见 [protocol.md](protocol.md)；命令/权限/配置运维键见 [operations.md](operations.md) §1.6-§1.13/§2/§3.4-§3.5。
+> wire 协议（carpet:hello）专文见 [protocol.md](protocol.md)；命令/权限/配置运维键见 [operations.md](../operations.md) §1.6-§1.13/§2/§3.4-§3.5。
 > 上游对照 = `OriginImpl/fabric-carpet-26.1/`（分支 `26.1`，mod_version = **`26.1`**）；范围判定与偏差详情的原始论证见 dev 线文档（`carpet/porting-scope.md` / `carpet/architecture.md` / `carpet/phases.md`，dev 分支树）。
 
 ---
@@ -113,4 +113,4 @@
 
 ---
 
-> **运维**：命令/权限/配置全键见 [operations.md](operations.md) carpet 节；排错（`[Carpet]` 前缀日志、假人异常处置、掉落/环境伤害排错口径）同见彼处。相关：[protocol.md](protocol.md)（wire）· [index.md](index.md)（总索引）· dev 线 `carpet/architecture.md` / `carpet-protocol 原始论证`（as-built 原始论证与偏差清单全量——dev 分支树）。
+> **运维**：命令/权限/配置全键见 [operations.md](../operations.md) carpet 节；排错（`[Carpet]` 前缀日志、假人异常处置、掉落/环境伤害排错口径）同见彼处。相关：[protocol.md](protocol.md)（wire）· [index.md](../index.md)（总索引）· dev 线 `carpet/architecture.md` / `carpet-protocol 原始论证`（as-built 原始论证与偏差清单全量——dev 分支树）。
