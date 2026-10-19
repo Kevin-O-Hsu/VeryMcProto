@@ -230,7 +230,7 @@ public void register() {
 
 ## 5. Mixin→Paper 统一处置矩阵（唯一权威）
 
-> Servux 共 **25 个 Mixin**（注册表计）+ **2 个 AccessWidener 字段**；Syncmatica 5 个服务端 Mixin；Carpet 上游 171 个（判定见 dev 线 `carpet/porting-scope.md`，本线携带子集零 Mixin——patches 三件套纯子类）。逐项全表见归档件 [archive/04-mixin-analysis.md](archive/04-mixin-analysis.md)（Servux）与 [archive/22-syncmatica-mixin-migration.md](archive/22-syncmatica-mixin-migration.md)（Syncmatica）；本节是**决策矩阵**。
+> Servux 共 **25 个 Mixin**（注册表计）+ **2 个 AccessWidener 字段**；Syncmatica 5 个服务端 Mixin；Carpet 上游 171 个（本线携带子集零 Mixin——patches 三件套纯子类，移植范围终局定案）。逐项全表见归档件 [archive/04-mixin-analysis.md](archive/04-mixin-analysis.md)（Servux）与 [archive/22-syncmatica-mixin-migration.md](archive/22-syncmatica-mixin-migration.md)（Syncmatica）；本节是**决策矩阵**。
 
 ### 5.1 四大类处置速查（Servux 26 Mixin + 2 AW）
 

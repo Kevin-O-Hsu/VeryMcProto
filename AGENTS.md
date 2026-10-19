@@ -268,7 +268,7 @@ Litematica 投影子系统（`mod/servux/schematic/`，约 8000 行）已移植�
   - **servux**：`OriginImpl/servux-LTS-1.21.11/`——服务端协议实现。
   - **litematica / malilib**（masa 客户端，**协议的接收端**）：`OriginImpl/litematica-LTS-1.21.11/`、`OriginImpl/malilib-LTS-1.21.11/`。任何协议字段语义、分包重组、Task 分派都要回来对照客户端源码确认，**不要凭服务端代码猜客户端行为**（见 §6 教训 1）。
   - **syncmatica**：`OriginImpl/syncmatica-LTS-1.21.11/`。
-  - **carpet**：`OriginImpl/fabric-carpet-1.21.11/`（gnembon/fabric-carpet 分支 `1.21.11`，mod_version `1.4.194`）——Carpet 模块唯一对照；协议/规则/命令/日志层的字段语义与判定以该树为准（判定基线论证在 dev 线 scope 文档）。
+  - **carpet**：`OriginImpl/fabric-carpet-1.21.11/`（gnembon/fabric-carpet 分支 `1.21.11`，mod_version `1.4.194`）——Carpet 模块唯一对照；协议/规则/命令/日志层的字段语义以该树为准（移植范围已终局定案，as-built 见本线 docs/carpet/architecture.md）。
   - **JEI**（本线权威）：`OriginImpl/JustEnoughItems-1.21.11/`（mezz 分支 `1.21.11`，clone 命令 `git clone --depth 1 --branch 1.21.11 https://github.com/mezz/JustEnoughItems.git`——协议权威文件：`Common/src/main/java/mezz/jei/common/network/packets/*` + `common/transfer/*` + `common/util/ServerCommandUtil.java` + `fabric/config/ServerConfig.java`）。`fabric:recipe_sync` wire 真权威 = Fabric API 分支 `1.21.11`（`OriginImpl/fabric-1.21.11/` 的 `fabric-recipe-api-v1`）。`OriginImpl/JEIRecipeBridge-1.21.11/`（Mrbysco）保留作 neoforge:recipe_content 层 wire 参考 + 本线旧桥历史。**jei 模块跨线 cherry-pick 禁止，一律手工重写**（本线 2026-10 迁移实录见 docs/jei/protocol.md §8）。
   - ⚠️ 原版里**未被调用的公开 API**（如 `LitematicaSchematic.sendTransmitFile`）可能是**未经验证的死代码**、含字段语义 bug——照抄后必须对照客户端源码验证（见 §6 教训 2）。
 

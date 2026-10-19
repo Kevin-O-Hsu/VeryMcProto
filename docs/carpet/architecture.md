@@ -2,13 +2,13 @@
 
 > **状态**：已实现（2026-10-19，自 dev 线 26.2 as-built 铺开）。本文是本线 Carpet 模块（行为注入型 mod 的可移植子集）的**自含 as-built**：模块装配与规则框架（§1）、假人子系统（§2）、/log 日志（§3）、命令族（§4）、移植范围与非目标（§5）、**本线适配记录与验收（§6）**。
 > wire 协议（carpet:hello）专文见 [protocol.md](protocol.md)；命令/权限/配置运维键见 [operations.md](../operations.md) §1.6-§1.13/§2/§3.4-§3.5。
-> 上游对照 = `OriginImpl/fabric-carpet-1.21.11/`（分支 `1.21.11`，mod_version = **`1.4.194`**）；范围判定与偏差详情的原始论证见 dev 线文档（`carpet/porting-scope.md` / `carpet/architecture.md` / `carpet/phases.md`，dev 分支树）。
+> 上游对照 = `OriginImpl/fabric-carpet-1.21.11/`（分支 `1.21.11`，mod_version = **`1.4.194`**）；偏差详情的原始论证见 dev 线 `carpet/architecture.md`（dev 分支树）。
 
 ---
 
 ## §0 定位
 
-**Carpet 是「行为注入型」Fabric mod**（上游 171 服务端 Mixin）——与既有三 mod（协议投递型）根本不同。本移植只携带**判定为可完整等价的子集**：规则框架 + `/carpet` 壳 + 18 条规则 + 假人 `/player` 全族 + carpet:hello 协议 + `/log` 日志框架（tps/mobcaps HUD）+ 五条纯计算命令。Scarpet、TNT/红石/活塞优化类 Mixin 面不在移植范围（判定见 dev 线 scope 文档）。
+**Carpet 是「行为注入型」Fabric mod**（上游 171 服务端 Mixin）——与既有三 mod（协议投递型）根本不同。本移植只携带**可完整等价的子集**（移植范围已终局定案）：规则框架 + `/carpet` 壳 + 18 条规则 + 假人 `/player` 全族 + carpet:hello 协议 + `/log` 日志框架（tps/mobcaps HUD）+ 五条纯计算命令。其余面在纯 Paper 插件形态下技术上不可能实现或无法等价上游语义，**永不纳入——无后续实现**。
 
 - 模块：`mod/carpet/`（41 主源文件 + 7 测试类），主类第四 try-catch 块装配，`CarpetModule.disable()` 于 onDisable 回收。
 - 上游版本串（协议握手用）：`CarpetReference.CARPET_VERSION = "1.4.194"` = 上游 `gradle.properties:16` 逐字（26.2 线该值为 "26.2"、26.1.2 线为 "26.1"——**禁止发插件版本号**，客户端 `equals` 严格比较）。
@@ -65,8 +65,7 @@
 ## §5 移植范围与非目标（速览）
 
 - **不做**：Scarpet 整体（引擎/事件/图形/AppStore）、TNT/爆炸优化、红石重写、活塞可移动方块、刷怪表注入、漏斗计数器、性能剖析类规则、`/profile`（spark 生态替代）、`/counter`、`/draw plop`、`/spawn` tracking 五连、`viewDistance`/`simulationDistance`（Paper 原生自带）。
-- **后置可选**：五条近似 chat logger（tnt/explosions/projectiles/fallingBlocks/pathfinding）、近似规则池（dev 线 scope §5.2 的 23 条——按需逐条评估）。
-- 判定论证的唯一权威 = dev 线 `carpet/porting-scope.md`（预研快照，跨线通用——上游三树的 network/settings/logging 子目录逐字节相同已实证，判定不随线漂移）。
+- **不做（终局）**：五条近似 chat logger（tnt/explosions/projectiles/fallingBlocks/pathfinding）与近似规则池（23 条 ⚠️ 近似规则）——近似实现无法对等上游语义，不纳入。移植范围**已终局定案，无后续实现**（早期预研/规划文档已删除，历史见 git）。
 
 ## §6 本线（1.21.11）适配记录与验收
 

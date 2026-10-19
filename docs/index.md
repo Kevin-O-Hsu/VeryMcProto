@@ -68,7 +68,7 @@
 | [carpet/architecture.md](carpet/architecture.md) ⭐ | **本线自含 as-built**：模块装配与规则框架（18 规则）、假人子系统（ActionPack 三调用点 1.21.11 形态）、/log 日志与跨会话持久、五命令族、移植范围、**本线适配记录与验收（含掉落伤害 per-line 决策 §6.2）** |
 | [carpet/protocol.md](carpet/protocol.md) | **carpet:hello 协议 as-built**（HI=`"1.4.194"`）：通道与载体（S2C NMS 直发唯一性）、消息面全表、握手时序与名册、规则同步链、偏差清单 |
 
-> dev 线另有 `carpet/porting-scope.md` / `carpet/phases.md`（范围判定与推进规划——跨线通用判定物料，dev 分支树）。
+> Carpet 移植范围在三线均已**终局定案**：可移植子集全部实现完毕，其余面永不纳入（各线 carpet/architecture.md §5）。
 
 ---
 
