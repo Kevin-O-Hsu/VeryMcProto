@@ -4,8 +4,8 @@
 > The client still uses the original Fabric mods; the server swaps from "Fabric server + server-side mod" to "standard Paper server + this plugin", with identical protocol behavior.
 
 ```
-Paper 1.21.11 · Java 21 · paperweight userdev · Version 1.21.11-b5
-Servux ✅  ·  JEI ✅  ·  Syncmatica ✅   (all three targets fully implemented and tested)
+Paper 1.21.11 · Java 21 · paperweight userdev · Version 1.21.11-b6
+Servux ✅  ·  JEI ✅  ·  Syncmatica ✅  ·  Carpet ✅   (all four modules implemented and tested)
 ```
 
 > **Author:** Kevin O. Hsu · **GitHub:** https://github.com/Kevin-O-Hsu/VeryMcProto · **Modrinth:** https://modrinth.com/plugin/verymcproto
@@ -57,6 +57,7 @@ This project uses **paperweight `userdev`** to reference fully-deobfuscated Moja
 |  **Servux**             |  masa's **MiniHUD / Litematica / Tweakeroo**  |  Server→client **one-way broadcast** (6 providers)                      |  ✅ Full  |
 |  **JEI**                |  **JEI** (mezz/JustEnoughItems 1.21.11)       |  **Full server protocol**: recipe sync + cheat + recipe transfer             |  ✅ Full  |
 |  **Syncmatica**         |  **endte syncmatica**                         |  **Bidirectional, stateful, multi-player shared** schematic repository  |  ✅ Full  |
+|  **Carpet**             |  **gnembon/fabric-carpet** (branch 1.21.11)   |  **Portable subset of a behavior-injecting mod**: rule framework (`/carpet`, 18 rules, `carpet.conf`) + fake players (`/player` full family) + `carpet:hello` protocol + `/log` HUD framework (tps/mobcaps) + pure-calculation commands (`/distance` `/info` `/perimeterinfo` `/draw` `/spawn`) |  ✅ Subset  |
 
 ### 1. Servux
 
@@ -79,7 +80,7 @@ A server-side protocol mod that delivers data to masa's client mods (MiniHUD / L
 |  `servux:structures`     |  `structure_bounding_boxes`  |  2                 |  Structures: structure bounding boxes (periodic chunk scan)                                                                     |
 |  `servux:litematics`     |  `litematic_data`            |  1                 |  Litematics: schematic transmit / paste / bulk entities                                                                         |
 
-> Handshake field `MOD_STRING = servux-paper-1.21.11-b5` (keeps the `servux-` prefix so masa's client recognizes that the server runs the Servux protocol; concrete version negotiation goes through each channel's protocol version).
+> Handshake field `MOD_STRING = servux-paper-1.21.11-b6` (keeps the `servux-` prefix so masa's client recognizes that the server runs the Servux protocol; concrete version negotiation goes through each channel's protocol version).
 
 ### 2. JEI
 
@@ -102,7 +103,7 @@ Fundamentally different from Servux (one-way broadcast):
 - File storage + JSON persistence + **upload quota / debug** services.
 - On handshake, both sides exchange a **FeatureSet** to negotiate the optional-field encoding of metadata / position packets.
 
-**Feature enum** (negotiated on handshake): `CORE` `FEATURE` `MODIFY` `MESSAGE` `QUOTA` `DEBUG` `CORE_EX` `VERSION` `DISPLAY_NAME`. This server advertises the **full FeatureSet** (combined with `MOD_VERSION=1.21.11-b5` — the `-b` build suffix never matches the legacy version regex — to trigger FEATURE exchange so both sides encode with the full set).
+**Feature enum** (negotiated on handshake): `CORE` `FEATURE` `MODIFY` `MESSAGE` `QUOTA` `DEBUG` `CORE_EX` `VERSION` `DISPLAY_NAME`. This server advertises the **full FeatureSet** (combined with `MOD_VERSION=1.21.11-b6` — the `-b` build suffix never matches the legacy version regex — to trigger FEATURE exchange so both sides encode with the full set).
 
 ---
 
@@ -148,7 +149,7 @@ On startup the console shows:
 [VeryMcProto] framework ready.
 ```
 
-> **Defensive design**: the three mods are assembled each inside its own try-catch; any one failing only logs and degrades gracefully — **it never blocks server startup** and never affects the other mods.
+> **Defensive design**: the four modules are assembled each inside its own try-catch; any one failing only logs and degrades gracefully — **it never blocks server startup** and never affects the other modules.
 
 ---
 
@@ -158,7 +159,7 @@ Package root `verymc.top.veryMcProto`, split into a **framework layer** and a **
 
 ```
 verymc.top.veryMcProto
-├── VeryMcProto            Main class (JavaPlugin.onEnable assembles the framework + registers the three mods + registers commands)
+├── VeryMcProto            Main class (JavaPlugin.onEnable assembles the framework + registers the four modules + registers commands)
 ├── framework/             Framework layer (infrastructure decoupled from any specific protocol mod)
 │   ├── network/           plugin messaging channel wrappers, byte-stream codec, splitting, handler registry
 │   ├── dataproviders/     Provider registry / scheduler / config hub (used by Servux)
@@ -635,7 +636,7 @@ See [`docs/10-testing-guide.md`](docs/10-testing-guide.md) (Servux) and [`docs/2
 
 ### Versioning & Branch Model
 
-Plugin version = **`<MC version>-b<build number>`** — currently `1.21.11-b5`; when Mojang shifts to date-style names (e.g. `26.1`) it naturally becomes `26.1-b1`. The **single source of truth** is `gradle.properties` (`mcVersion` / `buildNumber`): Gradle derives `version` from it, injects it into `plugin.yml` / the jar name / `version.properties`, and `Reference.MC_VERSION` / `Reference.PLUGIN_VERSION` (hence every protocol handshake string such as `servux-paper-1.21.11-b5`) read it back from `version.properties`. Never hardcode a version anywhere else.
+Plugin version = **`<MC version>-b<build number>`** — currently `1.21.11-b6`; when Mojang shifts to date-style names (e.g. `26.1`) it naturally becomes `26.1-b1`. The **single source of truth** is `gradle.properties` (`mcVersion` / `buildNumber`): Gradle derives `version` from it, injects it into `plugin.yml` / the jar name / `version.properties`, and `Reference.MC_VERSION` / `Reference.PLUGIN_VERSION` (hence every protocol handshake string such as `servux-paper-1.21.11-b6`) read it back from `version.properties`. Never hardcode a version anywhere else.
 
 | Branch | Purpose |
 | --- | --- |

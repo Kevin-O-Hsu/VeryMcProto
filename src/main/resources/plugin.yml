@@ -6,7 +6,7 @@ load: POSTWORLD
 softdepend: [packetevents]
 author: Kevin O. Hsu
 website: https://modrinth.com/plugin/verymcproto
-description: A Paper plugin port of Fabric protocol mods (Servux protocol + JEI server protocol + Syncmatica schematic sharing).
+description: A Paper plugin port of Fabric protocol mods (Servux protocol + JEI server protocol + Syncmatica schematic sharing + Carpet portable subset).
 commands:
   servux:
     description: Servux protocol configuration and diagnostics command
@@ -20,6 +20,10 @@ commands:
     description: JEI protocol module command (status / enable-disable module, persisted)
     usage: /jei status|enable|disable
     permission: jei.command
+  carpet:
+    description: Carpet mod foundation rule shell (list, query, persist or remove rule defaults)
+    usage: /carpet list | setDefault <rule> <value> | query <rule> | removeDefault <rule>
+    permission: carpet.command
 permissions:
   servux.commands:
     description: Allows the /servux command (root node; Bukkit approximation of upstream servux.commands requiring level 4)
@@ -82,4 +86,7 @@ permissions:
     default: true
   syncmatica.command.debug:
     description: Allows /syncmatica debug (debug logging master switch, syncmatica-specific state)
+    default: op
+  carpet.command:
+    description: Allows the /carpet rule shell (runtime gate additionally enforces the carpetCommandPermissionLevel rule - ops/2/4)
     default: op
