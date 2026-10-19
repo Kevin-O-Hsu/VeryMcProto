@@ -18,7 +18,7 @@ import verymc.top.veryMcProto.mod.carpet.settings.SettingsManager;
  * Carpet 模块装配（mod 层，第四模块——gnembon/fabric-carpet 26.2 线移植 Phase 1「模块地基」）。
  *
  * <p>上游是<b>行为注入型</b> Fabric mod（171 服务端 Mixin），本移植按 scope 判定面走事件/等价路径
- * （docs/carpet/porting-scope.md、docs/carpet/architecture.md）。装配链：
+ * （docs/carpet/architecture.md）。装配链：
  * SettingsManager 单例 → 解析规则 → conf 载入 → perf 权限应用 → 事件监听 → cleanLogs 过滤器。
  *
  * <p>生命周期：{@link #onRegister} 由主类 onEnable 第四 try-catch 块调用；{@link #disable()} 由

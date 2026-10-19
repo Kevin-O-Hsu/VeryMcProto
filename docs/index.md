@@ -8,7 +8,7 @@
 > - **Servux**（masa 服务端协议）—— 5 数据通道 + schematic（投影粘贴）+ EasyPlace + task 组（Fill/Delete/Paste）。
 > - **JEI 服务端协议**（最上游 mezz/JustEnoughItems 分支 `26.2`）—— 完整三层：配方同步（fabric/neoforge 双腿）+ jei:* 自有 10 通道 + 服务端行为层。
 > - **Syncmatica**（投影共享中央仓库）—— 单通道 + Exchange 会话层 + 文件存储 + JSON 持久化。
-> - **Carpet**（行为注入型 mod 的可移植子集）—— **Phase 1「模块地基」+ Phase 2「假人 /player 全族」+ Phase 3「carpet:hello 协议」+ Phase 4「/log 日志（tps/mobcaps HUD）」+ Phase 5「命令族——纯计算类」+ Phase 7「三线铺开 ver/26.1.2 + ver/1.21.11」已实现**（规则框架 + /carpet 壳 + 18 规则 + 假人子系统 + carpet:hello 握手/规则同步/clientCommand + /log 订阅框架与跨会话持久 + /distance /info /perimeterinfo /draw /spawn 五命令；as-built 见 [carpet/architecture.md](carpet/architecture.md) 与 [carpet/protocol.md](carpet/protocol.md)）；后续 Phase（近似规则池）规划与状态见 [carpet/phases.md](carpet/phases.md)；范围判定基线见 [carpet/porting-scope.md](carpet/porting-scope.md)。
+> - **Carpet**（行为注入型 mod 的可移植子集）—— **Phase 1「模块地基」+ Phase 2「假人 /player 全族」+ Phase 3「carpet:hello 协议」+ Phase 4「/log 日志（tps/mobcaps HUD）」+ Phase 5「命令族——纯计算类」+ Phase 7「三线铺开 ver/26.1.2 + ver/1.21.11」已实现，移植范围终局定案**（规则框架 + /carpet 壳 + 18 规则 + 假人子系统 + carpet:hello 握手/规则同步/clientCommand + /log 订阅框架与跨会话持久 + /distance /info /perimeterinfo /draw /spawn 五命令；其余面在纯 Paper 形态下技术上不可能实现或无法等价，**永不纳入——无后续实现**；as-built 见 [carpet/architecture.md](carpet/architecture.md) 与 [carpet/protocol.md](carpet/protocol.md)）。
 >
 > 顶层项目说明见根 [`../AGENTS.md`](../AGENTS.md)（唯一权威；`CLAUDE.md` 已收敛为指向它的薄指针）。项目门面见根 [`../README.md`](../README.md)（英文）。
 > 原版 Fabric 源码对照：[`../OriginImpl/`](../OriginImpl/) 各子目录（详见 [references.md](references.md) §6）。
@@ -28,7 +28,7 @@
 
 ---
 
-# 文档地图（16 文件 = 全局 4 + servux 4 + syncmatica 3 + jei 1 + carpet 4）
+# 文档地图（14 文件 = 全局 4 + servux 4 + syncmatica 3 + jei 1 + carpet 2）
 
 ## 全局层（`docs/` 根）
 
@@ -62,16 +62,14 @@
 |---|---|
 | [jei/protocol.md](jei/protocol.md) ⭐ | **完整协议**：三层全景、通道声明契约（isJeiOnServer 门禁）、12 通道 wire 逐字段、cheat 权限模型、配方转移算法、配方同步双触发、尺寸模型、上游源码索引、实机验证清单 |
 
-## Carpet（`carpet/`，Phase 1-5 + 7 已实现 · 后续 Phase 规划中）
+## Carpet（`carpet/`，可移植子集已全部实现——终局定案）
 
 | 文档 | 内容速览 |
 |---|---|
 | [carpet/architecture.md](carpet/architecture.md) ⭐ | **Carpet 模块 as-built**：模块装配、注解规则框架（上游 SettingsManager 同构 + 全量偏差清单）、/carpet 四子命令与双层门禁、8 地基规则表（默认值/等价机制/上游行号）、carpet.conf 格式与怪癖、cleanLogs 过滤器代数、perfPermissionLevel 真因果、/log 日志子系统（LoggerRegistry 同构 + 订阅跨会话持久墓碑模型 + tps/mobcaps HUD 公式逐字）、P5 命令族（五命令 + Messenger 组件输出层 + CommandBuildContext 入口 + 偏差 #54-#62） |
 | [carpet/protocol.md](carpet/protocol.md) ⭐ | **carpet:hello 协议 as-built（Phase 3）**：通道与载体（S2C NMS 直发唯一性）、消息面全表（HI "69"/hello "420"/Rules/clientCommand/自定义 NBT）、握手时序与名册、规则同步链（全量帧+增量推送+gate 封闭清单）、clientCommand（Snoopy 移植+审计行）、装配生命周期（reload 补扫）、偏差清单 |
-| [carpet/porting-scope.md](carpet/porting-scope.md) | **移植范围全量清单（预研结论，dev 线专属）**：上游版本规划实证、carpet:hello 协议消息面、14 命令族 / 9 logger / 89 条规则逐条三判定（✅/⚠️/⛔）、假人子系统深潜（机制 + Mixin 替代 + 三线稳定性）、Scarpet 不可行性论证、建议落地范围 |
-| [carpet/phases.md](carpet/phases.md) | **分阶段推进规划（dev 线专属）**：Phase 依赖图（基础→假人→协议置前，用户决策序）、逐 Phase 范围锚/交付物/完成判据/验证方式、三线铺开策略（假人近零漂移、/tick 三线同构）、非目标终判清单（83 活跃规则全覆盖基线）、状态登记表 |
 
-> 旧维护线的 Carpet 文档 = 各线 `carpet/architecture.md` + `carpet/protocol.md`（as-built 自含，由单件文档拆分）+ `operations.md` carpet 键节；`porting-scope.md` / `phases.md` 为 dev 线规划物料，旧线不设。
+> 移植范围**终局定案**：以上子集全部实现完毕；其余面（Scarpet / TNT 与红石活塞优化类 Mixin / 近似规则池与 chat logger 等）在纯 Paper 插件形态下技术上不可能实现或无法等价上游语义，**永不纳入**。早期预研/推进规划文档（porting-scope / phases）已删除（历史见 git）。
 
 ---
 
@@ -116,8 +114,8 @@
 | `docs/jei.md` | `docs/jei/protocol.md` |
 | `docs/carpet-architecture.md` | `docs/carpet/architecture.md` |
 | `docs/carpet-protocol.md` | `docs/carpet/protocol.md` |
-| `docs/carpet-porting-scope.md` | `docs/carpet/porting-scope.md` |
-| `docs/carpet-phases.md` | `docs/carpet/phases.md` |
+| `docs/carpet-porting-scope.md` | → 已删除（预研/规划物料随终局定案废止；判定结论已并入 carpet/architecture.md 各节） |
+| `docs/carpet-phases.md` | → 已删除（同上；实机判据已并入 carpet/architecture.md 各 Phase 节） |
 | （旧维护线）`docs/31-carpet.md` / `docs/carpet.md` | 该线 `docs/carpet/architecture.md` + `docs/carpet/protocol.md`（§ 级分流） |
 
 **第一轮（`NN-` 前缀 → 主题名，含 § 级去向）**：

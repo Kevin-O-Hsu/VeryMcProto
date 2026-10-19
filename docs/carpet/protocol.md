@@ -4,8 +4,7 @@
 > 通道与载体（§1）、消息面全表（§2）、握手时序与名册（§3）、规则同步链（§4）、clientCommand（§5）、
 > 装配与生命周期（§6）、测试锚与实机判据（§7）、偏差清单（§8）。
 > 上游对照 = `OriginImpl/fabric-carpet-26.2/src/main/java/carpet/network/`（tag v26.2 三件套 +
-> `CarpetServer.java` 挂点）；范围判定 = [carpet/porting-scope.md](porting-scope.md) §2；
-> 推进状态 = [carpet/phases.md](phases.md) §11；模块装配与规则框架 = [carpet/architecture.md](architecture.md)。
+> `CarpetServer.java` 挂点）；模块装配与规则框架 = [carpet/architecture.md](architecture.md)。
 > 字节上限裸值唯一权威 = [architecture.md](../architecture.md) §3.4。
 
 ---
@@ -33,7 +32,7 @@
   HI 约 30 字节），构造性零影响；假人 join 同样触发 HI，被 `FakeClientConnection.send` no-op 吸收
   （上游同构——实现**无连接类型分支**）。
 
-## §2 消息面全表（对照 scope §2）
+## §2 消息面全表
 
 | # | 方向 | 键 | 载荷 | B 侧实现 | 上游锚 |
 |---|---|---|---|---|---|
@@ -84,7 +83,7 @@ carpet 客户端（装 carpet mod）            vanilla / 未装 carpet / 假人
   按 `Manager`+`Rule` 在自身注册表查名，查不到静默跳过、零报错）——**硬门禁：进 Rules 帧的规则名
   必须逐字存在于上游 `CarpetSettings` 注册表**（当前 18 条已逐一核验——P4 的 commandLog/defaultLoggers
   为上游 :453-463 实名；P5 的 commandSpawn/commandDistance/commandInfo/commandPerimeterInfo/commandDraw
-  为上游 :411-412/:465-490 实名逐字；后续新增规则接入时同守此门）。
+  为上游 :411-412/:465-490 实名逐字；接入新规则时同守此门）。
 - Manager 键恒 `"carpet"`（= `SettingsManager.identifier()`，`CarpetModule` 构造注入 `MOD_ID`）——
   与客户端主管理器查找分支精确匹配。
 
@@ -136,7 +135,7 @@ carpet 客户端（装 carpet mod）            vanilla / 未装 carpet / 假人
   布尔串化（"true"/"false"）+ Manager=="carpet" + 撞名 "2" 循环（直构双同名规则）+ clientCommand
   回执缺省键（error/output 空则无键）+ 版本串/键名/通道名字面守卫（`"26.2"`/`"69"`/`"420"`/
   `carpet:hello`——防误换插件版本号）。
-- **实机判据（四条，phases §5；判据①为改写口径）**：① carpet Fabric 客户端进服无 chat 可见/
+- **实机判据（四条；判据①为改写口径）**：① carpet Fabric 客户端进服无 chat 可见/
   断连级警告（客户端本地 LOG.warn 属上游 equals 语义同源产物，接受）；② 客户端规则浏览器显示
   我方 13 条规则集（值随 `/carpet setDefault` 即时变更）；③ `clientCommand` 请求-回执往返（carpet
   客户端 `/call <cmd>`，输出回显于客户端日志）；④ 未握手（vanilla / 未装 carpet）玩家零影响
@@ -156,10 +155,9 @@ carpet 客户端（装 carpet mod）            vanilla / 未装 carpet / 假人
 | 5 | 畸形包缺键 → warn 丢弃不踢（上游 orElseThrow 异常 = Fabric 层踢人） | plugin messaging 路径结构性语义（jei 同款先例）；我方更保守 |
 | 6 | onRegister 对在线玩家补发 HI（上游 init 期无在线玩家、无此路径） | 闭合插件中途启用（reload）时在线客户端永失握手 + conf 载入推送空窗的半失效态 |
 | 7 | join 挂点 = PlayerJoinEvent（上游 PlayerList Mixin placeNewPlayer RETURN） | Paper 无 Mixin；时点更晚但客户端 HI 接收持续有效（handleUnknownCustomPayload 无单次窗口），时序安全 |
-| 8 | 删 getPlayerStatus（上游供 scarpet EntityValue.client_brand 消费） | Scarpet 整体不移植（scope §7），零调用点 |
+| 8 | 删 getPlayerStatus（上游供 scarpet EntityValue.client_brand 消费） | Scarpet 整体不移植（终局判定），零调用点 |
 
 ---
 
 > **相关**：[carpet/architecture.md](architecture.md)（模块装配/规则框架/假人）·
-> [carpet/porting-scope.md](porting-scope.md) §2（预研消息面）· [carpet/phases.md](phases.md) §11（状态）·
 > [architecture.md](../architecture.md) §3（网络框架/S2C 路径/字节上限）· [operations.md](../operations.md) §5.1（排错）

@@ -8,7 +8,7 @@
 
 ## 1. 项目定位与可行性结论
 
-**VeryMcProto 把 Fabric 端独特的 Mod Protocol（协议 Mod）以纯 Paper 插件形式重新实现**。客户端仍是 masa / syncmatica / JEI 的 Fabric Mod；本插件在 Paper 服务端复刻它们期待的网络协议与数据采集，使「Fabric 客户端 + Paper 服务端」像「Fabric 客户端 + 原版服务端 Mod」一样工作。三个 mod（Servux / JEI / Syncmatica）已全部落地并实机验证；第四模块 **Carpet**（行为注入型 mod 的可移植子集，非协议投递型）Phase 1「模块地基」已落地——见 [carpet/architecture.md](carpet/architecture.md) 与 [carpet/phases.md](carpet/phases.md)。
+**VeryMcProto 把 Fabric 端独特的 Mod Protocol（协议 Mod）以纯 Paper 插件形式重新实现**。客户端仍是 masa / syncmatica / JEI 的 Fabric Mod；本插件在 Paper 服务端复刻它们期待的网络协议与数据采集，使「Fabric 客户端 + Paper 服务端」像「Fabric 客户端 + 原版服务端 Mod」一样工作。三个 mod（Servux / JEI / Syncmatica）已全部落地并实机验证；第四模块 **Carpet**（行为注入型 mod 的可移植子集，非协议投递型）已全部落地并终局定案——见 [carpet/architecture.md](carpet/architecture.md)。
 
 | 问题 | 结论 | 依据 |
 |---|---|---|
@@ -289,7 +289,7 @@ C2S 接收方向的解压配额闸（gzip bomb / 长度字段炸弹拦截）见 
 | Mixin | 归属 | 处置 |
 |---|---|---|
 | `MixinSharedConstants`（debug） | 调试 | **D 省略** |
-| `MixinAllayEntity` / `MixinItemEntity` / `MixinMobEntity` | Allay 收集修复 | **C 省略**（可选后续用实体目标事件模拟） |
+| `MixinAllayEntity` / `MixinItemEntity` / `MixinMobEntity` | Allay 收集修复 | **C 省略**（改服务端行为，无等价） |
 | `MixinBlockItem_EasyPlace` | EasyPlace | **C ✅ 已实现**（PacketEvents 双挂点，§5.3） |
 | `MixinItemStack`（getMaxStackSize） | 潜影盒堆叠 | **C 不可能实现**（§5.3） |
 | `IMixinNbtReadView` / `IMixinNbtWriteView`（Accessor） | NbtView | **A**：重写为直接 `Entity.saveWithoutId(CompoundTag)` / `BlockEntity.saveWithFullMetadata`，绕开 Accessor |
