@@ -5,6 +5,7 @@ import java.util.zip.ZipFile
 
 plugins {
     `java-library`
+    idea
     id("io.papermc.paperweight.userdev") version "2.0.0-beta.24"
     id("xyz.jpenilla.run-paper") version "3.1.0"
 }
@@ -45,6 +46,17 @@ dependencies {
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(25)
+}
+
+// IDEA 索引排雷（经 Gradle idea 模型声明，随 sync 持久化）：OriginImpl = 31 个上游仓库本地检出
+// （12,824 个 Java 文件 / 213MB，仅逐行对照用，已 gitignore 但 IDEA 仍索引）；run-* = 三线本地测试服
+// （服务端 jar + libraries + 世界存档共 ~640MB）。不排除则全部进 dumb mode——索引窗口内插件查询
+// 触发 IndexNotReadyException（IDE 报错实测根因），且每次 sync/重启重付全量索引成本。
+idea.module {
+    excludeDirs.add(file("OriginImpl"))
+    excludeDirs.add(file("run-26.2"))
+    excludeDirs.add(file("run-26.1.2"))
+    excludeDirs.add(file("run-1.21.11"))
 }
 
 // MC 26.1 起 Paper 不再支持把插件重映射到 Spigot 映射（Mojang 已移除服务端混淆；paperweight 官方文档明示
