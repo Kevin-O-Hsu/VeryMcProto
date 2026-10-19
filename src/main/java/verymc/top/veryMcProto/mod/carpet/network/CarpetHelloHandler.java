@@ -236,7 +236,7 @@ public final class CarpetHelloHandler implements IPluginServerPlayHandler, Liste
                     new CarpetSnoopyCommandSource(player, error, output, returnValue), command);
         }
         // B 侧增补（上游无）：performPrefixedCommand 直调 NMS 命令链，绕过 PlayerCommandPreprocessEvent
-        // 与 ops 广播——审计行补偿该缺口（偏差登记 docs/carpet.md §3）
+        // 与 ops 广播——审计行补偿该缺口（偏差登记 docs/carpet/protocol.md）
         Reference.logger().info("[Carpet] clientCommand from " + player.getName().getString() + ": " + command);
         List<String> lines = new ArrayList<>(output.size());
         for (Component line : output)

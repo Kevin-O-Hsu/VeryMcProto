@@ -54,7 +54,7 @@ import static net.minecraft.commands.SharedSuggestionProvider.suggest;
 /**
  * /player 命令族（克隆上游 {@code carpet/commands/PlayerCommand.java} 1.21.11 树 362 行 brigadier 树
  * 逐字移植；Paper Brigadier API 载体——上游 Fabric Dispatcher 注册面在 B 侧的等价物，
- * {@code LifecycleEvents.COMMANDS} 注册，偏差登记 docs/carpet.md）。
+ * {@code LifecycleEvents.COMMANDS} 注册，偏差登记 docs/carpet/architecture.md）。
  *
  * <p><b>source 类型层</b>：Paper Brigadier 树泛型 = {@link io.papermc.paper.command.brigadier.CommandSourceStack}
  * （Paper 接口；NMS {@code net.minecraft.commands.CommandSourceStack} 实现之）——上游逻辑全部操作 NMS

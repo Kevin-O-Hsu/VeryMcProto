@@ -23,7 +23,7 @@ import verymc.top.veryMcProto.framework.nms.Nms;
  * HUD 投递器（克隆上游 {@code carpet/logging/HUDController.java} 1.21.11 树的 P4 面——
  * tps/mobcaps 两行 + footer flush；counter/packets 行与 scarpet 头脚不移植）。
  *
- * <p>与上游的偏差（对账登记，docs/carpet.md）：
+ * <p>与上游的偏差（对账登记，docs/carpet/architecture.md）：
  * <ul>
  *   <li><b>投递面</b>：上游直发 NMS {@code ClientboundTabListPacket}（:109-113，tab 头=scarpet 保留、
  *       脚=logger 内容）；B 侧 = Bukkit {@code setPlayerListFooter(String)}（服务端侧同效 vanilla 包，

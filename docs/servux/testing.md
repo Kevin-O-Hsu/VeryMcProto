@@ -4,7 +4,7 @@
 > （minihud / tweakeroo / litematica）**客户端源码的逐行分析**，给出每个 servux 通道对应的
 > 客户端 mod、触发方式、预期表现和成功判据。
 >
-> 配套阅读：[`02-network-protocol.md`](02-network-protocol.md)（协议层）、[`03-dataproviders-detail.md`](03-dataproviders-detail.md)（数据内容）。
+> 配套阅读：[`protocol.md`](protocol.md)（协议层）、[`providers.md`](providers.md)（数据内容）。
 
 ---
 
@@ -177,8 +177,8 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 | 功能 | 状态 | 表现 |
 |---|---|---|
-| 投影文件传输（服务器投递投影给客户端） | ✅ 服务端已实现 | `/servux litematic transmit <file>` → `sendTransmitFile` 16KiB 分片投递（op 参数 + 目录包含性守卫；**修复版客户端 ≥0.26.11 双向静默丢弃，仅旧版客户端可接收**，见 [11](11-schematic-migration-plan.md)） |
-| 投影粘贴（客户端上传投影让服务端放置） | ✅ 已实现 | 客户端 Litematica 上传 NBT → `handleClientPasteRequest` → `pasteTo` 写世界（创造模式 + paste 权限；C2S 文件落盘链 `receiveFileTransmit` 已于 2026-10 安全修复移除）。详见 [11](11-schematic-migration-plan.md) |
+| 投影文件传输（服务器投递投影给客户端） | ✅ 服务端已实现 | `/servux litematic transmit <file>` → `sendTransmitFile` 16KiB 分片投递（op 参数 + 目录包含性守卫；**修复版客户端 ≥0.26.11 双向静默丢弃，仅旧版客户端可接收**，见 [11](../archive/11-schematic-migration-plan.md)） |
+| 投影粘贴（客户端上传投影让服务端放置） | ✅ 已实现 | 客户端 Litematica 上传 NBT → `handleClientPasteRequest` → `pasteTo` 写世界（创造模式 + paste 权限；C2S 文件落盘链 `receiveFileTransmit` 已于 2026-10 安全修复移除）。详见 [11](../archive/11-schematic-migration-plan.md) |
 | 单个 / 批量 NBT 查询 | ✅ 已实现 | 上述测试 A / B 覆盖 |
 
 ---
@@ -191,7 +191,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 1. **握手 + NBT 查询**：与 Litematica 同构（`entityDataSync` 开 → C2S 拉取 → 缓存）。
 
-> **潜影盒堆叠——未实现（不可能实现）**：原版通过 tweaks 通道下发 `stackingShulkers` / `stackingShulkersMax` 元数据，客户端 `EntityDataManager.checkTweaksConfigs`（`EntityDataManager.java:420`）收到后**自动**开启 `TWEAK_SHULKERBOX_STACKING` 客户端堆叠渲染。但“真正可堆叠”靠服务端 Mixin 改 `ItemStack.getMaxStackSize()` 全局行为——Paper 无 Mixin 无法等价（详见 [`04`](04-mixin-analysis.md) §4）。若只下发元数据而不做服务端堆叠，会导致客户端显示可堆叠、服务端按原上限拆开的**不一致**。故本插件**已删除** `stackable_shulkers` 系列 setting，**不下发** `stackingShulkers` 元数据——这是正确的降级，非 bug。
+> **潜影盒堆叠——未实现（不可能实现）**：原版通过 tweaks 通道下发 `stackingShulkers` / `stackingShulkersMax` 元数据，客户端 `EntityDataManager.checkTweaksConfigs`（`EntityDataManager.java:420`）收到后**自动**开启 `TWEAK_SHULKERBOX_STACKING` 客户端堆叠渲染。但“真正可堆叠”靠服务端 Mixin 改 `ItemStack.getMaxStackSize()` 全局行为——Paper 无 Mixin 无法等价（详见 [`04`](../archive/04-mixin-analysis.md) §4）。若只下发元数据而不做服务端堆叠，会导致客户端显示可堆叠、服务端按原上限拆开的**不一致**。故本插件**已删除** `stackable_shulkers` 系列 setting，**不下发** `stackingShulkers` 元数据——这是正确的降级，非 bug。
 
 ### 6.2 测试 A：握手（必做，前置）
 
@@ -260,8 +260,8 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 ## 8. 已知降级清单（测试时预期这些「不工作」，非 bug）
 
-源自 Mixin / schematic 无法迁移，详见 [`04-mixin-analysis.md`](04-mixin-analysis.md) 与
-[`07-migration-architecture.md`](07-migration-architecture.md) §降级矩阵：
+源自 Mixin / schematic 无法迁移，详见 [`../archive/04-mixin-analysis.md`](../archive/04-mixin-analysis.md) 与
+[`../architecture.md`](../architecture.md) §降级矩阵：
 
 | 功能 | 所属通道 | 降级表现 |
 |---|---|---|

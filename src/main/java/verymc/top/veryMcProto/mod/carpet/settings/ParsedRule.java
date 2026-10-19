@@ -14,7 +14,7 @@ import org.bukkit.command.CommandSender;
  * 当前值存于源静态字段（volatile——监听器/日志过滤器会在非主线程读取，上游同病的加固，对账登记）；
  * 默认值 = 解析时的字段初值快照。
  *
- * <p>与上游的偏差（对账登记，docs/carpet.md）：删 scarpet（appSource/ScarpetValidator）、
+ * <p>与上游的偏差（对账登记，docs/carpet/architecture.md）：删 scarpet（appSource/ScarpetValidator）、
  * client 半边（_CLIENT/canBeToggledClientSide）、Translations 体系（desc/extra 直接来自注解内联英文）、
  * Comparable 与 deprecated 访问器群。
  */

@@ -8,7 +8,7 @@ import net.minecraft.resources.Identifier;
  * <p>与既有三 mod 的 Reference 差异：carpet 的版本串域是<b>上游 carpet 自身的 mod_version</b>（逐字常量），
  * 不是本插件版本——P3 协议握手 HI 帧将携带该值，客户端 {@code ClientNetworkHandler} 对其做
  * {@code equals} 严格比较，发插件版本号（mcVersion-bN 之类）必触发版本不匹配 warn
- * （docs/carpet.md §3 裁决；26.2 线该值为 "26.2"、26.1 线该值为 "26.1"，均无法从本仓库 gradle.properties 派生）。
+ * （docs/carpet/protocol.md 裁决；26.2 线该值为 "26.2"、26.1 线该值为 "26.1"，均无法从本仓库 gradle.properties 派生）。
  */
 public final class CarpetReference
 {

@@ -1,3 +1,5 @@
+> 🧊 **已归档（冻结）**：1.21.11 交付期迁移研究笔记，内容冻结于归档日；文中链接指向归档时旧路径，现行文档见 [docs/index.md](../../index.md)。结论已由 [servux/protocol.md](../../servux/protocol.md) 与 [servux/providers.md](../../servux/providers.md) 承载。
+
 # other-packets 迁移笔记（Entities / Tweaks / Structures / Litematics）
 
 > 对照样板：`ServuxHudPacket.java` / `ServuxHudHandler.java`（HUD 协议版本 2）。本模块 4 条通道协议帧与 HUD 高度同构，主要差异在 **Type 枚举成员数 / 字节布局分支 / 是否有 C2S bulk 分片接收**。

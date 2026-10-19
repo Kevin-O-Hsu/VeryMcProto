@@ -32,7 +32,7 @@ import java.util.regex.Pattern;
  *
  * <p>Phase 5 起为 carpet 命令族的输出层（上游 /distance /info /perimeterinfo /draw /spawn 全经它）。
  * imports 全为 vanilla 公开 chat API + org.slf4j（NMS 自带，{@code MinecraftServer.LOGGER} 同源）——
- * 零 Mixin/零 scarpet 依赖，全量可迁（判定见 docs/carpet.md）。
+ * 零 Mixin/零 scarpet 依赖，全量可迁（判定见 docs/carpet/architecture.md）。
  *
  * <p><b>与上游的偏差</b>：零功能偏差（仅包名与本 javadoc）。P4 {@code SpawnReport} 的 § 码私有
  * {@code heatmapColor/creatureTypeColor} 保留不动——HUD footer 走 {@code setPlayerListFooter(String)}

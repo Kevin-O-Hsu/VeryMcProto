@@ -27,7 +27,7 @@ import net.minecraft.world.level.block.state.BlockState;
  *
  * <p>同步单次全扫（数千万块迭代，主线程秒级——上游同构，无耗时/进度机制）。全 vanilla 公开 API
  * （{@code NaturalSpawner.isValidEmptySpawnBlock} / {@code SpawnPlacements} / {@code ChunkGenerator.getMobsAt}），
- * 零 Mixin 依赖。深 ServerLevel/Mob 依赖 → 纯 JVM 单测不可构造，实机覆盖（判定见 docs/carpet.md）。
+ * 零 Mixin 依赖。深 ServerLevel/Mob 依赖 → 纯 JVM 单测不可构造，实机覆盖（判定见 docs/carpet/architecture.md）。
  */
 public class PerimeterDiagnostics
 {

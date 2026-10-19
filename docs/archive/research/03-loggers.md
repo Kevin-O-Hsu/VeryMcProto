@@ -1,3 +1,5 @@
+> 🧊 **已归档（冻结）**：1.21.11 交付期迁移研究笔记，内容冻结于归档日；文中链接指向归档时旧路径，现行文档见 [docs/index.md](../../index.md)。结论已由 [servux/providers.md](../../servux/providers.md) 承载。
+
 # loggers 迁移笔记
 
 > 原版源码根: `I:/Programming/VeryMcProto/OriginImpl/servux-LTS-1.21.11/src/main/java/fi/dy/masa/servux/loggers`

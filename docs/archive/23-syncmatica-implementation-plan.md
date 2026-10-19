@@ -1,3 +1,5 @@
+> 🧊 **已归档（冻结）**：实现总览快照，内容冻结于归档日；文中 docs/ 链接指向归档时的旧路径，现行文档见 [docs/index.md](../index.md)。关键决策已由 [syncmatica/architecture.md](../syncmatica/architecture.md) 各节承载。
+
 # 23 · Syncmatica 实现总览
 
 > ✅ **syncmatica（投影共享）已 100% 完整实现**。本文档从「待移植逐阶段作战手册」改写为「实现总览」——记录实际包结构、文件清单、已落地的关键实现决策与完成状态。

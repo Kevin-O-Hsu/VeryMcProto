@@ -27,7 +27,7 @@ import net.minecraft.world.phys.Vec3;
  * （1.21.11 树）的 Paper 移植：以玩家自身权限为载体执行命令（无提权），覆写
  * {@code sendSuccess/sendFailure} 采集输出与错误供 clientCommand 回执组装。
  *
- * <p>与上游的结构差异（对账登记，docs/carpet.md §3 偏差清单）：
+ * <p>与上游的结构差异（对账登记，docs/carpet/protocol.md 偏差清单）：
  * <ul>
  *   <li><b>删 {@code setupPrivates}</b>——上游经 Mixin（{@code CommandSourceStack_scarpetMixin}）把
  *       resultCallback 等 5 个私有字段写入基类；Paper 无 Mixin 运行时不可照抄。B 侧用 9 参 public

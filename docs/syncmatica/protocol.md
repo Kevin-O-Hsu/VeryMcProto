@@ -2,7 +2,7 @@
 
 > **状态**：syncmatica（投影共享）已 100% 完整实现并实测通过。本文是【已实现说明】——所有协议字段、收发路径、Exchange 状态机、分片机制均已落地，对应代码在 `src/main/java/verymc/top/veryMcProto/mod/syncmatica/`。
 > **原版对照**：`OriginImpl/syncmatica-LTS-1.21.11/src/main/java/ch/endte/syncmatica/`（逐行对照的权威实现）。
-> **相关文档**：架构总览 [20](20-syncmatica-architecture.md)；Mixin→Bukkit 映射与降级 [22](22-syncmatica-mixin-migration.md)；实施记录 [23](23-syncmatica-implementation-plan.md)；测试 [24](24-syncmatica-testing-guide.md)；项目总览 [../CLAUDE.md](../CLAUDE.md)。
+> **相关文档**：架构总览 [20](architecture.md)；Mixin→Bukkit 映射与降级 [22](../archive/22-syncmatica-mixin-migration.md)；实施记录 [23](../archive/23-syncmatica-implementation-plan.md)；测试 [24](testing.md)；项目总览 [../CLAUDE.md](../../CLAUDE.md)。
 > **字段语义对照**：syncmatica 是双端 mod，同仓库的 `communication/ClientCommunicationManager.java` + 各 `*Client` Exchange 即协议接收端。本文所有字段顺序均已对照客户端 `receiveMetaData` / `receivePositionData` 确认一致。
 
 ---
@@ -401,4 +401,4 @@ UUID hash = UUID.nameUUIDFromBytes(md5.digest());   // type-3 UUID
 
 ---
 
-> **相关**：Mixin→Bukkit 映射、降级矩阵、持久化路径 → [22-syncmatica-mixin-migration.md](22-syncmatica-mixin-migration.md)；实施记录 → [23-syncmatica-implementation-plan.md](23-syncmatica-implementation-plan.md)；客户端兼容测试 → [24-syncmatica-testing-guide.md](24-syncmatica-testing-guide.md)。
+> **相关**：Mixin→Bukkit 映射、降级矩阵、持久化路径 → [../archive/22-syncmatica-mixin-migration.md](../archive/22-syncmatica-mixin-migration.md)；实施记录 → [../archive/23-syncmatica-implementation-plan.md](../archive/23-syncmatica-implementation-plan.md)；客户端兼容测试 → [testing.md](testing.md)。

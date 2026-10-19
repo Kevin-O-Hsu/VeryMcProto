@@ -2,7 +2,7 @@
 
 > Litematica 投影是 Servux **最大、最复杂**的子系统（约 9000 行）。本文聚焦移植关心的：数据结构、传输协议、序列化、纯算法可移植性。
 > 原版目录：`OriginImpl/servux-LTS-1.21.11/src/main/java/fi/dy/masa/servux/schematic/`（含 `container/`、`placement/`、`selection/`、`transmit/`、`conversion/`）。
-> Provider 入口见 [03](03-dataproviders-detail.md) §Litematics；分包机制见 [02](02-network-protocol.md) §PacketSplitter。
+> Provider 入口见 [03](providers.md) §Litematics；分包机制见 [02](protocol.md) §PacketSplitter。
 
 ---
 
@@ -120,7 +120,7 @@ public void receiveSlice(int number, Slice slice) {       // 乱序安全
 
 ### 2.2 第二级：`PacketSplitter`（网络层，~1MiB/包）
 
-> 见 [02](02-network-protocol.md) §5。每个 16KiB slice 装进一个 Payload，若该 Payload 仍超网络单包上限（S2C 1MiB / plugin messaging 32KiB），再由 PacketSplitter 切。
+> 见 [02](protocol.md) §5。每个 16KiB slice 装进一个 Payload，若该 Payload 仍超网络单包上限（S2C 1MiB / plugin messaging 32KiB），再由 PacketSplitter 切。
 
 ### 2.3 两级分包示意
 
@@ -133,7 +133,7 @@ Litematic 文件 (5 MiB)
   └─ Slice[319] ─▶ ...
 ```
 
-> **Paper 迁移**：两级分包**全可照抄**（纯 Java）。唯一改动：第二级的 PacketSplitter 分片常量受 plugin messaging 32KiB 限制（见 [02](02-network-protocol.md) §5.2 / [07](07-migration-architecture.md)）。
+> **Paper 迁移**：两级分包**全可照抄**（纯 Java）。唯一改动：第二级的 PacketSplitter 分片常量受 plugin messaging 32KiB 限制（见 [02](protocol.md) §5.2 / [07](../architecture.md)）。
 
 ---
 
@@ -239,7 +239,7 @@ class AreaSelection {
 
 - `SchematicPlacement.createFromNbt(tags)`：从客户端粘贴请求解析（含旋转 `Rotation` / 镜像 `Mirror` / 各子区域位置 / 是否忽略实体）。
 - `pasteTo(ServerLevel, ReplaceBehavior, PasteLayerBehavior, LayerRange)`：核心粘贴——遍历每个 Region 的每个方块，应用旋转/镜像变换，按 `ReplaceBehavior` 写世界。
-- **镜像修复的内联点**：粘贴时对箱子/铁轨/楼梯的 `mirror`/`rotate` 结果做修正（替代 [04](04-mixin-analysis.md) 的 `MixinChestBlock`/`MixinRailBlocks`/`MixinStairsBlock`）。
+- **镜像修复的内联点**：粘贴时对箱子/铁轨/楼梯的 `mirror`/`rotate` 结果做修正（替代 [04](../archive/04-mixin-analysis.md) 的 `MixinChestBlock`/`MixinRailBlocks`/`MixinStairsBlock`）。
 - `SchematicPlacingUtils`：放置辅助（含原版方块放置校验 `PlacementHandler`）。
 
 ### 粘贴请求处理（`LitematicsDataProvider.handleClientPasteRequest`）
@@ -275,7 +275,7 @@ class AreaSelection {
 
 ## 8. 与网络层的衔接（移植注意）
 
-- 投影传输走 `servux:litematics` 通道（[03](03-dataproviders-detail.md) §Litematics）。
-- 大投影 = SchematicBuffer(16KiB) → PacketSplitter(网络包) 两级分包（[02](02-network-protocol.md) §5）。
+- 投影传输走 `servux:litematics` 通道（[03](providers.md) §Litematics）。
+- 大投影 = SchematicBuffer(16KiB) → PacketSplitter(网络包) 两级分包（[02](protocol.md) §5）。
 - Paper 端若 plugin messaging 限制 32KiB：每个 16KiB slice 仍在限制内，**单 slice 不会再触发 PacketSplitter 二次分包**（16KiB < 32KiB），反而简化——但仍保留 PacketSplitter 作为保险（应对极端情况）。
 - session key（`SliceKey`）需在插件侧维护 `Map<UUID, Long>` 映射，与原版 `SchematicBufferManager.playerMap` 一致。

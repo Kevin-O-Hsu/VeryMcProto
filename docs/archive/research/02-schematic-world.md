@@ -1,3 +1,5 @@
+> 🧊 **已归档（冻结）**：1.21.11 交付期迁移研究笔记，内容冻结于归档日；文中链接指向归档时旧路径，现行文档见 [docs/index.md](../../index.md)。结论已由 [servux/schematic.md](../../servux/schematic.md) as-built 承载。
+
 # schematic-world 迁移笔记
 
 > 模块: 投影主类 + 元数据 + Schema + 放置粘贴 + 文件传输协议

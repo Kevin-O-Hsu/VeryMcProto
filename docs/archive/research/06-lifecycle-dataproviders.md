@@ -1,3 +1,5 @@
+> 🧊 **已归档（冻结）**：1.21.11 交付期迁移研究笔记，内容冻结于归档日；文中链接指向归档时旧路径，现行文档见 [docs/index.md](../../index.md)。结论已由 [architecture.md](../../architecture.md) §2/§4 承载。
+
 # 生命周期层 + 4 Provider 迁移笔记 (lifecycle-dataproviders)
 
 > 模块范围: `event/`（分发器 Dispatcher）+ `servux/`（回调实现 Listener）+ `interfaces/`（回调接口）+ `dataproviders/` 下除 `HudDataProvider` 外的全部（`DataProviderBase`/`IDataProvider`/`DataProviderManager`/`ServuxConfigProvider`/`EntitiesDataProvider`/`TweaksDataProvider`/`StructureDataProvider`/`LitematicsDataProvider`）。

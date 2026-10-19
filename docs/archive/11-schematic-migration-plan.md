@@ -1,3 +1,5 @@
+> 🧊 **已归档（冻结）**：已执行的移植蓝图，内容冻结于归档日；文中 docs/ 链接指向归档时的旧路径，现行文档见 [docs/index.md](../index.md)。现行 as-built = [servux/schematic.md](../servux/schematic.md)。
+
 # 11 · Litematica 投影子系统移植蓝图（文件投递 + 投影粘贴）
 
 > ✅ **schematic 子系统已完整移植并实测通过**（文件投递 + 投影粘贴全功能，详见 [05](05-schematic-system.md)）；本文档作为历史逐阶段蓝图保留（P0–P9 文件清单 + 降级点 + 编译门），不再代表待办工作。

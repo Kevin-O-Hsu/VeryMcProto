@@ -1,3 +1,5 @@
+> 🧊 **已归档（冻结）**：内容冻结于归档日；文中 docs/ 链接指向归档时的旧路径，现行文档见 [docs/index.md](../index.md)。活内容已蒸馏入 [architecture.md](../architecture.md)（§3 投递与字节限制 / §3.6 NMS 坑 / §8 防御要点）与 [servux/protocol.md](../servux/protocol.md) §9（wire 真值）。
+
 # 09 · VeryMcProto 移植交付说明（注意事项 / 与原版差异 / 降级）
 
 > 本文档是 VeryMcProto（Servux 协议 Mod → Paper 1.21.11 插件移植）的**交付说明**：架构决策、移植进度、1.21.11 API 坑全集、与原版 Servux 的差异/适配点、降级清单、防御性要点、验收指南。

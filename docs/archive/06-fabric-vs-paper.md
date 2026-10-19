@@ -1,3 +1,5 @@
+> 🧊 **已归档（冻结）**：内容冻结于归档日；文中 docs/ 链接指向归档时的旧路径，现行文档见 [docs/index.md](../index.md)。活内容（逐域对照）已蒸馏入 [architecture.md](../architecture.md) §6。
+
 # 06 · Fabric ↔ Paper 框架差异对照
 
 > 逐维度对照"Servux 在 Fabric 怎么做"vs"在 Paper 插件怎么等价实现"。每行可直接当作迁移转换规则用。

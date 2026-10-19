@@ -4,7 +4,7 @@
 >
 > 配方同步层的 wire 真权威是 **Fabric API** `fabric-recipe-api-v1`（github FabricMC/fabric 分支 `1.21.11`，本地对照 `OriginImpl/fabric-1.21.11/`）；NeoForge 层是 NeoForge 加载器（wire 参考 `OriginImpl/JEIRecipeBridge-1.21.11/`——本线旧桥的直接上游）。
 >
-> 相关阅读：[02-network-protocol.md](02-network-protocol.md)（字节上限 §5.2 / Mixin 处置见 04-mixin-analysis.md）、命令/权限/配置见根 [../README.md](../README.md) 与 [../AGENTS.md](../AGENTS.md)、总索引 [00-INDEX.md](00-INDEX.md)。
+> 相关阅读：[../servux/protocol.md](../servux/protocol.md)（字节上限 §5.2 / Mixin 处置见 04-mixin-analysis.md）、命令/权限/配置见根 [../README.md](../../README.md) 与 [../AGENTS.md](../../AGENTS.md)、总索引 [../index.md](../index.md)。
 
 ## 0. 协议全景（三层）
 
@@ -125,7 +125,7 @@ recipes:    VarInt(count) + RecipeHolder.STREAM_CODEC 列表
 
 触发 = `PlayerJoinEvent` + brand=="neoforge"（**保留旧行为**——NeoForge 客户端连 Paper 服处于 vanilla 模式，其通道声明行为不可依赖；此路径即本线旧桥已实机验证的原行为，1.21.11-b1~b4 发版实证）。聊天提示仅此路径保留。
 
-## 6. 尺寸模型（字节上限真值见 [02-network-protocol.md](02-network-protocol.md) §5.2）
+## 6. 尺寸模型（字节上限真值见 [../servux/protocol.md](../servux/protocol.md) §5.2）
 
 - **32767** = 客户端对**未知通道** custom payload 的 discarded 解码上限（超过断连）——对发给 vanilla/未装 mod 客户端的任意通道成立，servux 的 PacketSplitter 32000 分片防的就是它。
 - **已知通道不受此限**：Fabric API 把 `fabric:recipe_sync` 注册为 64MB large payload（客户端 codec + mixin 提限）。我方单包直发给 Fabric API 客户端安全（本线实机验证——旧桥同路径直发全量配方 >1MiB 场景，1.21.11-b1~b4）。
@@ -219,4 +219,4 @@ command/JeiCommand     /jei status|enable|disable
 
 ---
 
-> **回到索引**：[00-INDEX.md](00-INDEX.md) · 项目权威说明：[../AGENTS.md](../AGENTS.md)
+> **回到索引**：[../index.md](../index.md) · 项目权威说明：[../AGENTS.md](../../AGENTS.md)

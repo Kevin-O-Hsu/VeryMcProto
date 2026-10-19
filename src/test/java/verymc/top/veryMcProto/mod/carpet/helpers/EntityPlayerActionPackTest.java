@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /**
  * Action 工厂语义锁（/player 动作子命令 once|continuous|interval &lt;ticks&gt; 的核心参数语义，
  * 上游 EntityPlayerActionPack.java:555-573）。Action.tick/retry 的执行路径依赖 NMS ServerPlayer
- * （构造/瞄准/挖掘全 NMS 面），不入纯 JVM 单测面——实机判据承载（docs/carpet.md §7 P2 判据①）；
+ * （构造/瞄准/挖掘全 NMS 面），不入纯 JVM 单测面——实机判据承载（docs/carpet/architecture.md §6 P2 判据①）；
  * 此处经反射锁定四工厂的计时字段初值（移植最易漂移的 once 达限/interval 节拍/offset 相位语义）。
  */
 class EntityPlayerActionPackTest
