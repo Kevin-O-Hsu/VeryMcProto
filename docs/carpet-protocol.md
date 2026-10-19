@@ -48,8 +48,10 @@
 **版本串纪律（同 servux MOD_STRING 门禁级）**：HI 帧版本串 = `CarpetReference.CARPET_VERSION` =
 上游 mod_version 逐字值（26.2 线 = `"26.2"`，`OriginImpl/fabric-carpet-26.2/gradle.properties:15`），
 **禁止发插件版本号**（`26.2-b3` 之类必触发客户端 `equals` 严格比较 warn）——`CarpetHelloFrameTest.
-carpetVersionLiteralGuard` 单测锁死。ver 线 per-line 取值：26.1 树 = `26.1`、1.21.11 树 = `1.4.194`
-（P7 铺开时对齐各线上游 gradle.properties）。
+carpetVersionLiteralGuard` 单测锁死。ver 线 per-line 取值（**as-built 2026-10-19，两线已铺开**：
+26.1.2 线 = `"26.1"`（commit `0e278bc`）、1.21.11 线 = `"1.4.194"`（commit `71fe5b7`）——各线
+上游 `gradle.properties` 逐字对齐，字面锁随线同步；各线 as-built 见其自含文档 `31-carpet.md` /
+`carpet.md`）。
 
 **版本 warn 语义（判据①口径）**：客户端对其自身版本与 HI 值做 `equals` 严格比较
 （`ClientNetworkHandler.java:95-101`），不等仅本地 LOG.warn（非聊天、不断连）。真实发布的 carpet

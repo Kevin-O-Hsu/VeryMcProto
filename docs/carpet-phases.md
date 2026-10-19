@@ -145,6 +145,7 @@
   - **协议 / 日志 / 命令 / 规则层**：跨线漂移**未逐线评估**——铺开前须对照 `OriginImpl/fabric-carpet-<线>/` 逐线复核（尤其 HI 版本串 per-line：26.1 树 = `26.1`、1.21.11 树 = `1.4.194`，见 §5）
 - **完成判据**：铺开线实机验收 = dev 线同判据；ver 线 `buildNumber` 独立递增（分支模型，根 AGENTS.md）
 - **依赖**：P1/P2/P4/P5 完成态（P6 可选随行；P3 可缺席）
+- **执行注记（2026-10-19 as-built，详录见 carpet-architecture.md §22-§24）**：①逐线复核已完成——上游三树 network/settings/logging 逐字节相同（协议/规则/日志层零跨线漂移），commands/patches/helpers 差异收敛为 EntitySpawnRequest 单点 / checkFallDamage 5 行 / ActionPack 三调用点；②「假人直接铺」结论修正为「直接铺 + 掉落伤害 per-line 决策」——Paper 玩家物理路径 per-line 根本不同（26.2 关闭 vs 26.1.2/1.21.11 敞开但权威门吞掉 checkFallDamage），两 ver 线改走 `isClientAuthoritative()` 覆写恢复 vanilla 链（偏差 #63，勿跨线互抄）；③实机验收新增掉落差分判据（survival 假人 40 格坠落致死，两线实证）；④验收边界二分——服务端侧自证全过，用户侧终验清单（各线对应版本 carpet 客户端）留用户执行。
 
 ---
 
@@ -168,4 +169,4 @@
 | P4 | 日志（/log + tps/mobcaps） | ✅ 已完成 | 2026-10-19：判据①服务端侧全链就绪（HUD 行公式逐字 + footer 只写路径 + 单测/冒烟）——carpet 客户端 HUD 终验留用户侧（phases §6 验证方式即"客户端实机"）；判据②状态机全矩阵单测（墓碑双信号模型 + join 谓词 + carpet-logs.json 往返）+ conf/13 规则往返；判据③仓内零占用 grep + 只写 footer（零 header 触碰）；runServer 冒烟（console 三入口拒绝面/13 规则/conf 往返/假人豁免/disable 三连清）+ 单测 171/0/0（新增 CarpetLoggerTest 18）；as-built = [carpet-architecture.md](carpet-architecture.md) §16-§18 | 见交付 commit（feat: Carpet Phase 4） |
 | P5 | 命令族（纯计算类） | ✅ 已完成 | 2026-10-19：五命令 runServer 实测（distance 三距离 100.00/100.00/100.0 含 Vec3Argument 居中、spawn mobcaps 八类别多行 + entities monster 空表、draw sphere r3 → Filled 98 blocks、help 树含 perimeterinfo [\<center>] [\<mob>] 与 info block [grep]）+ 18 规则全列（五新规则在册，上游 :411-490 实名逐字）；`/spawn mobcaps` 与 `/log mobcaps` 同 `SpawnReport`/`SpawnState` 数据源（交叉一致构造性成立）；单测 175/0/0（新增 DistanceCalculatorTest 4 + 规则表扩 18 锁 + 方法名更名）；`/info` `/perimeterinfo` 执行面与玩家侧（tab 补全/点击组件）终验留用户实机（wander_chances/全扫为慢路径）；as-built = [carpet-architecture.md](carpet-architecture.md) §19-§20；scope §3 /distance /info 两行已按上游源码勘误 | 见交付 commit（feat: Carpet Phase 5） |
 | P6 | 近似规则自选池 | ⬜ 未开始（可选） | — | — |
-| P7 | 三线铺开 | ⬜ 未开始 | — | — |
+| P7 | 三线铺开 | ✅ 已完成 | 2026-10-19：两 ver 线原子交付（代码+该线文档同 commit）——ver/26.1.2-dev `0e278bc`（61 文件，HI="26.1"，buildNumber 7→8，适配 6 处）+ ver/1.21.11-dev `71fe5b7`（57 文件，HI="1.4.194"，buildNumber 5→6，适配 3 处增量）；build+test 全绿（168/0/0 与 125/0/0，carpet 7 类随行）；runServer 实机全判据（四模块/18 规则/conf 往返/假人全链/**掉落差分两线致死实证**/distance/mobcaps/draw/log 拒绝面）；per-line 逐线复核完成（上游三树矩阵 + 实测计数，见 carpet-architecture.md §22）；**掉落伤害 per-line 双机制**（#63：26.2 手动驱动 vs ver 线 isClientAuthoritative 覆写——Paper 玩家物理路径 per-line 根本不同，勿互抄）；用户侧终验清单（各线对应版本 carpet 客户端）留用户执行；as-built = [carpet-architecture.md](carpet-architecture.md) §22-§24 + 各线自含文档（31-carpet.md / carpet.md） | `0e278bc`（26.1.2 线）· `71fe5b7`（1.21.11 线） |

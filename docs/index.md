@@ -7,7 +7,7 @@
 > - **JEI 服务端协议**（最上游 mezz/JustEnoughItems 分支 `26.2`）—— 完整三层：配方同步（fabric/neoforge 双腿）+ jei:* 自有 10 通道 + 服务端行为层。
 > - **Syncmatica**（投影共享中央仓库）—— 单通道 + Exchange 会话层 + 文件存储 + JSON 持久化。
 >
-> **第四模块 · Carpet**（行为注入型 mod 的可移植子集）：**Phase 1「模块地基」+ Phase 2「假人 /player 全族」+ Phase 3「carpet:hello 协议」+ Phase 4「/log 日志（tps/mobcaps HUD）」+ Phase 5「命令族——纯计算类」已实现**（规则框架 + /carpet 壳 + 18 规则 + 假人子系统 + carpet:hello 握手/规则同步/clientCommand + /log 订阅框架与跨会话持久 + /distance /info /perimeterinfo /draw /spawn 五命令，as-built 见 [carpet-architecture.md](carpet-architecture.md) 与 [carpet-protocol.md](carpet-protocol.md)）；后续 Phase（近似规则池/三线铺开）规划与状态见 [carpet-phases.md](carpet-phases.md)；范围判定基线见 [carpet-porting-scope.md](carpet-porting-scope.md)。
+> **第四模块 · Carpet**（行为注入型 mod 的可移植子集）：**Phase 1「模块地基」+ Phase 2「假人 /player 全族」+ Phase 3「carpet:hello 协议」+ Phase 4「/log 日志（tps/mobcaps HUD）」+ Phase 5「命令族——纯计算类」+ Phase 7「三线铺开 ver/26.1.2 + ver/1.21.11」已实现**（规则框架 + /carpet 壳 + 18 规则 + 假人子系统 + carpet:hello 握手/规则同步/clientCommand + /log 订阅框架与跨会话持久 + /distance /info /perimeterinfo /draw /spawn 五命令 + 两 ver 维护线铺开（各线自含 as-built：26.1.2 线 `31-carpet.md`、1.21.11 线 `carpet.md`——per-branch 树），as-built 见 [carpet-architecture.md](carpet-architecture.md) 与 [carpet-protocol.md](carpet-protocol.md)）；后续 Phase（近似规则池）规划与状态见 [carpet-phases.md](carpet-phases.md)；范围判定基线见 [carpet-porting-scope.md](carpet-porting-scope.md)。
 >
 > 顶层项目说明见根 [`../AGENTS.md`](../AGENTS.md)（唯一权威；`CLAUDE.md` 已收敛为指向它的薄指针）。项目门面见根 [`../README.md`](../README.md)（英文）。
 > 原版 Fabric 源码对照：[`../OriginImpl/`](../OriginImpl/) 各子目录（详见 [references.md](references.md) §6）。

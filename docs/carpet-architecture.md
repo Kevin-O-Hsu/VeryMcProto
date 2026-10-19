@@ -1,6 +1,6 @@
-# Carpet 模块 as-built（Phase 1 模块地基 + Phase 2 假人子系统 + Phase 3 carpet:hello 协议 + Phase 4 /log 日志 + Phase 5 命令族）
+# Carpet 模块 as-built（Phase 1 模块地基 + Phase 2 假人子系统 + Phase 3 carpet:hello 协议 + Phase 4 /log 日志 + Phase 5 命令族 + Phase 7 三线铺开）
 
-> **状态**：Phase 1 已实现（2026-10-17，dev 线）；**Phase 2「假人——/player 全族」已实现（2026-10-18，dev 线，§11-§14）**；**Phase 3「carpet:hello 协议」已实现（2026-10-18，dev 线——wire as-built 专文 [carpet-protocol.md](carpet-protocol.md)，本文只保留装配/接口视角）**；**Phase 4「/log 日志框架 + tps/mobcaps」已实现（2026-10-19，dev 线，§16-§18）**；**Phase 5「命令族——纯计算类」已实现（2026-10-19，dev 线，§19-§21）**。范围判定唯一权威 = [carpet-porting-scope.md](carpet-porting-scope.md)（scope）；推进状态 = [carpet-phases.md](carpet-phases.md) §11；命令/权限/配置运维键 = [operations.md](operations.md) §1.6-§1.13/§2.1/§3.4-§3.5。本文承载 as-built 细节与**全量偏差清单**（上游对照树 = `OriginImpl/fabric-carpet-26.2/`，tag `v26.2`）。
+> **状态**：Phase 1 已实现（2026-10-17，dev 线）；**Phase 2「假人——/player 全族」已实现（2026-10-18，dev 线，§11-§14）**；**Phase 3「carpet:hello 协议」已实现（2026-10-18，dev 线——wire as-built 专文 [carpet-protocol.md](carpet-protocol.md)，本文只保留装配/接口视角）**；**Phase 4「/log 日志框架 + tps/mobcaps」已实现（2026-10-19，dev 线，§16-§18）**；**Phase 5「命令族——纯计算类」已实现（2026-10-19，dev 线，§19-§21）**；**Phase 7「三线铺开 ver/26.1.2 + ver/1.21.11」已实现（2026-10-19，§22-§24）**。范围判定唯一权威 = [carpet-porting-scope.md](carpet-porting-scope.md)（scope）；推进状态 = [carpet-phases.md](carpet-phases.md) §11；命令/权限/配置运维键 = [operations.md](operations.md) §1.6-§1.13/§2.1/§3.4-§3.5。本文承载 as-built 细节与**全量偏差清单**（上游对照树 = `OriginImpl/fabric-carpet-26.2/`，tag `v26.2`——本线；两 ver 线对照各自上游树，见 §22）。
 >
 > 上游本质是**行为注入型** mod（171 服务端 Mixin）——与既有三 mod（协议投递型）根本不同；本模块只移植 scope 判定为可完整等价的子集，P1 = 模块地基（规则框架 + `/carpet` 壳 + 8 条地基规则），P2 = 假人子系统（patches 三件套 + ActionPack + `/player` 全族 + 3 条假人规则）。
 
@@ -288,3 +288,38 @@ B 侧结构（`mod/carpet/` 下）：
 - `CarpetRuleRegistryTest` 扩 18 规则锁（五条 P5 规则名/默认/类型 + CommandLevel OPTIONS 推断断言；方法名 `exactlyElevenRulesRegistered`→`exactlyEighteenRulesRegistered` 事实更名——原名自 13 规则期已陈旧）。
 - **纯测不可行面如实声明**：PerimeterDiagnostics（ServerLevel/Mob 深依赖）、DrawCommand 几何（setBlock 依赖世界）、InfoCommand grep（依附 BlockInfo 行列表）→ 实机承载。
 - **实机判据（phases §7）**：runServer 已验（2026-10-19）——`carpet list` 18 规则全列；`distance from 0 -60 0 to 100 -60 0` 三行输出逐字（含 Vec3Argument 整数居中 0.5——上游同构）；`spawn mobcaps` 八类别多行 + `spawn entities monster` 空表回执；`draw sphere 0 -60 0 3 minecraft:glass` → "Filled 98 blocks"（r=3 空心球壳正确）；`help perimeterinfo`/`help info` 树形（`[<center position>] [<mob>]`/`block <block position> [grep]`——CommandBuildContext + ResourceArgument 链路注册实证）；零 `[Carpet] failed to register` 日志。**用户侧终验**：`/info block` 属性清单对照上游、`/perimeterinfo` 周界报告（慢路径）、`/perimeterinfo <tab>` 补全全集（#55 硬判据）、可点击 tp 组件点击行为、`/spawn mobcaps` 与 `/log mobcaps` 数值交叉目检。
+
+---
+
+## §22 P7 三线铺开总览（2026-10-19 as-built）
+
+把本线（dev/26.2）已验收的 Carpet 全模块（P1+P2+P3+P4+P5；P6 按用户裁决跳过）铺开到两条旧版本维护线，**每线一个原子 commit（代码 + 该线文档同车）**：
+
+| 线 | commit | 交付物 | buildNumber | 服务端侧验收 |
+|---|---|---|---|---|
+| `ver/26.1.2-dev` | `0e278bc` | 61 文件（carpet 48 + 主类三触点 + plugin.yml + gradle.properties + 文档 11） | 7→8 | build 绿 + 168 单测 0 失败 + runServer 全判据（§24） |
+| `ver/1.21.11-dev` | `71fe5b7` | 57 文件（同构；1.21.11 线自 `ver/26.1.2-dev` 版整体铺开——已含两项 26.x 回退面） | 5→6 | build 绿（Java 21）+ 125 单测 0 失败 + runServer 全判据（§24） |
+
+- **铺开方法**：`git checkout <源线> -- mod/carpet 两目录`（只携带 carpet 文件，零源线演进污染）+ 编译驱动逐点适配（目标形态一律取上游该线树同位实现）+ 全判据实机验收——与仓库 ver 线手工落码惯例（jei 先例）同判。
+- **分子系统等价性复核结论**（phases §9 预判的逐线复核，as-built 实证）：上游三树 `network/`+`settings/`+`logging/` **逐字节相同**（协议/规则/日志层零跨线漂移）；`commands/` 仅 PerimeterInfoCommand 差 `EntitySpawnRequest` 单点（26.2 独有）；`patches/` 仅 EntityPlayerMPFake 差 5 行（checkFallDamage override，26.x 独有）；`helpers/`（ActionPack）26.1↔1.21.11 差三处调用点（见偏差 #64）。**协议层唯一 per-line 值 = HI 版本串**：26.2=`"26.2"`、26.1 树=`"26.1"`、1.21.11 树=`"1.4.194"`（各线上游 `gradle.properties` 逐字；`CarpetHelloFrameTest` 字面锁随线同步）。
+- **P3 协议随行判定实证**：carpet 客户端对各线均要求 HI 值等于其自身 mod_version——26.1 线客户端 / 1.21.11 线 carpet 1.4.194 客户端各验（用户侧终验清单，§24）。
+- **文档承载**：26.1.2 线 = `docs/31-carpet.md`（编号沿该线 NN- 体系）+ `40-configuration.md` 增补 carpet 节；1.21.11 线 = `docs/carpet.md` **自含含运维节**（该线 2026-10 起新文档主题命名，沿 jei.md 先例；且无独立运维文档）。两线源码 javadoc 的 32 处 `docs/carpet-*.md §X` 锚点全部重指各线自含文档对应节。
+
+## §23 P7 per-line 适配矩阵与偏差清单（续 §9/§14/§17/§20 编号）
+
+**实测适配计数**（相对本线 as-built 的回退/改写面）：26.1.2 线 = **6 处**（EntityTypes 回并 ×2 + EntitySpawnRequest 回退 + HI 常量与字面锁 + 谱系/锚点族）；1.21.11 线 = 26.1.2 版基础上**再 3 处**（ActionPack :347/:353 签名 + jump 分支删行）+ HI=`"1.4.194"`。其余预测漂移面（CompoundTag Optional 族 25 处/10 文件、ResourceKey 访问器、`random→getRandom`、`sendSystemMessage`、`getAverageTickTimeNanos`、判级链）**实测零漂移**——1.21.11 的 `Identifier`/`CompoundTag` 使用面/Paper Brigadier/`isClientAuthoritative`/`doTick`/`teleport(PositionMoveRotation)` 等 API 均已具备（编译驱动实证）。
+
+| # | 偏差 | 理由 |
+|---|---|---|
+| 63 | **掉落伤害 per-line 双机制**：26.2 线（dev）= tick 手动累积 fallDistance + 落地直调 `causeFallDamage`（§14 #37 的 `tickFallDamageDrive` 重构件）；26.1.2 与 1.21.11 线 = `EntityPlayerMPFake` 覆写 `isClientAuthoritative()` 返回 false，删手动驱动 | **Paper 玩家物理路径 per-line 根本不同**（勿跨线互抄）：26.2 上服务端玩家物理被 Paper 关闭（#37 实测）；26.1.2/1.21.11 上物理**敞开**（假人重力/行走全物理真实，实测 4.3 m/s 步行）但 `Entity.move` 的 `isLocalInstanceAuthoritative()` 门控（`Player.isClientAuthoritative()` 恒 true）吞掉 vanilla `checkFallDamage` 链。覆写该位为 false（假人无客户端，服务端实例即移动权威——语义为真）恢复全 vanilla 掉落语义，比手动直调更保真（含干草块/蜘蛛网等特殊 fallOn 方块）。**根因链**：26.x 的玩家 tick 入口 = `SGPL.tickPlayer → doTick()`（invokespecial 直跳 `Player.tick`）——子类 `tick()` 覆写在 26.1.2 上不可达，26.2 的手动驱动在旧线沦为旁观者（编译与常规判据均不可见的静默失效）。上游 26.1/1.21.11 树的 5 行 `checkFallDamage → doCheckFallDamage` 桥接在 Paper 门控形态下不可达（桥接目标同样被挡），不采用。**排错口径**：创造假人免伤与 PEACEFUL 拒绝难度缩放伤害均系 vanilla 语义（`/player spawn` 控制台默认创造——测伤害须 `in survival` 全链；先查 `/difficulty`） |
+| 64 | 1.21.11 线 ActionPack 三调用点（`entity.interactAt(player, hitPos, hand)` / `player.interactOn(entity, hand)` 两参 / jump 分支无 `tryToStartFallFlying`） | 上游 1.21.11 树同位形态（26.x 才改签名/加行）；`EntityTypes` 回并 + `EntitySpawnRequest` 回退同判（26.2 独有面） |
+| 65 | 两 ver 线 javadoc 锚点/谱系 per-line 重指（32 处 `docs/carpet-*.md §X` → 各线自含文档节；`fabric-carpet-26.2` → 各线上游树） | ver 线 docs 为各自体系且无 carpet 文档（悬空锚点/失真谱系）；版本 grep 门禁合规（1.21.11 线 javadoc 版本串先例 = 该线 10 文件既有形态） |
+| 66 | ver 线文档承载 per-line（26.1.2 = `31-carpet.md` 编号 + `40-configuration.md` 增补；1.21.11 = `carpet.md` 主题命名自含**含运维节**） | 各线自身 AGENTS.md 约定（编号体系 vs 主题命名先例 jei.md；1.21.11 线无运维全键文档）；跨分支引用不可达 → per-line 文档必须自含 |
+
+## §24 P7 测试锚与实机判据（两 ver 线，2026-10-19）
+
+- **单测随行**：carpet 7 类原样迁入两线（零用例改动；仅 `CarpetHelloFrameTest` 版本字面锁与两个 SettingsManager 构造 fixture 串随线替换）。26.1.2 线 = 27 测试类 168 单测 0 失败（CarpetLoggerTest 一次 `@TempDir` Windows 清理 IOException flake，单类重跑 18/18 + 全量复跑 168/0/0——非逻辑失败）；1.21.11 线 = 22 测试类 125 单测 0 失败。
+- **runServer 服务端侧判据（两线同集，均过）**：四模块注册 + `Done` 无 ERROR/SEVERE；`/carpet list` 18 规则全列；`setDefault customMOTD` → conf 落盘 → `removeDefault` 往返干净；假人 spawn 全链（`at <pos> facing <rot> in <dim> in <gamemode>`）→ `/list` 占位 → `/tp` 生效 → `kill` 完整退出链（PlayerQuitEvent + playerdata 存档）；`/log` 三入口 console 全部 "For players only"；`/distance from 0 -60 0 to 100 -60 0` 三行（100.00/100.00/100.0）；`/spawn mobcaps` 八类别多行；`/draw sphere r3` → "Filled 98 blocks"；**掉落差分判据（P7 新增，#63 的行为面）**：survival 假人自 111.5 坠 40 格 → 死亡（vanilla 公式 40-3=37 ≥ 20——两线均实证）；26.1.2 线另验 `move forward` 4.3 m/s 步行精确与 18 规则 `query` 详情。
+- **构建终检**：两线 `./gradlew build` 全绿 + `verifyVersionInjection` 过（`VeryMcProto-26.1.2-b8.jar` / `VeryMcProto-1.21.11-b6(-reobf).jar`——1.21.11 线保留 reobf 装配）。工具链：1.21.11 线 Java 21（`GRADLE_USER_HOME` installations 需含 zulu21 路径——本机 `D:\tmp\gradle\gradle.properties` 已配）。
+- **用户侧终验清单（未执行，留用户——两线各需对应版本 carpet 客户端）**：① 进服无 chat 可见/断连级版本警告（客户端本地 `LOG.warn` 属上游 equals 语义同源产物）② 规则浏览器显示 18 规则集（值随 `/carpet setDefault` 即时变更）③ `clientCommand` 请求-回执往返（`/call`）④ HUD tab 脚显示 tps/mobcaps ⑤ `/perimeterinfo <tab>` 补全全集 + 可点击 tp 组件。
+- **发版语义**：本次 buildNumber 递增（8/6）为铺开交付构建号；合入 `ver/26.1.2` / `ver/1.21.11` 发布线 + tag 属后续发版动作（分支模型 SOP），未自动执行。
