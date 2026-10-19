@@ -1,3 +1,5 @@
+> 🧊 **已归档（冻结）**：本文为 Servux Mixin 逐项分析的原始全表，内容冻结于归档日；文中 docs/ 链接指向归档时的旧路径，现行文档见 [docs/index.md](../index.md)。活内容（Mixin 处置矩阵 + 关键逐项去向）已蒸馏入 [architecture.md](../architecture.md) §5。
+
 # 04 · Mixin / AccessWidener 逐项分析与迁移去向
 
 > Servux 共 **25 个 Mixin**（`mixins.servux.json` 注册，实际类 26 个含 IMixin 双件）+ **2 个 AccessWidener 字段**（`servux.accesswidener`）。

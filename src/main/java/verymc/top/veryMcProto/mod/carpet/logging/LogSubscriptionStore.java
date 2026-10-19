@@ -18,9 +18,9 @@ import verymc.top.veryMcProto.framework.util.JsonUtils;
 
 /**
  * /log 订阅跨会话持久层（B 侧新增——上游订阅纯内存、重启即失，判据②要求跨会话持久；上游无对应物，
- * 偏差登记 docs/31-carpet.md）。
+ * 偏差登记 docs/carpet/architecture.md）。
  *
- * <p><b>双信号模型</b>（防两类确定性错误——退订项重登复活 / 默认规则变更对存量玩家永久冻结，机理见 docs/31-carpet.md §4.1）：
+ * <p><b>双信号模型</b>（防两类确定性错误——退订项重登复活 / 默认规则变更对存量玩家永久冻结，机理见 docs/carpet/architecture.md §3.1）：
  * <ul>
  *   <li>{@code subs} = <b>显式</b>订阅（/log 命令产生）——UUID 键 + 名字快照；</li>
  *   <li>{@code off} = <b>退订墓碑</b>（/log clear 产生）——压制 defaultLoggers 对已显式退订者的重施用

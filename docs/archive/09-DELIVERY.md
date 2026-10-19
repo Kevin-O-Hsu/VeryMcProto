@@ -1,3 +1,5 @@
+> 🧊 **已归档（冻结）**：本文为投递/字节限制/26.1 迁移实录的原始全表，内容冻结于归档日；文中 docs/ 链接指向归档时的旧路径，现行文档见 [docs/index.md](../index.md)。活内容已蒸馏入：[architecture.md](../architecture.md)（§3 投递路径与字节限制 / §3.6 NMS 坑 / §8 防御要点）、[servux/protocol.md](../servux/protocol.md) §9（wire 真值与逐通道差异）、[servux/schematic.md](../servux/schematic.md) §9（task 组 as-built）、[operations.md](../operations.md) §6（升级 SOP）。
+
 # 09 · 投递与字节限制 · 与原版差异/降级 · 26.1 迁移实录
 
 > 本文是**现行规范**三合一：① 投递路径与字节限制专题（§3 / §7 / §10，含客户端 32767 上限实证）；② 与原版 Servux 的逐通道差异/适配点 + 降级清单 + 防御性要点（§5–§7）；③ **26.1 线迁移实录（§26.1，权威）**——构建面/wire 差异/NMS 漂移实测清单，升级到下一版本时按此方法论重做。

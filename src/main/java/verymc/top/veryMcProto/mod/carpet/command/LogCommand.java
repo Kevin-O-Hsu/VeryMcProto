@@ -37,7 +37,7 @@ import static net.minecraft.commands.SharedSuggestionProvider.suggest;
  * /log clear               退订全部
  * /log clear &lt;logger&gt;       单项退订（校验 registry，上游 :159-163 拒绝文案）</pre>
  *
- * <p><b>与上游的偏差</b>（登记，docs/31-carpet.md）：
+ * <p><b>与上游的偏差</b>（登记，docs/carpet/architecture.md）：
  * <ul>
  *   <li>上游 flat 树（{@code /log <name> [option] [player]} toggle 形 + clear [player] 定向）→
  *       subscribe/clear 形、自用面（无 {@code <player>} 定向参数、无 toggle）；</li>

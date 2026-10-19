@@ -12,7 +12,7 @@ import verymc.top.veryMcProto.Reference;
  * 各方法注释；注册面锚 :40-48 为 P4 子集：仅 tps/mobcaps 两条 HUD 型，五条 chat 型与 counter/packets
  * 见 scope §4 后置/不做判定）。
  *
- * <p>与上游的偏差（对账登记，docs/31-carpet.md）：
+ * <p>与上游的偏差（对账登记，docs/carpet/architecture.md）：
  * <ul>
  *   <li><b>删 {@code seenPlayers}/{@code firstTime}</b>——其唯一消费点（上游 {@code Logger.onPlayerConnect}
  *       :215-226 的 defaultLoggers 首连施用）已随跨会话持久化模型迁至 {@link LoggerListener}

@@ -31,7 +31,7 @@ import static io.papermc.paper.command.brigadier.Commands.literal;
  * /perimeterinfo 命令（上游 {@code carpet/commands/PerimeterInfoCommand.java} 26.1 树逐字移植；
  * Paper Brigadier 载体，plugin.yml 无条目）。根裸 = 以执行者当前位为心（上游 :33-36）。
  *
- * <p><b>与上游的偏差</b>（登记，docs/31-carpet.md）：
+ * <p><b>与上游的偏差</b>（登记，docs/carpet/architecture.md）：
  * <ul>
  *   <li>suggests 桥接：上游 {@code SuggestionProviders.cast(SUMMONABLE_ENTITIES)} 的泛型界
  *       {@code <S extends SharedSuggestionProvider>} 在 paper 树泛型上不可推断 → 直接 unchecked

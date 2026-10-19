@@ -43,7 +43,7 @@ import static net.minecraft.commands.SharedSuggestionProvider.suggest;
  * drawSphere/drawDiamond/fillFlat/drawPyramid/drawPrism 单文件内联（上游同——无 ShapeDispatcher）；
  * plop 与基础形状零代码耦合（上游实证），不在移植面。
  *
- * <p><b>与上游的偏差</b>（登记，docs/31-carpet.md）：
+ * <p><b>与上游的偏差</b>（登记，docs/carpet/architecture.md）：
  * <ul>
  *   <li><b>fillUpdates 固定 true 语义</b>：上游更新抑制 = {@code impendingFillSkipUpdates}
  *       ThreadLocal（消费端全在 6 个 fillUpdates Mixin，Paper 无 Mixin 物理不可移植）→ B 侧删

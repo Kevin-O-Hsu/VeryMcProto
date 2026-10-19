@@ -1,3 +1,5 @@
+> 🧊 **已归档（冻结）**：本文为 Syncmatica Mixin 迁移的原始全表，内容冻结于归档日；文中 docs/ 链接指向归档时的旧路径，现行文档见 [docs/index.md](../index.md)。活内容（Mixin 处置 / 握手双保险与卡死修复 / 持久化映射 / 降级矩阵 / 命门清单）已蒸馏入 [syncmatica/architecture.md](../syncmatica/architecture.md) §10。
+
 # 22 · Syncmatica Mixin 分析与 Paper 迁移实现记录
 
 > **文档定位**：syncmatica（投影共享）**迁移已完成**，本文是 Mixin → Paper 迁移的【已落地实现记录】，非方案/建议。

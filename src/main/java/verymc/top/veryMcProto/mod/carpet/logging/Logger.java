@@ -14,7 +14,7 @@ import verymc.top.veryMcProto.Reference;
 /**
  * 订阅模型基类（克隆上游 {@code carpet/logging/Logger.java} 26.1 树，逐段同构——对照行号见各方法注释）。
  *
- * <p>与上游的偏差（对账登记，docs/31-carpet.md）：
+ * <p>与上游的偏差（对账登记，docs/carpet/architecture.md）：
  * <ul>
  *   <li>消息载体 NMS {@code Component[]}（Messenger DSL）→ {@code String[]}（§ 码文本——HUD 侧即
  *       {@code setPlayerListFooter(String)} 的直接输入，chat 侧经 Bukkit {@code sendMessage(String)}

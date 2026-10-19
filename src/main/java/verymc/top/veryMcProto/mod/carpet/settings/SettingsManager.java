@@ -28,7 +28,7 @@ import verymc.top.veryMcProto.Reference;
  * 未知键 error 跳过、值含空格 split(2) 保留）→ setDefault/removeDefault 命令语义
  * （live set → conf read-modify-write 落盘 → 即时生效）。
  *
- * <p>与上游的偏差（对账登记，docs/31-carpet.md）：
+ * <p>与上游的偏差（对账登记，docs/carpet/architecture.md）：
  * <ul>
  *   <li>conf 位置 = 构造注入的插件数据目录（上游 = 世界根目录 LevelResource.ROOT）；构造注入目录
  *       兼使纯 JVM 单测可用（Reference.plugin() 在测试环境为 null）；</li>
@@ -36,7 +36,7 @@ import verymc.top.veryMcProto.Reference;
  *   <li>命令面解耦到 Bukkit {@code CarpetCommand}（上游内嵌 brigadier 命令树，B 侧无该注册面）；</li>
  *   <li>删 Translations/scarpet/网络推送的<b>内嵌实现</b>——{@link #notifyRuleChanged} 经注入的
  *       回调（{@link #setRuleChangedCallback}）转发给 Phase 3 的 carpet:hello 规则推送
- *       （docs/31-carpet.md §3）；回调经 setter 注入以保持本包零 network/ 依赖（纯 JVM 单测
+ *       （docs/carpet/protocol.md）；回调经 setter 注入以保持本包零 network/ 依赖（纯 JVM 单测
  *       可独立构造本类，P1 测试形态不被破坏）。</li>
  * </ul>
  */

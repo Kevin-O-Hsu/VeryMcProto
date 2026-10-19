@@ -2,7 +2,7 @@
 
 > Litematica 投影是 Servux **最大、最复杂**的子系统（约 9000 行）。本文聚焦移植关心的：数据结构、传输协议、序列化、纯算法可移植性。
 > 原版目录：`OriginImpl/servux-LTS-1.21.11/src/main/java/fi/dy/masa/servux/schematic/`（含 `container/`、`placement/`、`selection/`、`transmit/`、`conversion/`）。
-> Provider 入口见 [03](03-dataproviders-detail.md) §Litematics；分包机制见 [02](02-network-protocol.md) §PacketSplitter。
+> Provider 入口见 [03](providers.md) §Litematics；分包机制见 [02](protocol.md) §PacketSplitter。
 
 ---
 
@@ -102,7 +102,7 @@ final long capacityBits = (long) blockStateArr.length * 64L;
 if (totalVolume < 0 || totalVolume > capacityBits / bits) { error("servux.litematics.error.schematic_load.region_volume_exceeds_blockstates"); }
 ```
 
-- **动机**：`Size` 键完全客户端可控且与 `BlockStates` 实长可任意脱钩（声明 20000³ 只给 1 个 long）。虚假大体积直达粘贴层 = `PasteTask` 按 volume 迭代的巨量格位 CPU DoS（`TaskScheduler` 对 `execute()` 无 per-task 兜底），且执行期 `onResize` 全量重分配可达 OOM。上游 `readFromData` 的 `catch(OutOfMemoryError)` 是客户端读无限本地文件的承重防御（且对 int 溢出同样接不住——`Error` 分支不捕 `RuntimeException`），我方网络入口已有 64MB 双闸（DataTagIo 长度前缀 + NbtAccounter，见 [02](02-network-protocol.md) §5.2），照抄属死防御——**勿随上游模板搬运**。
+- **动机**：`Size` 键完全客户端可控且与 `BlockStates` 实长可任意脱钩（声明 20000³ 只给 1 个 long）。虚假大体积直达粘贴层 = `PasteTask` 按 volume 迭代的巨量格位 CPU DoS（`TaskScheduler` 对 `execute()` 无 per-task 兜底），且执行期 `onResize` 全量重分配可达 OOM。上游 `readFromData` 的 `catch(OutOfMemoryError)` 是客户端读无限本地文件的承重防御（且对 int 溢出同样接不住——`Error` 分支不捕 `RuntimeException`），我方网络入口已有 64MB 双闸（DataTagIo 长度前缀 + NbtAccounter，见 [02](protocol.md) §5.2），照抄属死防御——**勿随上游模板搬运**。
 - **公式细节**：`bits` 与 `LitematicaBlockStateContainer.createFrom` 内部逐字同式（保证预检容量 ≡ 容器容量）；**floor 除法**（`volume > capacityBits / bits` 整数等价于 `volume × bits ≤ capacityBits`，零误拒零溢出）——勿用 `BitArray.roundUp`（对 volume=0 会算出 requiredLongs=1 误拒合法空形态）；`totalVolume < 0` 守卫接住 `(long)` 三乘的 2^64 回绕（Position/Size 经 `getMinCorner/getMaxCorner` 相减可为负分量——注意 `[2^30]³` 回绕值为 **0** 而非负数，两条件都不命中，构造溢出测试用例需用 `[MAX_VALUE]³`——积回绕为 `2^63+2^32-1` 负 long）。
 - **拒绝语义**：整体拒（抛 `CommandSyntaxException`，经 `SchematicPlacement.createFromNbt` 包 `RuntimeException` → handler 外层 `catch(Exception)` warn 日志）——与 `readFromNBT` 的 version 错误同构；区别于结构残缺 region 的**静默跳过**（Position/Size 缺失，上游同源）。恶意坏包（体积配比不自洽）= 整体拒，两类失败勿混淆。
 - **传递性背书**：C2S 侧 BlockStates 实长受 DataTagIo 的 NbtAccounter 64MB 配额封顶（先记账后分配）→ 合法流内声明体积上限自动 ≤ 2^32/bits ≈ 2^31 格位——预检只需处理"脱钩"（声明大、数据小），无需独立绝对上限常量。
@@ -136,7 +136,7 @@ public void receiveSlice(int number, Slice slice) {       // 乱序安全
 
 ### 2.2 第二级：`PacketSplitter`（网络层，~1MiB/包）
 
-> 见 [02](02-network-protocol.md) §5。每个 16KiB slice 装进一个 Payload，若该 Payload 仍超网络单包上限，再由 PacketSplitter 切（26.1 线该两级形态仅为对端 C2S 上传约定——我方接收侧仅重组，见 §2.3 注记；S2C 发送侧死信链已删）。
+> 见 [02](protocol.md) §5。每个 16KiB slice 装进一个 Payload，若该 Payload 仍超网络单包上限，再由 PacketSplitter 切（26.1 线该两级形态仅为对端 C2S 上传约定——我方接收侧仅重组，见 §2.3 注记；S2C 发送侧死信链已删）。
 
 ### 2.3 两级分包示意
 
@@ -149,7 +149,7 @@ Litematic 文件 (5 MiB)
   └─ Slice[319] ─▶ ...
 ```
 
-> **Paper 迁移**：两级分包**全可照抄**（纯 Java）。唯一改动：第二级的 PacketSplitter 分片常量防御客户端 32767 解码上限（见 [02](02-network-protocol.md) §5.2 / [07](07-migration-architecture.md) §2.2）。
+> **Paper 迁移**：两级分包**全可照抄**（纯 Java）。唯一改动：第二级的 PacketSplitter 分片常量防御客户端 32767 解码上限（见 [02](protocol.md) §5.2 / [07](../architecture.md) §2.2）。
 >
 > **方向注记（2026-10 后）**：上图为上游四阶段协议的两级分包形态（历史 wire 记载，两侧实现均已移除，见 §3）。16KiB 切片（原 `SchematicBuffer.BUFFER_SIZE`）的 wire 约定记载移至 §3.1。
 
@@ -177,7 +177,7 @@ Litematic 文件 (5 MiB)
 
 ### 3.2 客户端→服务端上传（已移除，2026-10 安全修复）
 
-原路由：`ServuxLitematicaHandler.handleBulkData` 按 NBT `"Task"` 字符串分流——`Litematic-Transmit*` → `LitematicaSchematic.receiveFileTransmit` → `SchematicBufferManager.createBuffer`/`receiveSlice`/`finishBuffer` 重组落盘 `schematics/`（**漏洞链**：`FileName` 零净化直达 `dir.resolve`），文件态粘贴受理 `handleClientPasteRequestPair`。**现存唯一活路**：重组完成后无条件 `handleClientPasteRequest`（`LitematicaPaste` Task 门控在 Provider 内，非该 Task 静默忽略）→ `PasteTask` 分 tick 粘贴（见 [09](09-DELIVERY.md) §5.5）。
+原路由：`ServuxLitematicaHandler.handleBulkData` 按 NBT `"Task"` 字符串分流——`Litematic-Transmit*` → `LitematicaSchematic.receiveFileTransmit` → `SchematicBufferManager.createBuffer`/`receiveSlice`/`finishBuffer` 重组落盘 `schematics/`（**漏洞链**：`FileName` 零净化直达 `dir.resolve`），文件态粘贴受理 `handleClientPasteRequestPair`。**现存唯一活路**：重组完成后无条件 `handleClientPasteRequest`（`LitematicaPaste` Task 门控在 Provider 内，非该 Task 静默忽略）→ `PasteTask` 分 tick 粘贴（见本文 §9）。
 
 ### 3.3 序列化字节流（26.1 线格式）
 
@@ -258,7 +258,7 @@ class AreaSelection {
 
 - `SchematicPlacement.createFromNbt(tags)`：从客户端粘贴请求解析（含旋转 `Rotation` / 镜像 `Mirror` / 各子区域位置 / 是否忽略实体）。
 - `pasteTo(ServerLevel, ReplaceBehavior, PasteLayerBehavior, LayerRange)`：核心粘贴——遍历每个 Region 的每个方块，应用旋转/镜像变换，按 `ReplaceBehavior` 写世界。
-- **镜像修复的内联点**：粘贴时对箱子/铁轨/楼梯的 `mirror`/`rotate` 结果做修正（替代 [04](04-mixin-analysis.md) 的 `MixinChestBlock`/`MixinRailBlocks`/`MixinStairsBlock`）。
+- **镜像修复的内联点**：粘贴时对箱子/铁轨/楼梯的 `mirror`/`rotate` 结果做修正（替代 [04](../archive/04-mixin-analysis.md) 的 `MixinChestBlock`/`MixinRailBlocks`/`MixinStairsBlock`）。
 - `SchematicPlacingUtils`：放置辅助（含原版方块放置校验 `PlacementHandler`）。粘贴前**实体位置修复族**——`applyEntityPastePositionFixes` 逐字对齐上游 :446-513（Pos 全实体重写 / 悬挂类 TileX/Y/Z+block_pos / leash+home_pos 平移；leash/home 修复整体前置于 Rotation 读取，键集离散行为等价，有意偏差），详见 docs/09 §26.1.6。
 
 ### 粘贴请求处理（`LitematicsDataProvider.handleClientPasteRequest`）
@@ -295,7 +295,31 @@ class AreaSelection {
 
 ## 8. 与网络层的衔接（移植注意）
 
-- 投影传输走 `servux:litematics` 通道（[03](03-dataproviders-detail.md) §Litematics）。
-- 大上传 = 客户端 16KiB 切片（SchematicBuffer 约定）→ 我方 PacketSplitter 重组（[02](02-network-protocol.md) §5）；S2C 发送侧死链已删（见 §3 注记），26.1 线我方仅重组不切片。
-- 每个 16KiB slice 远小于客户端 32767 解码上限与 Bukkit 1MiB Messenger 上限，**单 slice 不会触发 PacketSplitter 二次分包**，反而简化——但仍保留 PacketSplitter 作为保险（应对极端情况）。
+- 投影传输走 `servux:litematics` 通道（[providers.md](providers.md) §Litematics）。
+- 大上传 = 客户端 16KiB 切片 → 我方 PacketSplitter 重组（[protocol.md](protocol.md) §5）；S2C 发送侧死链已删（见 §3 注记），26.1 线我方仅重组不切片。
+- 每个 16KiB slice 远小于客户端 32767 解码上限与 Bukkit 1MiB Messenger 上限，**单 slice 不会触发 PacketSplitter 二次分包**——但仍保留 PacketSplitter 作为保险（应对极端情况）。
 - session key（`SliceKey`）需在插件侧维护 `Map<UUID, Long>` 映射，与原版 `SchematicBufferManager.playerMap` 一致。
+
+---
+
+## 9. Task 调度器与 paste 任务化（as-built，26.1 线）
+
+> 26.1 客户端检测到 servux 服务端后 Fill/Delete 选区**强制**走 `PACKET_C2S_TASK_REQUEST`（无超时回退、无能力探测）；paste 走 `LitematicaPaste` 批量路由。服务端实现 = `mod/servux/scheduler/` **五类**：`TaskScheduler` / `LitematicaTask`（抽象基类）/ `FillDeleteTask` / `PasteTask` / `InfoHudTaskSync`。
+
+### 9.1 架构
+
+- `TaskScheduler`：单列表 + 每 tick `runTasks()`（无 synchronized——Paper 单主线程不变式；无双列表——timer 初值 0 等价承载"下 tick 启动"）。
+- `LitematicaTask` 基类单点承载共享面（timer、pendingChunks 队列、`updateInfoHudLines` 推帧、`stop()` 完成链、UUID 解析发送）；`FillDeleteTask`（25ms 固定预算 / radius 0 / 进度变化门控推帧）与 `PasteTask`（**vanillaTickTime+60ms 动态预算** / radius 1 周边加载判定 / 每 tick 无条件推帧）只在执行体分叉。
+- `FillDeleteTask` 行为真值（上游 TaskFillArea/DeleteArea 逐项）：分区块队列最近优先（参考点 = 构造时捕获的原玩家引用）+ 无进展退出 + currentChunkPos 预检短路；`directFillBox` 逐行照抄（z 外/x 中/y 内层降序、三态替换、容器 clearContent+barrier、flags 0x32、AABB 非玩家 discard）；进度帧 `Type="REMAINING_CHUNKS"` 枚举常量名（客户端 valueOf 无容错）；完成帧仅 `InfoHudComplete=true` 缺 InfoHudSync 键；**无 cx=-1 标题条目**（上游模板从不入列，客户端标题由 getFirst() 合成）。
+- `PasteTask` 行为真值（上游 TaskPasteSchematicPerChunkDirect 逐项）：构造期建队（touchedChunks×getBoxesWithinChunk → LayerRange+世界高度双钳制）；`ignoreBlocks&&ignoreEntities` 早退返回 true **不置 finished**（→ stop 走 paste.failed 文案，上游同源怪癖）；逐 chunk 调 `SchematicPlacingUtils.placeToWorldWithinChunk`（失败留队下 tick 重试）；受理层补 `isPlayerRegistered`+空门 + `Interval/ChangedBlocksOnly/IgnoreBlocks/IgnoreEntities` 解析。
+
+### 9.2 实体位置修复族（placeToWorldWithinChunk 实体 NBT 段）
+
+上游 26.1 对实体 NBT 做六方面位置修复（SchematicPlacingUtils.java:446-513 + :562-565，1.21.11 上游无此族）：① 一切实体 Pos 缺失或 ≠ 世界目标即重写；② 四悬挂类（item_frame/glow_item_frame/leash_knot/painting）恒写 TileX/Y/Z；③ block_pos（1.21.5+）缺失或 ≠ 目标重写；④ leash（键 1.21.5 起小写；区域相对值 + off* 平移、ZERO 哨兵跳过；UUID 上游自认不可修）；⑤ home_pos 同式平移但 home_radius>0 才生效；⑥ spawn 后 tick 条件扩 `Display || Leashable`。收敛为单方法 `applyEntityPastePositionFixes` 整体前置于 Rotation 读取（被修复键集与 Rotation 键无交，行为等价）。验证 = `EntityPastePositionFixTest` 11 用例纯 JVM 钉死。
+
+### 9.3 接线与有意偏差
+
+- 接线四处：Handler type 14 → `onTaskRequest`（15/16/17 上游同源忽略）；Provider settings `permission_level_tasks` + 权限节点 `servux.provider.litematic_data.task.fill/.delete` + Box 手工解码（wire 形状 `{pos1:int[3],pos2:int[3],name}` IntArrayTag）+ FillState `tags.read(codec)`；`LifecycleBridge.onTick` 前置 `onServerTickEndPre()` 钩；`onDisable` 前置 `clearTasks()`。
+- 四项有意偏差（相对上游，代码注释已声明）：① 启动 ≤1 tick 偏移（Bukkit 心跳先于网络包处理）；② 玩家退出**不取消**任务（上游跑完语义）；③ 停服 clearTasks（良性增量）；④ 不移植 SEND_COMMAND_FEEDBACK gamerule 翻转（对不发命令的任务零可观测）。
+- 上游同源 liveness 特性（勿误判为我方 Bug）：region 数据损坏的 chunk 无限重试+每 tick 推帧；预算取上一原版 tick 耗时（服务端持续 >60ms 时 paste 零进展）；单 chunk 内无时间预算。
+- 验证：`TaskGroupTest` 4 黄金样本 + `TaskSchedulerTest` 7 用例 + `EntityPastePositionFixTest` 11 用例（纯 JVM 需 `SharedConstants.tryDetectVersion()+Bootstrap.bootStrap()` 前置）；runServer 干净起服。真实 Fill/Delete/paste 端到端 = 用户侧最终验收（26.1 litematica 客户端）。

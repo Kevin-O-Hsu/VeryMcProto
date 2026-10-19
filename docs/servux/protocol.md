@@ -3,7 +3,7 @@
 > 本文档是移植的**地基**。网络层吃透了，后面 5 条协议都是同一个模式的不同数据。
 > 原版对照根目录：`OriginImpl/servux-LTS-1.21.11/src/main/java/fi/dy/masa/servux/network/`
 >
-> 相关：架构骨架见 [01-servux-architecture.md](01-servux-architecture.md)；迁移方案见 [07-migration-architecture.md](07-migration-architecture.md) §网络层。
+> 相关：架构骨架见 [architecture.md](../architecture.md)；迁移方案见 [architecture.md](../architecture.md) §3 网络层。
 
 ---
 
@@ -16,7 +16,7 @@ Servux 用的是 **Mojang 在 1.20.2+ 引入的原版 `CustomPacketPayload`** �
 - Fabric 的 `ServerPlayNetworking` / `PayloadTypeRegistry` **只是这套原版机制的注册封装**
 - Payload 内部用 **VarInt `packetType`** 区分子消息，消息体是 **NBT（`CompoundTag`）** 或 **原始字节（`FriendlyByteBuf` slice）**
 
-→ 对移植的决定性意义：**Paper 经 paperweight userdev 同样能直接读写 `FriendlyByteBuf`/`CompoundTag`/`CustomPacketPayload`，且 plugin messaging channel 直接映射到这些原版通道**。详见 [07](07-migration-architecture.md) §网络层。
+→ 对移植的决定性意义：**Paper 经 paperweight userdev 同样能直接读写 `FriendlyByteBuf`/`CompoundTag`/`CustomPacketPayload`，且 plugin messaging channel 直接映射到这些原版通道**。详见 [07](../architecture.md) §网络层。
 
 ---
 
@@ -26,7 +26,7 @@ Servux 用的是 **Mojang 在 1.20.2+ 引入的原版 `CustomPacketPayload`** �
 |---|---|---|---|---|---|
 | `servux:hud_metadata` | **3** | `HudDataProvider`（hud_data） | `ServuxHudPacket` | **MiniHUD** | 世界元数据 / 出生点 / 天气 / 配方 / TPS·MobCap logger |
 | `servux:entity_data` | 2 | `EntitiesDataProvider`（entity_data） | `ServuxEntitiesPacket` | MiniHUD / Tweakeroo | 方块实体 & 实体 NBT 查询（含玩家背包权限过滤——仅查他人时剥离） |
-| `servux:tweaks` | 2 | `TweaksDataProvider`（tweaks_data） | `ServuxTweaksPacket` | Tweakeroo | NBT 查询（潜影盒堆叠未实现，见 [04](04-mixin-analysis.md)） |
+| `servux:tweaks` | 2 | `TweaksDataProvider`（tweaks_data） | `ServuxTweaksPacket` | Tweakeroo | NBT 查询（潜影盒堆叠未实现，见 [04](../archive/04-mixin-analysis.md)） |
 | `servux:structures` | **3** | `StructureDataProvider`（structure_bounding_boxes） | `ServuxStructuresPacket` | MiniHUD | 原版结构边界框（村庄/神殿/要塞…；按客户端 `max_receive_s2c` 能力条目级分批） |
 | `servux:litematics` | 2 | `LitematicsDataProvider`（litematic_data） | `ServuxLitematicaPacket` | **Litematica** | Litematica 投影粘贴 / 批量实体数据（S2C 投递已删——26.1 客户端无接收端） |
 
@@ -81,7 +81,7 @@ public record Payload(ServuxHudPacket data) implements CustomPacketPayload
 - `toPacket`（`ServuxHudPacket.java:189-226`）：先 `output.writeVarInt(packetType.get())`，再按类型 `writeNbt(nbt)` 或 `writeBytes(buffer.copy())`。
 - `fromPacket`（`:229-354`）：先 `input.readVarInt()` → `Type.getType(i)`，再按类型 `readNbt()` 或 `readBytes(...)` 重建 packet。
 
-> **HUD 的 NBT 字段内容**（每种 packetType 对应哪些 NBT 字段）见 [03-dataproviders-detail.md](03-dataproviders-detail.md) §HUD。
+> **HUD 的 NBT 字段内容**（每种 packetType 对应哪些 NBT 字段）见 [providers.md](providers.md) §HUD。
 
 ### 3.3 子消息类型枚举（以 HUD 为例）
 
@@ -151,11 +151,11 @@ public static final int MAX_REASSEMBLY_SIZE_S2C = 16_777_216;       // 26.1 客�
 >
 > **Structures 条目级分批**（对齐上游 `sendStructures :565-604`，在上述字节分片**之下**的业务层）：register 时读客户端申报 `tags.max_receive_s2c`（TAG_INT，默认 16MB）存名册 entry；发送时总量 + 4096 padding ≤ 上限单帧，否则逐条累计 `>=` 即 flush 多次 `STRUCTURES_DATA_START` 帧（首条无条件入列、空条目跳过、收尾 flush——纯函数 `splitStructuresBySize` 配单测）。每业务帧仍走 PacketSplitter 字节分片（两层叠加）；客户端按帧合并非替换。26.1 四客户端无该字段发送点，恒走默认值（机制层对齐、真实环境不可观测）。
 
-> **send 入口 16MB 门禁**（26.1 客户端重组上限预检）：被检量 = DataTag 帧化后 buffer 的 `writerIndex()`（= 4 + GZIP 压缩长 = 首包 VarInt 下发、客户端 `expectedSize` 读取的同一个数，三方同源）；超限（严格 `>`，恰好相等放行）在分片循环前**整帧拒发**（零分片发出——超限帧发出去会被客户端销毁重组 session 并抛异常，后续分片还会以垃圾 expectedSize 重建残留会话污染下一帧）+ warn 日志（log-and-drop，有意不限频：唯一重复源 Structures 周期重发上界 ≈ 每名已注册玩家 12 条/分钟，随数据缩量自停）。覆盖全部 S2C 分片大帧：HUD RecipeManager 全量帧、Litematics BulkEntityReply、Structures 全量帧三活跃点 + Entities/Tweaks 两死分支。**上游 servux 26.1 无此预检——我方增强，勿随上游模板回退**。曾并存的文件字节级门禁（`LitematicaSchematic.MAX_TRANSMIT_FILE_SIZE`）随 S2C 投递死信链删除（2026-09，26.1 客户端无接收端）——本门禁是现存唯一 16MB 服务端预检，覆盖全部 S2C 分片帧。历史两级裁分论述见 [09](09-DELIVERY.md) §26.1。
+> **send 入口 16MB 门禁**（26.1 客户端重组上限预检）：被检量 = DataTag 帧化后 buffer 的 `writerIndex()`（= 4 + GZIP 压缩长 = 首包 VarInt 下发、客户端 `expectedSize` 读取的同一个数，三方同源）；超限（严格 `>`，恰好相等放行）在分片循环前**整帧拒发**（零分片发出——超限帧发出去会被客户端销毁重组 session 并抛异常，后续分片还会以垃圾 expectedSize 重建残留会话污染下一帧）+ warn 日志（log-and-drop，有意不限频：唯一重复源 Structures 周期重发上界 ≈ 每名已注册玩家 12 条/分钟，随数据缩量自停）。覆盖全部 S2C 分片大帧：HUD RecipeManager 全量帧、Litematics BulkEntityReply、Structures 全量帧三活跃点 + Entities/Tweaks 两死分支。**上游 servux 26.1 无此预检——我方增强，勿随上游模板回退**。曾并存的文件字节级门禁（`LitematicaSchematic.MAX_TRANSMIT_FILE_SIZE`）随 S2C 投递死信链删除（2026-09，26.1 客户端无接收端）——本门禁是现存唯一 16MB 服务端预检，覆盖全部 S2C 分片帧。历史两级裁分论述见 [archive/09-DELIVERY.md](../archive/09-DELIVERY.md) §26.1。
 
-> **readTag 接收侧配额闸（2026-10 安全修复）**：上述 16MB 是**我方发送**方向的预检；**接收**方向（C2S）在同一 `DataTagIo` 内另有两道闸——①长度前缀闸（`readTag` :77，压缩字节 ≤64MB）；②**解压域 NbtAccounter 闸**（`NbtIo.read(dis, NbtAccounter.create(NETWORK_MAX_BYTES))`，GZIP 流式直读不物化中间 byte[]）：对解压后 NBT 流逐结构计数、**先记账后分配**——gzip bomb（解压膨胀 ~1032×）与长度字段炸弹（小流内声明巨数组驱动 16GB 分配）在同一道闸被拦截，超配额按坏包契约 warn + null 丢弃。与上游对齐：malilib `SizeTracker`（NETWORK_MAX_BYTES=64MB）即在解压流上逐字节计数、超限抛异常断读；上游 servux `NbtUtils` 即 `NbtIo.read(gzip 流, tracker)` 流式写法。**两层关系**：64MB 前缀闸限**压缩字节**（帧长），accounter 闸限**解压后语义字节**（内容），正交覆盖；与 16MB 重组闸（S2C 发送方向）互不重叠。异常三分语义与锁定单测见 [09](09-DELIVERY.md) §7。
+> **readTag 接收侧配额闸（2026-10 安全修复）**：上述 16MB 是**我方发送**方向的预检；**接收**方向（C2S）在同一 `DataTagIo` 内另有两道闸——①长度前缀闸（`readTag` :77，压缩字节 ≤64MB）；②**解压域 NbtAccounter 闸**（`NbtIo.read(dis, NbtAccounter.create(NETWORK_MAX_BYTES))`，GZIP 流式直读不物化中间 byte[]）：对解压后 NBT 流逐结构计数、**先记账后分配**——gzip bomb（解压膨胀 ~1032×）与长度字段炸弹（小流内声明巨数组驱动 16GB 分配）在同一道闸被拦截，超配额按坏包契约 warn + null 丢弃。与上游对齐：malilib `SizeTracker`（NETWORK_MAX_BYTES=64MB）即在解压流上逐字节计数、超限抛异常断读；上游 servux `NbtUtils` 即 `NbtIo.read(gzip 流, tracker)` 流式写法。**两层关系**：64MB 前缀闸限**压缩字节**（帧长），accounter 闸限**解压后语义字节**（内容），正交覆盖；与 16MB 重组闸（S2C 发送方向）互不重叠。异常三分语义与锁定单测见 [architecture.md](../architecture.md) §8。
 
-> ⚠️ **字节限制教义（26.1 真值）**：Bukkit `Messenger.MAX_MESSAGE_SIZE` = 1048576（~1MiB，1.21.x 起——旧文档称 32768 已过时）；**真正的 S2C 瓶颈是原版客户端对 `ClientboundCustomPayload`（未知通道 discarded 解码）的 32767 字节解码上限**。详见 [07](07-migration-architecture.md) §2.2 与 [09](09-DELIVERY.md) §4。我方 S2C 分片常量 32000/31995 即为防御 32767。
+> ⚠️ **字节限制教义（26.1 真值）**：Bukkit `Messenger.MAX_MESSAGE_SIZE` = 1048576（~1MiB，1.21.x 起——旧文档称 32768 已过时）；**真正的 S2C 瓶颈是原版客户端对 `ClientboundCustomPayload`（未知通道 discarded 解码）的 32767 字节解码上限**。详见 [architecture.md](../architecture.md) §3.2。我方 S2C 分片常量 32000/31995 即为防御 32767。
 
 ### 5.3 发送逻辑（切片）
 
@@ -333,4 +333,53 @@ ServuxHudHandler.encodeServerData(player, data)                    // :121
    收 metadata 按 `!=` 严格校验自行退网；服务端 C2S REGISTER 按 `<` 拒绝旧客户端（版本门禁 + 名册拦截，
    见 §6.2/§7）。
 
-完整迁移设计、字节限制方案、NMS vs plugin messaging 取舍见 [07-migration-architecture.md](07-migration-architecture.md) §网络层。
+完整迁移设计、字节限制方案、NMS vs plugin messaging 取舍见 [architecture.md](../architecture.md) §3。
+
+---
+
+## 9. 26.1 线 wire 真值与逐通道差异（as-built，权威）
+
+> 本节是 1.21.11 → 26.1.2 迁移的**现行协议面真值**（全部对照 `OriginImpl/*-LTS-26.1` 客户端源码逐字实证）；本文 §1–§8 对原版的分析成文于 1.21.11 LTS 源码，与本节冲突处以本节为准。
+
+### 9.1 协议版本全表（客户端 `!=` 严格相等，错一个即整通道退网 + UnregisterReply）
+
+HUD `ServuxHudPacket.PROTOCOL_VERSION` 2→**3**、Entities 1→**2**、Tweaks 1→**2**、Structures 2→**3**、Litematics 1→**2**。
+
+### 9.2 MOD_STRING 硬门禁
+
+26.1 客户端四处（minihud HudDataManager:595 / minihud DataStorage:851 / litematica EntityDataManager:544 / tweakeroo EntityDataManager:435）校验 `servux.startsWith("servux-" + MOD_TYPE + "-" + MC_VERSION)`，`MOD_TYPE="fabric"`、`MC_VERSION` = Fabric loader 精确上游 id（26.1.2）。→ `ServuxReference.MOD_TYPE` "paper"→"fabric"（伪装），版本段由 `mcVersion=26.1.2` 注入。1.21.11 客户端只比对版本号不比对前缀；26.1 堵死 "paper" 前缀。
+
+### 9.3 DataTag 线格式载体（业务包 NBT）
+
+从 vanilla `writeNbt` 切换为 malilib DataTag：`[int32 大端 压缩后长度][GZIP(具名根 NBT 流)]`，与 NMS `NbtIo.write(tag, os)` 输出**逐字节兼容** → 实现 = `mod/servux/util/nbt/DataTagIo.java`（不移植 malilib 18 个 DataTag 类）。
+
+- **分界规则（逐 Type，不是逐通道）**：全通道 metadata 1/2 恒 vanilla NBT；分片 10-13 恒裸字节；其余业务 Type 走 DataTag；**START 大包经 PacketSplitter 的重组整体**也是 DataTag（含 recipe/structures bulk）。
+- 边界：写端恒发 tagType=10 根（0x00 单字节根会被 malilib 读端丢弃）；读端对 0x00 根容错为空 compound；GZIP 失败回落裸读；长度前缀是**压缩后**字节数、非 VarInt；64MB 配额闸（`NbtAccounter` 先记账后分配——gzip bomb 与长度字段炸弹单闸拦截，见 [architecture.md](../architecture.md) §8）。
+- 幸存者：**Structures 通道包帧全程 vanilla/裸字节**——仅 START 重组整体为 DataTag。
+
+### 9.4 C2S 变化
+
+- `transactionId` 前置 VarInt **整体删除**（请求直读 BlockPos / VarInt entityId / ChunkPos；收端残留吞读会错位）。
+- 批量重组体无 type VarInt 前缀，按 NBT `"Task"` 字符串路由（现存路由仅 `LitematicaPaste`）。
+- 新增 `UNREGISTER_REPLY`：HUD=9、Entities=7、Tweaks=7、Litematics=8——服务端 decode→unregister。
+- METADATA_REQUEST 语义变为「先 unregister 再 register」。
+
+### 9.5 枚举增删与重组上限
+
+- 枚举：HUD +`UNREGISTER_REPLY(9)`；Entities/Tweaks 各 +(7)；Litematica +(8) +task 组 `TASK_REQUEST(14)/TASK_RESPONSE(15)/TASK_STATUS_SYNC(16)/TASK_CANCEL(17)`；**Structures 删 10/11/12**（spawn/weather 收敛到 HUD 通道）。
+- **客户端重组上限 128MB → 16MB**（malilib）→ 服务端 `PacketSplitter.MAX_REASSEMBLY_SIZE_S2C` 预检：`send` 入口超限整帧拒发 + warn（log-and-drop）——**上游无此预检，我方增强，勿随模板回退**。
+- Litematica task 组（14-17）服务端实现见 [schematic.md](schematic.md) §9；type 15 客户端接收端 TODO 故服务端永不发送、type 17 上游同源忽略。
+
+### 9.6 零变化面
+
+JEI payload（`fabric:recipe_sync` / `neoforge:recipe_content`）、syncmatica 全协议（18 PacketType + Exchange + FeatureSet）、PacketSplitter 分片帧（常量逐字一致）、HUD v3 数据字段（20 字段名比对零增删改）。隐私裁剪（查他人实体清空 `Inventory`/`EnderItems`）26.1 上游新增、我方已内置。
+
+### 9.7 逐通道 as-built 差异速览
+
+| 通道 | 要点 |
+|---|---|
+| HUD（v3） | 天气采集 = tick 周期读 `ServerLevel.getWeatherData()`；出生点 = Bukkit `getSpawnLocation` 周期同步；join 握手延迟 40t + RegisterChannel 兜底 + C2S 主动请求三道保障 |
+| Entities（v2） | `be.saveWithFullMetadata(registryAccess)` / `entity.saveWithoutId`（NbtView 重写绕开 Mixin）；查询权限按 op level 2 |
+| Tweaks（v2） | 复用 Entities 权限；潜影盒堆叠已删（不下发 `stackingShulkers` 元数据——见 [architecture.md](../architecture.md) §5）；修正原版 ResponseS2CData 重复赋值 bug |
+| Structures（v3） | 触发 = 周期扫描（原版 Mixin 精确触发）；NMS 采集直连（`getAllReferences/getStartForStructure/createTag`）；性能注记：默认 40t 间隔 + 只扫 view distance + 去重 |
+| Litematics（v2） | 粘贴任务化（[schematic.md](schematic.md) §9）；S2C 文件投递死信链与 C2S 文件接收链均已移除（前者无接收端、后者路径穿越安全修复——恢复走 git revert） |

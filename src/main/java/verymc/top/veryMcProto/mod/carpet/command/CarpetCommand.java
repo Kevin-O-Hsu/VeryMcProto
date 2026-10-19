@@ -19,7 +19,7 @@ import verymc.top.veryMcProto.mod.carpet.util.CommandHelper;
 /**
  * /carpet 命令（四子命令面 = 本移植的 B 侧命令面约定；上游命令树见
  * {@code carpet/api/settings/SettingsManager.java:597-642}——B 侧差异（弃裸 {@code <rule> [value]}
- * 会话级 set 与 {@code list defaults}/{@code list <tag>} 子面）登记于 docs/31-carpet.md 偏差清单。
+ * 会话级 set 与 {@code list defaults}/{@code list <tag>} 子面）登记于 docs/carpet/architecture.md 偏差清单。
  *
  * <p><b>双层门禁</b>：plugin.yml 静态 {@code carpet.command}（Bukkit 面，default op）+ 运行时动态
  * {@link CommandHelper#canUseCommand}（{@code carpetCommandPermissionLevel} 规则——ops/2/4 级语义经
