@@ -11,7 +11,7 @@ import java.lang.annotation.Target;
  *
  * <p>字段必须为 static，类型限 boolean/int/double/long/float/String/枚举；规则默认值 = 字段初值。
  *
- * <p>与上游的偏差（对账登记，docs/carpet-architecture.md）：删 {@code appSource}（Scarpet 整体不可移植，
+ * <p>与上游的偏差（对账登记，docs/carpet/architecture.md）：删 {@code appSource}（Scarpet 整体不可移植，
  * scope §7）与 {@code condition}（8 条地基规则零使用）。
  */
 @Target(ElementType.FIELD)

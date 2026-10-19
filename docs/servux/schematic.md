@@ -1,7 +1,7 @@
 # Servux 投影（Litematica Schematic）子系统
 
 > Litematica 投影是 Servux **最大、最复杂**的子系统（约 9000 行）。本文是 as-built 规范：数据结构（§1）、C2S 上传传输（§2–§3）、NBT 序列化（§4）、几何（§5）、放置粘贴与实体修复族（§6）、Task 调度器（§9 ⭐）。
-> Provider 入口见 [servux-providers.md](servux-providers.md) §Litematics；分包机制见 [architecture.md](architecture.md) §3.3；通道 wire 与版本约束见 [servux-protocol.md](servux-protocol.md) §8.5。
+> Provider 入口见 [servux/providers.md](providers.md) §Litematics；分包机制见 [architecture.md](../architecture.md) §3.3；通道 wire 与版本约束见 [servux/protocol.md](protocol.md) §8.5。
 > 原版目录：`OriginImpl/servux-LTS-26.2/src/main/java/fi/dy/masa/servux/schematic/`（含 `container/`、`placement/`、`selection/`、`conversion/`；原 `transmit/` 已随安全修复删除）。
 
 ---
@@ -78,7 +78,7 @@ public BlockState get(int x, int y, int z) {
 }
 ```
 
-> **可移植性**：核心算法纯；唯一 NMS 接触点是 `createFrom()` / `readFromNBT()` 里用 `RegistryAccess.Frozen` 解析 palette NBT → BlockState（registry 改参数传入，由框架在 `ServerLoadEvent` 后捕获，见 [architecture.md](architecture.md) §2.3）。
+> **可移植性**：核心算法纯；唯一 NMS 接触点是 `createFrom()` / `readFromNBT()` 里用 `RegistryAccess.Frozen` 解析 palette NBT → BlockState（registry 改参数传入，由框架在 `ServerLoadEvent` 后捕获，见 [architecture.md](../architecture.md) §2.3）。
 
 ### 1.5 体积一致性预检（我方增强——上游无对应检查）
 
@@ -92,7 +92,7 @@ final long capacityBits = (long) blockStateArr.length * 64L;
 if (totalVolume < 0 || totalVolume > capacityBits / bits) { error("servux.litematics.error.schematic_load.region_volume_exceeds_blockstates"); }
 ```
 
-- **动机**：`Size` 键完全客户端可控且与 `BlockStates` 实长可任意脱钩（声明 20000³ 只给 1 个 long）。虚假大体积直达粘贴层 = `PasteTask` 按 volume 迭代的巨量格位 CPU DoS（`TaskScheduler` 对 `execute()` 无 per-task 兜底），且执行期 `onResize` 全量重分配可达 OOM。上游 `readFromData` 的 `catch(OutOfMemoryError)` 是客户端读无限本地文件的承重防御（且对 int 溢出同样接不住），我方网络入口已有 64MB 双闸（见 [servux-protocol.md](servux-protocol.md) §5.5），照抄属死防御——**勿随上游模板搬运**。
+- **动机**：`Size` 键完全客户端可控且与 `BlockStates` 实长可任意脱钩（声明 20000³ 只给 1 个 long）。虚假大体积直达粘贴层 = `PasteTask` 按 volume 迭代的巨量格位 CPU DoS（`TaskScheduler` 对 `execute()` 无 per-task 兜底），且执行期 `onResize` 全量重分配可达 OOM。上游 `readFromData` 的 `catch(OutOfMemoryError)` 是客户端读无限本地文件的承重防御（且对 int 溢出同样接不住），我方网络入口已有 64MB 双闸（见 [servux/protocol.md](protocol.md) §5.5），照抄属死防御——**勿随上游模板搬运**。
 - **公式细节**：`bits` 与 `LitematicaBlockStateContainer.createFrom` 内部逐字同式（预检容量 ≡ 容器容量）；**floor 除法**（整数等价于 `volume × bits ≤ capacityBits`，零误拒零溢出）——勿用 `BitArray.roundUp`（对 volume=0 会算出 requiredLongs=1 误拒合法空形态）；`totalVolume < 0` 守卫接住 `(long)` 三乘的 2^64 回绕（Position/Size 相减可为负分量——注意 `[2^30]³` 回绕值为 **0** 而非负数，两条件都不命中，构造溢出测试用例需用 `[MAX_VALUE]³`——积回绕为 `2^63+2^32-1` 负 long）。
 - **拒绝语义**：整体拒（抛 `CommandSyntaxException`，经 `SchematicPlacement.createFromNbt` 包 `RuntimeException` → handler 外层 `catch(Exception)` warn 日志）——与 `readFromNBT` 的 version 错误同构；区别于结构残缺 region 的**静默跳过**（Position/Size 缺失，上游同源）。恶意坏包（体积配比不自洽）= 整体拒，两类失败勿混淆。
 - **传递性背书**：C2S 侧 BlockStates 实长受 DataTagIo 的 NbtAccounter 64MB 配额封顶（先记账后分配）→ 合法流内声明体积上限自动 ≤ 2^32/bits ≈ 2^31 格位——预检只需处理"脱钩"（声明大、数据小），无需独立绝对上限常量。
@@ -115,7 +115,7 @@ Litematic 文件 (5 MiB)
 
 - **第一级（对端约定）**：客户端按 **16KiB** 切片上传（原 `SchematicBuffer.BUFFER_SIZE=16384` 的 wire 约定；与 syncmatica 的 `UploadExchange.BUFFER_SIZE` 无关）。
 - **第二级（网络层）**：每个 slice 装进一个 `*_DATA` Payload；16KiB 远小于 serverbound（C2S）32767 解码上限与 Bukkit 1MiB 上限，**单 slice 通常不触发二次分包**，但 PacketSplitter 重组路径保留作为保险。
-- 重组完成后无条件走 `handleClientPasteRequest`（§6）；收端缓冲上限 64MB（见 [architecture.md](architecture.md) §3.4）。
+- 重组完成后无条件走 `handleClientPasteRequest`（§6）；收端缓冲上限 64MB（见 [architecture.md](../architecture.md) §3.4）。
 
 ---
 
@@ -129,7 +129,7 @@ CompoundTag nbt = DataTagIo.readTag(fullPacket);   // [int32 大端 压缩长][G
 // 按 nbt.getStringOr("Task", ...) 路由（现存路由仅 LitematicaPaste——Transmit* 已随安全修复移除）
 ```
 
-DataTag 格式细节与配额闸见 [servux-protocol.md](servux-protocol.md) §5.3/§5.5。
+DataTag 格式细节与配额闸见 [servux/protocol.md](protocol.md) §5.3/§5.5。
 
 ---
 
@@ -193,7 +193,7 @@ class AreaSelection {
 
 - `SchematicPlacement.createFromNbt(tags)`：从客户端粘贴请求解析（含旋转 `Rotation` / 镜像 `Mirror` / 各子区域位置 / 是否忽略实体）。
 - 粘贴核心：遍历每个 Region 的每个方块，应用旋转/镜像变换，按 `ReplaceBehavior` 写世界——任务化后逐 chunk 由 `PasteTask` 调 `SchematicPlacingUtils.placeToWorldWithinChunk` 执行（§9；原 `pasteTo` 同步直放已随上游 `@Deprecated` 删除，**单 placement 字段**——上游两调用点恒 singletonList，multimap 泛化按「上游零调用点的泛化即裁」先例裁）。
-- **镜像修复的内联点**：粘贴时对箱子/铁轨/楼梯的 `mirror`/`rotate` 结果做修正（`fixChestMirror` / `fixRailRotations` / `fixStairs_mirror` settings；替代上游 `MixinChestBlock`/`MixinRailBlocks`/`MixinStairsBlock`，见 [architecture.md](architecture.md) §5.2）。
+- **镜像修复的内联点**：粘贴时对箱子/铁轨/楼梯的 `mirror`/`rotate` 结果做修正（`fixChestMirror` / `fixRailRotations` / `fixStairs_mirror` settings；替代上游 `MixinChestBlock`/`MixinRailBlocks`/`MixinStairsBlock`，见 [architecture.md](../architecture.md) §5.2）。
 - `SchematicPlacingUtils`：放置辅助（含原版方块放置校验 `PlacementHandler`）。
 
 ### 6.1 实体位置修复族（`applyEntityPastePositionFixes`）
@@ -244,7 +244,7 @@ class AreaSelection {
 
 ## 8. 与网络层的衔接
 
-- 投影传输走 `servux:litematics` 通道（[servux-providers.md](servux-providers.md) §Litematics；通道 wire 见 [servux-protocol.md](servux-protocol.md) §8.5）。
+- 投影传输走 `servux:litematics` 通道（[servux/providers.md](providers.md) §Litematics；通道 wire 见 [servux/protocol.md](protocol.md) §8.5）。
 - 大上传 = 客户端 16KiB 切片 → 我方 PacketSplitter 重组（§2）；S2C 发送侧死链已删，我方仅重组不切片。
 - 每流新生成 readingSessionKey、收齐重置——**连续多个独立分包流各自独立重组，不需要分 tick / 延迟发送 workaround**。
 
@@ -288,4 +288,4 @@ class AreaSelection {
 
 ---
 
-> **相关**：[servux-protocol.md](servux-protocol.md)（通道 wire / type 14-17 帧）· [servux-providers.md](servux-providers.md)（Litematics Provider）· [architecture.md](architecture.md)（分片机制）· [servux-testing.md](servux-testing.md) · [operations.md](operations.md) · [index.md](index.md)
+> **相关**：[servux/protocol.md](protocol.md)（通道 wire / type 14-17 帧）· [servux/providers.md](providers.md)（Litematics Provider）· [architecture.md](../architecture.md)（分片机制）· [servux/testing.md](testing.md) · [operations.md](../operations.md) · [index.md](../index.md)

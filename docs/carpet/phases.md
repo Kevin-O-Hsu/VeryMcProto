@@ -1,6 +1,6 @@
 # Carpet → Paper 移植分阶段推进规划（phases）
 
-> **状态**：推进规划（2026-10-17 制定；**P1-P4 已实现**，状态登记见 §11）。基于 [carpet-porting-scope.md](carpet-porting-scope.md)（2026-10 预研结论）制定；本文回答「按什么顺序做、每阶段做到什么程度算完成」——**范围可行性判定唯一权威 = [carpet-porting-scope.md](carpet-porting-scope.md)（下称 scope），Mixin 处置与降级矩阵唯一权威 = [architecture.md](architecture.md) §5**，本文只引用不复制。
+> **状态**：推进规划（2026-10-17 制定；**P1-P4 已实现**，状态登记见 §11）。基于 [carpet/porting-scope.md](porting-scope.md)（2026-10 预研结论）制定；本文回答「按什么顺序做、每阶段做到什么程度算完成」——**范围可行性判定唯一权威 = [carpet/porting-scope.md](porting-scope.md)（下称 scope），Mixin 处置与降级矩阵唯一权威 = [architecture.md](../architecture.md) §5**，本文只引用不复制。
 >
 > 行号口径：本文对 `OriginImpl/fabric-carpet-*` 源码的行号锚为 **26.2 树**值（与 scope 相同，其「实现落地时以真实源码为准复核」兜底适用）；对 scope 的引用以**节号**为主（避免 scope 后续修订引起行号漂移）。
 
@@ -10,7 +10,7 @@
 
 - **与 scope 的分工**：scope = 逐条判定「能不能、值不值」（预研快照，判定不随本文变化）；本文 = 「先做什么后做什么、完成判据是什么、当前进展到哪」（**活体路线图**——§11 状态登记表随实现推进持续更新）。
 - **阶段顺序的来源**：Phase 1-3（基础 → 假人 → 协议）为**用户决策**，显式优先于 scope §8 末行的工程量直觉（「MobCap/tps 部分最快见效」）。日志/命令层排后并非否定其价值，是顺序约束的结果；后续维护者勿按「快赢优先」回退此顺序。
-- **与文档约定「历史 = git」的关系**（[index.md](index.md) 文档约定）：该条排除的是迁移期过程流水；本文是持续维护的推进规划，不属其列。各 Phase 实现期的过程记录仍走 git commit，不占文档位；每 Phase 完成时只更新本文 §11 状态登记表，as-built 细节届时沉淀到新建的专题文档（如 `carpet-architecture.md` / `carpet-protocol.md`，按需创建并登记 index.md）。
+- **与文档约定「历史 = git」的关系**（[index.md](../index.md) 文档约定）：该条排除的是迁移期过程流水；本文是持续维护的推进规划，不属其列。各 Phase 实现期的过程记录仍走 git commit，不占文档位；每 Phase 完成时只更新本文 §11 状态登记表，as-built 细节届时沉淀到新建的专题文档（如 `carpet/architecture.md` / `carpet/protocol.md`，按需创建并登记 index.md）。
 - **状态标记**：⬜ 未开始 / 🔧 进行中 / ✅ 已完成（登记完成线与 commit 锚）。
 
 ---
@@ -54,7 +54,7 @@
      - `customMOTD` —— `ServerListPingEvent` 原生等价（scope §5.1）
      - `cleanLogs` —— 日志框架 filter 等价（scope §5.1）
      - `commandTick` —— **上游三线零使用死规则，注册仅为规则浏览器面完整、零行为（与上游同构）**（scope §3 /tick 行勘误后口径）
-     - `perfPermissionLevel` —— Paper 原生命令权限节点等价（`PerfCommand_permissionMixin` 在册，scope §5.1）。**as-built 勘误（2026-10-17）**：实机与映射源实证——值 4（默认）= Paper 天然同构（vanilla /perf requires LEVEL_OWNERS 原样，零动作等价）；值 2 = 结构性不可达（上游靠 Mixin redirect 换 requires，Paper 无替换面；玩家聊天命令链绕过 bukkit commandMap，`minecraft.command.perf` 节点授权对玩家无效）——B 侧为规则面注册 + 只读登记，详见 [carpet-architecture.md](carpet-architecture.md)
+     - `perfPermissionLevel` —— Paper 原生命令权限节点等价（`PerfCommand_permissionMixin` 在册，scope §5.1）。**as-built 勘误（2026-10-17）**：实机与映射源实证——值 4（默认）= Paper 天然同构（vanilla /perf requires LEVEL_OWNERS 原样，零动作等价）；值 2 = 结构性不可达（上游靠 Mixin redirect 换 requires，Paper 无替换面；玩家聊天命令链绕过 bukkit commandMap，`minecraft.command.perf` 节点授权对玩家无效）——B 侧为规则面注册 + 只读登记，详见 [carpet/architecture.md](architecture.md)
 - **明确不进本 Phase**（scope §5.1 其余 12 条去向）：假人 3 条（`commandPlayer` / `allowSpawningOfflinePlayers` / `allowListingFakePlayers`）随 P2；log 2 条（`commandLog` / `defaultLoggers`）随 P4；commandXxx 5 条（`commandDistance` / `commandInfo` / `commandPerimeterInfo` / `commandSpawn` / `commandDraw`）随 P5；`viewDistance` / `simulationDistance` 2 条**永不移植**（Paper 原生 per-world 配置自带，scope §5.1）
 - **完成判据**：① `/carpet` 四子命令实机可用 ② `setDefault` → `carpet.conf` 落盘 → 重启 → 读回往返一致 ③ 规则表 `list` 输出与注册表一致（单测覆盖）④ 三既有 mod 回归无影响（起服无错，servux / jei / syncmatica 通道抽测正常）
 - **验证方式**：单测（规则解析 / 持久化往返）+ `runServer` 实机
@@ -91,7 +91,7 @@
   5. 自定义 NBT 广播机制面（scope §2 表行 6——上游唯一在用者 scShapes 随 Scarpet，内容不做）
 - **依赖**：P1（Rules 数据源）；与 P2/P4 无依赖
 - **完成判据**：① carpet Fabric 客户端进服无版本不匹配警告 ② 客户端规则浏览器显示我方规则集 ③ clientCommand 请求-回执往返 ④ 未握手（vanilla / 未装 carpet）玩家零影响
-  - **as-built 勘误（2026-10-18，判据①口径）**：真实发布的 carpet 客户端版本串带 `+v<构建日期>` 后缀（上游 build.gradle:10 无条件拼接）→ 发逐字 mod_version `"26.2"` 时此类客户端必打一条**本地 LOG.warn**（非聊天、不断连，equals 严格比较的确定性产物——与两个不同日期构建的上游 carpet 服互连同源）。判据①落地口径 = **无 chat 可见/断连级警告**；服务端镜像日志照抄上游（info=匹配/warn=不匹配）。详见 [carpet-protocol.md](carpet-protocol.md) §2。
+  - **as-built 勘误（2026-10-18，判据①口径）**：真实发布的 carpet 客户端版本串带 `+v<构建日期>` 后缀（上游 build.gradle:10 无条件拼接）→ 发逐字 mod_version `"26.2"` 时此类客户端必打一条**本地 LOG.warn**（非聊天、不断连，equals 严格比较的确定性产物——与两个不同日期构建的上游 carpet 服互连同源）。判据①落地口径 = **无 chat 可见/断连级警告**；服务端镜像日志照抄上游（info=匹配/warn=不匹配）。详见 [carpet/protocol.md](protocol.md) §2。
 - **验证方式**：carpet 客户端实机 + 对照 `OriginImpl/fabric-carpet-26.2/` 客户端源码核对 wire
 - **注**：协议本身为可选件（HUD logger 不依赖握手，scope §2 要点行 / §8 协议行）——P3 置前是用户顺序约束的结果；后续若决策跳过 P3，不阻塞 P4+ 与 P7
 
@@ -145,7 +145,7 @@
   - **协议 / 日志 / 命令 / 规则层**：跨线漂移**未逐线评估**——铺开前须对照 `OriginImpl/fabric-carpet-<线>/` 逐线复核（尤其 HI 版本串 per-line：26.1 树 = `26.1`、1.21.11 树 = `1.4.194`，见 §5）
 - **完成判据**：铺开线实机验收 = dev 线同判据；ver 线 `buildNumber` 独立递增（分支模型，根 AGENTS.md）
 - **依赖**：P1/P2/P4/P5 完成态（P6 可选随行；P3 可缺席）
-- **执行注记（2026-10-19 as-built，详录见 carpet-architecture.md §22-§24）**：①逐线复核已完成——上游三树 network/settings/logging 逐字节相同（协议/规则/日志层零跨线漂移），commands/patches/helpers 差异收敛为 EntitySpawnRequest 单点 / checkFallDamage 5 行 / ActionPack 三调用点；②「假人直接铺」结论修正为「直接铺 + 掉落伤害 per-line 决策」——Paper 玩家物理路径 per-line 根本不同（26.2 关闭 vs 26.1.2/1.21.11 敞开但权威门吞掉 checkFallDamage），两 ver 线改走 `isClientAuthoritative()` 覆写恢复 vanilla 链（偏差 #63，勿跨线互抄）；③实机验收新增掉落差分判据（survival 假人 40 格坠落致死，两线实证）；④验收边界二分——服务端侧自证全过，用户侧终验清单（各线对应版本 carpet 客户端）留用户执行。
+- **执行注记（2026-10-19 as-built，详录见 carpet/architecture.md §22-§24）**：①逐线复核已完成——上游三树 network/settings/logging 逐字节相同（协议/规则/日志层零跨线漂移），commands/patches/helpers 差异收敛为 EntitySpawnRequest 单点 / checkFallDamage 5 行 / ActionPack 三调用点；②「假人直接铺」结论修正为「直接铺 + 掉落伤害 per-line 决策」——Paper 玩家物理路径 per-line 根本不同（26.2 关闭 vs 26.1.2/1.21.11 敞开但权威门吞掉 checkFallDamage），两 ver 线改走 `isClientAuthoritative()` 覆写恢复 vanilla 链（偏差 #63，勿跨线互抄）；③实机验收新增掉落差分判据（survival 假人 40 格坠落致死，两线实证）；④验收边界二分——服务端侧自证全过，用户侧终验清单（各线对应版本 carpet 客户端）留用户执行。
 
 ---
 
@@ -165,8 +165,8 @@
 |---|---|---|---|---|
 | P1 | 基础（模块地基） | ✅ 已完成 | 2026-10-17：四判据全过——①四子命令实机可用（run1：list 8 规则/query/setDefault×3/removeDefault）②conf 往返（run2 重启 `Loaded 2 settings` + modified 标记）③list=注册表（单测锁）④四模块起服无错零回归；单测 144/0/0（新增 15）+ cleanLogs 双极性探针 | 见交付 commit（feat: Carpet Phase 1） |
 | P2 | 假人（/player 全族） | ✅ 已完成 | 2026-10-18：判据全过——①全子命令逐条实测（runServer 控制台 18 轮：spawn 含 at 坐标/look/turn/move/sneak/sprint/attack/use/jump × 三模式/drop 族/hotbar/swapHands/mount/dismount/stop/kill/shadow 门禁回执）②占 tab 栏（list）+ **入睡跳夜**（peaceful 夜 use 对床 → 跳夜分支堆栈实证）+ playerdata 持久（players/data 落盘读回）+ /tp //ban 原版命令识别（ban 后 cantSpawn 拒）③缺口显式登记（tick-freeze 唯一功能缺口 + 击退 PlayerVelocityEvent 门控 ≤1tick 残余窗口）；速度保真标定 5.6 m/s（超平坦 sprint 8s 位移 44.84 格）；单测 148/0（新增 ActionPackTest 4 + 规则表扩 11 锁）；三裁决落地（kick 终端拦截 / respawn 实例复用改锚 / brigadier 载体） | 见交付 commit（feat: Carpet Phase 2） |
-| P3 | 协议（carpet:hello） | ✅ 已完成 | 2026-10-18：判据②③④待 carpet 客户端实机终验（用户侧）；判据①已按 javap/上游 build.gradle 实证改写口径（真实客户端版本串带 `+v` 日期后缀 → 本地 LOG.warn 属上游 equals 语义同源产物，接受——无 chat 可见/断连级警告）；S2C 全 NMS DiscardedPayload 直发（carpet 客户端无 minecraft:register 声明 → plugin messaging 结构性不可达，静态全链实证）；单测 153/0（新增 CarpetHelloFrameTest 5：帧形状/撞名"2"/回执缺省键/版本串字面守卫）；runServer 冒烟（四模块+假人 join+/carpet 回归）通过；as-built = [carpet-protocol.md](carpet-protocol.md) | 见交付 commit（feat: Carpet Phase 3） |
-| P4 | 日志（/log + tps/mobcaps） | ✅ 已完成 | 2026-10-19：判据①服务端侧全链就绪（HUD 行公式逐字 + footer 只写路径 + 单测/冒烟）——carpet 客户端 HUD 终验留用户侧（phases §6 验证方式即"客户端实机"）；判据②状态机全矩阵单测（墓碑双信号模型 + join 谓词 + carpet-logs.json 往返）+ conf/13 规则往返；判据③仓内零占用 grep + 只写 footer（零 header 触碰）；runServer 冒烟（console 三入口拒绝面/13 规则/conf 往返/假人豁免/disable 三连清）+ 单测 171/0/0（新增 CarpetLoggerTest 18）；as-built = [carpet-architecture.md](carpet-architecture.md) §16-§18 | 见交付 commit（feat: Carpet Phase 4） |
-| P5 | 命令族（纯计算类） | ✅ 已完成 | 2026-10-19：五命令 runServer 实测（distance 三距离 100.00/100.00/100.0 含 Vec3Argument 居中、spawn mobcaps 八类别多行 + entities monster 空表、draw sphere r3 → Filled 98 blocks、help 树含 perimeterinfo [\<center>] [\<mob>] 与 info block [grep]）+ 18 规则全列（五新规则在册，上游 :411-490 实名逐字）；`/spawn mobcaps` 与 `/log mobcaps` 同 `SpawnReport`/`SpawnState` 数据源（交叉一致构造性成立）；单测 175/0/0（新增 DistanceCalculatorTest 4 + 规则表扩 18 锁 + 方法名更名）；`/info` `/perimeterinfo` 执行面与玩家侧（tab 补全/点击组件）终验留用户实机（wander_chances/全扫为慢路径）；as-built = [carpet-architecture.md](carpet-architecture.md) §19-§20；scope §3 /distance /info 两行已按上游源码勘误 | 见交付 commit（feat: Carpet Phase 5） |
+| P3 | 协议（carpet:hello） | ✅ 已完成 | 2026-10-18：判据②③④待 carpet 客户端实机终验（用户侧）；判据①已按 javap/上游 build.gradle 实证改写口径（真实客户端版本串带 `+v` 日期后缀 → 本地 LOG.warn 属上游 equals 语义同源产物，接受——无 chat 可见/断连级警告）；S2C 全 NMS DiscardedPayload 直发（carpet 客户端无 minecraft:register 声明 → plugin messaging 结构性不可达，静态全链实证）；单测 153/0（新增 CarpetHelloFrameTest 5：帧形状/撞名"2"/回执缺省键/版本串字面守卫）；runServer 冒烟（四模块+假人 join+/carpet 回归）通过；as-built = [carpet/protocol.md](protocol.md) | 见交付 commit（feat: Carpet Phase 3） |
+| P4 | 日志（/log + tps/mobcaps） | ✅ 已完成 | 2026-10-19：判据①服务端侧全链就绪（HUD 行公式逐字 + footer 只写路径 + 单测/冒烟）——carpet 客户端 HUD 终验留用户侧（phases §6 验证方式即"客户端实机"）；判据②状态机全矩阵单测（墓碑双信号模型 + join 谓词 + carpet-logs.json 往返）+ conf/13 规则往返；判据③仓内零占用 grep + 只写 footer（零 header 触碰）；runServer 冒烟（console 三入口拒绝面/13 规则/conf 往返/假人豁免/disable 三连清）+ 单测 171/0/0（新增 CarpetLoggerTest 18）；as-built = [carpet/architecture.md](architecture.md) §16-§18 | 见交付 commit（feat: Carpet Phase 4） |
+| P5 | 命令族（纯计算类） | ✅ 已完成 | 2026-10-19：五命令 runServer 实测（distance 三距离 100.00/100.00/100.0 含 Vec3Argument 居中、spawn mobcaps 八类别多行 + entities monster 空表、draw sphere r3 → Filled 98 blocks、help 树含 perimeterinfo [\<center>] [\<mob>] 与 info block [grep]）+ 18 规则全列（五新规则在册，上游 :411-490 实名逐字）；`/spawn mobcaps` 与 `/log mobcaps` 同 `SpawnReport`/`SpawnState` 数据源（交叉一致构造性成立）；单测 175/0/0（新增 DistanceCalculatorTest 4 + 规则表扩 18 锁 + 方法名更名）；`/info` `/perimeterinfo` 执行面与玩家侧（tab 补全/点击组件）终验留用户实机（wander_chances/全扫为慢路径）；as-built = [carpet/architecture.md](architecture.md) §19-§20；scope §3 /distance /info 两行已按上游源码勘误 | 见交付 commit（feat: Carpet Phase 5） |
 | P6 | 近似规则自选池 | ⬜ 未开始（可选） | — | — |
-| P7 | 三线铺开 | ✅ 已完成 | 2026-10-19：两 ver 线原子交付（代码+该线文档同 commit）——ver/26.1.2-dev `0e278bc`（61 文件，HI="26.1"，buildNumber 7→8，适配 6 处）+ ver/1.21.11-dev `71fe5b7`（57 文件，HI="1.4.194"，buildNumber 5→6，适配 3 处增量）；build+test 全绿（168/0/0 与 125/0/0，carpet 7 类随行）；runServer 实机全判据（四模块/18 规则/conf 往返/假人全链/**掉落差分两线致死实证**/distance/mobcaps/draw/log 拒绝面）；per-line 逐线复核完成（上游三树矩阵 + 实测计数，见 carpet-architecture.md §22）；**掉落伤害 per-line 双机制**（#63：26.2 手动驱动 vs ver 线 isClientAuthoritative 覆写——Paper 玩家物理路径 per-line 根本不同，勿互抄）；用户侧终验清单（各线对应版本 carpet 客户端）留用户执行；as-built = [carpet-architecture.md](carpet-architecture.md) §22-§24 + 各线自含文档（31-carpet.md / carpet.md） | `0e278bc`（26.1.2 线）· `71fe5b7`（1.21.11 线） |
+| P7 | 三线铺开 | ✅ 已完成 | 2026-10-19：两 ver 线原子交付（代码+该线文档同 commit）——ver/26.1.2-dev `0e278bc`（61 文件，HI="26.1"，buildNumber 7→8，适配 6 处）+ ver/1.21.11-dev `71fe5b7`（57 文件，HI="1.4.194"，buildNumber 5→6，适配 3 处增量）；build+test 全绿（168/0/0 与 125/0/0，carpet 7 类随行）；runServer 实机全判据（四模块/18 规则/conf 往返/假人全链/**掉落差分两线致死实证**/distance/mobcaps/draw/log 拒绝面）；per-line 逐线复核完成（上游三树矩阵 + 实测计数，见 carpet/architecture.md §22）；**掉落伤害 per-line 双机制**（#63：26.2 手动驱动 vs ver 线 isClientAuthoritative 覆写——Paper 玩家物理路径 per-line 根本不同，勿互抄）；用户侧终验清单（各线对应版本 carpet 客户端）留用户执行；as-built = [carpet/architecture.md](architecture.md) §22-§24 + 各线自含文档（31-carpet.md / carpet.md） | `0e278bc`（26.1.2 线）· `71fe5b7`（1.21.11 线） |

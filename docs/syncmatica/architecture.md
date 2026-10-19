@@ -2,7 +2,7 @@
 
 > **状态**：syncmatica（投影共享）已完整实现，所有协议路径（握手 / 分享 / 下载 / 修改 / 删除 / 持久化 / 多玩家广播 / 软禁用）均经实测（26.1→26.2 wire 零变化）。
 > **本文描述实际架构**，对应代码 `src/main/java/verymc/top/veryMcProto/mod/syncmatica/`；原版对照 `OriginImpl/syncmatica-LTS-26.2/`。§2 包结构全树与 §10 迁移记录 = 原版→Paper 的逐项权威。
-> 相关文档：网络协议与 Exchange 状态机见 [syncmatica-protocol.md](syncmatica-protocol.md)；测试见 [syncmatica-testing.md](syncmatica-testing.md)；运维命令/配置见 [operations.md](operations.md)；全局框架见 [architecture.md](architecture.md)——syncmatica 与 Servux 共享同一套 `framework/network`。
+> 相关文档：网络协议与 Exchange 状态机见 [syncmatica/protocol.md](protocol.md)；测试见 [syncmatica/testing.md](testing.md)；运维命令/配置见 [operations.md](../operations.md)；全局框架见 [architecture.md](../architecture.md)——syncmatica 与 Servux 共享同一套 `framework/network`。
 
 ---
 
@@ -150,7 +150,7 @@ VeryMcProto.onDisable
 
 > **事实链（静态全链实证，取代旧「事件不触发」与「声明晚到兜底」错误认知）**：Paper 的 `minecraft:register` → `pluginMessagerChannels` → `PlayerRegisterChannelEvent` 链路完整；但 syncmatica 客户端的 `syncmatica:main` receiver **仅在握手 CONFIRM_USER 之后注册**（`VersionHandshakeClient:65` → `Context.startup():150-156` → `registerReceivers():186`，全树唯一链）——**声明是握手完成的下游产物**（晚探针 2-3 RTT），不是独立事件。推论：①40t 探针是握手唯一引导路径（客户端被动等探针）；②`tryStartHandshake` 入口加 canSend 前置守卫 = 自引用死锁，**禁止回移 317a9a1 守卫**（该 commit 曾在本线引入自引用死锁，静态全链实证，已修复）；③vanilla 客户端收 ~40B 探针被静默丢弃（不踢人），悬挂 VHS 由 `onPlayerLeave` 清理；④兜底事件到达时握手通常已完成（幂等跳过）——「事件不触发」为时序错觉。
 
-> 🔧 **disable→enable 陈旧握手卡死修复（2026-10，勿随模板回退）**：`suspendAll` 旧实现只遍历 `broadcastTargets`（VHS 握手**成功后**才入集）且 `close(false)` 后不移出 `getExchanges()`（唯一移出点 `notifyClose` 不被触发）——disable 瞬间握手中途的玩家被漏扫，其 VHS 以未 finished 残留；enable 后 `reconnectOnlinePlayers` → `getOrCreateTarget`（computeIfAbsent 复用同一 target）→ `tryStartHandshake` 的 `instanceof VersionHandshakeServer` 跳过检查不辨死活 → 永久跳过，该玩家 syncmatica 不可用直到重进服。修复 = suspendAll 遍历 `targets.values()` 全集 + 每个 exchange close 后显式移出列表（刻意不走 `notifyClose`——保留不触发 `handleExchange` 副作用的静默语义）。**收敛无需客户端配合**：上游 `ClientCommunicationManager.handle` 对无主 `REGISTER_VERSION` 自带重握手路径（clear + 新建 VHC），VHC `checkPacket` 无条件匹配、FEATURE 轮重入幂等（时序详见 [syncmatica-protocol.md](syncmatica-protocol.md) §3.4）。
+> 🔧 **disable→enable 陈旧握手卡死修复（2026-10，勿随模板回退）**：`suspendAll` 旧实现只遍历 `broadcastTargets`（VHS 握手**成功后**才入集）且 `close(false)` 后不移出 `getExchanges()`（唯一移出点 `notifyClose` 不被触发）——disable 瞬间握手中途的玩家被漏扫，其 VHS 以未 finished 残留；enable 后 `reconnectOnlinePlayers` → `getOrCreateTarget`（computeIfAbsent 复用同一 target）→ `tryStartHandshake` 的 `instanceof VersionHandshakeServer` 跳过检查不辨死活 → 永久跳过，该玩家 syncmatica 不可用直到重进服。修复 = suspendAll 遍历 `targets.values()` 全集 + 每个 exchange close 后显式移出列表（刻意不走 `notifyClose`——保留不触发 `handleExchange` 副作用的静默语义）。**收敛无需客户端配合**：上游 `ClientCommunicationManager.handle` 对无主 `REGISTER_VERSION` 自带重握手路径（clear + 新建 VHC），VHC `checkPacket` 无条件匹配、FEATURE 轮重入幂等（时序详见 [syncmatica/protocol.md](protocol.md) §3.4）。
 
 ---
 
@@ -228,7 +228,7 @@ VeryMcProto.onDisable
 | **UploadExchange** | 服务端作发送方：客户端请求下载时收 REQUEST/RECEIVED → 发 SEND 分片 → 发 FINISHED |
 | **ModifyExchangeServer** | 修改锁：MODIFY_REQUEST → ACCEPT 占锁 → MODIFY_FINISH 应用 position + 广播 |
 
-> 每个 Exchange 的**完整状态机表 + 每个包的字段读写顺序**见 [syncmatica-protocol.md](syncmatica-protocol.md) §5。
+> 每个 Exchange 的**完整状态机表 + 每个包的字段读写顺序**见 [syncmatica/protocol.md](protocol.md) §5。
 
 ### 5.3 ExchangeTarget —— 「一个连接」的桥接
 
@@ -256,7 +256,7 @@ VeryMcProto.onDisable
 | `VERSION` | metadata 增 `writeVarInt(litematicVersion)` + `writeVarInt(dataVersion)` |
 | `MODIFY` | 决定修改走 `MODIFY_REQUEST/ACCEPT/FINISH` 还是退化到 `REMOVE_SYNCMATIC` |
 
-`FeatureSet` 序列化 = `\n` 分隔的 Feature 名字符串（**不是位图**）。本服务端声明全集，握手后双方用全集编码。完整握手流程见 [syncmatica-protocol.md](syncmatica-protocol.md) §3。
+`FeatureSet` 序列化 = `\n` 分隔的 Feature 名字符串（**不是位图**）。本服务端声明全集，握手后双方用全集编码。完整握手流程见 [syncmatica/protocol.md](protocol.md) §3。
 
 ---
 
@@ -281,7 +281,7 @@ VeryMcProto.onDisable
 
 > **已删除原版 `matList` 字段**（原版死代码，见 §10.7 降级矩阵）。
 
-`toJson()` / `fromJson()` 字段顺序与 `isDirty()` 自愈逻辑见 [syncmatica-protocol.md](syncmatica-protocol.md) §4。**hash 算法** = `SyncmaticaUtil.createChecksum`（MD5 → `UUID.nameUUIDFromBytes`）—— 客户端会校验，**不能改算法**。服务端加载时 `correctMetadataFromPeek(litematicFolder)` 用文件 peek 修正 displayName/version。
+`toJson()` / `fromJson()` 字段顺序与 `isDirty()` 自愈逻辑见 [syncmatica/protocol.md](protocol.md) §4。**hash 算法** = `SyncmaticaUtil.createChecksum`（MD5 → `UUID.nameUUIDFromBytes`）—— 客户端会校验，**不能改算法**。服务端加载时 `correctMetadataFromPeek(litematicFolder)` 用文件 peek 修正 displayName/version。
 
 ### 6.2 SyncmaticManager（注册表 + 持久化）
 
@@ -335,7 +335,7 @@ VeryMcProto.onDisable
 
 > 🔑 **物理包体是复合结构** `[逻辑通道 Identifier][body]`（对应原版 `SyncmaticaPacket.toPacket` = `writeIdentifier(channel) + writeBytes(body)`）。收发照抄原版，**切勿**像 Servux 那样把 `byte[]` 直接当 body——这是 syncmatica 网络层的最大坑点。
 >
-> 🔑 **S2C 路径命门（实测）**：plugin messaging（`sendPluginMessage`）的 S2C wire 格式，纯 Fabric 客户端（syncmatica）**收不到**——客户端零响应、零 C2S 回包。而 NMS `new ClientboundCustomPayloadPacket(new DiscardedPayload(syncmatica:main, bytes))` 经 `ServerPlayer.connection.send` 投递，已被 JEI 配方同步路径验证 fabric 客户端可解码（机制见 [architecture.md](architecture.md) §3.2）。故 S2C 默认走 NMS 直发（`S2C_VIA_NMS=true`）；plugin messaging 仅作诊断 fallback（`/syncmatica debug s2c msg` 切换）。`DiscardedPayload` 本身即 vanilla payload 类型，不会被强转拒绝（自定义 Payload record 会 ClassCastException）。
+> 🔑 **S2C 路径命门（实测）**：plugin messaging（`sendPluginMessage`）的 S2C wire 格式，纯 Fabric 客户端（syncmatica）**收不到**——客户端零响应、零 C2S 回包。而 NMS `new ClientboundCustomPayloadPacket(new DiscardedPayload(syncmatica:main, bytes))` 经 `ServerPlayer.connection.send` 投递，已被 JEI 配方同步路径验证 fabric 客户端可解码（机制见 [architecture.md](../architecture.md) §3.2）。故 S2C 默认走 NMS 直发（`S2C_VIA_NMS=true`）；plugin messaging 仅作诊断 fallback（`/syncmatica debug s2c msg` 切换）。`DiscardedPayload` 本身即 vanilla payload 类型，不会被强转拒绝（自定义 Payload record 会 ClassCastException）。
 
 ---
 
@@ -400,7 +400,7 @@ syncmatica 原版共 **19 个 Mixin**（`mixin/` 9 + `litematica_mixin/` 10）�
 
 ### 10.5 权限与命令
 
-权限：原版 `PermsWrap`（fabric-permissions-api 薄封装）→ `player.hasPermission(node)`；plugin.yml 5 节点见 [operations.md](operations.md) §2。命令：原版只有 `load`（`load_all` + `load_each`），Paper 扩展 status/save/reload/enable/disable/debug 运维子命令（树见 [operations.md](operations.md) §1.4）。
+权限：原版 `PermsWrap`（fabric-permissions-api 薄封装）→ `player.hasPermission(node)`；plugin.yml 5 节点见 [operations.md](../operations.md) §2。命令：原版只有 `load`（`load_all` + `load_each`），Paper 扩展 status/save/reload/enable/disable/debug 运维子命令（树见 [operations.md](../operations.md) §1.4）。
 
 `loadEach` 核心逻辑：`SyncmaticaUtil.litematicPeek(path)` 读 `SchematicMetadata` + `SchematicSchema`（不入 NMS）→ `new ServerPlacement(randomUUID, path, filename, owner)` → `move(玩家当前位置, NONE, NONE)` → `setMetadata/setSchema` → `comms.addPlacement`（注册 + 广播）。`updateSyncmaticDir` 仅列未加载文件（文件名去掉 `.litematic` 后须为合法 UUID 且 `hasPlacementHash` 为 false）。
 
@@ -415,9 +415,9 @@ syncmatica 原版共 **19 个 Mixin**（`mixin/` 9 + `litematica_mixin/` 10）�
 | **`material/`（材料配送）** | ⛔ 不移植，字段一起去掉 | 死代码：原版仅 `ServerPlacement.matList` 字段持有，无 exchange / 无 PacketType / 无命令 / 无持久化引用。已删字段 + `getMaterialList`/`setMaterialList` 方法 |
 | **`RedirectFileStorage`** | ⛔ 不移植 | 客户端装饰器（外部文件重定向免拷贝）；服务端纯 `FileStorage` 即可 |
 | **`extended_core/`（CORE_EX）** | ✅ 照抄 | owner / lastModifiedBy / subregion 共享，是协议字段（影响 metadata 编码），必须实现 |
-| **`litematica/schematic/`（peek）** | ✅ 照抄（落地为 `data/litematica/`） | `SchematicMetadata`/`SchematicSchema`/`Schema`/`FileType` 是自带轻量 litematic 解析，命令 `load` 需要。Schema 版本表整表照抄上游（升级时随上游增删，见 [operations.md](operations.md) §6.4） |
+| **`litematica/schematic/`（peek）** | ✅ 照抄（落地为 `data/litematica/`） | `SchematicMetadata`/`SchematicSchema`/`Schema`/`FileType` 是自带轻量 litematic 解析，命令 `load` 需要。Schema 版本表整表照抄上游（升级时随上游增删，见 [operations.md](../operations.md) §6.4） |
 | **版本协商（VERSION feature）** | ✅ 照抄 | `MOD_VERSION`=插件版本触发 FEATURE 交换使双方用全集 FeatureSet |
-| **客户端 exchange（3 个）** | ⛔ 不实现类，但服务端 `handle` 须回应其包 | 见 [syncmatica-protocol.md](syncmatica-protocol.md) §5.5 |
+| **客户端 exchange（3 个）** | ⛔ 不实现类，但服务端 `handle` 须回应其包 | 见 [syncmatica/protocol.md](protocol.md) §5.5 |
 | **`Reference.isClient/isIntegratedServer/isOpenToLan` 分支** | ⚠️ 简化删除 | Paper 恒 dedicated server |
 | **`/syncmatica load` 以外的原版命令** | — | 原版本就没有；扩展为运维子命令 |
 
@@ -437,7 +437,7 @@ syncmatica 原版共 **19 个 Mixin**（`mixin/` 9 + `litematica_mixin/` 10）�
 | hash 算法 | MD5 → `UUID.nameUUIDFromBytes`（type-3 UUID），内容寻址 + 去重 | §6.1 |
 | Feature 协商 | MOD_VERSION=插件版本触发 FEATURE 交换；FeatureSet 序列化为 `\n` 分隔名 | §5.4 |
 | 持久化路径 | `syncmatics/<hash>.litematic` + `placements.json` + `syncmatica-config.json`，原子写 | §10.4 |
-| 权限/命令 | 5 节点 + `/syncmatica` 树 | [operations.md](operations.md) §1.4/§2 |
+| 权限/命令 | 5 节点 + `/syncmatica` 树 | [operations.md](../operations.md) §1.4/§2 |
 | 调试体系 | `SyncmaticaDebug`（master + 分类正交，持久化）+ `DebugService`（逐包 INFO）两套独立 | §7 |
 | 配额 | QuotaService（默认关闭，限额 40MB，超额中断下载） | §7 |
 | material 死代码 | `matList` 字段 + `SyncmaticaMaterialList` 全删 | §10.7 |
@@ -456,14 +456,14 @@ syncmatica 原版共 **19 个 Mixin**（`mixin/` 9 + `litematica_mixin/` 10）�
 7. **material 死代码连字段一起去掉**（§10.7）。
 8. **DebugService 修正 2 处拼写/默认值 bug**；注意与 `SyncmaticaDebug` 是两套独立机制（§7）。
 9. **CORE_EX / VERSION / DISPLAY_NAME / MODIFY 四个 feature 必须实现**（影响字段编码，§5.4）。
-10. **checkPacket peek / handle 消费两段式**必须复刻（多 exchange 路由正确性，见 [syncmatica-protocol.md](syncmatica-protocol.md) §5/§9）。
+10. **checkPacket peek / handle 消费两段式**必须复刻（多 exchange 路由正确性，见 [syncmatica/protocol.md](protocol.md) §5/§9）。
 11. **不引入新依赖**，`build.gradle.kts` 不改（§10.6）。
 
 ---
 
 ## 13. 已知局限（工单登记）
 
-> 按文档约定（[index.md](index.md)），各域文档「已知局限」节是行为级工单的唯一登记处；升级窗口消费的观察项统一在 [operations.md](operations.md) §6.9。
+> 按文档约定（[index.md](../index.md)），各域文档「已知局限」节是行为级工单的唯一登记处；升级窗口消费的观察项统一在 [operations.md](../operations.md) §6.9。
 
 | 项 | 说明 | 状态 |
 |---|---|---|
@@ -472,4 +472,4 @@ syncmatica 原版共 **19 个 Mixin**（`mixin/` 9 + `litematica_mixin/` 10）�
 
 ---
 
-> **相关**：[syncmatica-protocol.md](syncmatica-protocol.md)（协议字段/状态机/分片/hash）· [syncmatica-testing.md](syncmatica-testing.md)（客户端兼容测试/排错）· [architecture.md](architecture.md)（全局框架）· [operations.md](operations.md)（命令/配置/排错）· [index.md](index.md)
+> **相关**：[syncmatica/protocol.md](protocol.md)（协议字段/状态机/分片/hash）· [syncmatica/testing.md](testing.md)（客户端兼容测试/排错）· [architecture.md](../architecture.md)（全局框架）· [operations.md](../operations.md)（命令/配置/排错）· [index.md](../index.md)

@@ -9,7 +9,7 @@
 
 | 资源 | 用途 | 结论 |
 |---|---|---|
-| [FabricMC Discussion #4430 — Sending data from Spigot server to Fabric 1.21 client](https://github.com/orgs/FabricMC/discussions/4430) | Spigot/Paper ↔ Fabric 自定义通道互通 | **决定性证据**：plugin messaging channel（`namespace:path`）直接映射原版 `CustomPacketPayload`；`byte[]` = `FriendlyByteBuf` 裸字节；`sendPluginMessage`/`onPluginMessageReceived` 可直收发。见 [servux-protocol.md](servux-protocol.md) §1、[architecture.md](architecture.md) §3 |
+| [FabricMC Discussion #4430 — Sending data from Spigot server to Fabric 1.21 client](https://github.com/orgs/FabricMC/discussions/4430) | Spigot/Paper ↔ Fabric 自定义通道互通 | **决定性证据**：plugin messaging channel（`namespace:path`）直接映射原版 `CustomPacketPayload`；`byte[]` = `FriendlyByteBuf` 裸字节；`sendPluginMessage`/`onPluginMessageReceived` 可直收发。见 [servux/protocol.md](servux/protocol.md) §1、[architecture.md](architecture.md) §3 |
 | [Bukkit `Messenger` Javadoc](https://hub.spigotmc.org/javadocs/spigot/org/bukkit/plugin/messaging/Messenger.html) | plugin messaging 单包上限 | 1.21.x 起 `MAX_MESSAGE_SIZE = 1048576`（~1MiB）——**旧版 32768（32KiB）的说法已过时**。原版两端对**未知通道** discarded payload 的解码上限（2026-10 javap 双线勘误）：**clientbound（S2C）= 1048576、serverbound（C2S）= 32767**（旧文档把 32767 记为 S2C 瓶颈系方向记反）。字节限制教义见 [architecture.md](architecture.md) §3.4 与 [../AGENTS.md](../AGENTS.md) §1 |
 | [SpigotMC — How to get around 32767 byte limit for plugin messaging](https://www.spigotmc.org/threads/how-to-get-around-32767-byte-limit-for-plugin-messaging.256652/) | 大包社区解法（历史参考） | 分片重组（与 PacketSplitter 思路一致；该帖语境是客户端 32767 解码上限，非 Bukkit Messenger 限制） |
 
@@ -30,7 +30,7 @@
 
 | 资源 | 链接 | 用途 |
 |---|---|---|
-| Fabric 网络文档 | https://docs.fabricmc.net/develop/networking | 理解 `ServerPlayNetworking`/`PayloadTypeRegistry`/`CustomPacketPayload`（[servux-protocol.md](servux-protocol.md)） |
+| Fabric 网络文档 | https://docs.fabricmc.net/develop/networking | 理解 `ServerPlayNetworking`/`PayloadTypeRegistry`/`CustomPacketPayload`（[servux/protocol.md](servux/protocol.md)） |
 | Fabric Loader | https://docs.fabricmc.net/ | Mod 生命周期、`FabricLoader` |
 | Mixin 文档 | https://github.com/SpongePowered/Mixin/wiki | 理解 `@Inject`/`@WrapOperation`/`@Accessor`（[architecture.md](architecture.md) §5） |
 | MixinExtras | https://github.com/LlamaLad7/MixinExtras | `@WrapOperation`/`@Local` 等（Servux 用到） |
@@ -62,13 +62,13 @@
 | 资源 | 路径 | 用途 |
 |---|---|---|
 | **Servux 原版（26.2 线对照权威）** | [`../OriginImpl/servux-LTS-26.2/`](../OriginImpl/servux-LTS-26.2/) | 逐行对照（协议常量 / Handler 分发权威）；ver/1.21.11 维护线对照 `servux-LTS-1.21.11/`（26.1 树保留在盘，不再是 dev 线权威） |
-| — 网络层 | `.../network/`、`.../network/packet/` | [servux-protocol.md](servux-protocol.md) |
-| — 数据采集 | `.../dataproviders/`、`.../loggers/` | [servux-providers.md](servux-providers.md) |
+| — 网络层 | `.../network/`、`.../network/packet/` | [servux/protocol.md](servux/protocol.md) |
+| — 数据采集 | `.../dataproviders/`、`.../loggers/` | [servux/providers.md](servux/providers.md) |
 | — Mixin | `.../mixin/`、`mixins.servux.json`、`servux.accesswidener` | [architecture.md](architecture.md) §5 |
-| — 投影系统 | `.../schematic/` | [servux-schematic.md](servux-schematic.md) |
-| **Syncmatica 原版（26.2 线对照权威）** | [`../OriginImpl/syncmatica-LTS-26.2/`](../OriginImpl/syncmatica-LTS-26.2/) | [syncmatica-architecture.md](syncmatica-architecture.md)–[syncmatica-testing.md](syncmatica-testing.md) |
-| **JEI 原版（26.2 线对照权威）** | `../OriginImpl/JustEnoughItems-26.2/`（mezz，分支 `26.2`） | [jei.md](jei.md)；clone 命令与协议权威文件清单见 [../AGENTS.md](../AGENTS.md) §参考源码 |
-| **fabric-carpet 原版（预研对照，四树并存）** | `../OriginImpl/fabric-carpet-26.2/`（dev 线，tag `v26.2`）；`fabric-carpet-26.1/`（ver/26.1.2 线，分支 `26.1`）；`fabric-carpet-1.21.11/`（ver/1.21.11 线，分支 `1.21.11`）；`fabric-carpet-master/`（26.4-snapshot 观望线） | [carpet-porting-scope.md](carpet-porting-scope.md)（移植判定权威）+ [carpet-phases.md](carpet-phases.md)（分阶段推进规划）；线↔目录映射见 scope 文档首表 |
+| — 投影系统 | `.../schematic/` | [servux/schematic.md](servux/schematic.md) |
+| **Syncmatica 原版（26.2 线对照权威）** | [`../OriginImpl/syncmatica-LTS-26.2/`](../OriginImpl/syncmatica-LTS-26.2/) | [syncmatica/architecture.md](syncmatica/architecture.md)–[syncmatica/testing.md](syncmatica/testing.md) |
+| **JEI 原版（26.2 线对照权威）** | `../OriginImpl/JustEnoughItems-26.2/`（mezz，分支 `26.2`） | [jei/protocol.md](jei/protocol.md)；clone 命令与协议权威文件清单见 [../AGENTS.md](../AGENTS.md) §参考源码 |
+| **fabric-carpet 原版（预研对照，四树并存）** | `../OriginImpl/fabric-carpet-26.2/`（dev 线，tag `v26.2`）；`fabric-carpet-26.1/`（ver/26.1.2 线，分支 `26.1`）；`fabric-carpet-1.21.11/`（ver/1.21.11 线，分支 `1.21.11`）；`fabric-carpet-master/`（26.4-snapshot 观望线） | [carpet/porting-scope.md](carpet/porting-scope.md)（移植判定权威）+ [carpet/phases.md](carpet/phases.md)（分阶段推进规划）；线↔目录映射见 scope 文档首表 |
 | masa 客户端（litematica/malilib/minihud/tweakeroo） | `../OriginImpl/*-LTS-26.2/` | **协议接收端与硬门禁所在**，字段语义必查 |
 | **姊妹项目 VeryMcBot（paperweight+NMS 范式参考）** | `I:\Programming\VeryMcBot` | `build.gradle.kts`（userdev）、`reflect/Reflect`（反射工具）、其自身 CLAUDE.md（文档风格） |
 | 本项目权威说明 | [`../AGENTS.md`](../AGENTS.md) | 架构、分支/版本模型、核心设计约束、工作约定 |
@@ -95,17 +95,17 @@
 |---|---|
 | [index.md](index.md) | **文档总索引**：全量登记、文档约定、推荐阅读路线、历史锚点映射表（跨线 backport 必读） |
 | [architecture.md](architecture.md) | **全局架构与迁移参考**：分层框架、网络框架与三种 S2C 投递路径、字节限制裸值（§3.4 唯一权威）、生命周期、Mixin→Paper 统一处置矩阵（§5）、逐域对照、构建工具链 |
-| [servux-protocol.md](servux-protocol.md) | **Servux 五通道 wire 规范**：通道总表、Payload 模型、版本约束与安全闸（MOD_STRING 门禁/协议常量/DataTag 分界）、收发流程、与上游逐通道差异 |
-| [servux-providers.md](servux-providers.md) | 5 个 Provider 的协议数据内容（NBT 字段）+ 数据采集实现 + loggers（TPS/MobCap）+ 设置语义 |
-| [servux-schematic.md](servux-schematic.md) | **Litematica 投影子系统**：BitArray/Palette 压缩、C2S 上传两级分包、体积一致性预检、实体位置修复族、Task 调度器与 paste 任务化 |
-| [servux-testing.md](servux-testing.md) | **Servux 客户端兼容测试**：5 通道↔3 mod 映射、判官逻辑、Litematica/Tweakeroo 测试步骤、上游对齐回归清单、实测验收要点、排错 |
-| [syncmatica-architecture.md](syncmatica-architecture.md) | **Syncmatica 架构 + 迁移记录**：与 Servux 本质差异、包结构全树（唯一权威）、双保险握手、Exchange 会话层、数据模型、Mixin→Bukkit 迁移、关键决策 |
-| [syncmatica-protocol.md](syncmatica-protocol.md) | **Syncmatica 单通道协议**：`[Identifier][body]` 包体、18 PacketType 全表（拼写陷阱）、Feature 协商、字段表、Exchange 状态机、stop-and-wait 分片、hash |
-| [syncmatica-testing.md](syncmatica-testing.md) | **Syncmatica 客户端兼容测试**：握手/分享/下载/修改/删除/命令/持久化/配额/多玩家步骤、判官逻辑、排错 + 症状表 |
-| [jei.md](jei.md) | **JEI 完整协议**：三层全景、通道声明契约（isJeiOnServer 门禁）、12 通道 wire 逐字段、cheat 权限模型、配方转移算法、进服时序整形、尺寸模型、上游源码索引 |
+| [servux/protocol.md](servux/protocol.md) | **Servux 五通道 wire 规范**：通道总表、Payload 模型、版本约束与安全闸（MOD_STRING 门禁/协议常量/DataTag 分界）、收发流程、与上游逐通道差异 |
+| [servux/providers.md](servux/providers.md) | 5 个 Provider 的协议数据内容（NBT 字段）+ 数据采集实现 + loggers（TPS/MobCap）+ 设置语义 |
+| [servux/schematic.md](servux/schematic.md) | **Litematica 投影子系统**：BitArray/Palette 压缩、C2S 上传两级分包、体积一致性预检、实体位置修复族、Task 调度器与 paste 任务化 |
+| [servux/testing.md](servux/testing.md) | **Servux 客户端兼容测试**：5 通道↔3 mod 映射、判官逻辑、Litematica/Tweakeroo 测试步骤、上游对齐回归清单、实测验收要点、排错 |
+| [syncmatica/architecture.md](syncmatica/architecture.md) | **Syncmatica 架构 + 迁移记录**：与 Servux 本质差异、包结构全树（唯一权威）、双保险握手、Exchange 会话层、数据模型、Mixin→Bukkit 迁移、关键决策 |
+| [syncmatica/protocol.md](syncmatica/protocol.md) | **Syncmatica 单通道协议**：`[Identifier][body]` 包体、18 PacketType 全表（拼写陷阱）、Feature 协商、字段表、Exchange 状态机、stop-and-wait 分片、hash |
+| [syncmatica/testing.md](syncmatica/testing.md) | **Syncmatica 客户端兼容测试**：握手/分享/下载/修改/删除/命令/持久化/配额/多玩家步骤、判官逻辑、排错 + 症状表 |
+| [jei/protocol.md](jei/protocol.md) | **JEI 完整协议**：三层全景、通道声明契约（isJeiOnServer 门禁）、12 通道 wire 逐字段、cheat 权限模型、配方转移算法、进服时序整形、尺寸模型、上游源码索引 |
 | [operations.md](operations.md) | **运维全键唯一权威 + 升级 SOP**：四 mod 命令/权限/配置全键（含 carpet.conf 纯文本例外）/数据布局/排错速查（§1–§5）+ MC 版本升级标准作业程序（§6） |
-| [carpet-architecture.md](carpet-architecture.md) | **Carpet 模块 as-built**：装配、注解规则框架（上游 SettingsManager 同构 + 偏差清单）、/carpet 四子命令与双层门禁、8 地基规则表、carpet.conf 格式、cleanLogs 过滤器代数、perf 真因果 |
-| [carpet-protocol.md](carpet-protocol.md) | **carpet:hello 协议 as-built（P3）**：通道/载体/S2C NMS 直发、消息面全表（HI "69"/hello "420"/Rules/clientCommand）、握手名册、规则同步链、Snoopy 移植、偏差清单 |
-| [carpet-porting-scope.md](carpet-porting-scope.md) | **Carpet 移植范围全量清单（预研结论）**：上游画像、协议/命令/logger/规则逐条三判定、假人子系统深潜、Scarpet 不可行论证 |
-| [carpet-phases.md](carpet-phases.md) | **Carpet 分阶段推进规划**：Phase 依赖图（基础→假人→协议置前）、逐 Phase 判据与验证、三线铺开策略、非目标终判、状态登记表 |
+| [carpet/architecture.md](carpet/architecture.md) | **Carpet 模块 as-built**：装配、注解规则框架（上游 SettingsManager 同构 + 偏差清单）、/carpet 四子命令与双层门禁、8 地基规则表、carpet.conf 格式、cleanLogs 过滤器代数、perf 真因果 |
+| [carpet/protocol.md](carpet/protocol.md) | **carpet:hello 协议 as-built（P3）**：通道/载体/S2C NMS 直发、消息面全表（HI "69"/hello "420"/Rules/clientCommand）、握手名册、规则同步链、Snoopy 移植、偏差清单 |
+| [carpet/porting-scope.md](carpet/porting-scope.md) | **Carpet 移植范围全量清单（预研结论）**：上游画像、协议/命令/logger/规则逐条三判定、假人子系统深潜、Scarpet 不可行论证 |
+| [carpet/phases.md](carpet/phases.md) | **Carpet 分阶段推进规划**：Phase 依赖图（基础→假人→协议置前）、逐 Phase 判据与验证、三线铺开策略、非目标终判、状态登记表 |
 | [references.md](references.md) | 本文件：外部参考链接全仓库唯一登记处 |

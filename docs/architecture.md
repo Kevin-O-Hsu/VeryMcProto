@@ -1,14 +1,14 @@
 # 全局架构 · 网络框架 · Mixin→Paper 迁移参考
 
 > 本文是全局层的唯一权威：分层架构与框架契约（§1–§2）、网络框架与三种 S2C 投递路径（§3）、生命周期（§4）、Mixin→Paper 统一处置矩阵（§5）、Fabric↔Paper 逐域对照（§6）、构建与工具链（§7）。
-> **字节上限裸值唯一权威在本文 §3.4**（域文档只写行为语义+指针）；**Mixin 处置唯一权威在本文 §5**（syncmatica 逐文件迁移标注的唯一权威在 [syncmatica-architecture.md](syncmatica-architecture.md) §2）。
-> Servux 通道 wire 细节见 [servux-protocol.md](servux-protocol.md)；各 Provider 数据内容见 [servux-providers.md](servux-providers.md)；syncmatica/JEI 见各自文档；命令/权限/配置/升级 SOP 见 [operations.md](operations.md)；仓库权威说明见 [../AGENTS.md](../AGENTS.md)。
+> **字节上限裸值唯一权威在本文 §3.4**（域文档只写行为语义+指针）；**Mixin 处置唯一权威在本文 §5**（syncmatica 逐文件迁移标注的唯一权威在 [syncmatica/architecture.md](syncmatica/architecture.md) §2）。
+> Servux 通道 wire 细节见 [servux/protocol.md](servux/protocol.md)；各 Provider 数据内容见 [servux/providers.md](servux/providers.md)；syncmatica/JEI 见各自文档；命令/权限/配置/升级 SOP 见 [operations.md](operations.md)；仓库权威说明见 [../AGENTS.md](../AGENTS.md)。
 
 ---
 
 ## 1. 项目定位与可行性结论
 
-**VeryMcProto 把 Fabric 端独特的 Mod Protocol（协议 Mod）以纯 Paper 插件形式重新实现**。客户端仍是 masa / syncmatica / JEI 的 Fabric Mod；本插件在 Paper 服务端复刻它们期待的网络协议与数据采集，使「Fabric 客户端 + Paper 服务端」像「Fabric 客户端 + 原版服务端 Mod」一样工作。三个 mod（Servux / JEI / Syncmatica）已全部落地并实机验证；第四模块 **Carpet**（行为注入型 mod 的可移植子集，非协议投递型）Phase 1「模块地基」已落地——见 [carpet-architecture.md](carpet-architecture.md) 与 [carpet-phases.md](carpet-phases.md)。
+**VeryMcProto 把 Fabric 端独特的 Mod Protocol（协议 Mod）以纯 Paper 插件形式重新实现**。客户端仍是 masa / syncmatica / JEI 的 Fabric Mod；本插件在 Paper 服务端复刻它们期待的网络协议与数据采集，使「Fabric 客户端 + Paper 服务端」像「Fabric 客户端 + 原版服务端 Mod」一样工作。三个 mod（Servux / JEI / Syncmatica）已全部落地并实机验证；第四模块 **Carpet**（行为注入型 mod 的可移植子集，非协议投递型）Phase 1「模块地基」已落地——见 [carpet/architecture.md](carpet/architecture.md) 与 [carpet/phases.md](carpet/phases.md)。
 
 | 问题 | 结论 | 依据 |
 |---|---|---|
@@ -52,7 +52,7 @@ verymc.top.veryMcProto/
     │                             + extended_core/ + network/ + service/ + util/
     └── carpet/                   CarpetReference + CarpetSettings（8 规则声明）+ app/CarpetModule + command/ + settings/
                                   （规则框架五类）+ util/CommandHelper + listener/ + logging/CleanLogsFilter
-                                  （Phase 1 地基；行为注入型 mod 子集，见 carpet-architecture.md）
+                                  （Phase 1 地基；行为注入型 mod 子集，见 carpet/architecture.md）
 ```
 
 **新增协议 mod 的步骤**：在 `mod/<newmod>/` 实现 `ModModule`（或自管装配如 syncmatica/jei），在主类 `onEnable` 注册，在 `plugin.yml` 加命令/权限——**无需改动框架**。
@@ -192,13 +192,13 @@ public void register() {
 
 三常量方向对照（同名/近名易混）：`MAX_TOTAL_PER_PACKET_S2C`（32,000）= 我方**发送**单片上限；`DEFAULT_MAX_RECEIVE_SIZE_S2C`（64MB）= 我方**接收**缓冲上限；`MAX_REASSEMBLY_SIZE_S2C`（16MB）= **客户端重组**上限（我方发送预检阈值）——与 malilib 客户端侧同名常量数值对齐而与 64MB 同名常量无关。原版另有的 C2S 专用三常量在本实现零引用已删除（C2S/S2C 共用单物理通道）。
 
-C2S 接收方向的解压配额闸（gzip bomb / 长度字段炸弹拦截）见 [servux-protocol.md](servux-protocol.md) 版本约束节（`DataTagIo`，servux 域）。
+C2S 接收方向的解压配额闸（gzip bomb / 长度字段炸弹拦截）见 [servux/protocol.md](servux/protocol.md) 版本约束节（`DataTagIo`，servux 域）。
 
 ### 3.5 Payload record 模型
 
 `record Payload(...) implements CustomPacketPayload` + `static Type<Payload> ID`（= 通道 Identifier）+ `static StreamCodec<FriendlyByteBuf, Payload> CODEC`——Paper 端去掉 `@Environment(EnvType.SERVER)` 后近乎原样可用（`CustomPacketPayload.Type`、`StreamCodec`、`FriendlyByteBuf` 全是 NMS，paperweight 直连）。plugin messaging 收发 `byte[]` 时，Payload record 主要用于 NMS 直发与协议定义文档化。
 
-`IServerPayloadData` 协议数据统一抽象（纯接口照抄）：`getVersion()`（各通道真值见 [servux-protocol.md](servux-protocol.md) §2）/ `getPacketType()` / `getTotalSize()` / `isEmpty()` / `toPacket(FriendlyByteBuf)` / `clear()`——**勿在此复述裸值，防版本线演进漂移**。
+`IServerPayloadData` 协议数据统一抽象（纯接口照抄）：`getVersion()`（各通道真值见 [servux/protocol.md](servux/protocol.md) §2）/ `getPacketType()` / `getTotalSize()` / `isEmpty()` / `toPacket(FriendlyByteBuf)` / `clear()`——**勿在此复述裸值，防版本线演进漂移**。
 
 ### 3.6 NMS API 实测坑清单（升级核对参考）
 
@@ -317,7 +317,7 @@ C2S 接收方向的解压配额闸（gzip bomb / 长度字段炸弹拦截）见 
 
 ### 5.4 Syncmatica 侧（概览）
 
-syncmatica 原版 19 Mixin（`mixin/` 9 + `litematica_mixin/` 10），服务端真正替换仅 **5 个**（MinecraftServer/PlayerManager/ServerPlay·ServerCommon NetworkHandler/CommandManager），全部 Bukkit 事件 / Brigadier→Bukkit 命令 / plugin messaging listener / 写死 dedicated 替代；客户端 4 + GUI 10 全不移植。**无「改服务端行为」类降级**（对比 Servux：不改任何原版服务端逻辑，纯协议层 + 文件 I/O，不需要 PacketEvents）。逐项明细见 [syncmatica-architecture.md](syncmatica-architecture.md)。
+syncmatica 原版 19 Mixin（`mixin/` 9 + `litematica_mixin/` 10），服务端真正替换仅 **5 个**（MinecraftServer/PlayerManager/ServerPlay·ServerCommon NetworkHandler/CommandManager），全部 Bukkit 事件 / Brigadier→Bukkit 命令 / plugin messaging listener / 写死 dedicated 替代；客户端 4 + GUI 10 全不移植。**无「改服务端行为」类降级**（对比 Servux：不改任何原版服务端逻辑，纯协议层 + 文件 I/O，不需要 PacketEvents）。逐项明细见 [syncmatica/architecture.md](syncmatica/architecture.md)。
 
 ---
 
@@ -434,7 +434,7 @@ tasks {
 }
 ```
 
-**plugin.yml**（`api-version` 已模板化 `${mcVersion}`，不再手写；语义 = 低于该值的服务器拒载；本插件 MOD_STRING 硬门禁绑死精确上游 id，见 [servux-protocol.md](servux-protocol.md) 版本约束节）：
+**plugin.yml**（`api-version` 已模板化 `${mcVersion}`，不再手写；语义 = 低于该值的服务器拒载；本插件 MOD_STRING 硬门禁绑死精确上游 id，见 [servux/protocol.md](servux/protocol.md) 版本约束节）：
 
 ```yaml
 name: VeryMcProto
@@ -454,7 +454,7 @@ JDK 25 工具链经 foojay-resolver-convention 自动解析（探测不到时自
 |---|---|---|
 | 未知通道解码上限（clientbound 1MiB / serverbound 32767，§3.4 勘误后口径） | 大包/畸形包解码拒绝 | 分片 32000/31995（历史取值双向保守）+ 16MB 重组预检；已知通道大包走 NMS 直发（§3.2） |
 | 客户端未装对应 Mod | 发包失败/无响应 | `MAX_FAILURES` 计数 + invalid 标记；`PlayerRegisterChannelEvent` + C2S 主动请求自愈 |
-| MOD_STRING 协议握手字段 | 客户端版本门禁 | `servux-fabric-<mcVersion>-b<buildNumber>`（`MOD_TYPE` 恒 "fabric" 伪装）——真值见 [servux-protocol.md](servux-protocol.md) 版本约束节 |
+| MOD_STRING 协议握手字段 | 客户端版本门禁 | `servux-fabric-<mcVersion>-b<buildNumber>`（`MOD_TYPE` 恒 "fabric" 伪装）——真值见 [servux/protocol.md](servux/protocol.md) 版本约束节 |
 | NMS 签名随版本漂移 | 升级 MC 时编译失败 | 反射点集中在 `framework/reflect/`；升级按 §3.6 坑清单 + [operations.md](operations.md) 升级 SOP 核对 |
 | Structures 周期扫描性能 | 玩家多时 CPU 占用 | 限扫描频率（`update_interval` 默认 40t）；只扫 view distance 内；去重缓存 |
 | EasyPlace 依赖 PacketEvents | 未装时功能缺席 | `EasyPlaceBootstrap` 反射加载 + `catch(Throwable)` 优雅跳过，其余通道零影响 |
@@ -462,4 +462,4 @@ JDK 25 工具链经 foojay-resolver-convention 自动解析（探测不到时自
 
 ---
 
-> **相关**：[index.md](index.md)（文档地图与约定）· [servux-protocol.md](servux-protocol.md) · [servux-providers.md](servux-providers.md) · [servux-schematic.md](servux-schematic.md) · [servux-testing.md](servux-testing.md) · [syncmatica-architecture.md](syncmatica-architecture.md) · [syncmatica-protocol.md](syncmatica-protocol.md) · [syncmatica-testing.md](syncmatica-testing.md) · [jei.md](jei.md) · [carpet-architecture.md](carpet-architecture.md) · [operations.md](operations.md) · [references.md](references.md) · [../AGENTS.md](../AGENTS.md)
+> **相关**：[index.md](index.md)（文档地图与约定）· [servux/protocol.md](servux/protocol.md) · [servux/providers.md](servux/providers.md) · [servux/schematic.md](servux/schematic.md) · [servux/testing.md](servux/testing.md) · [syncmatica/architecture.md](syncmatica/architecture.md) · [syncmatica/protocol.md](syncmatica/protocol.md) · [syncmatica/testing.md](syncmatica/testing.md) · [jei/protocol.md](jei/protocol.md) · [carpet/architecture.md](carpet/architecture.md) · [operations.md](operations.md) · [references.md](references.md) · [../AGENTS.md](../AGENTS.md)

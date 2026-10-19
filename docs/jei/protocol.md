@@ -4,7 +4,7 @@
 >
 > 配方同步层的 wire 真权威是 **Fabric API** `fabric-recipe-api-v1`（github FabricMC/fabric 分支 26.2）；NeoForge 层是 NeoForge 加载器（wire 参考 `OriginImpl/JEIRecipeBridge-26.1/`）。
 >
-> 相关阅读：[architecture.md](architecture.md)（字节上限裸值 §3.4 / Mixin 处置 §5）、[operations.md](operations.md)（命令/权限/配置）、[index.md](index.md)、根 [../AGENTS.md](../AGENTS.md)。
+> 相关阅读：[architecture.md](../architecture.md)（字节上限裸值 §3.4 / Mixin 处置 §5）、[operations.md](../operations.md)（命令/权限/配置）、[index.md](../index.md)、根 [../AGENTS.md](../../AGENTS.md)。
 
 ## 0. 协议全景（三层）
 
@@ -122,7 +122,7 @@ recipes:    VarInt(count) + RecipeHolder.STREAM_CODEC 列表
 
 触发 = `PlayerJoinEvent` + brand=="neoforge"（**保留旧行为**——NeoForge 客户端连 Paper 服处于 vanilla 模式，其通道声明行为不可依赖；此路径已在 1.21.11/26.1 实机验证）。聊天提示仅此路径保留。
 
-## 6. 尺寸模型（字节上限真值见 [architecture.md](architecture.md) §3.4）
+## 6. 尺寸模型（字节上限真值见 [architecture.md](../architecture.md) §3.4）
 
 - **未知通道解码上限（2026-10 javap 勘误口径，裸值唯一权威 architecture.md §3.4）**：clientbound（S2C）= 1MiB、**serverbound（C2S）= 32767**——旧记述把 32767 记为客户端 S2C 值系方向记反。对发给 vanilla/未装 mod 客户端的任意通道，1MiB 内静默丢弃、超限解码拒绝。
 - **已知通道不受此限**：Fabric API 把 `fabric:recipe_sync` 注册为 64MB large payload（客户端 codec + mixin 提限）。我方单包直发给 Fabric API 客户端安全（26.1.2 实机验证，配方表全量 >1MiB 场景）。
@@ -185,4 +185,4 @@ command/JeiCommand     /jei status|enable|disable
 
 ---
 
-> **回到索引**：[index.md](index.md) · 项目权威说明：[../AGENTS.md](../AGENTS.md)
+> **回到索引**：[index.md](../index.md) · 项目权威说明：[../AGENTS.md](../../AGENTS.md)

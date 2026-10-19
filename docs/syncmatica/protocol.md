@@ -2,7 +2,7 @@
 
 > **状态**：syncmatica（投影共享）已 100% 完整实现并实测通过。本文是【已实现说明】——所有协议字段、收发路径、Exchange 状态机、分片机制均已落地，对应代码在 `src/main/java/verymc/top/veryMcProto/mod/syncmatica/`。
 > **原版对照**：`OriginImpl/syncmatica-LTS-26.2/src/main/java/ch/endte/syncmatica/`（逐行对照的权威实现；26.1 wire 零变化，自 1.21.11 迁移，26.2 复核同）。
-> **相关文档**：架构总览与 Mixin→Bukkit 迁移记录 [syncmatica-architecture.md](syncmatica-architecture.md)（包结构 §2 唯一权威、关键决策 §11）；测试 [syncmatica-testing.md](syncmatica-testing.md)；文档总索引 [index.md](index.md)；项目权威说明 [../AGENTS.md](../AGENTS.md)。
+> **相关文档**：架构总览与 Mixin→Bukkit 迁移记录 [syncmatica/architecture.md](architecture.md)（包结构 §2 唯一权威、关键决策 §11）；测试 [syncmatica/testing.md](testing.md)；文档总索引 [index.md](../index.md)；项目权威说明 [../AGENTS.md](../../AGENTS.md)。
 > **字段语义对照**：syncmatica 是双端 mod，同仓库的 `communication/ClientCommunicationManager.java` + 各 `*Client` Exchange 即协议接收端。本文所有字段顺序均已对照客户端 `receiveMetaData` / `receivePositionData` 确认一致。
 
 ---
@@ -148,7 +148,7 @@
 - `checkPartnerVersion(version)`（`SyncmaticaContext`）：**仅拒绝 `"0.0.1"`**（原版行为）。
 - `onFeatureSetReceive`（`VersionHandshakeServer.java:73-89`）：发 `CONFIRM_USER` = `writeInt(placementCount)` + 逐个 `putMetaData(p, buf, partner)` → `succeed()`。
 - 握手成功后客户端才算「已确认用户」，进入 `broadcastTargets`，此后服务端任何 placement 变更都会广播给它。
-- 🔧 **重握手收敛链（协议侧机制）**：客户端对无主 `REGISTER_VERSION` 的重握手收敛链（`LitematicManager.clear()` + 新建 `VersionHandshakeClient`，`checkPacket` 无条件匹配、FEATURE 轮重入幂等）——服务端 disable→enable 场景依赖此链收敛，详见 [syncmatica-architecture.md](syncmatica-architecture.md) §3.3。
+- 🔧 **重握手收敛链（协议侧机制）**：客户端对无主 `REGISTER_VERSION` 的重握手收敛链（`LitematicManager.clear()` + 新建 `VersionHandshakeClient`，`checkPacket` 无条件匹配、FEATURE 轮重入幂等）——服务端 disable→enable 场景依赖此链收敛，详见 [syncmatica/architecture.md](architecture.md) §3.3。
 
 ---
 
@@ -421,5 +421,5 @@ UUID hash = UUID.nameUUIDFromBytes(md5.digest());   // type-3 UUID
 
 ---
 
-> **相关**：Mixin→Bukkit 映射、降级矩阵、持久化路径 → [syncmatica-architecture.md](syncmatica-architecture.md) §10（持久化 §10.4 · 降级矩阵 §10.7）；实现关键决策 → syncmatica-architecture.md §11；客户端兼容测试 → [syncmatica-testing.md](syncmatica-testing.md)。
-> **回到索引**：[index.md](index.md) · 项目权威说明：[../AGENTS.md](../AGENTS.md)
+> **相关**：Mixin→Bukkit 映射、降级矩阵、持久化路径 → [syncmatica/architecture.md](architecture.md) §10（持久化 §10.4 · 降级矩阵 §10.7）；实现关键决策 → syncmatica/architecture.md §11；客户端兼容测试 → [syncmatica/testing.md](testing.md)。
+> **回到索引**：[index.md](../index.md) · 项目权威说明：[../AGENTS.md](../../AGENTS.md)

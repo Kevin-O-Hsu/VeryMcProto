@@ -4,9 +4,9 @@
 > 通道与载体（§1）、消息面全表（§2）、握手时序与名册（§3）、规则同步链（§4）、clientCommand（§5）、
 > 装配与生命周期（§6）、测试锚与实机判据（§7）、偏差清单（§8）。
 > 上游对照 = `OriginImpl/fabric-carpet-26.2/src/main/java/carpet/network/`（tag v26.2 三件套 +
-> `CarpetServer.java` 挂点）；范围判定 = [carpet-porting-scope.md](carpet-porting-scope.md) §2；
-> 推进状态 = [carpet-phases.md](carpet-phases.md) §11；模块装配与规则框架 = [carpet-architecture.md](carpet-architecture.md)。
-> 字节上限裸值唯一权威 = [architecture.md](architecture.md) §3.4。
+> `CarpetServer.java` 挂点）；范围判定 = [carpet/porting-scope.md](porting-scope.md) §2；
+> 推进状态 = [carpet/phases.md](phases.md) §11；模块装配与规则框架 = [carpet/architecture.md](architecture.md)。
+> 字节上限裸值唯一权威 = [architecture.md](../architecture.md) §3.4。
 
 ---
 
@@ -160,6 +160,6 @@ carpet 客户端（装 carpet mod）            vanilla / 未装 carpet / 假人
 
 ---
 
-> **相关**：[carpet-architecture.md](carpet-architecture.md)（模块装配/规则框架/假人）·
-> [carpet-porting-scope.md](carpet-porting-scope.md) §2（预研消息面）· [carpet-phases.md](carpet-phases.md) §11（状态）·
-> [architecture.md](architecture.md) §3（网络框架/S2C 路径/字节上限）· [operations.md](operations.md) §5.1（排错）
+> **相关**：[carpet/architecture.md](architecture.md)（模块装配/规则框架/假人）·
+> [carpet/porting-scope.md](porting-scope.md) §2（预研消息面）· [carpet/phases.md](phases.md) §11（状态）·
+> [architecture.md](../architecture.md) §3（网络框架/S2C 路径/字节上限）· [operations.md](../operations.md) §5.1（排错）

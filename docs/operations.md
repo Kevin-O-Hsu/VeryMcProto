@@ -1,10 +1,21 @@
-# 运维参考（命令 / 权限 / 配置全键 / 数据布局 / 排错）+ 版本升级 SOP
+# 运维参考（版本字串策略 / 命令 / 权限 / 配置全键 / 数据布局 / 排错）+ 版本升级 SOP
 
-> **本文是 docs/ 内运维信息的唯一权威**（英文 README 不再承载这些表格）：四 mod 全命令参考、权限节点（命令 + Provider 运行时）、四个配置文件全键表（含 `carpet.conf` 纯文本例外）、磁盘数据布局、调试系统与排错速查（§1–§5），以及 **MC 版本升级 SOP 与观察项**（§6）。
+> **本文是 docs/ 内运维信息的唯一权威**（英文 README 不再承载这些表格）：**版本字串策略（§0）**、四 mod 全命令参考、权限节点（命令 + Provider 运行时）、四个配置文件全键表（含 `carpet.conf` 纯文本例外）、磁盘数据布局、调试系统与排错速查（§1–§5），以及 **MC 版本升级 SOP 与观察项**（§6）。
 >
 > - **键权威 = src 配置类**：`servux.json` 各 Provider settings 声明（`ConfigProvider` / `HudDataProvider` / … / `StructureDataProvider.java:83` 等）、`jei.json` = `mod/jei/config/JeiConfiguration.java`、`syncmatica-config.json` = `service/QuotaService.java` + `service/DebugService.java` + `util/SyncmaticaDebug.java`、`carpet.conf` = `mod/carpet/settings/SettingsManager.java` + `mod/carpet/CarpetSettings.java`（18 规则声明 = P1 地基 8 + P2 假人 3 + P4 日志 2 + P5 命令族 5）。**改键必须同步本文**（仓库"文档同步强制"约定）。
-> - **三载体边界**：本文 = docs 内运维全键唯一权威；根 [`AGENTS.md`](../AGENTS.md) §5 权限表 = AI 上下文自包含安全网（豁免声明）；[`servux-providers.md`](servux-providers.md) = 设置语义视角（讲每个设置的含义与采集联动，不维护节点全表）。
-> - 命令/权限的**语义与上游对照**见各 mod 协议文档（[`servux-protocol.md`](servux-protocol.md) / [`servux-providers.md`](servux-providers.md) / [`syncmatica-protocol.md`](syncmatica-protocol.md) / [`jei.md`](jei.md)）。
+> - **三载体边界**：本文 = docs 内运维全键唯一权威；根 [`AGENTS.md`](../AGENTS.md) §5 权限表 = AI 上下文自包含安全网（豁免声明）；[`servux/providers.md`](servux/providers.md) = 设置语义视角（讲每个设置的含义与采集联动，不维护节点全表）。
+> - 命令/权限的**语义与上游对照**见各 mod 协议文档（[`servux/protocol.md`](servux/protocol.md) / [`servux/providers.md`](servux/providers.md) / [`syncmatica/protocol.md`](syncmatica/protocol.md) / [`jei/protocol.md`](jei/protocol.md)）。
+
+---
+
+## 0. 版本字串策略（三线统一）
+
+- **唯一来源**：插件版本 = `<mcVersion>-b<buildNumber>`，唯一来源 `gradle.properties`；源码、plugin.yml、docs 一律不得手写版本号。
+- **README 例外（唯一活值位）**：README 封面 Version 行与安装节 jar 名为本仓库发版流程认可的例外，**语义 = 最近已发版版本（tag 所指版本）**，随发版提交同步更新。各线形态：
+  - dev（26.2）线 / ver/26.1.2 线：具体值形态（如 `VeryMcProto-26.2-b<N>.jar`）；
+  - ver/1.21.11 线：安装节 jar 名保持占位形态 `VeryMcProto-<version>-reobf.jar`（该线 reobf 未废除，无逐版同步的活值位），仅 Version 行为活值位。
+- **占位化范围**：AGENTS.md 与 docs/ 内一切 buildNumber 活值一律占位化（`-b<N>` / `<buildNumber>` / 「现值见 gradle.properties」表述）——发版提交不再追改文档版本引用（历史形态：单次发版需人工同步 8 文件约 17 行，且有停留两个版本前的漂移实证）。
+- **豁免清单（保留原文的具体值，不参与占位化）**：tag 格式示例（如 `v1.21.11-b1`）；历史事故记录值（如「26.1.2-b2 曾实证 jar 名陈旧」类记载）；协议语义 mcVersion 值（MOD_STRING 前缀 `servux-fabric-26.2`、carpet HI 版本串 `"26.2"` / `"26.1"` / `"1.4.194"` 等——绑死上游 id 与协议语义，与构建号无关）。
 
 ---
 
@@ -29,7 +40,7 @@
 ```
 
 - setting 的**全名** = `<provider 逻辑名>:<setting 名>`，如 `hud_data:share_seed`、`servux_main:permission_level`；无歧义时可省略 provider 前缀。
-- Provider 逻辑名见 [`servux-protocol.md`](servux-protocol.md) §2 通道总表：`servux_main` / `hud_data` / `entity_data` / `tweaks_data` / `structure_bounding_boxes` / `litematic_data`。
+- Provider 逻辑名见 [`servux/protocol.md`](servux/protocol.md) §2 通道总表：`servux_main` / `hud_data` / `entity_data` / `tweaks_data` / `structure_bounding_boxes` / `litematic_data`。
 - `servux_main`（配置主通道）**永不可停用**；其余 5 个可 `enable`/`disable`。
 
 ### 1.2 `/servux debug` —— 调试日志热切换（即时生效 + 即时持久化到 servux.json）
@@ -50,7 +61,7 @@
 /servux litematic list                          列出 schematics/ 下的 .litematic 文件
 ```
 
-> S2C 文件投递（transmit）已于 2026-09 **物理删除**（stock 客户端无接收端；详见 [`servux-protocol.md`](servux-protocol.md) §8.5）。文件位于 `plugins/VeryMcProto/schematics/`。
+> S2C 文件投递（transmit）已于 2026-09 **物理删除**（stock 客户端无接收端；详见 [`servux/protocol.md`](servux/protocol.md) §8.5）。文件位于 `plugins/VeryMcProto/schematics/`。
 
 ### 1.4 `/syncmatica`
 
@@ -84,7 +95,7 @@
 /syncmatica debug s2c nms|msg      切换 S2C 路径（NMS 直发 / plugin messaging）——诊断开关，不持久化
 ```
 
-> 分类共 **6 值**。S2C 默认 **NMS `DiscardedPayload` 直发**（实测 plugin messaging wire 对纯 Fabric syncmatica 客户端不可达，详见 [`syncmatica-architecture.md`](syncmatica-architecture.md) §4.3）；`/syncmatica debug s2c msg` 临时切回 plugin messaging 作对照排错。
+> 分类共 **6 值**。S2C 默认 **NMS `DiscardedPayload` 直发**（实测 plugin messaging wire 对纯 Fabric syncmatica 客户端不可达，详见 [`syncmatica/architecture.md`](syncmatica/architecture.md) §4.3）；`/syncmatica debug s2c msg` 临时切回 plugin messaging 作对照排错。
 
 ### 1.5 `/jei`
 
@@ -110,7 +121,7 @@
 /carpet removeDefault <rule>                     移除 conf 覆盖并复位默认值
 ```
 
-> 上游 `/carpet <rule> [value]` 会话级 set 与 `list defaults` / `list <tag>` 子面未移植（B 侧四子命令面，偏差清单见 [`carpet-architecture.md`](carpet-architecture.md)）；规则全表与各键行为面见 §3.4。
+> 上游 `/carpet <rule> [value]` 会话级 set 与 `list defaults` / `list <tag>` 子面未移植（B 侧四子命令面，偏差清单见 [`carpet/architecture.md`](carpet/architecture.md)）；规则全表与各键行为面见 §3.4。
 
 ### 1.7 `/player`（Carpet 假人，Phase 2）
 
@@ -134,7 +145,7 @@
 /player <name> hotbar <1-9>                        切换主手栏位
 ```
 
-运维要点（as-built 见 [`carpet-architecture.md`](carpet-architecture.md)）：
+运维要点（as-built 见 [`carpet/architecture.md`](carpet/architecture.md)）：
 - **假人占 tab 栏 / 计入睡比例跳夜（实测）/ playerdata 持久（重启后再 spawn 读回位置背包）/ 可被 `/tp` `/ban` 原版命令识别**——全部由 vanilla 进服/退出链原生承载。
 - `/ban` 只入封禁列表**不移除在线假人**（上游同语义——假人不响应 disconnect；移除走 `/player kill`）；被封名单再 spawn 会被 cantSpawn 拒绝。
 - **插件卸载/reload 自动 kill 全部假人**（防 NMS 对象引用已卸载类 → NoClassDefFoundError）。
@@ -154,7 +165,7 @@
 
 可用 logger（Phase 4 注册面）：`tps`（无 option——tab 脚 HUD 显示 TPS/MSPT 热力色行）、`mobcaps`（option = `dynamic`/`overworld`/`nether`/`end`——HUD 显示对应维度生物容量行）。HUD 投递 = tab 脚（每 20 tick 一帧，**只写脚不碰头**）；**不走 carpet:hello 通道**——未握手的 vanilla 客户端同样收到（carpet 客户端把 tab 脚画成 HUD 面板）。
 
-运维要点（as-built 见 [`carpet-architecture.md`](carpet-architecture.md) §16-§18）：
+运维要点（as-built 见 [`carpet/architecture.md`](carpet/architecture.md) §16-§18）：
 - **订阅跨会话持久**（`carpet-logs.json`，§3.5）：显式订阅 + 退订墓碑双表；`defaultLoggers` 规则的默认订阅**永不落盘**——每次进服按当前规则值对「未订阅且未显式退订」的 logger 重评估（管理员改默认对未显式选择的玩家下次进服即生效；显式退订不被默认复活）。
 - 假人整体豁免 /log 子系统（不施默认、不入册、不持久化）。
 - **已知限制**：外部写 tab 脚的插件（TAB 类）会与本插件每秒互覆写（上游 carpet 同源行为）；tab 头零触碰（他插件 header 不受影响）。
@@ -185,7 +196,7 @@
     （默认排除 persistent，all 含）
 ```
 
-运维要点（as-built 与偏差清单见 [`carpet-architecture.md`](carpet-architecture.md) §19-§21）：
+运维要点（as-built 与偏差清单见 [`carpet/architecture.md`](carpet/architecture.md) §19-§21）：
 - **语义勘误（2026-10 按上游源码）**：`/distance` = 两点三距离公式（**非寻路**、零 Tracer）；`/info` = block 属性清单（**无实体分支、非 NBT dump**）。
 - **慢路径警示（上游同构继承）**：`/perimeterinfo` 同步全扫 ±128 圆柱（秒级）；`/info` 的 wander_chances 行每次执行做 1000 次采样（实体被困 1×1 最坏分钟级主线程停顿）；`/draw` 大半径同步放置（r=50 球 ≈ 52 万块）——生产环境避免大参数。
 - `/draw` 更新抑制固定为 fillUpdates=true 路径（上游 ThreadLocal+Mixin 消费端不可移植）；`/spawn mobcaps set` 不存在（上游写场消费端全在 Mixin）；tracking 五连（list/tracking/test/mocking/rates）不在移植面。
@@ -400,7 +411,7 @@ commands:
 
 ### 3.4 `carpet.conf`（纯文本——上游 `SettingsManager` 同构，非 JSON）
 
-逐行 `<rule> <value>`（值含空格整段保留，`split("\s+",2)` 读回）；`#` 注释行跳过；**首行 `locked` = 锁定**（全部子命令拒绝 + COMMAND 类可关规则置 false，上游语义）；未知规则名 error 日志后跳过；**文件从不主动创建**（首次写盘仅由 `/carpet setDefault|removeDefault` 触发）；写盘带原子 tmp/move。完整怪癖与偏差清单见 [`carpet-architecture.md`](carpet-architecture.md)。
+逐行 `<rule> <value>`（值含空格整段保留，`split("\s+",2)` 读回）；`#` 注释行跳过；**首行 `locked` = 锁定**（全部子命令拒绝 + COMMAND 类可关规则置 false，上游语义）；未知规则名 error 日志后跳过；**文件从不主动创建**（首次写盘仅由 `/carpet setDefault|removeDefault` 触发）；写盘带原子 tmp/move。完整怪癖与偏差清单见 [`carpet/architecture.md`](carpet/architecture.md)。
 
 | 规则键 | 类型 | 默认 | 选项域 | 行为面 |
 |---|---|---|---|---|
@@ -409,7 +420,7 @@ commands:
 | `superSecretSetting` | bool | `false` | — | 纯壳注册（上游 debug 行为不随 P1 移植） |
 | `explosionNoBlockDamage` | bool | `false` | — | `EntityExplodeEvent` + `BlockExplodeEvent` 双挂点 `blockList().clear()`（即时生效） |
 | `customMOTD` | string | `_` | 非 strict | `_` = server.properties 原生；否则 `ServerListPingEvent` 改写 ping MOTD（即时生效） |
-| `cleanLogs` | bool | `false` | — | log4j 过滤器（默认 false=**抑制**命名实体死亡日志行；true=放行——极性勿反转，代数见 carpet-architecture.md） |
+| `cleanLogs` | bool | `false` | — | log4j 过滤器（默认 false=**抑制**命名实体死亡日志行；true=放行——极性勿反转，代数见 carpet/architecture.md） |
 | `commandTick` | string | `ops` | CommandLevel OPTIONS | 零行为死规则（上游 /tick 即原版命令，Paper 天然同构；注册仅为规则面完整） |
 | `perfPermissionLevel` | int | `4` | `2`\|`4` | **只读登记**：值 4 = Paper 天然同构（vanilla /perf 恒要求级 4）；值 2 = 结构性不可达（上游靠 Mixin redirect 换 requires，Paper 无替换面）；控制面 = ops.json op level；`minecraft.command.perf` 节点仅影响 console/API dispatch，玩家聊天命令链绕过 commandMap |
 | `commandPlayer` | string | `ops` | CommandLevel OPTIONS | /player 命令门禁（Brigadier requires 每次执行求值——规则动态生效，上游同构） |
@@ -425,7 +436,7 @@ commands:
 
 ### 3.5 `carpet-logs.json`（/log 订阅持久化——B 侧新增，上游无对应物）
 
-JSON（Gson pretty + 原子 tmp/move）：`{ "<uuid>": { "name": 名字快照, "subs": { "<logger>": "<option|\"\">" }, "off": ["<logger>"...] } }`——`subs` = **显式**订阅（/log 命令产生，`""` = null option 哨兵）；`off` = **退订墓碑**（/log clear 产生，压制默认施用复活）。变更即落盘；**文件从不主动创建**（从未有玩家触过 /log 的服不产生）；坏 JSON 按空册起步（默认订阅重施）。改名玩家经 UUID 复原订阅（名字快照随进服更新）；假人永不写入。模型细节见 [`carpet-architecture.md`](carpet-architecture.md) §16.1。
+JSON（Gson pretty + 原子 tmp/move）：`{ "<uuid>": { "name": 名字快照, "subs": { "<logger>": "<option|\"\">" }, "off": ["<logger>"...] } }`——`subs` = **显式**订阅（/log 命令产生，`""` = null option 哨兵）；`off` = **退订墓碑**（/log clear 产生，压制默认施用复活）。变更即落盘；**文件从不主动创建**（从未有玩家触过 /log 的服不产生）；坏 JSON 按空册起步（默认订阅重施）。改名玩家经 UUID 复原订阅（名字快照随进服更新）；假人永不写入。模型细节见 [`carpet/architecture.md`](carpet/architecture.md) §16.1。
 
 ---
 
@@ -469,25 +480,25 @@ plugins/VeryMcProto/
 /syncmatica debug cat all
 ```
 
-syncmatica 不工作的排查：`on` + `cat all`（或单开 `handshake`/`network`/`packet`），盯握手链：40t 探针 → `tryStartHandshake` → init 推 `REGISTER_VERSION` → 客户端回版本 → `FeatureSet` → `CONFIRM_USER` → `broadcastTargets`（声明通道是握手的下游产物，详见 [`syncmatica-testing.md`](syncmatica-testing.md) §2.3）。
+syncmatica 不工作的排查：`on` + `cat all`（或单开 `handshake`/`network`/`packet`），盯握手链：40t 探针 → `tryStartHandshake` → init 推 `REGISTER_VERSION` → 客户端回版本 → `FeatureSet` → `CONFIRM_USER` → `broadcastTargets`（声明通道是握手的下游产物，详见 [`syncmatica/testing.md`](syncmatica/testing.md) §2.3）。
 
 S2C 路径排查：`/syncmatica debug s2c`（查看）→ `/syncmatica debug s2c nms|msg`（切换对照）。
 
 **JEI**：无独立调试引擎；`/jei status` 查看状态，看服务端日志（fabric 腿在通道声明时触发日志、neoforge 腿在进服时触发）。
 
-**Carpet**：无独立调试引擎；`/carpet query <rule>` 查看规则详情，conf 读写问题看 `[Carpet]` 前缀日志。carpet:hello 握手排错（Phase 3）：carpet 客户端进服后服务端日志应出现 `Player <名> joined with a matching carpet client`（或 `another carpet version: <v>`——真实发布客户端版本带 `+v` 日期后缀时属上游 equals 语义的正常 warn，非故障）；规则浏览器空 = 查该日志确认 hello 是否到达 + 规则名是否存在于上游注册表（[carpet-protocol.md](carpet-protocol.md) §3/§7）；`[Carpet] clientCommand from <名>: <命令>` = 远端命令执行审计行。假人排错：spawn/kill 全链异常看 `[Carpet]` 前缀日志；`EntityPlayerMPFake.tick()` 有上游同源的 NPE 吞点（首次触发打一次性 WARN 堆栈）；假人卡死不消失时先 `/player <name> kill`（kill 走完整退出链含 PlayerQuitEvent 与存档）；syncmatica 对每个假人会发起一次必败握手（debug 日志噪声，quit 自动清理，无害）。/log 排错（Phase 4）：订阅后 tab 脚无 HUD = 先 `/log` 裸命令看订阅态（"Subscribed"/option 徽标）→ 有订阅仍无显示则确认玩家进服晚于插件启用（reload 后经补扫恢复）；mobcaps 行显示 `--UNAVAILABLE--` = 该维度 SpawnState 尚未建立（新区块首刻，正常）；订阅丢失跨会话 = 查 `carpet-logs.json` 是否被外部改动（坏 JSON 按空册起步 + 默认重施）；与外部 TAB 类插件的 tab 脚每秒互覆写属已知限制（上游 carpet 同源行为，carpet-architecture.md 偏差 #39）。
+**Carpet**：无独立调试引擎；`/carpet query <rule>` 查看规则详情，conf 读写问题看 `[Carpet]` 前缀日志。carpet:hello 握手排错（Phase 3）：carpet 客户端进服后服务端日志应出现 `Player <名> joined with a matching carpet client`（或 `another carpet version: <v>`——真实发布客户端版本带 `+v` 日期后缀时属上游 equals 语义的正常 warn，非故障）；规则浏览器空 = 查该日志确认 hello 是否到达 + 规则名是否存在于上游注册表（[carpet/protocol.md](carpet/protocol.md) §3/§7）；`[Carpet] clientCommand from <名>: <命令>` = 远端命令执行审计行。假人排错：spawn/kill 全链异常看 `[Carpet]` 前缀日志；`EntityPlayerMPFake.tick()` 有上游同源的 NPE 吞点（首次触发打一次性 WARN 堆栈）；假人卡死不消失时先 `/player <name> kill`（kill 走完整退出链含 PlayerQuitEvent 与存档）；syncmatica 对每个假人会发起一次必败握手（debug 日志噪声，quit 自动清理，无害）。/log 排错（Phase 4）：订阅后 tab 脚无 HUD = 先 `/log` 裸命令看订阅态（"Subscribed"/option 徽标）→ 有订阅仍无显示则确认玩家进服晚于插件启用（reload 后经补扫恢复）；mobcaps 行显示 `--UNAVAILABLE--` = 该维度 SpawnState 尚未建立（新区块首刻，正常）；订阅丢失跨会话 = 查 `carpet-logs.json` 是否被外部改动（坏 JSON 按空册起步 + 默认重施）；与外部 TAB 类插件的 tab 脚每秒互覆写属已知限制（上游 carpet 同源行为，carpet/architecture.md 偏差 #39）。
 
 ### 5.2 症状速查表
 
 | 症状 | 看哪里 |
 |---|---|
-| 客户端进服但收不到数据 | 查 Provider 是否启用（看 `servux.json` 顶层 `DataProviderToggles` 段 / 开 `/servux debug cat provider` 看生命周期日志——`/servux info` 只回显 setting 现值/默认值，不含启用状态）；查 `permission_level`；开 `handshake` 分类看握手是否成功（客户端侧先确认 `entityDataSync` 开关已开——`not_enabled` 是客户端本地开关未开，与服务端无关，见 [`servux-testing.md`](servux-testing.md) §2） |
+| 客户端进服但收不到数据 | 查 Provider 是否启用（看 `servux.json` 顶层 `DataProviderToggles` 段 / 开 `/servux debug cat provider` 看生命周期日志——`/servux info` 只回显 setting 现值/默认值，不含启用状态）；查 `permission_level`；开 `handshake` 分类看握手是否成功（客户端侧先确认 `entityDataSync` 开关已开——`not_enabled` 是客户端本地开关未开，与服务端无关，见 [`servux/testing.md`](servux/testing.md) §2） |
 | 大投影粘贴 / 上传失败 | 查客户端是否因 32,767 字节断连；开 `network`/`packet` 看分片（字节限制教义见 [`architecture.md`](architecture.md) §3.4） |
 | EasyPlace 无反应 | 确认服务器装了 PacketEvents 插件（`softdepend`）；开 `easyplace` 分类——若日志见「拒绝放置（写入前 FAIL）」为 canBuild 拒绝分支（validator/床头拒绝或修正态 canSurvive/实体碰撞失败，语义对齐上游整次 FAIL），非故障 |
 | Syncmatica 客户端连不上 | 默认 NMS 直发；`/syncmatica debug s2c` 确认路径；开 `handshake` 看握手链 |
-| JEI 配方不同步 | `/jei` 确认 `enabled`；fabric 腿要求客户端声明 `fabric:recipe_sync`（任何 Fabric-API 客户端都会）；进服时序整形器（`RecipeSyncJoinOrderer`）必须出现在 pipeline——缺失/安装失败会降级为旧时序（警告 + 客户端本地配方）；注意只影响**之后**进服的玩家（详见 [`jei.md`](jei.md) §5.2） |
+| JEI 配方不同步 | `/jei` 确认 `enabled`；fabric 腿要求客户端声明 `fabric:recipe_sync`（任何 Fabric-API 客户端都会）；进服时序整形器（`RecipeSyncJoinOrderer`）必须出现在 pipeline——缺失/安装失败会降级为旧时序（警告 + 客户端本地配方）；注意只影响**之后**进服的玩家（详见 [`jei/protocol.md`](jei/protocol.md) §5.2） |
 
-> Servux / Syncmatica 各通道的逐步实测步骤见 [`servux-testing.md`](servux-testing.md) 与 [`syncmatica-testing.md`](syncmatica-testing.md)。
+> Servux / Syncmatica 各通道的逐步实测步骤见 [`servux/testing.md`](servux/testing.md) 与 [`syncmatica/testing.md`](syncmatica/testing.md)。
 
 ---
 
@@ -538,7 +549,7 @@ S2C 路径排查：`/syncmatica debug s2c`（查看）→ `/syncmatica debug s2c
 3. **runServer 环境隔离（运行目录按线派生）**：runServer 运行目录由 mcVersion 派生为 `run-<mcVersion>/`（build.gradle.kts），各线世界/配置/plugins/logs 物理隔离。根因：共享 `run/` 的 server.properties 残留跨线泄漏（level-name 指向别线格式世界）——1.21.11 线实撞 `No key dimensions in MapLike[{}]`、26.x 两线间为静默互开互写；旧「level-name 三件套」SOP 已废弃（其 .bak 备份正是此事故的制度化来源）。注意：新目录首启需预置 `eula.txt`（eula=true，不入库）；packetevents jar 不随目录迁移（各线 `run-<mcVersion>/plugins/` 自行放置，2026-10-11 起已预置 2.14.0）；两线并行需各自在己线 server.properties 改 port（一次性持久）；旧共享 `run/` 死遗留已于 2026-10-11 连同仓库根 `logs/`（手工 java -jar 残骸）清除。教训：改 .gitignore 须逐行自检——2c38ee2 曾把规则粘连进注释行留废规则。
 4. **起服检查**：版本横幅正确 → 四模块注册（servux / jei / syncmatica / carpet）+ `framework ready` + `Done`，无 ERROR/SEVERE。
 5. **客户端互通冒烟（用户侧最终验收）三要素**：
-   - HUD/litematics 握手（按 [`servux-testing.md`](servux-testing.md) 流程）；
+   - HUD/litematics 握手（按 [`servux/testing.md`](servux/testing.md) 流程）；
    - **EasyPlace 编码包改写放行回归**（packetevents 跨版本 read/write 对称性是活风险点）；
    - `RecipeNbtNormalizer` 的 wire 病灶形状确认（plain NbtOps 编码形状无头环境不可观测，需真客户端）。
 
@@ -559,15 +570,15 @@ S2C 路径排查：`/syncmatica debug s2c`（查看）→ `/syncmatica debug s2c
 
 | 测试 | 通过条件 | 详锚 |
 |---|---|---|
-| `TaskGroupTest`（4 黄金样本） | Box IntArrayTag 形状 / REMAINING_CHUNKS 字面量 / 完成帧缺键 / 10 条上限无标题行（纯 JVM 需 `SharedConstants.tryDetectVersion()+Bootstrap.bootStrap()` 前置） | [`servux-schematic.md`](servux-schematic.md) §9.5 |
+| `TaskGroupTest`（4 黄金样本） | Box IntArrayTag 形状 / REMAINING_CHUNKS 字面量 / 完成帧缺键 / 10 条上限无标题行（纯 JVM 需 `SharedConstants.tryDetectVersion()+Bootstrap.bootStrap()` 前置） | [`servux/schematic.md`](servux/schematic.md) §9.5 |
 | `TaskSchedulerTest`（7 用例） | timer 首启 / interval 钳制 / 周期复位 / 完成移除 / 同 tick 双任务 / clearTasks | 同上 |
 | `EntityPastePositionFixTest`（11 用例） | 实体修复族 ①-⑤ 全守卫（字面串防同源共错 + wire 形状 + 负数截断 + UUID 不变） | 同上 §6.1 |
-| `DataTagIoTest`（13 用例） | 异常三分语义（空 tag / null / ZipException 裸读回落）+ 黄金向量 | [`servux-protocol.md`](servux-protocol.md) §5.5 |
-| `SettingsManagerConfRoundtripTest`（8 用例） | carpet.conf 往返（落盘格式/重启读回/locked/未知键/注释怪 quirks/严格校验/removeDefault/从不主动创建） | [`carpet-architecture.md`](carpet-architecture.md) §5 |
+| `DataTagIoTest`（13 用例） | 异常三分语义（空 tag / null / ZipException 裸读回落）+ 黄金向量 | [`servux/protocol.md`](servux/protocol.md) §5.5 |
+| `SettingsManagerConfRoundtripTest`（8 用例） | carpet.conf 往返（落盘格式/重启读回/locked/未知键/注释怪 quirks/严格校验/removeDefault/从不主动创建） | [`carpet/architecture.md`](carpet/architecture.md) §5 |
 | `CarpetRuleRegistryTest`（4 用例） | 规则注册面锁：18 规则名/默认值/类型/选项域（P1 地基 8 + P2 假人 3 + P4 日志 2 + P5 命令族 5——方法名随 18 更名） + CommandLevel OPTIONS 推断断言 + 排序视图 | 同上 |
 | `EntityPlayerActionPackTest`（4 用例） | P2：Action 工厂计时语义锁（once 达限/continuous 永续/interval 节拍/offset 相位——反射断言，NMS 面走实机） | 同上 |
-| `CarpetLoggerTest`（18 用例） | P4：订阅语义/桶迁移快捷位 + carpet-logs.json round-trip（哨兵/墓碑/坏 JSON/空册不建文件）+ join 分支矩阵 + defaultLoggers CSV 解析 + 热力色阈值 + mobcaps 行格式 | [`carpet-architecture.md`](carpet-architecture.md) §18 |
-| `DistanceCalculatorTest`（4 用例） | P5：三距离公式数值锚（3-4-5 / 纯垂直 cylindrical 归零 / float 域减法 / 对称性——`findDistanceBetweenTwoPoints` 零 source 依赖纯 JVM 直调） | [`carpet-architecture.md`](carpet-architecture.md) §21 |
+| `CarpetLoggerTest`（18 用例） | P4：订阅语义/桶迁移快捷位 + carpet-logs.json round-trip（哨兵/墓碑/坏 JSON/空册不建文件）+ join 分支矩阵 + defaultLoggers CSV 解析 + 热力色阈值 + mobcaps 行格式 | [`carpet/architecture.md`](carpet/architecture.md) §18 |
+| `DistanceCalculatorTest`（4 用例） | P5：三距离公式数值锚（3-4-5 / 纯垂直 cylindrical 归零 / float 域减法 / 对称性——`findDistanceBetweenTwoPoints` 零 source 依赖纯 JVM 直调） | [`carpet/architecture.md`](carpet/architecture.md) §21 |
 | `CommandHelperTest`（3 用例） | parseLevel 纯函数矩阵（ops→2 / 0-4 / 其他→-1） | 同上 |
 | `PacketSplitterTest` / `FeatureSet` / `LitematicaBitArray` | 分片重组 / 版本正则 / 位打包纯函数 | — |
 
@@ -575,7 +586,7 @@ S2C 路径排查：`/syncmatica debug s2c`（查看）→ `/syncmatica debug s2c
 
 - 上游 servux 树已携带 26.3 Schema 前瞻条目；`DataTypeUtils` 已为 26.3 预留 `"id"/"properties"` BlockState 读宽容——**26.3 wire 可能翻转写路径**，届时 DataTag 块状态写出需对照。
 - 上游 26.4 出现时：按 §6.2 冻结 `ver/26.2`（+`-dev`）对 → dev 升 `mcVersion=26.3`。
-- 僵尸 VHS 周期重试器（enable 后正常对局中客户端停止应答的残留 exchange）——行为级已知局限，登记于 [`syncmatica-architecture.md`](syncmatica-architecture.md) §已知局限。
+- 僵尸 VHS 周期重试器（enable 后正常对局中客户端停止应答的残留 exchange）——行为级已知局限，登记于 [`syncmatica/architecture.md`](syncmatica/architecture.md) §已知局限。
 
 ---
 

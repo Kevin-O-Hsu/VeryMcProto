@@ -11,7 +11,7 @@ import verymc.top.veryMcProto.mod.carpet.settings.Validator;
  * carpet 规则声明（克隆上游 {@code carpet/CarpetSettings.java} 26.2 树的 8 条地基规则——注解与默认值
  * 逐字；对照行号见各规则注释）。规则值由静态字段承载（volatile：监听器/日志过滤器跨线程读取）。
  *
- * <p>与上游的偏差（对账登记，docs/carpet-architecture.md）：
+ * <p>与上游的偏差（对账登记，docs/carpet/architecture.md）：
  * <ul>
  *   <li>{@code language} 的 LanguageValidator 删 Translations 副作用（B 侧无 i18n，仓库铁律对外英文；
  *       strict + options 已足约束值域）；</li>
@@ -20,7 +20,7 @@ import verymc.top.veryMcProto.mod.carpet.settings.Validator;
  *       （注册仅为规则面完整，上游 /tick 即原版命令，Paper 天然同构）；</li>
  *   <li>{@code cleanLogs} 的 desc/extra 为上游逐字——其声称的 "Maximum sound pool size" 行与上游唯一
  *       机制（LivingEntity_cleanLogsMixin 命名死亡日志门控）脱节，系上游 desc 陈旧；B 侧按 mixin 代数
- *       实现（docs/carpet-architecture.md 勘误记档）。</li>
+ *       实现（docs/carpet/architecture.md 勘误记档）。</li>
  * </ul>
  */
 @SuppressWarnings("CanBeFinal")

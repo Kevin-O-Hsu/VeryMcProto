@@ -58,7 +58,7 @@ import verymc.top.veryMcProto.mod.carpet.helpers.ActionPackManager;
  * 入名册/世界、占 tab 栏、计入睡比例、可被 /tp /ban 原版命令识别）→ 返回后 new
  * {@link NetHandlerPlayServerFake} 替换监听器（其构造器自动 {@code player.connection = this}）。
  *
- * <p>与上游的偏差（docs/carpet-architecture.md 偏差清单）：
+ * <p>与上游的偏差（docs/carpet/architecture.md 偏差清单）：
  * <ul>
  *   <li>cookie 适配：Paper 26.2 的 {@link CommonListenerCookie} 为 7 组件 record（上游 vanilla 4 参）——
  *       createFake 用 {@code createInitial(profile, false)}（cli 恰为 createDefault），createShadow 用

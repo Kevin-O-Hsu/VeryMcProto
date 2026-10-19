@@ -27,7 +27,7 @@ import net.minecraft.world.phys.Vec3;
  *
  * <p>{@link #wander_chances} 为同步重计算（构造临时 ZombifiedPiglin + 1000 次采样 + 最坏
  * 1000×36000 次 {@code RandomStrollGoal.canUse()} 评估，主线程）——上游同构照抄（已知继承风险，
- * docs/carpet-architecture.md 偏差登记）。
+ * docs/carpet/architecture.md 偏差登记）。
  *
  * <p>与上游的偏差：仅 {@code carpet.script.utils.Colors} import 消除（同包迁包，见 {@link Colors}）。
  */

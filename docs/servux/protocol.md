@@ -1,7 +1,7 @@
 # Servux 网络协议（五通道 wire 规范）
 
 > 本文档是 Servux 五条通道协议的**现行 as-built 规范**（26.2 线，逐项对照 `OriginImpl/servux-LTS-26.2/` 客户端源码钉死）：通道总表（§2）、Payload 模型（§3–§4）、版本约束与安全闸（§5 ⭐）、收发流程（§6–§7）、与上游的逐通道差异（§8）。
-> 网络框架/分片常量/字节限制裸值的唯一权威见 [architecture.md](architecture.md) §3；各 Provider 的 NBT 数据内容见 [servux-providers.md](servux-providers.md)。
+> 网络框架/分片常量/字节限制裸值的唯一权威见 [architecture.md](../architecture.md) §3；各 Provider 的 NBT 数据内容见 [servux/providers.md](providers.md)。
 
 ---
 
@@ -14,7 +14,7 @@ Servux 用的是 **Mojang 在 1.20.2+ 引入的原版 `CustomPacketPayload`** �
 - Fabric 的 `ServerPlayNetworking` / `PayloadTypeRegistry` **只是这套原版机制的注册封装**
 - Payload 内部用 **VarInt `packetType`** 区分子消息，消息体是 **NBT（`CompoundTag`）** 或 **原始字节（`FriendlyByteBuf` slice）**
 
-→ 对移植的决定性意义：**Paper 经 paperweight userdev 同样能直接读写 `FriendlyByteBuf`/`CompoundTag`/`CustomPacketPayload`，且 plugin messaging channel 直接映射到这些原版通道**（机制见 [architecture.md](architecture.md) §3.1）。
+→ 对移植的决定性意义：**Paper 经 paperweight userdev 同样能直接读写 `FriendlyByteBuf`/`CompoundTag`/`CustomPacketPayload`，且 plugin messaging channel 直接映射到这些原版通道**（机制见 [architecture.md](../architecture.md) §3.1）。
 
 ---
 
@@ -24,11 +24,11 @@ Servux 用的是 **Mojang 在 1.20.2+ 引入的原版 `CustomPacketPayload`** �
 |---|---|---|---|---|---|
 | `servux:hud_metadata` | **3** | `HudDataProvider`（hud_data） | `ServuxHudPacket` | **MiniHUD** | 世界元数据 / 出生点 / 天气 / 配方 / TPS·MobCap logger |
 | `servux:entity_data` | 2 | `EntitiesDataProvider`（entity_data） | `ServuxEntitiesPacket` | MiniHUD / Tweakeroo | 方块实体 & 实体 NBT 查询（含玩家背包权限过滤——仅查他人时剥离） |
-| `servux:tweaks` | 2 | `TweaksDataProvider`（tweaks_data） | `ServuxTweaksPacket` | Tweakeroo | NBT 查询（潜影盒堆叠未实现，见 [architecture.md](architecture.md) §5.3） |
-| `servux:structures` | **3** | `StructureDataProvider`（structure_bounding_boxes） | `ServuxStructuresPacket` | MiniHUD | 原版结构边界框（村庄/神殿/要塞…；按客户端 `max_receive_s2c` 能力条目级分批，机制见 [architecture.md](architecture.md) §3.3） |
-| `servux:litematics` | 2 | `LitematicsDataProvider`（litematic_data） | `ServuxLitematicaPacket` | **Litematica** | Litematica 投影粘贴 / 批量实体数据（S2C 投递与 C2S 文件接收已移除，见 §8.5 / [servux-schematic.md](servux-schematic.md)） |
+| `servux:tweaks` | 2 | `TweaksDataProvider`（tweaks_data） | `ServuxTweaksPacket` | Tweakeroo | NBT 查询（潜影盒堆叠未实现，见 [architecture.md](../architecture.md) §5.3） |
+| `servux:structures` | **3** | `StructureDataProvider`（structure_bounding_boxes） | `ServuxStructuresPacket` | MiniHUD | 原版结构边界框（村庄/神殿/要塞…；按客户端 `max_receive_s2c` 能力条目级分批，机制见 [architecture.md](../architecture.md) §3.3） |
+| `servux:litematics` | 2 | `LitematicsDataProvider`（litematic_data） | `ServuxLitematicaPacket` | **Litematica** | Litematica 投影粘贴 / 批量实体数据（S2C 投递与 C2S 文件接收已移除，见 §8.5 / [servux/schematic.md](schematic.md)） |
 
-> **配置 provider**：`ConfigProvider`（逻辑名 `servux_main`，channel 标记为 `servux:main`，但 `registerHandler` 是 NO-OP——**不注册网络通道、不下发网络包**），承载全局 settings，走 `/servux` 命令与 `servux.json` 持久化（见 [architecture.md](architecture.md) §2.6 / [operations.md](operations.md)）。
+> **配置 provider**：`ConfigProvider`（逻辑名 `servux_main`，channel 标记为 `servux:main`，但 `registerHandler` 是 NO-OP——**不注册网络通道、不下发网络包**），承载全局 settings，走 `/servux` 命令与 `servux.json` 持久化（见 [architecture.md](../architecture.md) §2.6 / [operations.md](../operations.md)）。
 
 通道常量定义位置：各 Handler 类的 `CHANNEL_ID` 字段（如 `ServuxHudHandler.CHANNEL_ID = Identifier.fromNamespaceAndPath("servux", "hud_metadata")`）。
 
@@ -76,7 +76,7 @@ public record Payload(ServuxHudPacket data) implements CustomPacketPayload
 - `toPacket`：先 `output.writeVarInt(packetType.get())`，再按类型 `writeNbt(nbt)` 或 `writeBytes(buffer.copy())`。
 - `fromPacket`：先 `input.readVarInt()` → `Type.getType(i)`，再按类型 `readNbt()` 或 `readBytes(...)` 重建 packet。
 
-> **HUD 的 NBT 字段内容**（每种 packetType 对应哪些 NBT 字段）见 [servux-providers.md](servux-providers.md) §HUD。
+> **HUD 的 NBT 字段内容**（每种 packetType 对应哪些 NBT 字段）见 [servux/providers.md](providers.md) §HUD。
 
 ### 3.3 子消息类型枚举（以 HUD 为例）
 
@@ -92,7 +92,7 @@ public enum Type {
 }
 ```
 
-**规律**（所有通道通用）：偶数/奇数不代表方向，按枚举顺序：`S2C_*` = 服务端→客户端；`C2S_*` = 客户端→服务端。末尾的 `*_RESPONSE_START(10)` / `*_RESPONSE_DATA(11)` 是**大包分包**专用（NBT 超过单包上限时用，分片机制见 [architecture.md](architecture.md) §3.3）。当前线枚举全表见 §5.6。
+**规律**（所有通道通用）：偶数/奇数不代表方向，按枚举顺序：`S2C_*` = 服务端→客户端；`C2S_*` = 客户端→服务端。末尾的 `*_RESPONSE_START(10)` / `*_RESPONSE_DATA(11)` 是**大包分包**专用（NBT 超过单包上限时用，分片机制见 [architecture.md](../architecture.md) §3.3）。当前线枚举全表见 §5.6。
 
 ---
 
@@ -117,7 +117,7 @@ public interface IServerPayloadData {
 
 ## 5. 版本约束与安全闸 ⭐（26.2 线真值）
 
-> 本节是跨版本兼容知识与 C2S 安全体制的唯一权威。wire 层面的升级核对方法论见 [operations.md](operations.md) 升级 SOP。当前线（26.1→26.2）协议面**零变化**——下列真值经 8 个上游仓 26.1/26.2 两树逐文件字节级 diff 实证（非抽样）。
+> 本节是跨版本兼容知识与 C2S 安全体制的唯一权威。wire 层面的升级核对方法论见 [operations.md](../operations.md) 升级 SOP。当前线（26.1→26.2）协议面**零变化**——下列真值经 8 个上游仓 26.1/26.2 两树逐文件字节级 diff 实证（非抽样）。
 
 ### 5.1 MOD_STRING 硬门禁
 
@@ -151,7 +151,7 @@ public interface IServerPayloadData {
 
 ### 5.4 字节上限（行为语义）
 
-字节上限**裸值唯一权威**见 [architecture.md](architecture.md) §3.4（32000/31995 分片、16MB 重组预检、64MB 接收缓冲、未知通道解码上限 clientbound 1MiB/serverbound 32767、1MiB Bukkit 限制）。协议侧语义：客户端（malilib）重组上限为 16MB——我方 `PacketSplitter.send` 入口对超限帧整帧拒发 + warn（log-and-drop），覆盖 RecipeManager 全量帧 / BulkEntityReply / Structures 全量帧等全部 S2C 分片帧；**上游 servux 无此预检——我方增强，勿随上游模板回退**。
+字节上限**裸值唯一权威**见 [architecture.md](../architecture.md) §3.4（32000/31995 分片、16MB 重组预检、64MB 接收缓冲、未知通道解码上限 clientbound 1MiB/serverbound 32767、1MiB Bukkit 限制）。协议侧语义：客户端（malilib）重组上限为 16MB——我方 `PacketSplitter.send` 入口对超限帧整帧拒发 + warn（log-and-drop），覆盖 RecipeManager 全量帧 / BulkEntityReply / Structures 全量帧等全部 S2C 分片帧；**上游 servux 无此预检——我方增强，勿随上游模板回退**。
 
 ### 5.5 C2S 解析双闸（`DataTagIo` 配额闸）
 
@@ -168,7 +168,7 @@ public interface IServerPayloadData {
 - **`UNREGISTER_REPLY`**：HUD=9、Entities=7、Tweaks=7、Litematics=8——服务端 decode→unregister（我方映射为 provider.removePlayer）。
 - **METADATA_REQUEST 语义** = 「先 unregister 再 register」（再注册）。
 - **枚举增删**：HUD +`UNREGISTER_REPLY(9)`；Entities/Tweaks 各 +(7)；Litematica +(8) + task 组 `TASK_REQUEST(14)/TASK_RESPONSE(15)/TASK_STATUS_SYNC(16)/TASK_CANCEL(17)`；**Structures 删 10/11/12**（spawn/weather 完全收敛到 HUD 通道）。
-- **task 组（14-17）**：客户端在检测到 servux 服务端后 Fill/Delete 选区**强制**走 `PACKET_C2S_TASK_REQUEST`（无超时回退、无能力探测）；type 14 受理 Fill/Delete；Paste 经 `LitematicaPaste` 批量路由；type 16 为三类任务共用进度/完成帧唯一 S2C 出口；type 15 客户端接收端 TODO 故服务端永不发送；type 17 上游同源忽略。服务端 as-built 见 [servux-schematic.md](servux-schematic.md) §9。
+- **task 组（14-17）**：客户端在检测到 servux 服务端后 Fill/Delete 选区**强制**走 `PACKET_C2S_TASK_REQUEST`（无超时回退、无能力探测）；type 14 受理 Fill/Delete；Paste 经 `LitematicaPaste` 批量路由；type 16 为三类任务共用进度/完成帧唯一 S2C 出口；type 15 客户端接收端 TODO 故服务端永不发送；type 17 上游同源忽略。服务端 as-built 见 [servux/schematic.md](schematic.md) §9。
 - **隐私裁剪**：查询**他人**玩家实体时按 `nbt_allow_player_inventory` / `player_inventory_permission_level`（ender 同理）清空 `Inventory` / `EnderItems`。
 - **零变化**：PacketSplitter 分片帧（`[VarInt 总长][分片…]`、常量逐字一致）、HUD v3 数据字段（20 字段名比对零增删改）。
 
@@ -185,7 +185,7 @@ public interface IServerPayloadData {
 | `registerPlayReceiver(Type, handler)` | 注册接收器 | `Messenger.registerIncomingPluginChannel(plugin, channel, listener)` |
 | `unregisterPlayReceiver()` | 反注册 | `Messenger.unregisterIncomingPluginChannel` |
 | `receivePlayPayload(payload, ctx)` | 收包入口 | `PluginMessageListener.onPluginMessageReceived(channel, player, bytes)` → 包一层成 Payload |
-| `sendPlayPayload(player, payload)` | 发 S2C | `player.sendPluginMessage`（已声明）；未声明且已在本通道发过 C2S → NMS `connection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes)))` 兜底（[architecture.md](architecture.md) §3.2；**勿**直发自定义 Payload record，会 CCE） |
+| `sendPlayPayload(player, payload)` | 发 S2C | `player.sendPluginMessage`（已声明）；未声明且已在本通道发过 C2S → NMS `connection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes)))` 兜底（[architecture.md](../architecture.md) §3.2；**勿**直发自定义 Payload record，会 CCE） |
 | `sendPlayPayload(networkHandler, payload)` | 走 `ServerGamePacketListenerImpl.send` | NMS `player.connection.send(...)`（**这条在 Paper 上可原样用**） |
 | `encodeWithSplitter(player, buf, networkHandler)` | 分包时每片发送回调 | 调 Paper 版 `sendPlayPayload` |
 
@@ -255,13 +255,13 @@ else:
      │  MiniHUD 重组，刷新配方提示
 ```
 
-握手时序保障：HUD 有三道（onPlayerJoin 40t / onPlayerRegisterChannel 事件 / 客户端 C2S 主动请求）；entity/tweaks/litematics 亦有 `onPlayerRegisterChannel` 重发（幂等）。minihud structures 的单次接受窗口与 REGISTER 即时回复机制见 [architecture.md](architecture.md) §3.2。
+握手时序保障：HUD 有三道（onPlayerJoin 40t / onPlayerRegisterChannel 事件 / 客户端 C2S 主动请求）；entity/tweaks/litematics 亦有 `onPlayerRegisterChannel` 重发（幂等）。minihud structures 的单次接受窗口与 REGISTER 即时回复机制见 [architecture.md](../architecture.md) §3.2。
 
 ---
 
 ## 8. 与上游的逐通道差异/适配点（26.2 复核真值）
 
-> wire 与可观测行为与上游逐项等价；下列为我方实现侧的适配差异（非协议差异）。EasyPlace/潜影盒等 Mixin 行为类差异见 [architecture.md](architecture.md) §5.3。
+> wire 与可观测行为与上游逐项等价；下列为我方实现侧的适配差异（非协议差异）。EasyPlace/潜影盒等 Mixin 行为类差异见 [architecture.md](../architecture.md) §5.3。
 
 ### 8.1 HUD（servux:hud_metadata，协议版本 3）
 
@@ -282,26 +282,26 @@ else:
 ### 8.3 Tweaks（servux:tweaks，协议版本 2）
 
 - NBT 查询复用 `EntitiesDataProvider` 权限方法。
-- **潜影盒堆叠——不可能实现，已删除**：已从 provider 删除 `stackable_shulkers` 系列 setting 与 `stackingShulkers/stackingShulkersMax` 元数据下发（见 [architecture.md](architecture.md) §5.3）。
+- **潜影盒堆叠——不可能实现，已删除**：已从 provider 删除 `stackable_shulkers` 系列 setting 与 `stackingShulkers/stackingShulkersMax` 元数据下发（见 [architecture.md](../architecture.md) §5.3）。
 - 修正原版 `ResponseS2CData` L120/121 重复赋值 bug。
 
 ### 8.4 Structures（servux:structures，协议版本 3）
 
-- **触发**：原版 Mixin `markChunkPendingToSend` → `onStartedWatchingChunk` 精确触发；我方改**周期扫描**（tick 内遍历玩家 view distance 区块，去重发送；`update_interval` 默认 40t，性能注记见 [architecture.md](architecture.md) §8）。
+- **触发**：原版 Mixin `markChunkPendingToSend` → `onStartedWatchingChunk` 精确触发；我方改**周期扫描**（tick 内遍历玩家 view distance 区块，去重发送；`update_interval` 默认 40t，性能注记见 [architecture.md](../architecture.md) §8）。
 - NMS 结构采集（paperweight 直连，不需反射）：`ChunkAccess.getAllReferences/getStartForStructure/StructureStart.createTag/StructurePieceSerializationContext.fromLevel`。
 - 黑白名单 setting 保留；timeout 简化为周期全量刷新。
-- **`max_receive_s2c` 能力协商已移植**（register 读 TAG_INT 存名册 entry，条目级分批机制见 [architecture.md](architecture.md) §3.3；当前线客户端零发送点恒走默认 16MB，机制层对齐、真实环境不可观测）。
+- **`max_receive_s2c` 能力协商已移植**（register 读 TAG_INT 存名册 entry，条目级分批机制见 [architecture.md](../architecture.md) §3.3；当前线客户端零发送点恒走默认 16MB，机制层对齐、真实环境不可观测）。
 - `unregister` 单参（上游 tags 形参全实现未读，有意简化）。
 
 ### 8.5 Litematics（servux:litematics，协议版本 2）—— ✅ 全功能（含投影粘贴；C2S/S2C 文件传输已移除）
 
 - **元数据握手 / 方块实体 NBT 查询 / 实体 NBT 查询 / 批量实体查询（onBulkEntityRequest）**：✅ 实现（复用 Entities 的 `NbtView` + `be.saveWithFullMetadata` / `entity.saveWithoutId` + 玩家背包/末影箱权限过滤；批量查询拼 ListTag 走 PacketSplitter 分包）。
 - **协议帧（toPacket/fromPacket）**：✅ 照抄原版（SliceKey + CHANNEL_ID=servux:litematics + 协议版本 2）。
-- **投影粘贴（C2S 上传 .litematic，任务化）**：✅ 已实现——客户端上传分片经 `ServuxLitematicaHandler` 重组 → 重组完成后无条件走 `LitematicsDataProvider.handleClientPasteRequest`（上游 0.10.7 `:201` 同构；Task 门控在 Provider——非 `LitematicaPaste` 静默忽略）加载 `SchematicPlacement` 后创建 `PasteTask` 登记 TaskScheduler 分 tick 粘贴。scheduler/task 组 as-built 见 [servux-schematic.md](servux-schematic.md) §9。
+- **投影粘贴（C2S 上传 .litematic，任务化）**：✅ 已实现——客户端上传分片经 `ServuxLitematicaHandler` 重组 → 重组完成后无条件走 `LitematicsDataProvider.handleClientPasteRequest`（上游 0.10.7 `:201` 同构；Task 门控在 Provider——非 `LitematicaPaste` 静默忽略）加载 `SchematicPlacement` 后创建 `PasteTask` 登记 TaskScheduler 分 tick 粘贴。scheduler/task 组 as-built 见 [servux/schematic.md](schematic.md) §9。
 - **S2C 文件投递命令**：⛔ **已移除**——当前 stock 客户端 `handleBulkData` 的 Transmit 分流整块注释（无接收端，帧被静默丢弃），上游 `sendTransmitFile` 亦 `@Deprecated(forRemoval)` 零调用点。死信链（`/servux litematic transmit` 命令 + `sendTransmitFile` + 文件字节级门禁）已物理删除，恢复走 git revert。修复版 litematica（≥0.26.11）客户端对 Transmit 帧双向静默丢弃。
 - **C2S 文件接收**（`Litematic-Transmit*` → `receiveFileTransmit` 落盘）：⛔ **已移除（安全修复）**——客户端可控 `FileName` 直达 `Path.of`/`dir.resolve` 无包含性检查，构成**路径穿越任意写/删/读回**原语（上游安全公告漏洞同源；另有 `new Slice[客户端控长]` 的 OOM 向量），上游同判禁用该实验性接收功能。整链物理删除，恢复走 git revert。
-- **降级点**（schematic 边缘能力，不影响粘贴主链路）：从世界选区创建/采集投影（保存侧）、Sponge/Vanilla structure 格式导入、DataFixer 旧版转换——服务端只消费现成 .litematic，这些原版保存/转换 API 保留签名返回默认值（见 [servux-schematic.md](servux-schematic.md) §7）。
+- **降级点**（schematic 边缘能力，不影响粘贴主链路）：从世界选区创建/采集投影（保存侧）、Sponge/Vanilla structure 格式导入、DataFixer 旧版转换——服务端只消费现成 .litematic，这些原版保存/转换 API 保留签名返回默认值（见 [servux/schematic.md](schematic.md) §7）。
 
 ---
 
-> **相关**：[architecture.md](architecture.md)（网络框架与字节限制裸值）· [servux-providers.md](servux-providers.md)（NBT 字段内容）· [servux-schematic.md](servux-schematic.md)（投影子系统与 task 组）· [servux-testing.md](servux-testing.md) · [operations.md](operations.md) · [index.md](index.md)
+> **相关**：[architecture.md](../architecture.md)（网络框架与字节限制裸值）· [servux/providers.md](providers.md)（NBT 字段内容）· [servux/schematic.md](schematic.md)（投影子系统与 task 组）· [servux/testing.md](testing.md) · [operations.md](../operations.md) · [index.md](../index.md)

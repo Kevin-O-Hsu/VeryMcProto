@@ -15,7 +15,7 @@ import net.minecraft.network.protocol.PacketFlow;
  * 传送路径对假人可用）；{@code send}/{@code handleDisconnection} 等五方法全 no-op——S2C 包在连接层
  * 丢弃，假人"能收不能回"。
  *
- * <p>与上游的偏差（对账登记，docs/carpet-architecture.md）：上游经 {@code ClientConnectionInterface}
+ * <p>与上游的偏差（对账登记，docs/carpet/architecture.md）：上游经 {@code ClientConnectionInterface}
  * duck 接口（{@code Connection_packetCounterMixin} 注入的 setChannel）注入 channel——B 侧
  * {@link Connection#channel} 本为 public 字段，构造器直接赋值，零 Mixin。
  *

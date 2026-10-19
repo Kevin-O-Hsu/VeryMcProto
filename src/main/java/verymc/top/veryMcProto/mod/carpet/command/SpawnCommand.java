@@ -36,7 +36,7 @@ import static net.minecraft.commands.SharedSuggestionProvider.suggest;
  * /spawn entities                  同 mobcaps 裸（上游同引用 generalMobcaps）
  * /spawn entities &lt;type&gt; [all]     类别实体清单（type = MobCategory 名，非实体 id）</pre>
  *
- * <p><b>与上游的偏差</b>（登记，docs/carpet-architecture.md）：
+ * <p><b>与上游的偏差</b>（登记，docs/carpet/architecture.md）：
  * <ul>
  *   <li>list/tracking/test/mocking/rates 五子树不移植（tracking = NaturalSpawnerMixin 深钩，
  *       scope §3 ⛔；test/mocking/rates 为 tracking 配套）；</li>
