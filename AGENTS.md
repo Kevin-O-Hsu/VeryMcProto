@@ -11,7 +11,7 @@
   - 上游已越过本线版本 → 该版本属旧线：当前版本的活走 `ver/<X>-dev`，同时提醒用户启动 `dev` 的升级适配（见分支模型「生命周期」）。
   （Paper 侧版本可用 https://api.papermc.io/v2/projects/paper 交叉核对。）
 - **分支**：当前 MC 版本的开发一律在 `dev` 分支提交，完成后合入 `main`（= 最新 MC 稳定发布线）。旧 MC 版本冻结为 `ver/<X>` + `ver/<X>-dev` 维护对：修 Bug 在 `ver/<X>-dev`，验证后合入 `ver/<X>`。详见下文「分支模型与版本系统」。
-- **版本**：插件版本 = `<mcVersion>-b<buildNumber>`（当前 `26.1.2-b7`——26.1 线的精确上游补丁号，26.1 客户端 MOD_STRING 硬门禁要求）。**唯一来源是 `gradle.properties`**——发版只需在 dev 上 `buildNumber` +1，**任何源码、plugin.yml、文档中都不得手写版本号**（注入链路见下文）。
+- **版本**：插件版本 = `<mcVersion>-b<buildNumber>`（当前 `26.1.2-b8`——26.1 线的精确上游补丁号，26.1 客户端 MOD_STRING 硬门禁要求）。**唯一来源是 `gradle.properties`**——发版只需在 dev 上 `buildNumber` +1，**任何源码、plugin.yml、文档中都不得手写版本号**（注入链路见下文）。
 - **语言与风格**：**对外可见面一律英文**——plugin.yml 元数据（全部 description 等字符串）、日志输出、玩家消息/命令回执必须是英文；译文一律 ASCII 化（§ 颜色码除外），禁止 `\uXXXX` 转义等绕过写法。注释与 `docs/` 文档用中文，与现有代码一致（中文 javadoc、常量类 + 源码实证注释）。`README.md`（GitHub/Modrinth 门面）保持英文且为瘦身门面——命令/权限/配置/排错等运维内容一律指向 `docs/40-configuration.md`，不在 README 重复维护。
 - **文档同步强制**：本仓库的**每一个改动**，改的时候都必须同步更改对应的文档——受影响的 [`docs/`](docs/) 篇章、`README.md`、`AGENTS.md` 等；没有合适文档可承载时**新建文档**（放 `docs/` 并在 [`docs/00-INDEX.md`](docs/00-INDEX.md) 登记索引）。文档更新与代码改动落在**同一个 commit**，禁止"先合代码、事后补文档"。
 - **协议字段语义**改动前必须对照 `OriginImpl/` 下的客户端源码（litematica / malilib / syncmatica 是协议接收端），**不要凭服务端代码猜客户端行为**。26.1 起客户端还带协议版本 + MOD_STRING 前缀**硬门禁**（不匹配即整通道静默退网），协议常量必须与 `OriginImpl/*-LTS-26.1` 逐字对齐。
@@ -23,11 +23,12 @@
 
 **VeryMcProto** 把 **Fabric 端独特的 Mod Protocol（协议 Mod）** 以纯 Paper 插件形式重新实现。所有实现基于 **Minecraft 26.1 线（26.1.2）**，运行在标准 **Paper 26.1.2** 服务端，不依赖任何服务端 patch / Mixin / 私有 fork。
 
-每个被移植的 Mod 独占一个目录单元；原版 Fabric 实现统一存放在 `OriginImpl/` 下用于逐行对照（本地参考，已 gitignore，不入库；**1.21.11 与 26.1 双版本并存**，masa 系全部为 sakura-ryoko 维护的 `LTS/<版本>` 分支；JEI 侧**按线分叉**——26.1 线对照最上游 `OriginImpl/JustEnoughItems-26.1/`（mezz，分支 `26.1`，2026-09 起正式更换），1.21.11 旧线沿用 `OriginImpl/JEIRecipeBridge-1.21.11/`（Mrbysco）。**三个移植目标在 26.1 线全部实现并通过服务端实机验证**：
+每个被移植的 Mod 独占一个目录单元；原版 Fabric 实现统一存放在 `OriginImpl/` 下用于逐行对照（本地参考，已 gitignore，不入库；**1.21.11 与 26.1 双版本并存**，masa 系全部为 sakura-ryoko 维护的 `LTS/<版本>` 分支；JEI 侧**按线分叉**——26.1 线对照最上游 `OriginImpl/JustEnoughItems-26.1/`（mezz，分支 `26.1`，2026-09 起正式更换），1.21.11 旧线沿用 `OriginImpl/JEIRecipeBridge-1.21.11/`（Mrbysco）；Carpet 对照 `OriginImpl/fabric-carpet-26.1/`（gnembon/fabric-carpet 分支 `26.1`））。**三个协议移植目标在 26.1 线全部实现并通过服务端实机验证；第四模块 Carpet（行为注入型 mod 的可移植子集）已落地（规则框架 + /carpet 壳 + 18 规则 + 假人 /player 全族 + carpet:hello 协议 + /log 日志 + 五命令族）**：
 
 - **Servux**（`mod/servux/`，对照 `OriginImpl/servux-LTS-26.1/`）—— masa 开发的服务端协议 Mod，为 masa 的客户端 Mod（**MiniHUD / Litematica / Tweakeroo**）提供**服务端→客户端的数据投递与协议**，通过自定义网络通道（`servux:*`）下发：世界元数据、出生点、天气、TPS/MobCap、结构边界框、Litematica 投影粘贴、实体与方块实体 NBT 查询、EasyPlace 服务端放置协议等。5 通道 + schematic（粘贴）+ EasyPlace + **task 组 Fill/Delete/Paste**（`scheduler/` 五类：TaskScheduler + LitematicaTask 基类 + FillDeleteTask + PasteTask + InfoHudTaskSync，受理→分 tick 执行→InfoHud 状态同步；paste 为上游 TaskPasteSchematicPerChunkDirect 形态——vanillaTickTime+60ms 动态预算、type 16 进度/完成帧；26.1 wire：协议版本 3/2/2/3/2、DataTag 载体、UNREGISTER_REPLY；type 15 客户端 TODO 故不发送、type 17 上游同源忽略）。
 - **JEI 服务端协议**（`mod/jei/`，对照最上游 `OriginImpl/JustEnoughItems-26.1/`（mezz 分支 `26.1` = JEI 29.37.0 / MC 26.1.2 / Java 25——原 Mrbysco/JEIRecipeBridge 已停更且只做过 1.21.11 的配方同步切面，2026-09 起弃用为其参考地位））—— **完整 JEI 协议**三层：① 配方同步层：`fabric:recipe_sync`（Fabric API `fabric-recipe-api-v1` wire，RegisterChannel 触发——对齐上游 `canSend(player)` 门控）+ `neoforge:recipe_content`（join + brand 触发，wire 参考 Mrbysco 26.1 目录）+ NeoForge tag 表补发；② `jei:*` 自有通道 10 条（8 C2S：`request_cheat_permission` / `give_item_stack` / `delete_player_item` / `set_hotbar_item_stack` / `recipe_transfer_with_result` / `recipe_transfer_counted_with_result` / legacy `recipe_transfer` / legacy `recipe_transfer_counted`；2 S2C：`cheat_permission` / `recipe_transfer_result`）——**客户端功能门禁 `isJeiOnServer()` = 服务端声明过 `jei:delete_player_item` 通道（`ChannelManager` 成对注册），与 brand 无关**；③ 服务端行为：cheat 权限三切面（Op=权限级 2 / Give=`minecraft.command.give` / Creative）+ `BasicRecipeTransferHandlerServer` 配方转移算法逐行移植。协议详情见 [`docs/30-jei-protocol.md`](docs/30-jei-protocol.md)。
 - **Syncmatica**（`mod/syncmatica/`，对照 `OriginImpl/syncmatica-LTS-26.1/`）—— **投影共享**协议 Mod：服务端作中央仓库存储 `.litematic`，多玩家上传/下载/协同修改放置位置。单物理通道 `syncmatica:main` + 18 逻辑 PacketType + Exchange 会话层（请求-应答状态机）+ 文件存储 + JSON 持久化 + 配额/调试服务。与 Servux（单向广播）根本不同——**双向、有状态、多玩家共享**。26.1 wire 零变化（但 `modifyState` 锁表有两处本地修复：CHM null 语义翻译 + null placement 守卫——迁移引入 NPE 链 + 上游原生缺陷，勿随模板回退，见 docs/21 §5.4；另 2026-10 修复 `suspendAll` 只扫 broadcastTargets 子集且 close 后不移除 exchange 的 disable→enable 握手永久卡死——现为 targets 全集 + 显式移除，上游无 disable/enable 概念、该缺陷为移植特有，见 docs/22 §3.1）。
+- **Carpet**（`mod/carpet/`，对照 `OriginImpl/fabric-carpet-26.1/`（gnembon/fabric-carpet 分支 `26.1`，mod_version `26.1`——协议握手 HI 帧版本串逐字，禁发插件版本号））—— Fabric 端**行为注入型** mod 的可移植子集：注解规则框架（`carpet.conf` 纯文本 + locked 语义 + validator 链）+ `/carpet` 四子命令（双层门禁）+ 18 条上游实名规则 + 假人子系统（patches 三件套走原版 placeNewPlayer 链 + ActionPack 侧表驱动 + `/player` 全族）+ carpet:hello 协议（单 CompoundTag 载体、S2C NMS DiscardedPayload 直发、Rules 全量/增量同步、clientCommand 回执）+ `/log` 订阅框架（tps/mobcaps HUD 走 tab 脚、跨会话持久 carpet-logs.json 双信号模型）+ 五条纯计算命令（/distance /info /perimeterinfo /draw /spawn）。**26.1 线特有：Paper 玩家物理路径敞开（与 26.2 线相反），假人掉落伤害经 `isClientAuthoritative()` 覆写恢复 vanilla 链**——本线 as-built 与适配记录见 [`docs/31-carpet.md`](docs/31-carpet.md)（§7 per-line 差异勿随 dev 线互抄）。
 
 > **本项目的本质是"协议层移植"**：客户端仍是 masa / syncmatica 的 Fabric Mod；我们要在 Paper 服务端复刻它们期待的**网络协议 + 数据采集**，使"Fabric 客户端 + Paper 服务端"的组合能像"Fabric 客户端 + 原版服务端 Mod"一样工作。
 
@@ -77,9 +78,9 @@ gradle.properties（mcVersion=26.1.2 · buildNumber=4）          ← 唯一改�
        │  Reference 类加载时 Properties.load 读回
        ▼
    Reference.MC_VERSION / Reference.PLUGIN_VERSION（框架级常量）
-       ├─ ServuxReference.MOD_STRING   = "servux-fabric-26.1.2-b7"（MOD_TYPE 伪装 fabric：
+       ├─ ServuxReference.MOD_STRING   = "servux-fabric-26.1.2-b8"（MOD_TYPE 伪装 fabric：
        │    26.1 客户端 startsWith("servux-fabric-<精确上游id>") 硬门禁，"paper" 会被四通道拒绝）
-       ├─ SyncmaticaReference.MOD_VERSION = "26.1.2-b7"（-b 后缀永不命中
+       ├─ SyncmaticaReference.MOD_VERSION = "26.1.2-b8"（-b 后缀永不命中
        │    FeatureSet.fromVersionString 的 ^\d+(\.\d+){2,4}$ 正则 → 恒触发 FEATURE 交换）
        └─ （JEI 无版本握手支腿——26.1 线完整协议重做时删除：
             jei 协议无 MOD_STRING/版本协商字段，服务端检测走通道声明 jei:delete_player_item）
@@ -103,7 +104,7 @@ gradle.properties（mcVersion=26.1.2 · buildNumber=4）          ← 唯一改�
 | **反射用 Mojang 名** | 产物即 Mojang 映射、Paper 运行时亦然 → 反射私有成员直接用 Mojang 名 |
 | **可选依赖** | PacketEvents `compileOnly("...packetevents-spigot:2.13.0")` + `plugin.yml: softdepend: [packetevents]`（仅供 Servux EasyPlace 用；未装则优雅跳过） |
 | **版本注入** | 见上节；`gradle.properties` 是唯一版本来源 |
-| **当前状态** | 三个 mod（Servux / JEI / Syncmatica）在 26.1 线全部实现，服务端实机验证通过 |
+| **当前状态** | 三个协议 mod（Servux / JEI / Syncmatica）+ 第四模块 Carpet 可移植子集在 26.1 线全部实现，服务端实机验证通过 |
 
 构建命令（工具链 25 自动解析——foojay 下载兜底 + 本机 `~/.gradle/gradle.properties` 探测路径，无需手动 JAVA_HOME）：
 ```bash
@@ -143,8 +144,9 @@ gradle.properties（mcVersion=26.1.2 · buildNumber=4）          ← 唯一改�
 | **servux** | `app/ServuxModule`、`command/`、`dataproviders/`（6 Provider）、`network/`（5 Handler+Packet）、`easyplace/`、`loggers/`、`schematic/`（container/selection/placement/transmit）、`util/` | `ServuxModule.onRegister(DataProviderManager)` 注册 6 Provider + 反射加载 EasyPlace |
 | **jei** | `app/JeiModule`、`JeiReference`、`network/`（JeiServerPlayHandler + JeiPacketSender + RecipeSyncJoinOrderer（fabric 腿进服时序整形——netty 出站扣住 UpdateRecipesPacket、等 play register 证据后放行，复刻上游 PlayerListMixin 时序，见 docs/30 §5.2）+ `payload/` 9 文件 = 8 wire 包类 + 1 抽象基类、内含 `legacy/` 子目录 2——wire 口径 10 包）、`transfer/`（TransferOperation + BasicRecipeTransferHandlerServer）、`cheat/`（Cheats + GiveMode）、`recipesync/`（Fabric/Neoforge 双 payload + RecipeSyncService）、`config/JeiConfiguration`、`command/JeiCommand` | `JeiModule.enable(plugin)`（**自管**——仿 syncmatica：ChannelManager 注册 8 条 jei:* C2S + Messenger 出站声明配方通道 + RegisterChannel/Join/AsyncConfigure 监听；onDisable 调 `JeiModule.disable()`） |
 | **syncmatica** | `app/SyncmaticaModule`、`SyncmaticaContext`、`communication/`（+`exchange/`）、`data/`（+`litematica/`）、`extended_core/`、`network/`、`service/`、`util/` | `SyncmaticaModule.enable(plugin)`（**不走 DataProviderManager**——Exchange 会话模型，自管通道注册 + 玩家监听） |
+| **carpet** | `CarpetReference`、`CarpetSettings`（18 规则）、`app/CarpetModule`、`command/`（CarpetCommand/PlayerCommand/LogCommand + P5 五类——Paper Brigadier API）、`patches/`（EntityPlayerMPFake/FakeClientConnection/NetHandlerPlayServerFake）、`helpers/`（EntityPlayerActionPack + ActionPackManager）、`settings/`（Rule 注解 + Validator + ParsedRule + SettingsManager）、`network/`（CarpetHelloHandler/CarpetPacketSender/CarpetSnoopyCommandSource）、`logging/`（CleanLogsFilter + Logger/HUDLogger/LoggerRegistry/HUDController/SpawnReport/LogSubscriptionStore/LoggerListener）、`util/`（Messenger/CommandHelper/DistanceCalculator/BlockInfo/Colors/PerimeterDiagnostics/Tracer）、`listener/`（CarpetRuleListener/FakePlayerListener） | `CarpetModule.onRegister(DataProviderManager)`（ModModule 实现——manager 形参空转；SettingsManager 单例 + conf 载入 + 全子系统挂点；onDisable 摘通道/过滤器 + kill 全假人 + HUD 善后）——as-built 见 [`docs/31-carpet.md`](docs/31-carpet.md) |
 
-主类 `VeryMcProto.onEnable()`：初始化框架（ChannelManager / DataProviderManager / LifecycleBridge）→ 依次注册 servux / jei / syncmatica 三个模块 → 注册 `/servux` `/jei` `/syncmatica` 命令。所有装配均包 try-catch，任何模块失败只记录日志、降级跳过，绝不影响服务端启动。
+主类 `VeryMcProto.onEnable()`：初始化框架（ChannelManager / DataProviderManager / LifecycleBridge）→ 依次注册 servux / jei / syncmatica / carpet 四个模块 → 注册 `/servux` `/jei` `/syncmatica` `/carpet` 命令。所有装配均包 try-catch，任何模块失败只记录日志、降级跳过，绝不影响服务端启动。
 
 ### 关键替换点（Fabric → Paper）一句话版
 
@@ -248,6 +250,8 @@ Servux 共 **26 个 Mixin + 2 个 AccessWidener 字段**；Syncmatica 共 **5 �
 | `syncmatica.command.load` | true | `/syncmatica load` |
 | `syncmatica.command.load_each` | true | `/syncmatica load <file>` |
 | `syncmatica.command.debug` | op | `/syncmatica debug` |
+| `carpet.command` | op | `/carpet` 规则壳（运行时另受 `carpetCommandPermissionLevel` 规则动态门禁——ops/2/4 级 NMS 判级） |
+| —（无节点） | — | `/player` `/log` `/distance` `/info` `/perimeterinfo` `/draw` `/spawn` 无 Bukkit 节点——Paper Brigadier 注册，门禁 = 各自规则（commandPlayer/commandLog/commandXxx，动态生效） |
 
 - 各 Provider 内部权限节点保持原版命名（如 `servux.provider.hud_data` / `.weather` / `.seed` / `.logger` / `.paste`）。
 
@@ -309,7 +313,8 @@ Litematica 投影子系统（`mod/servux/schematic/`，约 8000 行）已移植�
 | [`docs/23-syncmatica-implementation-plan.md`](docs/23-syncmatica-implementation-plan.md) | 实现总览：关键决策 + 完成状态（包结构见 docs/20 §2） |
 | [`docs/24-syncmatica-testing-guide.md`](docs/24-syncmatica-testing-guide.md) | **Syncmatica 客户端兼容测试**：握手/分享/下载/修改/持久化/多玩家步骤 + 排错 |
 | [`docs/30-jei-protocol.md`](docs/30-jei-protocol.md) ⭐ | **JEI 完整协议**：12 通道 wire 逐字段、通道声明契约、cheat 权限模型、配方转移算法、尺寸模型、上游源码索引 |
-| [`docs/40-configuration.md`](docs/40-configuration.md) | **运维参考（docs 内唯一权威）**：三 mod 命令、权限节点 + LuckPerms 示例、配置文件全键、数据布局、排错速查 |
+| [`docs/31-carpet.md`](docs/31-carpet.md) ⭐ | **Carpet 本线自含 as-built + 运维**：模块装配与规则框架（18 规则 + carpet.conf）、假人 /player 全族、carpet:hello 协议（HI="26.1"）、/log 日志与跨会话持久、五命令族、**本线适配记录（掉落伤害 per-line 决策）与验收** |
+| [`docs/40-configuration.md`](docs/40-configuration.md) | **运维参考（docs 内唯一权威）**：四 mod 命令、权限节点 + LuckPerms 示例、配置文件全键（含 carpet.conf/carpet-logs.json）、数据布局、排错速查 |
 | [`docs/references.md`](docs/references.md) | 参考资源链接（全仓库唯一登记处） |
 
 ---

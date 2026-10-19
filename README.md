@@ -4,8 +4,8 @@
 > The client still uses the original Fabric mods; the server swaps from "Fabric server + server-side mod" to "standard Paper server + this plugin", with identical protocol behavior.
 
 ```
-Paper 26.1.2 · Java 25 · paperweight userdev · Version 26.1.2-b7
-Servux ✅  ·  JEI ✅  ·  Syncmatica ✅   (all three targets fully implemented; server-side verified on 26.1.2)
+Paper 26.1.2 · Java 25 · paperweight userdev · Version 26.1.2-b8
+Servux ✅  ·  JEI ✅  ·  Syncmatica ✅  ·  Carpet ✅   (all four modules implemented; server-side verified on 26.1.2)
 ```
 
 > **Author:** Kevin O. Hsu · **GitHub:** https://github.com/Kevin-O-Hsu/VeryMcProto · **Modrinth:** https://modrinth.com/plugin/verymcproto
@@ -50,12 +50,15 @@ This project uses **paperweight `userdev`** to reference fully-deobfuscated Moja
 | **Servux** | masa's **MiniHUD / Litematica / Tweakeroo** | Server→client **one-way broadcast** (6 providers over `servux:*` channels) | ✅ Full |
 | **JEI** | **JEI** (mezz/JustEnoughItems 26.1) | **Full server protocol**: recipe sync + cheat + recipe transfer (`fabric:recipe_sync` / `neoforge:recipe_content` + 10 `jei:*` channels) | ✅ Full |
 | **Syncmatica** | **endte syncmatica** | **Bidirectional, stateful, multi-player shared** schematic repository (`syncmatica:main` + 18 PacketTypes + Exchange sessions) | ✅ Full |
+| **Carpet** | **gnembon/fabric-carpet** (branch 26.1) | **Portable subset of a behavior-injecting mod**: rule framework (`/carpet`, 18 rules, `carpet.conf`) + fake players (`/player` full family) + `carpet:hello` protocol + `/log` HUD framework (tps/mobcaps) + pure-calculation commands (`/distance` `/info` `/perimeterinfo` `/draw` `/spawn`) | ✅ Subset |
 
 **Servux** delivers world metadata / spawn / weather / TPS / MobCap, structure bounding boxes, entity & block-entity NBT queries, and Litematica schematic paste (C2S upload + server-side paste). EasyPlace (Tweakeroo precise placement) is served via PacketEvents. The S2C file-transmit path was removed — the stock 26.1 client has no receiver for it.
 
 **JEI**: recipe sync (loader-level channels, join-time packet ordering via `RecipeSyncJoinOrderer`), the `jei:*` cheat/transfer channels with a server-side permission model, and the line-by-line ported `BasicRecipeTransferHandlerServer`.
 
 **Syncmatica**: the server acts as a central `.litematic` repository; players upload / download / collaboratively modify placements through Exchange request-acknowledgement sessions, with JSON persistence and upload quotas.
+
+**Carpet**: the portable subset of gnembon's Carpet — the `carpet:hello` handshake (`HI` version string = upstream mod_version `26.1`), an upstream-faithful rule framework (`/carpet list|setDefault|query|removeDefault`, plain-text `carpet.conf`), the fake-player `/player` family (spawning through the vanilla `placeNewPlayer` pipeline), the `/log` subscription framework with cross-session persistence and tab-list tps/mobcaps HUD, and five pure-calculation commands. See [docs/31](docs/31-carpet.md).
 
 > 26.1 introduced hard client-side gates (protocol versions must match exactly; the `servux` handshake string must start with `servux-fabric-<exact upstream MC id>`), a new DataTag NBT wire carrier, and a 16MB client reassembly cap. All of this is implemented and documented in [`docs/09-DELIVERY.md`](docs/09-DELIVERY.md) §26.1.
 
@@ -103,7 +106,7 @@ On startup the console shows:
 [VeryMcProto] framework ready.
 ```
 
-> **Defensive design**: the three mods are assembled each inside its own try-catch; any one failing only logs and degrades gracefully — **it never blocks server startup** and never affects the other mods.
+> **Defensive design**: the four modules are assembled each inside its own try-catch; any one failing only logs and degrades gracefully — **it never blocks server startup** and never affects the other modules.
 
 Commands (`/servux`, `/syncmatica`, `/jei`), permission nodes (incl. LuckPerms recipes), every config key of `servux.json` / `jei.json` / `syncmatica-config.json`, the on-disk data layout, and a troubleshooting table live in **[`docs/40-configuration.md`](docs/40-configuration.md)**.
 
@@ -115,7 +118,7 @@ Package root `verymc.top.veryMcProto`, split into a **framework layer** and a **
 
 ```
 verymc.top.veryMcProto
-├── VeryMcProto            Main class (JavaPlugin.onEnable assembles the framework + registers the three mods + registers commands)
+├── VeryMcProto            Main class (JavaPlugin.onEnable assembles the framework + registers the four modules + registers commands)
 ├── framework/             Framework layer (infrastructure decoupled from any specific protocol mod)
 │   ├── network/           plugin messaging channel wrappers, byte-stream codec, splitting, handler registry
 │   ├── dataproviders/     Provider registry / scheduler / config hub (used by Servux)

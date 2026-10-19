@@ -1,7 +1,7 @@
 # 40 · 配置与运维参考（命令 / 权限 / 配置全键 / 数据布局 / 排错）
 
 > **本文是 docs/ 内运维信息的唯一权威**（英文 README 不再承载这些表格）：
-> 三 mod 全命令参考、权限节点（命令 + Provider 运行时）、三个配置文件全键表、磁盘数据布局、调试系统与排错速查。
+> 四 mod 全命令参考、权限节点（命令 + Provider 运行时）、五个配置文件全键表（`servux.json` / `jei.json` / `syncmatica-config.json` / `carpet.conf` / `carpet-logs.json`）、磁盘数据布局、调试系统与排错速查。
 >
 > - **键权威 = src 配置类**：`servux.json` 各 Provider settings 声明（`ConfigProvider` / `HudDataProvider` / … / `StructureDataProvider.java:83` 等）、`jei.json` = `mod/jei/config/JeiConfiguration.java`、`syncmatica-config.json` = `service/QuotaService.java` + `service/DebugService.java` + `util/SyncmaticaDebug.java`。**改键必须同步本文**（仓库"文档同步强制"约定）。
 > - **三载体边界**：本文 = docs 内运维全键唯一权威；根 [`AGENTS.md`](../AGENTS.md) §5 权限表 = AI 上下文自包含安全网（豁免声明）；[`03`](03-dataproviders-detail.md) = 设置语义视角（讲每个设置的含义与采集联动，不维护节点全表）。
@@ -100,6 +100,68 @@
 
 > **生效范围**：只影响**之后**的交互（新进服玩家的配方同步；新的 C2S 包被丢弃）。disable 时**从不注销通道**——注销会使后续客户端包命中未注册通道而被踢。cheat 三开关在 `jei.json`（文件管理，同上游 `jei-server.properties`；无命令切换）。
 
+### 1.6 `/carpet`（Carpet 规则壳）
+
+**权限**：`carpet.command`（default: op）+ 运行时**动态规则门禁**（`carpetCommandPermissionLevel` 规则——
+`ops`/`2`/`4` 经 NMS 判级；`locked` 时全部子命令拒绝）。
+
+```
+/carpet                                          版本行 + 规则计数 + 用法
+/carpet list                                     全量 18 规则（按名排序，含现值与 default/modified 标记）
+/carpet query <rule>                             规则详情（desc/类目/现值/默认/选项域/验证器说明）
+/carpet setDefault <rule> <value>                设规则默认值：即时生效 + 持久化 carpet.conf（value 可含空格）
+/carpet removeDefault <rule>                     移除 conf 覆盖并复位默认值
+```
+
+### 1.7 `/player`（Carpet 假人）
+
+**权限**：无 Bukkit 节点——门禁 = `commandPlayer` 规则（`ops`/`true`/`false`/`0-4` 动态生效）。as-built 见
+[31-carpet.md](31-carpet.md) §2。
+
+```
+/player <name> spawn [at <pos> [facing <rot> [in <dim> [in <gamemode>]]]] [in <gamemode>]
+                                                  生成假人（控制台默认创造模式；gamemode 节点需 gamemasters 级）
+/player <name> kill                               移除假人（完整退出链：PlayerQuitEvent + playerdata 存档）
+/player <name> shadow                             影子化真实在线玩家
+/player <name> stop|mount [anything]|dismount|sneak|unsneak|sprint|unsprint
+/player <name> look north|…|at <pos>|<rot> · turn left|right|back|<rot>
+/player <name> move [forward|backward|left|right]  裸 move = 停止（实测步行 4.3 m/s）
+/player <name> attack|use|jump|drop|dropStack|swapHands [once|continuous|interval <ticks>]
+/player <name> hotbar <1-9>
+```
+
+运维要点：假人占 tab 栏/计入睡跳夜/playerdata 持久/可被 /tp /ban 识别（vanilla 原生承载）；插件卸载自动
+kill 全假人；已知缺口 = `/tick freeze` 不冻结假人。**伤害类验证须 `in survival`**（创造假人免伤属 vanilla
+语义；PEACEFUL 难度拒绝一切难度缩放伤害——先查 `/difficulty`）。
+
+### 1.8 `/log`（Carpet 日志订阅）
+
+**权限**：无 Bukkit 节点——门禁 = `commandLog` 规则（默认 true）；全部子命令仅玩家（console 统一
+"For players only"）。
+
+```
+/log                            订阅状态列表
+/log subscribe <logger> [option]  显式订阅（跨会话持久；logger = tps | mobcaps，option = dynamic/overworld/nether/end）
+/log clear [logger]             退订全部/单项
+```
+
+HUD 投递 = tab 脚每 20 tick 一帧（**只写脚不碰头**，不走 carpet:hello——未握手客户端同样显示）；
+订阅持久化见 §3.5；`--UNAVAILABLE--` = 该维度 SpawnState 尚未建立（新区块首刻，正常）。
+
+### 1.9 Carpet 纯计算命令族
+
+**权限**：无 Bukkit 节点——门禁 = 各自规则（`commandDistance`/`commandInfo`/`commandPerimeterInfo`/
+`commandSpawn` 默认 true，`commandDraw` 默认 ops）。as-built 见 [31-carpet.md](31-carpet.md) §5。
+
+```
+/distance from [<v>] [to [<v>]]         两点三距离（Spherical/Cylindrical/Manhattan）
+/info block <pos> [grep <词>]            方块属性清单 + 过滤
+/perimeterinfo [<center>] [<mob>]        周界刷怪诊断（慢路径，主线程秒级）
+/draw sphere|ball|diamond|pyramid|cone|cylinder|cuboid … minecraft:<block> [replace <filter>]
+/spawn mobcaps [<dimension>]             当前/指定维度生物容量
+/spawn entities <type> [all]             类别实体清单（type = monster 等类别词，非实体 id）
+```
+
 ---
 
 ## 2. 权限节点
@@ -118,6 +180,8 @@
 | `syncmatica.command.load` | true | `/syncmatica load`（批量注册） |
 | `syncmatica.command.load_each` | true | `/syncmatica load <file>`（单个注册） |
 | `syncmatica.command.debug` | op | `/syncmatica debug` |
+| `carpet.command` | op | `/carpet` 规则壳（运行时另受 `carpetCommandPermissionLevel` 规则动态门禁——ops/2/4 级 NMS 判级） |
+| —（无节点） | — | `/player` `/log` `/distance` `/info` `/perimeterinfo` `/draw` `/spawn` 无 Bukkit 节点——Paper Brigadier 注册，门禁 = 各自规则（commandPlayer/commandLog/commandXxx，动态生效） |
 
 ### 2.2 Provider 运行时权限（Perms 语义）
 
@@ -301,6 +365,20 @@ commands:
 
 > 配额只约束 `DownloadExchange`（玩家上传方向）；`UploadExchange`（玩家下载）不检查。原版 `DebugService` 字段拼写曾为 `doPackageLogging`，Paper 版修正为 `doPacketLogging`（配置文件以真实拼写为准）。
 
+### 3.4 `carpet.conf`（纯文本——上游 `SettingsManager` 同构，非 JSON）
+
+逐行 `<rule> <value>`（值含空格整段保留）；`#` 注释行跳过；**首行 `locked` = 锁定**（全部 /carpet 子命令
+拒绝 + COMMAND 类可关规则置 false，上游语义）；未知规则名 error 日志后跳过；**文件从不主动创建**（首次写盘仅
+由 `/carpet setDefault|removeDefault` 触发）；写盘带原子 tmp/move。18 规则全表见 [31-carpet.md](31-carpet.md) §1；
+格式怪癖（值首字符 `#` 重读被吞——上游继承缺陷勿"修复"）见 dev 线 `carpet-architecture.md` §3。
+
+### 3.5 `carpet-logs.json`（/log 订阅持久化——B 侧新增，上游无对应物）
+
+JSON（Gson pretty + 原子 tmp/move）：`{ "<uuid>": { "name": 名字快照, "subs": { "<logger>": "<option|\"\">" },
+"off": ["<logger>"] } }`——`subs` = **显式**订阅（/log 命令产生，`""` = null option 哨兵）；`off` = **退订墓碑**
+（/log clear 产生，压制默认施用复活）。变更即落盘；**文件从不主动创建**；坏 JSON 按空册起步（默认订阅重施）。
+改名玩家经 UUID 复原订阅；假人永不写入。模型细节见 [31-carpet.md](31-carpet.md) §4.1。
+
 ---
 
 ## 4. 数据布局
@@ -311,6 +389,8 @@ plugins/VeryMcProto/
 ├── jei.json                    JEI 配置（enabled + cheat 三开关；迁移旧 jei-recipe-bridge.json）
 ├── syncmatica-config.json      Syncmatica 配置（quota / debug / debugLog 段）
 ├── placements.json             Syncmatica placement 元数据持久化（+ .bak / .new 原子写）
+├── carpet.conf                 Carpet 规则持久化（纯文本逐行 key value；仅 setDefault/removeDefault 写入——§3.4）
+├── carpet-logs.json            /log 订阅持久化（显式订阅 + 退订墓碑；/log 变更即写，从不主动创建——§3.5）
 ├── syncmatics/                 Syncmatica .litematic 中央仓库（上传 / 下载 / 共享）
 │   └── <hash-uuid>.litematic   文件名 = hash UUID（/syncmatica load 按它识别文件）
 └── schematics/                 Servux 投影目录
@@ -346,6 +426,14 @@ syncmatica 不工作的排查：`on` + `cat all`（或单开 `handshake`/`networ
 S2C 路径排查：`/syncmatica debug s2c`（查看）→ `/syncmatica debug s2c nms|msg`（切换对照）。
 
 **JEI**：无独立调试引擎；`/jei status` 查看状态，看服务端日志（fabric 腿在通道声明时触发日志、neoforge 腿在进服时触发）。
+
+**Carpet**：无独立调试引擎；`/carpet query <rule>` 查看规则详情，conf 读写问题看 `[Carpet]` 前缀日志。
+carpet:hello 握手排错：carpet 客户端进服后服务端日志应出现 `Player <名> joined with a matching carpet client`
+（或 `another carpet version: <v>`——真实发布客户端版本带 `+v` 日期后缀时属上游 equals 语义的正常 warn，非故障）；
+规则浏览器空 = 查该日志确认 hello 是否到达 + 规则名是否存在于上游注册表（[31-carpet.md](31-carpet.md) §3）。
+假人排错：spawn/kill 全链异常看 `[Carpet]` 前缀日志；假人卡死不消失时先 `/player <name> kill`；假人摔落/
+环境伤害不生效 = 先查游戏模式（默认创造免伤）与世界难度（PEACEFUL 拒绝难度缩放伤害）。/log 排错：订阅后
+tab 脚无 HUD = 先 `/log` 裸命令看订阅态 → 有订阅仍无显示则确认玩家进服晚于插件启用（reload 后经补扫恢复）。
 
 ### 5.2 症状速查表
 

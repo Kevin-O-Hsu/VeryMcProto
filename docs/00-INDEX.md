@@ -129,11 +129,31 @@
 
 ---
 
-# 四、运维参考（文档 40）与资源
+# 四、Carpet 移植（文档 31）
+
+## 一句话定位
+
+**Carpet 是「行为注入型」Fabric mod**（上游 171 服务端 Mixin）；本移植只携带判定为可完整等价的子集——
+规则框架 + `/carpet` 壳（18 规则）+ 假人 `/player` 全族 + carpet:hello 协议 + `/log` 日志框架（tps/mobcaps HUD）+
+五条纯计算命令。上游对照 = `OriginImpl/fabric-carpet-26.1/`（分支 `26.1`，mod_version `26.1`）。
+**26.1 线与 26.2 线的 Paper 玩家物理路径根本不同（掉落伤害机制两线各异，勿互抄）**——见 31 §7.2。
+
+## 文档地图
+
+| # | 文档 | 内容速览 | 关键词 |
+|---|---|---|---|
+| 31 | [carpet.md](31-carpet.md) ⭐ | **本线自含 as-built + 运维**：模块装配与规则框架、假人子系统、carpet:hello 协议、/log 日志与跨会话持久、五命令族、移植范围、**本线适配记录与验收（含掉落伤害 per-line 决策）**、运维参考 | 行为注入型 |
+
+**维护入口**：[31](31-carpet.md) 一篇全覆盖；上游对照按 `OriginImpl/fabric-carpet-26.1/` 逐文件核对；
+as-built 原始论证与全量偏差清单在 dev 分支树的 `carpet-*.md` 四文档。
+
+---
+
+# 五、运维参考（文档 40）与资源
 
 | # | 文档 | 内容速览 |
 |---|---|---|
-| 40 | [configuration.md](40-configuration.md) | **运维全键唯一权威**：三 mod 命令参考、权限节点（命令 + Provider 运行时 + LuckPerms 示例）、`servux.json`/`jei.json`/`syncmatica-config.json` 全键表、数据布局、调试系统与排错速查 |
+| 40 | [configuration.md](40-configuration.md) | **运维全键唯一权威**：四 mod 命令参考、权限节点（命令 + Provider 运行时 + LuckPerms 示例）、`servux.json`/`jei.json`/`syncmatica-config.json`/`carpet.conf`/`carpet-logs.json` 全键表、数据布局、调试系统与排错速查 |
 | — | [references.md](references.md) | 外部参考链接汇总（全仓库唯一登记处） |
 
 ---
