@@ -81,7 +81,7 @@ public final class VeryMcProto extends JavaPlugin
                 Reference.logger().severe("[" + Reference.PLUGIN_NAME + "] failed to register syncmatica module: " + ex.getMessage());
             }
 
-            // 注册协议 mod 模块（第四个：Carpet —— gnembon/fabric-carpet 26.2 移植 Phase 1：规则框架 + /carpet 壳 + 8 地基规则）
+            // 注册协议 mod 模块（第四个：Carpet —— gnembon/fabric-carpet 26.2 移植：规则框架 + /carpet 壳 + 8 地基规则）
             try
             {
                 new verymc.top.veryMcProto.mod.carpet.app.CarpetModule().onRegister(DataProviderManager.INSTANCE);

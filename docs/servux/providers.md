@@ -19,7 +19,7 @@
 
 ---
 
-## 1. `HudDataProvider`（配 MiniHUD）⭐ 最核心
+## 1. `HudDataProvider`（配 MiniHUD，最核心）
 
 > 原版：`dataproviders/HudDataProvider.java`（795 行）。协议通道 `servux:hud_metadata`，协议版本 **3**。
 
@@ -98,7 +98,7 @@ CompoundTag:
 
 `mod/servux/util/nbt/RecipeNbtNormalizer.java`（`HudDataProvider.java:574` 在 `Recipe.CODEC` encode 之后、入 ListTag 之前调用）。26.1→26.2 wire 病灶（零变化）：ingredient 元素域为「单物品 → 裸 StringTag（compactListCodec 单元素裸出）；多物品/tag → ListTag」，两者混装的 ingredients 列表（全量普查恰 66 条 vanilla 配方）在 `ListTag.write` 逐元素写出时被包装为 `{"": x}` Compound 并按 TAG_Compound(10) 上线；malilib 客户端读端（ListData.read，同构语法，全库无解包逻辑）两分支皆拒 → DFU 报 `List is too short: 0, expected range [1-9]`（即 minihud HudDataManager 的 66 条刷屏报错）。本层把混合列表内裸 StringTag 包成单元素 ListTag → 整表同构 → wire 不再包装，客户端解码成功且物品集语义等价（真 vanilla jar + 真数据包配方离线逐字验证）。不变式：已同构（全串/全列表）/ 无 ingredients / 非 CompoundTag 的树**原样返回、wire 逐字节不变**（同构短路）；调用点外裹 `catch(Throwable)` 异常回退原树——兼容层失败不阻断配方下发。7 个单测钉守卫（`RecipeNbtNormalizerTest`，含病灶层字节断言与幂等性用例）。
 
-### 1.6 DataLogger 子系统（TPS / MobCap）⭐
+### 1.6 DataLogger 子系统（TPS / MobCap）
 
 > `loggers/` 目录。HUD 的 `tick` 里按 `update_interval`（logger 模式 15t）周期采集，对每个订阅玩家发 `S2C_DATA_LOGGER_TICK(7)`。
 
@@ -243,7 +243,7 @@ name="tweaks_data", id="servux:tweaks", version=2, servux=<MOD_STRING>
 
 ---
 
-## 4. `StructureDataProvider`（配 MiniHUD 的结构边界框）⭐ 高难度
+## 4. `StructureDataProvider`（配 MiniHUD 的结构边界框，高难度）
 
 > 原版：`dataproviders/StructureDataProvider.java`（557 行）。协议通道 `servux:structures`，协议版本 **3**。
 
@@ -305,7 +305,7 @@ Identifier type = BuiltInRegistries.STRUCTURE_TYPE.getKey(structure.type());    
 
 ---
 
-## 5. `LitematicsDataProvider`（配 Litematica）⭐ 大模块
+## 5. `LitematicsDataProvider`（配 Litematica，大模块）
 
 > 原版：`dataproviders/LitematicsDataProvider.java`（424 行）。协议通道 `servux:litematics`，协议版本 2。
 > 投影数据结构与传输协议详见 [servux/schematic.md](schematic.md)。本节只列协议操作。

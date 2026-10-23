@@ -23,7 +23,7 @@ import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * 命令输出采集源（mod 层，Phase 3）——上游 {@code carpet/script/utils/SnoopyCommandSource.java}
+ * 命令输出采集源（mod 层，carpet:hello 协议）——上游 {@code carpet/script/utils/SnoopyCommandSource.java}
  * （26.2 树）的 Paper 移植：以玩家自身权限为载体执行命令（无提权），覆写
  * {@code sendSuccess/sendFailure} 采集输出与错误供 clientCommand 回执组装。
  *

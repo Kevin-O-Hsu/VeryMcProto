@@ -77,7 +77,7 @@
 |---|---|---|---|
 | `REGISTER_METADATA` | `syncmatica:register_metadata` | 双向 | 创建/广播一个 placement 的完整 metadata |
 | `CANCEL_SHARE` | `syncmatica:cancel_share` | S→C | 分享失败通知（客户端据此取消上传） |
-| `REQUEST_LITEMATIC` | `syncmatica:`**`request_download`** ⚠️ | 双向 | 请求下载投影文件（path 拼写与枚举名不同） |
+| `REQUEST_LITEMATIC` | `syncmatica:`**`request_download`** | 双向 | 请求下载投影文件（path 拼写与枚举名不同） |
 | `SEND_LITEMATIC` | `syncmatica:send_litematic` | 文件发送方→接收方 | 传输一片文件（16KB） |
 | `RECEIVED_LITEMATIC` | `syncmatica:received_litematic` | 接收方→发送方 | 确认收到一片，触发下一片（stop-and-wait） |
 | `FINISHED_LITEMATIC` | `syncmatica:finished_litematic` | 发送方→接收方 | 文件传输结束标记 |
@@ -92,9 +92,9 @@
 | `MODIFY_REQUEST_DENY` | `syncmatica:modify_request_deny` | S→C | 拒绝修改（被他人占用等） |
 | `MODIFY_REQUEST_ACCEPT` | `syncmatica:modify_request_accept` | S→C | 接受修改（占锁成功） |
 | `MODIFY_FINISH` | `syncmatica:modify_finish` | C→S | 客户端修改完成，提交最终位置 |
-| `MESSAGE` | `syncmatica:`**`mesage`** ⚠️ | 双向 | 显示消息（path 是原版拼写错误，注释「can't fix the typo here lol」`PacketType.java:90-92`） |
+| `MESSAGE` | `syncmatica:`**`mesage`** | 双向 | 显示消息（path 是原版拼写错误，注释「can't fix the typo here lol」`PacketType.java:90-92`） |
 
-> ⚠️ **两个拼写陷阱（原版继承，不可改）**：`REQUEST_LITEMATIC`→`request_download`、`MESSAGE`→`mesage`。改了客户端认不出。本实现的枚举构造已逐字用 path 值（`PacketType.java:29,90`）。
+> **两个拼写陷阱（原版继承，不可改）**：`REQUEST_LITEMATIC`→`request_download`、`MESSAGE`→`mesage`。改了客户端认不出。本实现的枚举构造已逐字用 path 值（`PacketType.java:29,90`）。
 
 ---
 
@@ -148,7 +148,7 @@
 - `checkPartnerVersion(version)`（`SyncmaticaContext`）：**仅拒绝 `"0.0.1"`**（原版行为）。
 - `onFeatureSetReceive`（`VersionHandshakeServer.java:73-89`）：发 `CONFIRM_USER` = `writeInt(placementCount)` + 逐个 `putMetaData(p, buf, partner)` → `succeed()`。
 - 握手成功后客户端才算「已确认用户」，进入 `broadcastTargets`，此后服务端任何 placement 变更都会广播给它。
-- 🔧 **重握手收敛链（协议侧机制）**：客户端对无主 `REGISTER_VERSION` 的重握手收敛链（`LitematicManager.clear()` + 新建 `VersionHandshakeClient`，`checkPacket` 无条件匹配、FEATURE 轮重入幂等）——服务端 disable→enable 场景依赖此链收敛，详见 [syncmatica/architecture.md](architecture.md) §3.3。
+- **重握手收敛链（协议侧机制）**：客户端对无主 `REGISTER_VERSION` 的重握手收敛链（`LitematicManager.clear()` + 新建 `VersionHandshakeClient`，`checkPacket` 无条件匹配、FEATURE 轮重入幂等）——服务端 disable→enable 场景依赖此链收敛，详见 [syncmatica/architecture.md](architecture.md) §3.3。
 
 ---
 
@@ -193,9 +193,9 @@ putPositionData(metaData, buf, target)                     // CommunicationManag
         └─ writeInt(mirror.ordinal())
 ```
 
-> ⚠️ **字段顺序依赖握手阶段已确定的 FeatureSet**。`onFeatureSetReceive` 在 `setFeatureSet` **之后**才调（`VersionHandshakeServer.handle` 命中默认集分支 `:60-64`，或 `FeatureExchange.handle` 收 FEATURE 后 `:37-38`），故 `putMetaData` 调用时 FeatureSet 必然已就绪。
+> **字段顺序依赖握手阶段已确定的 FeatureSet**。`onFeatureSetReceive` 在 `setFeatureSet` **之后**才调（`VersionHandshakeServer.handle` 命中默认集分支 `:60-64`，或 `FeatureExchange.handle` 收 FEATURE 后 `:37-38`），故 `putMetaData` 调用时 FeatureSet 必然已就绪。
 >
-> ⚠️ **Rotation / Mirror 用 ordinal 传输**（非 name）。原版注释（`CommunicationManager.java:143-146`，上游 26.1 `:118-121` 同文）说明这是有意为之——传输「非修改性枚举」给同应用另一实例，不关心序号持久性。本实现用 `net.minecraft.world.level.block.Rotation` / `Mirror` 的 `values()` 数组（`CommunicationManager.java:51-52`）经 `safeRotation` / `safeMirror`（`:309-325`）校验还原（越界值抛 `IllegalArgumentException` 被 `ProtocolChannel` try 兜底丢弃，与原版隐式 AIOOBE 表面行为一致），枚举顺序与原版一致。
+> **Rotation / Mirror 用 ordinal 传输**（非 name）。原版注释（`CommunicationManager.java:143-146`，上游 26.1 `:118-121` 同文）说明这是有意为之——传输「非修改性枚举」给同应用另一实例，不关心序号持久性。本实现用 `net.minecraft.world.level.block.Rotation` / `Mirror` 的 `values()` 数组（`CommunicationManager.java:51-52`）经 `safeRotation` / `safeMirror`（`:309-325`）校验还原（越界值抛 `IllegalArgumentException` 被 `ProtocolChannel` try 兜底丢弃，与原版隐式 AIOOBE 表面行为一致），枚举顺序与原版一致。
 
 ### 4.3 接收镜像（已实现，对照确认）
 
@@ -306,7 +306,7 @@ putPositionData(placement, buf, client)            // §4.2
 
 对**不支持 MODIFY** feature 的客户端，退化兼容：先发 `REMOVE_SYNCMATIC[uuid]`，再发 `REGISTER_METADATA`（重发完整 metadata）。
 
-> 🔧 **我方修复标注（勿随模板回退）**：`modifyState` 锁表随迁移由上游 `HashMap` 改为 `ConcurrentHashMap`
+> **我方修复标注（勿随模板回退）**：`modifyState` 锁表随迁移由上游 `HashMap` 改为 `ConcurrentHashMap`
 > （`CommunicationManager.java:60`，并发安全决策），由此产生两处与上游的**受控偏差**：
 >
 > 1. **setModifier null→remove 翻译**：上游「`setModifier(p, null)` 写 null 值 = 解锁」在 CHM 下必抛 NPE
@@ -324,7 +324,7 @@ putPositionData(placement, buf, client)            // §4.2
 > 两条 NPE 曾均被 `ProtocolChannel` 的 `catch(Exception)` 吞成零信息日志（NPE 的 `getMessage()` 为 null），
 > 该 catch 已改为带堆栈输出。单测 `ModifyStateTest` 固化上述锁语义契约（5 用例，修复前全部 NPE 失败）。
 >
-> 🔧 **addPlacement null target 守卫（勿随模板回退，2026-09）**：`addPlacement(@Nullable t, placement)`
+> **addPlacement null target 守卫（勿随模板回退，2026-09）**：`addPlacement(@Nullable t, placement)`
 > 的"已存在"分支对 `t == null` 跳过 `cancelShare`（对 origin 的取消通知）——上游 `cancelShare:274` 裸
 > `source.sendPacket` 对 null 即 NPE，且其 console 路径 `fromExistingPlayer(null)` 在 playerMap 非空时
 > 必崩（上游自带缺陷，不复刻）。null 语义 = 控制台 `/syncmatica load`（无发起方 target）：注册 + 对
@@ -366,7 +366,7 @@ UploadExchange(发送方)                    DownloadExchange(接收方)
 4. **配额检查**（仅服务端 DownloadExchange，§5.3）：每片累加 `bytesSent`，超额 `close(true)` + 发 MESSAGE(ERROR)。`UploadExchange`（S2C）**不查配额**。
 5. **hash 校验**（`DownloadExchange.java:104-105`）：`UUID.nameUUIDFromBytes(md5.digest())` 与 `placement.getHash()` 比对。不相等 `close(false)`（不发 cancel，因对端已 FINISHED）。
 
-> ⚠️ **不复用 framework 的 `PacketSplitter`**：那是 Servux 的「首包写总长 VarInt + 连续流 + session key 重组」透明流式模型，接收端被动收齐。syncmatica 是「业务级 stop-and-wait + 显式 RECEIVED 应答 + UUID 路由」——两者不兼容。文件传输分片**在 `UploadExchange`/`DownloadExchange` 内自写**。`SyncmaticaHandler.encodeWithSplitter` 因此是空实现。
+> **不复用 framework 的 `PacketSplitter`**：那是 Servux 的「首包写总长 VarInt + 连续流 + session key 重组」透明流式模型，接收端被动收齐。syncmatica 是「业务级 stop-and-wait + 显式 RECEIVED 应答 + UUID 路由」——两者不兼容。文件传输分片**在 `UploadExchange`/`DownloadExchange` 内自写**。`SyncmaticaHandler.encodeWithSplitter` 因此是空实现。
 
 ---
 

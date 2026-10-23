@@ -255,7 +255,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
      * 全部词命中才保留（AND）。comment 臂降级说明：Paper 服务端无 lang 资产，settings 构造不传
      * comment 时 {@code comment().getString()} 返回翻译键字符串
      * （servux.config.&lt;provider&gt;.&lt;name&gt;.comment）而非注释文本——上游 Fabric 服务端
-     * 加载 en_us 后为真实注释，此为已声明平台差异（根治需 settings 全量传 comment，后续工单）。
+     * 加载 en_us 后为真实注释，此为已声明平台差异（根治需 settings 全量传 comment，属已知限制）。
      */
     private static boolean matchesSearch(IServuxSetting<?> setting, String[] searchParts)
     {

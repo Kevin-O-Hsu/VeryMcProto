@@ -1,6 +1,6 @@
-# Carpet carpet:hello 协议（Phase 3 as-built）
+# Carpet carpet:hello 协议（as-built）
 
-> **状态**：Phase 3 已实现（2026-10-18，dev 线 26.2）。本文是 carpet:hello 通道的 **wire as-built 规范**：
+> **状态**：已实现（2026-10-18，dev 线 26.2）。本文是 carpet:hello 通道的 **wire as-built 规范**：
 > 通道与载体（§1）、消息面全表（§2）、握手时序与名册（§3）、规则同步链（§4）、clientCommand（§5）、
 > 装配与生命周期（§6）、测试锚与实机判据（§7）、偏差清单（§8）。
 > 上游对照 = `OriginImpl/fabric-carpet-26.2/src/main/java/carpet/network/`（tag v26.2 三件套 +
@@ -11,7 +11,7 @@
 
 ## §1 通道与载体
 
-- **通道**：`carpet:hello`（上游 `CarpetClient.java:48` 逐字；B 侧 `CarpetReference.CARPET_CHANNEL`，P1 预声明）。
+- **通道**：`carpet:hello`（上游 `CarpetClient.java:48` 逐字；B 侧 `CarpetReference.CARPET_CHANNEL`，地基预声明）。
 - **载体**：`record CarpetPayload(CompoundTag data)` —— **单 CompoundTag 经 vanilla `writeNbt/readNbt`**
   （上游 `CarpetClient.java:18-38`）。不是 servux 的 DataTag、无 VarInt packetType 前缀——消息区分靠
   CompoundTag 的**字符串键**（`"69"`/`"420"`/`"Rules"`/`"clientCommand"`）。
@@ -81,8 +81,8 @@ carpet 客户端（装 carpet mod）            vanilla / 未装 carpet / 假人
   免疫（上游以 ServerPlayer 实例为键，靠 connection 存续送达——B 侧加固，偏差 #1）。
 - **客户端规则可达集 = 我方规则集 ∩ 客户端本地同名规则集**（客户端 `ClientNetworkHandler.java:60-61`
   按 `Manager`+`Rule` 在自身注册表查名，查不到静默跳过、零报错）——**硬门禁：进 Rules 帧的规则名
-  必须逐字存在于上游 `CarpetSettings` 注册表**（当前 18 条已逐一核验——P4 的 commandLog/defaultLoggers
-  为上游 :453-463 实名；P5 的 commandSpawn/commandDistance/commandInfo/commandPerimeterInfo/commandDraw
+  必须逐字存在于上游 `CarpetSettings` 注册表**（当前 18 条已逐一核验——/log 规则的 commandLog/defaultLoggers
+  为上游 :453-463 实名；命令族规则的 commandSpawn/commandDistance/commandInfo/commandPerimeterInfo/commandDraw
   为上游 :411-412/:465-490 实名逐字；接入新规则时同守此门）。
 - Manager 键恒 `"carpet"`（= `SettingsManager.identifier()`，`CarpetModule` 构造注入 `MOD_ID`）——
   与客户端主管理器查找分支精确匹配。
@@ -94,7 +94,7 @@ carpet 客户端（装 carpet mod）            vanilla / 未装 carpet / 假人
   （上游 :229-232 while 循环逐字保留——多管理器场景防御，B 侧单管理器下不可达，单测经直构双同名
   规则锁死该行为）。
 - **增量推送**：`ParsedRule.set`（命令路径 source≠null）→ `SettingsManager.notifyRuleChanged`
-  （经 `setRuleChangedCallback` 注入的回调——保持 settings/ 包零 network/ 依赖，P1 单测形态不破）
+  （经 `setRuleChangedCallback` 注入的回调——保持 settings/ 包零 network/ 依赖，地基单测形态不破）
   → `CarpetHelloHandler.onRuleChanged` → 名册全体单规则帧。**conf 载入（source==null）不推送**
   （上游同构）——载入后的首帧由下一次 hello 应答的全量 Rules 承载（reload 补扫链恰好闭合该空窗）。
 - **superSecretSetting gate 封闭清单（勿外溢）**：仅三处抑制——①规则变更推送
@@ -144,7 +144,7 @@ carpet 客户端（装 carpet mod）            vanilla / 未装 carpet / 假人
   client` / `joined with another carpet version: <v>`（握手成立与版本比对）、`clientCommand from`
   （命令执行审计）、`Unknown carpet client data`（未知键包）。
 
-## §8 偏差清单（P3，B ↔ 上游）
+## §8 偏差清单（carpet:hello，B ↔ 上游）
 
 | # | 偏差 | 理由 |
 |---|---|---|

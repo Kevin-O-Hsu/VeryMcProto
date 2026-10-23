@@ -1,6 +1,6 @@
 # Servux 投影（Litematica Schematic）子系统
 
-> Litematica 投影是 Servux **最大、最复杂**的子系统（约 9000 行）。本文是 as-built 规范：数据结构（§1）、C2S 上传传输（§2–§3）、NBT 序列化（§4）、几何（§5）、放置粘贴与实体修复族（§6）、Task 调度器（§9 ⭐）。
+> Litematica 投影是 Servux **最大、最复杂**的子系统（约 9000 行）。本文是 as-built 规范：数据结构（§1）、C2S 上传传输（§2–§3）、NBT 序列化（§4）、几何（§5）、放置粘贴与实体修复族（§6）、Task 调度器（§9）。
 > Provider 入口见 [servux/providers.md](providers.md) §Litematics；分包机制见 [architecture.md](../architecture.md) §3.3；通道 wire 与版本约束见 [servux/protocol.md](protocol.md) §8.5。
 > 原版目录：`OriginImpl/servux-LTS-26.2/src/main/java/fi/dy/masa/servux/schematic/`（含 `container/`、`placement/`、`selection/`、`conversion/`；原 `transmit/` 已随安全修复删除）。
 
@@ -14,7 +14,7 @@ schematic/
 ├── SchematicMetadata.java            元数据（作者/时间/尺寸/区域名…）
 ├── SchematicSchema.java              版本信息（record）
 ├── conversion/SchematicConversionMaps.java  老版本数据转换
-├── container/                        ★ 纯算法压缩：BitArray + Palette + Container
+├── container/                        纯算法压缩：BitArray + Palette + Container
 ├── placement/                        SchematicPlacement / SubRegionPlacement（旋转/镜像/定位 + 粘贴）
 └── selection/                        Box / AreaSelection（几何）
 （scheduler/ 五类任务不在本包——mod/servux/scheduler/，见 §9）
@@ -42,7 +42,7 @@ public final Map<String, BlockPos>                       subRegionPositions;
 public final Map<String, BlockPos>                       subRegionSizes;
 ```
 
-### 1.2 `LitematicaBitArray` —— 位级压缩（★纯算法，照抄）
+### 1.2 `LitematicaBitArray` —— 位级压缩（纯算法，照抄）
 
 仅依赖 `long[]`，零 NMS。底层字段：`longArray` / `bitsPerEntry`（随 palette 大小动态 2..32）/ `maxEntryValue`（(1<<bits)-1）/ `arraySize`。
 
@@ -59,7 +59,7 @@ public final Map<String, BlockPos>                       subRegionSizes;
 
 **动态扩展**（`LitematicaBlockStateContainer.setBits`）：palette 增长 → 提升 bits → 重建 BitArray + 迁移旧数据 + 迁移 palette。
 
-> ⚠️ `BlockState` 是 NMS 类型。用 paperweight userdev 直接用 NMS 的它（保真度最高）——粘贴、序列化、镜像修复都依赖它。
+> **注意**：`BlockState` 是 NMS 类型。用 paperweight userdev 直接用 NMS 的它（保真度最高）——粘贴、序列化、镜像修复都依赖它。
 
 ### 1.4 `LitematicaBlockStateContainer` —— BitArray + Palette 整合
 
@@ -169,7 +169,7 @@ DataTag 格式细节与配额闸见 [servux/protocol.md](protocol.md) §5.3/§5.
 
 ---
 
-## 5. 几何系统：`Box` / `AreaSelection`（★纯 Java）
+## 5. 几何系统：`Box` / `AreaSelection`（纯 Java）
 
 ```java
 // Box —— 两角点 + 尺寸
@@ -227,7 +227,7 @@ class AreaSelection {
 
 | 组件 | NMS 依赖 | 迁移方式 |
 |---|---|---|
-| `LitematicaBitArray` | ✅ 无 | **照抄** |
+| `LitematicaBitArray` | 无 | **照抄** |
 | `Box` / `AreaSelection` | 值类型 | **照抄**（上游零引用死代码已删） |
 | `SchematicMetadata` / `SchematicSchema` | 值类型 | **照抄** |
 | `LitematicaBlockStateContainer` | `RegistryAccess`（解析 palette） | 照抄 + registry 改参数传入 |
@@ -250,7 +250,7 @@ class AreaSelection {
 
 ---
 
-## 9. Task 调度器与 paste 任务化（as-built）⭐
+## 9. Task 调度器与 paste 任务化（as-built）
 
 > 上游 `TaskPasteSchematicPerChunkDirect` 形态：受理→分 tick 执行→InfoHud 状态同步。`mod/servux/scheduler/` 五类：`TaskScheduler` + `LitematicaTask`（抽象基类）+ `FillDeleteTask` + `PasteTask` + `InfoHudTaskSync`。
 
@@ -283,7 +283,7 @@ class AreaSelection {
 
 - `TaskGroupTest` 4 项黄金样本（Box IntArrayTag 形状 + REMAINING_CHUNKS 字面量 + 完成帧缺键 + 10 条上限·无标题行占位）。**纯 JVM 测试需 `SharedConstants.tryDetectVersion()+Bootstrap.bootStrap()` 前置**——`ChunkPos <clinit>` 链到注册表。
 - `TaskSchedulerTest` 7 用例（timer 首启/interval 钳制/周期复位/完成移除/同 tick 双任务索引回退/未完成保留+clearTasks）。
-- `EntityPastePositionFixTest` 11 用例钉死 §6.1 ①-⑤ 全守卫（字面串输入防同源共错 + Pos wire 形状断言 + 负数 (int) 截断 + UUID 不变断言）；⑥ 与 ③ 墙/地/顶三朝向 item frame 待实机验收。
+- `EntityPastePositionFixTest` 11 用例钉死 §6.1 ①-⑤ 全守卫（字面串输入防同源共错 + Pos wire 形状断言 + 负数 (int) 截断 + UUID 不变断言）；⑥ 与 ③ 的墙/地/顶三朝向 item frame 尚未实机验证（登记为待验项）。
 - **端到端（用户侧最终验收）**：litematica 客户端创造模式选区 Fill/Delete → 观察 InfoHud 剩余区块 HUD 与完成消息；粘贴大投影 → 进度帧分 tick 收敛 + 完成帧清除客户端 HUD renderer。
 
 ---

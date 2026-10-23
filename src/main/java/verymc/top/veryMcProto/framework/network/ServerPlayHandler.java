@@ -37,7 +37,7 @@ public final class ServerPlayHandler
         boolean existed = handlers.containsKey(channel);
         handlers.putIfAbsent(channel, handler);
         ChannelManager.INSTANCE.register(channel, handler);
-        // ★ 必须标记已注册：sendPlayPayload 的 isPlayRegistered 门控依赖此标志。
+        // 必须标记已注册：sendPlayPayload 的 isPlayRegistered 门控依赖此标志。
         // 漏调会导致 payloadRegistered 恒为 false → 所有 S2C 发送被「channel not registered」拦截
         // （实测 BUG：5 条 servux:* 通道全部 sendPlayPayload 失败）。对应原版 registerPlayPayload
         // 成功后由 fabric 回调触发的 setPlayRegistered。

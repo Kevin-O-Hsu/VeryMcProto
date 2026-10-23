@@ -79,7 +79,7 @@ public class SyncmaticaModule
                     final ExchangeTarget target = fComMan.getOrCreateTarget(e.getPlayer());
                     fComMan.onPlayerJoin(target);
 
-                    // ★ 认知修正（静态全链实证，勿按旧注释回改）：本 40t 延迟探针是 syncmatica 握手的【唯一引导路径】。
+                    // 认知修正（静态全链实证，勿按旧注释回改）：本 40t 延迟探针是 syncmatica 握手的【唯一引导路径】。
                     // 旧注释「1.21.x 客户端不通过 MC|Register 声明 → 事件不触发」是错误归因——Paper 的
                     // minecraft:register → pluginMessagerChannels → PlayerRegisterChannelEvent 链路完整；
                     // 真因是【因果方向】：syncmatica 客户端的 syncmatica:main receiver 仅在握手 CONFIRM_USER 之后注册

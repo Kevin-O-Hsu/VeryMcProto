@@ -30,11 +30,11 @@ import java.util.regex.Pattern;
  * carpet 消息组件 DSL（上游 {@code carpet/utils/Messenger.java} 26.2 树逐字迁包——色字母码
  * {@code w/y/m/r/c/l/...} → Style 解析、可点击/悬停组件构造、tp 坐标行、热力/类别色）。
  *
- * <p>Phase 5 起为 carpet 命令族的输出层（上游 /distance /info /perimeterinfo /draw /spawn 全经它）。
+ * <p>为 carpet 命令族的输出层（上游 /distance /info /perimeterinfo /draw /spawn 全经它）。
  * imports 全为 vanilla 公开 chat API + org.slf4j（NMS 自带，{@code MinecraftServer.LOGGER} 同源）——
  * 零 Mixin/零 scarpet 依赖，全量可迁（判定见 docs/carpet/architecture.md）。
  *
- * <p><b>与上游的偏差</b>：零功能偏差（仅包名与本 javadoc）。P4 {@code SpawnReport} 的 § 码私有
+ * <p><b>与上游的偏差</b>：零功能偏差（仅包名与本 javadoc）。/log 的 {@code SpawnReport} § 码私有
  * {@code heatmapColor/creatureTypeColor} 保留不动——HUD footer 走 {@code setPlayerListFooter(String)}
  * 的 § 码传输面，与本类聊天组件面双体系并存（传输载体差异，非冗余）。
  */

@@ -20,7 +20,7 @@ import net.minecraft.world.level.Level;
 import verymc.top.veryMcProto.framework.nms.Nms;
 
 /**
- * HUD 投递器（克隆上游 {@code carpet/logging/HUDController.java} 26.2 树的 P4 面——
+ * HUD 投递器（克隆上游 {@code carpet/logging/HUDController.java} 26.2 树的 /log 面——
  * tps/mobcaps 两行 + footer flush；counter/packets 行与 scarpet 头脚不移植）。
  *
  * <p>与上游的偏差（对账登记，docs/carpet/architecture.md）：
@@ -63,7 +63,7 @@ public final class HUDController
     }
 
     /**
-     * 周期刷新（上游 update_hud :70-115 的 P4 面）：快捷位为 false 的行整段跳过（上游 :82/:85 门），
+     * 周期刷新（上游 update_hud :70-115 的 /log 面）：快捷位为 false 的行整段跳过（上游 :82/:85 门），
      * 只对有行的玩家写 footer。
      */
     public static void updateHud(MinecraftServer server)

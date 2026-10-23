@@ -34,7 +34,7 @@ import verymc.top.veryMcProto.mod.carpet.settings.ParsedRule;
 import verymc.top.veryMcProto.mod.carpet.settings.SettingsManager;
 
 /**
- * carpet:hello 协议处理器（mod 层，Phase 3）——上游 {@code carpet/network/ServerNetworkHandler.java}
+ * carpet:hello 协议处理器（mod 层，carpet:hello 协议）——上游 {@code carpet/network/ServerNetworkHandler.java}
  * （26.2 树）的 Paper 移植，通道载体 = 单 CompoundTag（vanilla NBT，非 DataTag——上游
  * {@code CarpetClient.CarpetPayload} 即 {@code writeNbt/readNbt}）。
  *

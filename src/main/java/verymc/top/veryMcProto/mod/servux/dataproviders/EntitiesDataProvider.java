@@ -277,7 +277,7 @@ public class EntitiesDataProvider extends DataProviderBase
     @Override
     public void onPlayerRegisterChannel(ServerPlayer player, String channel)
     {
-        // ★ 修复 entity sync not_enabled 根因：onPlayerJoin 时客户端尚未声明 servux:entity_data（configuration phase），
+        // 修复 entity sync not_enabled 根因：onPlayerJoin 时客户端尚未声明 servux:entity_data（configuration phase），
         // sendMetadata 的 ProtocolChannel.send 会因 getListeningPluginChannels 不含该通道而失败丢弃 metadata。
         // 客户端声明该通道（= 装了实体查询 mod）时立即重发，确保 metadata 可达。sendMetadata 幂等，重复无害。
         // 白名单：声明通常先于客户端首个 REGISTER 到达，此时重发被挡——metadata 首达由 REGISTER 应答链保证。

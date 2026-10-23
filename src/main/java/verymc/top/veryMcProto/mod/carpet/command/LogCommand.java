@@ -42,7 +42,7 @@ import static net.minecraft.commands.SharedSuggestionProvider.suggest;
  *   <li>上游 flat 树（{@code /log <name> [option] [player]} toggle 形 + clear [player] 定向）→
  *       subscribe/clear 形、自用面（无 {@code <player>} 定向参数、无 toggle）；</li>
  *   <li>上游 listLogs 为可点击/悬停组件（:104-131 "!" 点击 + "^" 悬停）→ B 侧纯文本 + 命令提示行
- *       （P2 #28 Messenger 替换范式同判）；列表经 Bukkit {@code sendMessage(String)} 发送（§ 码解析）；</li>
+ *       （假人面偏差 #28 Messenger 替换范式同判）；列表经 Bukkit {@code sendMessage(String)} 发送（§ 码解析）；</li>
  *   <li>console / 非玩家对任意子命令统一回执拒绝（上游裸 /log "For players only" :71-79 同款文案——
  *       其余子命令上游经 getPlayerByName(null) 恒失败 "No player specified"，B 侧自用面无目标参，
  *       统一为同一句拒绝）；</li>

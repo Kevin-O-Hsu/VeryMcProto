@@ -8,7 +8,7 @@
 > - **Servux**（masa 服务端协议）—— 5 数据通道 + schematic（投影粘贴）+ EasyPlace + task 组（Fill/Delete/Paste）。
 > - **JEI 服务端协议**（最上游 mezz/JustEnoughItems 分支 `26.2`）—— 完整三层：配方同步（fabric/neoforge 双腿）+ jei:* 自有 10 通道 + 服务端行为层。
 > - **Syncmatica**（投影共享中央仓库）—— 单通道 + Exchange 会话层 + 文件存储 + JSON 持久化。
-> - **Carpet**（行为注入型 mod 的可移植子集）—— **Phase 1「模块地基」+ Phase 2「假人 /player 全族」+ Phase 3「carpet:hello 协议」+ Phase 4「/log 日志（tps/mobcaps HUD）」+ Phase 5「命令族——纯计算类」+ Phase 7「三线铺开 ver/26.1.2 + ver/1.21.11」已实现，移植范围终局定案**（规则框架 + /carpet 壳 + 18 规则 + 假人子系统 + carpet:hello 握手/规则同步/clientCommand + /log 订阅框架与跨会话持久 + /distance /info /perimeterinfo /draw /spawn 五命令；其余面在纯 Paper 形态下技术上不可能实现或无法等价，**永不纳入——无后续实现**；as-built 见 [carpet/architecture.md](carpet/architecture.md) 与 [carpet/protocol.md](carpet/protocol.md)）。
+> - **Carpet**（行为注入型 mod 的可移植子集）—— **全部实现（规则框架 + /carpet 壳 + 18 规则 + 假人 /player 全族 + carpet:hello 握手/规则同步/clientCommand + /log 订阅框架与跨会话持久 + /distance /info /perimeterinfo /draw /spawn 五命令 + 三线铺开 ver/26.1.2 + ver/1.21.11），移植范围终局定案**（其余面在纯 Paper 形态下技术上不可能实现或无法等价，**永不纳入——无后续实现**；as-built 见 [carpet/architecture.md](carpet/architecture.md) 与 [carpet/protocol.md](carpet/protocol.md)）。
 >
 > 顶层项目说明见根 [`../AGENTS.md`](../AGENTS.md)（唯一权威；`CLAUDE.md` 已收敛为指向它的薄指针）。项目门面见根 [`../README.md`](../README.md)（英文）。
 > 原版 Fabric 源码对照：[`../OriginImpl/`](../OriginImpl/) 各子目录（详见 [references.md](references.md) §6）。
@@ -34,8 +34,8 @@
 
 | 文档 | 内容速览 |
 |---|---|
-| [architecture.md](architecture.md) ⭐ | **全局架构与迁移参考**：分层架构与框架契约（DataProviderManager/IDataProvider/settings）、网络框架与三种 S2C 投递路径、PacketSplitter 分片与字节限制裸值（唯一权威）、生命周期映射、**Mixin→Paper 统一处置矩阵（唯一权威）**、Fabric↔Paper 逐域对照、构建工具链、NMS 实测坑清单 |
-| [operations.md](operations.md) ⭐ | **运维全键唯一权威 + 升级 SOP**：四 mod 命令/权限/配置全键（含 carpet.conf 纯文本例外）/数据布局/排错速查（§1–§5）+ **版本字串策略（§0）** + MC 版本升级标准作业程序、已知漂移模式表、验证判据索引、观察项（§6） |
+| [architecture.md](architecture.md) | **全局架构与迁移参考**：分层架构与框架契约（DataProviderManager/IDataProvider/settings）、网络框架与三种 S2C 投递路径、PacketSplitter 分片与字节限制裸值（唯一权威）、生命周期映射、**Mixin→Paper 统一处置矩阵（唯一权威）**、Fabric↔Paper 逐域对照、构建工具链、NMS 实测坑清单 |
+| [operations.md](operations.md) | **运维全键唯一权威 + 升级 SOP**：四 mod 命令/权限/配置全键（含 carpet.conf 纯文本例外）/数据布局/排错速查（§1–§5）+ **版本字串策略（§0）** + MC 版本升级标准作业程序、已知漂移模式表、验证判据索引、观察项（§6） |
 | [references.md](references.md) | 外部参考链接汇总（全仓库唯一登记处） |
 | `archive/`（仅旧维护线） | 冻结归档件（本线无归档件；约定与清单形态见各线 `archive/README.md`） |
 
@@ -43,31 +43,31 @@
 
 | 文档 | 内容速览 |
 |---|---|
-| [servux/protocol.md](servux/protocol.md) ⭐ | **五通道 wire 规范**：通道总表、Payload 模型、**版本约束与安全闸**（MOD_STRING 门禁/协议常量/DataTag 分界/C2S 双闸）、收发流程与版本门禁、与上游逐通道差异 |
+| [servux/protocol.md](servux/protocol.md) | **五通道 wire 规范**：通道总表、Payload 模型、**版本约束与安全闸**（MOD_STRING 门禁/协议常量/DataTag 分界/C2S 双闸）、收发流程与版本门禁、与上游逐通道差异 |
 | [servux/providers.md](servux/providers.md) | 5 个 Provider 的协议数据内容（NBT 字段）+ 数据采集实现 + loggers（TPS/MobCap）+ 设置语义 |
-| [servux/schematic.md](servux/schematic.md) ⭐ | **Litematica 投影子系统**：BitArray/Palette/Container 压缩、C2S 上传两级分包、体积一致性预检、实体位置修复族、**Task 调度器与 paste 任务化 as-built** |
+| [servux/schematic.md](servux/schematic.md) | **Litematica 投影子系统**：BitArray/Palette/Container 压缩、C2S 上传两级分包、体积一致性预检、实体位置修复族、**Task 调度器与 paste 任务化 as-built** |
 | [servux/testing.md](servux/testing.md) | **客户端兼容测试**：5 通道↔3 mod 映射、判官逻辑、Litematica/Tweakeroo 测试步骤、上游对齐回归清单、实测验收要点、排错流程 |
 
 ## Syncmatica（`syncmatica/`）
 
 | 文档 | 内容速览 |
 |---|---|
-| [syncmatica/architecture.md](syncmatica/architecture.md) ⭐ | **架构 + 迁移记录**：与 Servux 本质差异对比表、**包结构全树（唯一权威，含逐文件迁移标注）**、双保险握手命门、Exchange 会话层、数据模型、Mixin→Bukkit 迁移记录、关键决策速查、命门清单、已知局限 |
-| [syncmatica/protocol.md](syncmatica/protocol.md) ⭐ | **单通道协议**：`[Identifier][body]` 包体、18 PacketType 全表（⚠️ `request_download`/`mesage` 拼写陷阱）、Feature 协商、metadata/position 字段表、Exchange 状态机、stop-and-wait 分片、MD5→UUID hash |
+| [syncmatica/architecture.md](syncmatica/architecture.md) | **架构 + 迁移记录**：与 Servux 本质差异对比表、**包结构全树（唯一权威，含逐文件迁移标注）**、双保险握手命门、Exchange 会话层、数据模型、Mixin→Bukkit 迁移记录、关键决策速查、命门清单、已知局限 |
+| [syncmatica/protocol.md](syncmatica/protocol.md) | **单通道协议**：`[Identifier][body]` 包体、18 PacketType 全表（**注意** `request_download`/`mesage` 拼写陷阱——上游原样保留，勿"修正"）、Feature 协商、metadata/position 字段表、Exchange 状态机、stop-and-wait 分片、MD5→UUID hash |
 | [syncmatica/testing.md](syncmatica/testing.md) | **客户端兼容测试**：握手/分享/下载/修改/删除/命令/持久化/配额/多玩家协同测试步骤、判官逻辑、排错 + 症状表 |
 
 ## JEI（`jei/`）
 
 | 文档 | 内容速览 |
 |---|---|
-| [jei/protocol.md](jei/protocol.md) ⭐ | **完整协议**：三层全景、通道声明契约（isJeiOnServer 门禁）、12 通道 wire 逐字段、cheat 权限模型、配方转移算法、配方同步双触发、尺寸模型、上游源码索引、实机验证清单 |
+| [jei/protocol.md](jei/protocol.md) | **完整协议**：三层全景、通道声明契约（isJeiOnServer 门禁）、12 通道 wire 逐字段、cheat 权限模型、配方转移算法、配方同步双触发、尺寸模型、上游源码索引、实机验证清单 |
 
 ## Carpet（`carpet/`，可移植子集已全部实现——终局定案）
 
 | 文档 | 内容速览 |
 |---|---|
-| [carpet/architecture.md](carpet/architecture.md) ⭐ | **Carpet 模块 as-built**：模块装配、注解规则框架（上游 SettingsManager 同构 + 全量偏差清单）、/carpet 四子命令与双层门禁、8 地基规则表（默认值/等价机制/上游行号）、carpet.conf 格式与怪癖、cleanLogs 过滤器代数、perfPermissionLevel 真因果、/log 日志子系统（LoggerRegistry 同构 + 订阅跨会话持久墓碑模型 + tps/mobcaps HUD 公式逐字）、P5 命令族（五命令 + Messenger 组件输出层 + CommandBuildContext 入口 + 偏差 #54-#62） |
-| [carpet/protocol.md](carpet/protocol.md) ⭐ | **carpet:hello 协议 as-built（Phase 3）**：通道与载体（S2C NMS 直发唯一性）、消息面全表（HI "69"/hello "420"/Rules/clientCommand/自定义 NBT）、握手时序与名册、规则同步链（全量帧+增量推送+gate 封闭清单）、clientCommand（Snoopy 移植+审计行）、装配生命周期（reload 补扫）、偏差清单 |
+| [carpet/architecture.md](carpet/architecture.md) | **Carpet 模块 as-built**：模块装配、注解规则框架（上游 SettingsManager 同构 + 全量偏差清单）、/carpet 四子命令与双层门禁、8 地基规则表（默认值/等价机制/上游行号）、carpet.conf 格式与怪癖、cleanLogs 过滤器代数、perfPermissionLevel 真因果、/log 日志子系统（LoggerRegistry 同构 + 订阅跨会话持久墓碑模型 + tps/mobcaps HUD 公式逐字）、命令族（五命令 + Messenger 组件输出层 + CommandBuildContext 入口 + 偏差 #54-#62） |
+| [carpet/protocol.md](carpet/protocol.md) | **carpet:hello 协议 as-built**：通道与载体（S2C NMS 直发唯一性）、消息面全表（HI "69"/hello "420"/Rules/clientCommand/自定义 NBT）、握手时序与名册、规则同步链（全量帧+增量推送+gate 封闭清单）、clientCommand（Snoopy 移植+审计行）、装配生命周期（reload 补扫）、偏差清单 |
 
 > 移植范围**终局定案**：以上子集全部实现完毕；其余面（Scarpet / TNT 与红石活塞优化类 Mixin / 近似规则池与 chat logger 等）在纯 Paper 插件形态下技术上不可能实现或无法等价上游语义，**永不纳入**。早期预研/推进规划文档（porting-scope / phases）已删除（历史见 git）。
 
@@ -98,6 +98,7 @@
 
 ## 历史锚点映射表（旧文件名 → 现路径）
 
+> 下表为旧编号体系的迁移对照，仅供旧引用、外部链接与 git 历史对账——**不描述现状**，现行内容一律以各文档现状为准。
 > 两轮重构的合并映射：**第一轮**（2026-10 上旬）17 个 `NN-` 前缀文件 → 12 个主题名文件；**第二轮**（2026-10 下旬）平铺主题名 → 模块子目录（三线同构铺开，旧维护线同轮完成）。查更早历史（含迁移实录原文）用 git 历史。
 
 **第二轮（平铺 → 子目录，三线同形）**：
@@ -115,7 +116,7 @@
 | `docs/carpet-architecture.md` | `docs/carpet/architecture.md` |
 | `docs/carpet-protocol.md` | `docs/carpet/protocol.md` |
 | `docs/carpet-porting-scope.md` | → 已删除（预研/规划物料随终局定案废止；判定结论已并入 carpet/architecture.md 各节） |
-| `docs/carpet-phases.md` | → 已删除（同上；实机判据已并入 carpet/architecture.md 各 Phase 节） |
+| `docs/carpet-phases.md` | → 已删除（同上；实机判据已并入 carpet/architecture.md 各功能节） |
 | （旧维护线）`docs/31-carpet.md` / `docs/carpet.md` | 该线 `docs/carpet/architecture.md` + `docs/carpet/protocol.md`（§ 级分流） |
 
 **第一轮（`NN-` 前缀 → 主题名，含 § 级去向）**：

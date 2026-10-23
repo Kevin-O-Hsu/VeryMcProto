@@ -105,5 +105,5 @@
 | [jei/protocol.md](jei/protocol.md) | **JEI 完整协议**：三层全景、通道声明契约（isJeiOnServer 门禁）、12 通道 wire 逐字段、cheat 权限模型、配方转移算法、进服时序整形、尺寸模型、上游源码索引 |
 | [operations.md](operations.md) | **运维全键唯一权威 + 升级 SOP**：四 mod 命令/权限/配置全键（含 carpet.conf 纯文本例外）/数据布局/排错速查（§1–§5）+ MC 版本升级标准作业程序（§6） |
 | [carpet/architecture.md](carpet/architecture.md) | **Carpet 模块 as-built**：装配、注解规则框架（上游 SettingsManager 同构 + 偏差清单）、/carpet 四子命令与双层门禁、8 地基规则表、carpet.conf 格式、cleanLogs 过滤器代数、perf 真因果 |
-| [carpet/protocol.md](carpet/protocol.md) | **carpet:hello 协议 as-built（P3）**：通道/载体/S2C NMS 直发、消息面全表（HI "69"/hello "420"/Rules/clientCommand）、握手名册、规则同步链、Snoopy 移植、偏差清单 |
+| [carpet/protocol.md](carpet/protocol.md) | **carpet:hello 协议 as-built**：通道/载体/S2C NMS 直发、消息面全表（HI "69"/hello "420"/Rules/clientCommand）、握手名册、规则同步链、Snoopy 移植、偏差清单 |
 | [references.md](references.md) | 本文件：外部参考链接全仓库唯一登记处 |

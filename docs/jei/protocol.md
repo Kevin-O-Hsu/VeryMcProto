@@ -110,7 +110,7 @@ VarInt entryCount
 
 **防护与降级**：无证据绝不发送（对 vanilla 客户端发未知通道载荷属无接收端死信；未知通道 clientbound 解码上限 1MiB——2026-10 javap 勘误，旧记述的「32767 断连」系方向记反，32767 实为 serverbound/C2S 值）；vanilla/慢网客户端走 **3s 超时放行**（配方书晚到上界，`ClientboundRecipeBookAddPacket.Entry` 自包含 RecipeDisplay 无损坏面）；一切内部失败（反射漂移 `packetListener`→`handle` 双名回退 / 管线异常 fail-open / reconfigure 经 `Channel.attr` 跳过）降级为现状时序（JEI 警告依旧，无新增损害）。扣留期又来 UpdateRecipes（进服 3s 内 /reload 竞态）按原 wire 序放行被扣包再透传新包。
 
-**已知局限（后续工单）**：① reconfigure（服务端发起重配）后不重发——通道集合从 play 相位携带、无 register 事件可作证据，JEI 用旧 synced 配方重启（无警告但配方陈旧）；② `/reload` 后不重发（上游 `reloadResources` 对全体玩家重发——`PlayerList.reloadResources` mache:849-862 对应物）；③ neoforge 腿（join+brand）仍为旧时序，NeoForge 客户端同样晚于 UpdateRecipes（需 NeoForge 实机环境验证后再对齐）。
+**已知局限**：① reconfigure（服务端发起重配）后不重发——通道集合从 play 相位携带、无 register 事件可作证据，JEI 用旧 synced 配方重启（无警告但配方陈旧）；② `/reload` 后不重发（上游 `reloadResources` 对全体玩家重发——`PlayerList.reloadResources` mache:849-862 对应物）；③ neoforge 腿（join+brand）仍为旧时序，NeoForge 客户端同样晚于 UpdateRecipes（需 NeoForge 实机环境验证后再对齐）。
 
 ### 5.3 neoforge:recipe_content（NeoForge 加载器 wire，参考 Mrbysco）
 

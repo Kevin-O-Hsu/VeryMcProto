@@ -693,7 +693,7 @@ public class LitematicsDataProvider extends DataProviderBase
     @Override
     public void onPlayerRegisterChannel(ServerPlayer player, String channel)
     {
-        // ★ 修复 litematic sync not_enabled：onPlayerJoin 时通道未声明，sendMetadata 丢弃；
+        // 修复 litematic sync not_enabled：onPlayerJoin 时通道未声明，sendMetadata 丢弃；
         // 客户端声明 servux:litematics（= 装了 Litematica）时立即重发。sendMetadata 幂等。
         // 白名单：声明通常先于客户端首个 REGISTER 到达，此时重发被挡——metadata 首达由 REGISTER 应答链保证。
         if (this.getNetworkChannel().toString().equals(channel) && this.isPlayerRegistered(player))
@@ -712,7 +712,7 @@ public class LitematicsDataProvider extends DataProviderBase
     {
         this.removePlayer(player);
         HANDLER.onPlayerQuit(player.getUUID());
-        // ★ 有意不取消该玩家的进行中任务（上游语义：任务跑完、帧/消息发死连接被静默丢弃）——
+        // 有意不取消该玩家的进行中任务（上游语义：任务跑完、帧/消息发死连接被静默丢弃）——
         //   保证世界方块结果一致性；发送路径在任务基类（LitematicaTask）内按 UUID 解析，退出后自动跳过。
     }
 

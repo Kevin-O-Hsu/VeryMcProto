@@ -12,13 +12,13 @@
 
 | 问题 | 结论 | 依据 |
 |---|---|---|
-| 网络协议能在 Paper 复刻吗？ | ✅ **能，且无需第三方库** | plugin messaging channel 直接映射原版 `CustomPacketPayload`；`byte[]` = `FriendlyByteBuf` 裸字节。实证 [FabricMC #4430](https://github.com/orgs/FabricMC/discussions/4430)、[Paper plugin-messaging 文档](https://docs.papermc.io/paper/dev/plugin-messaging/) |
-| 能访问采集所需的 NMS 吗？ | ✅ **能** | paperweight userdev 提供 Mojang 全映射 `net.minecraft.*`（26.1 起 Mojang 移除服务端混淆，映射即运行时真名）；绝大多数采集 API 是公开/包级方法 |
-| Mixin 怎么办？ | ✅ **可控** | 读私有→反射；生命周期→Bukkit 事件；改行为→降级省略/内联/PacketEvents。见 §5 |
-| 大包（配方/投影）能发吗？ | ✅ **能** | PacketSplitter 分片（§3.3）；已知通道大包走 NMS 直发（§3.2） |
-| 有阻塞性难点吗？ | ⚠️ 仅少量「改服务端行为」特性降级（EasyPlace 已实现） | 见 §5.3 |
+| 网络协议能在 Paper 复刻吗？ | **能，且无需第三方库** | plugin messaging channel 直接映射原版 `CustomPacketPayload`；`byte[]` = `FriendlyByteBuf` 裸字节。实证 [FabricMC #4430](https://github.com/orgs/FabricMC/discussions/4430)、[Paper plugin-messaging 文档](https://docs.papermc.io/paper/dev/plugin-messaging/) |
+| 能访问采集所需的 NMS 吗？ | **能** | paperweight userdev 提供 Mojang 全映射 `net.minecraft.*`（26.1 起 Mojang 移除服务端混淆，映射即运行时真名）；绝大多数采集 API 是公开/包级方法 |
+| Mixin 怎么办？ | **可控** | 读私有→反射；生命周期→Bukkit 事件；改行为→降级省略/内联/PacketEvents。见 §5 |
+| 大包（配方/投影）能发吗？ | **能** | PacketSplitter 分片（§3.3）；已知通道大包走 NMS 直发（§3.2） |
+| 有阻塞性难点吗？ | 仅少量「改服务端行为」特性降级（EasyPlace 已实现） | 见 §5.3 |
 
-**保真度结论**：网络协议字节 100%（同一 `FriendlyByteBuf`/`CompoundTag`/DataTag 线格式）；通道/版本号 100%；数据采集 ≈95%（个别反射字段版本敏感）；服务端行为增强部分降级（EasyPlace ✅ / UpdateSuppression·Allay 省略 / 潜影盒堆叠不可能）。
+**保真度结论**：网络协议字节 100%（同一 `FriendlyByteBuf`/`CompoundTag`/DataTag 线格式）；通道/版本号 100%；数据采集 ≈95%（个别反射字段版本敏感）；服务端行为增强部分降级（EasyPlace 已实现 / UpdateSuppression·Allay 省略 / 潜影盒堆叠不可能）。
 
 ---
 
@@ -31,7 +31,7 @@ verymc.top.veryMcProto/
 ├── VeryMcProto.java              JavaPlugin 主类（框架入口 + 装配 + 依次注册四个 mod + 命令）
 ├── Reference.java                框架级常量（MC_VERSION / PLUGIN_VERSION——类加载时读 version.properties）
 │
-├── framework/                    ★ 协议 mod 移植框架（与具体 mod 无关，所有 mod 复用）
+├── framework/                    协议 mod 移植框架（与具体 mod 无关，所有 mod 复用）
 │   ├── network/                  通道封装（ChannelManager/ProtocolChannel）、分片（PacketSplitter）、
 │   │                             字节桥接（FriendlyByteBufs）、Handler 注册表（ServerPlayHandler）
 │   ├── dataproviders/            Provider 契约（IDataProvider/DataProviderBase/DataProviderManager）
@@ -43,7 +43,7 @@ verymc.top.veryMcProto/
 │   ├── settings/                 Servux 配置项体系（Bool/Int/String/StringList/List + 回调）
 │   └── util/                     JsonUtils（Gson pretty + 原子写）/ StringUtils
 │
-└── mod/                          ★ 协议 mod 层（每个被移植的 Fabric 协议 mod 一个目录单元）
+└── mod/                          协议 mod 层（每个被移植的 Fabric 协议 mod 一个目录单元）
     ├── servux/                   app/ServuxModule + command/ + dataproviders/（6 Provider）+ network/（5 Handler+Packet）
     │                             + easyplace/ + loggers/ + scheduler/（task 组五类）+ schematic/ + util/
     ├── jei/                      app/JeiModule + network/（含 RecipeSyncJoinOrderer；payload/ 为其子包、含 legacy/ 子层）
@@ -52,7 +52,7 @@ verymc.top.veryMcProto/
     │                             + extended_core/ + network/ + service/ + util/
     └── carpet/                   CarpetReference + CarpetSettings（8 规则声明）+ app/CarpetModule + command/ + settings/
                                   （规则框架五类）+ util/CommandHelper + listener/ + logging/CleanLogsFilter
-                                  （Phase 1 地基；行为注入型 mod 子集，见 carpet/architecture.md）
+                                  （行为注入型 mod 子集，见 carpet/architecture.md）
 ```
 
 **新增协议 mod 的步骤**：在 `mod/<newmod>/` 实现 `ModModule`（或自管装配如 syncmatica/jei），在主类 `onEnable` 注册，在 `plugin.yml` 加命令/权限——**无需改动框架**。
@@ -126,7 +126,7 @@ List<IServuxSetting<?>> getSettings();
 
 ---
 
-## 3. 网络框架与投递路径 ⭐
+## 3. 网络框架与投递路径
 
 ### 3.1 协议本质与通道注册
 
@@ -158,7 +158,7 @@ public void register() {
 
 **兜底（servux「同通道 C2S 证明」）**：Paper `CraftPlayer.sendPluginMessage` 按 `channels().contains(channel)` 门控、玩家声明包被处理前 S2C **静默丢弃**（26.1.2 反编译实锤；26.2.build.129 源码复核存活 `CraftPlayer.java:2225`）——这曾吞掉 minihud structures 的进服首握手回复（其客户端 metadata 接受窗口是**单次**的：`DataStorage.java:288` 开门 → 首个 `%20` tick `:804` 关门，错过即恒 not_connected 直到手动 toggle；上游行号属 1.21.11 树）。修复：`ProtocolChannel.send` 对**已在本通道发过 C2S 的玩家**（= 装有对应 mod，能发即能收）在 `listening=false` 时改走路径 B 的 NMS 直发（与 Paper 自身放行路径逐字同构；证明集合随 `PlayerQuitEvent` 清除）。未发过 C2S 的玩家（vanilla / 未装 mod）**构造性不受兜底影响**，仍走 sendPluginMessage 由 Paper 丢弃——设计**不押注**「原版客户端对未知通道 S2C 的行为」（服务端侧对称机制 `CustomPacketPayload.codec` 的 fallback 把未知 id 解码为 DiscardedPayload 后忽略，vanilla 大概率静默丢弃、断连风险主要在 NeoForge 网络层）。**已知限制**：REGISTER 回复 RTT 超过客户端剩余 `%20` 窗口时仍需手动 toggle——与上游 Fabric servux 同源，不劣于上游。
 
-> ⚠️ **勿直发自定义 Payload record**：走 NMS 直发必须用字面量 `DiscardedPayload`——自定义 Payload record 会 ClassCastException 踢人。客户端用其自行注册的 codec 解码 payload data，与原版 Fabric 服务端发的 wire 一致。
+> **勿直发自定义 Payload record**：走 NMS 直发必须用字面量 `DiscardedPayload`——自定义 Payload record 会 ClassCastException 踢人。客户端用其自行注册的 codec 解码 payload data，与原版 Fabric 服务端发的 wire 一致。
 
 ### 3.3 `PacketSplitter` —— 应用层分包
 
@@ -290,10 +290,10 @@ C2S 接收方向的解压配额闸（gzip bomb / 长度字段炸弹拦截）见 
 |---|---|---|
 | `MixinSharedConstants`（debug） | 调试 | **D 省略** |
 | `MixinAllayEntity` / `MixinItemEntity` / `MixinMobEntity` | Allay 收集修复 | **C 省略**（改服务端行为，无等价） |
-| `MixinBlockItem_EasyPlace` | EasyPlace | **C ✅ 已实现**（PacketEvents 双挂点，§5.3） |
+| `MixinBlockItem_EasyPlace` | EasyPlace | **C 已实现**（PacketEvents 双挂点，§5.3） |
 | `MixinItemStack`（getMaxStackSize） | 潜影盒堆叠 | **C 不可能实现**（§5.3） |
 | `IMixinNbtReadView` / `IMixinNbtWriteView`（Accessor） | NbtView | **A**：重写为直接 `Entity.saveWithoutId(CompoundTag)` / `BlockEntity.saveWithFullMetadata`，绕开 Accessor |
-| `MixinServerPlayNetworkHandler_EasyPlace` | EasyPlace | **C ✅ 已实现**（`EasyPlaceListener` 改写 cursor 放行） |
+| `MixinServerPlayNetworkHandler_EasyPlace` | EasyPlace | **C 已实现**（`EasyPlaceListener` 改写 cursor 放行） |
 | `MixinServerPlayNetworkHandler_QueryNbt` | /data get 权限 | **C**：Bukkit 权限等价 |
 | `IMixinServerTickManager`（Accessor remainingSprintTicks） | TPS 采集 | **A 反射** |
 | `MixinCommandManager` / `MixinMain` / `MixinMinecraftDedicatedServer` / `MixinMinecraftServer` / `MixinPlayerManager` | 生命周期 | **B**：§4 映射表 |
@@ -308,12 +308,12 @@ C2S 接收方向的解压配额闸（gzip bomb / 长度字段炸弹拦截）见 
 
 | 功能 | 处置 | 说明 |
 |---|---|---|
-| **EasyPlace**（Tweakeroo 精确放置） | ✅ **已实现**（「改写放行」双挂点，PacketEvents） | ① `EasyPlaceListener`（netty 线程）拦原版 `PLAYER_BLOCK_PLACEMENT`：编码包**不取消**、不读任何玩家状态，仅把 `cursor.x` 改写回 `relX∈[0,1)`（过 vanilla 逐轴 hitVec 校验，等效上游 NetworkHandler Mixin；ack 由 vanilla 原生回，**消除 netty 读手持的换手 desync 竞态**）+ 登记 pv 到 `EasyPlacePending`（TTL 1000ms，条目含 canBuild 暂存）；② `EasyPlaceFixListener`（主线程双挂点）：`BlockCanBuildEvent`（HIGHEST，fire 于 `BlockItem.canPlace` 体内、**先于全部放置副作用**）以事件 BlockData（= vanilla 候选态，上游 Mixin 注入点 `stateOrig` 的同位等价物，判定世界为放置前状态）为基座跑 `applyPlacementProtocolV3`——拒绝（null / 修正态 canSurvive 失败 / 实体碰撞失败，后者与 vanilla `canPlace` 逐字同构）→ `setBuildable(false)` → vanilla place 在 placeBlock 前整次 FAIL（与上游 `setReturnValue(null)` 同位同效、零残差）；放行 → 暂存修正态；`BlockPlaceEvent`（HIGHEST）退化纯写入（`setBlock(UPDATE_ALL_IMMEDIATE)` + 双半格 `setPlacedBy` 派生）。PacketEvents 类引用隔离在 `EasyPlaceBootstrap`（反射加载 + `catch(Throwable)` 降级——`try/catch` 抓不到方法解析阶段的类加载失败）。运行时需服务器装 packetevents 插件（`softdepend`），未装优雅跳过。**与上游的有意差异**：门/垂滴叶双半格（`DoubleBlockHalf`）下半修正后以修正态重演 `setPlacedBy` 派生上半（`BlockMultiPlaceEvent` 经父类 HandlerList 派发实收，两半构造性一致）；床编码朝向≠vanilla 且头位可替换时两半错位（已知差异，上游为写入前整体改向）；**修正态 canSurvive + 实体碰撞补查恒生效、不受 `easy_place_validator_enabled` 门控（我方比上游严）**；vanilla 基座检查失败保守不动；恢复 vanilla 距离/保护检查；保护插件重新可见放置事件；canBuild→place 间隙病态扰动 → place 侧 canSurvive 复查失败降级保留 vanilla 态；物品 BLOCK_STATE 组件（pick-block）改写的最终态会被修正覆盖（极边缘）；`EasyPlacePending` TTL 1s 内 stale 条目理论上可命中同位手动放置（罕见、自愈、有界） |
-| **潜影盒可堆叠** | ⛔ **不可能实现 + 已删全部代码** | 改 `ItemStack.getMaxStackSize()` / `HopperBlockEntity` 全局行为，Paper 无 Mixin 无等价（反射改不了方法返回值；Bukkit 事件在 `maxStackSize=1` 前提下恒失败；设 `MAX_STACK_SIZE` 组件污染序列化）。`TweaksDataProvider` **不下发** `stackingShulkers` 元数据——否则客户端 tweakeroo 据其自动开堆叠渲染而服务端不配合 → 不一致 |
-| **UpdateSuppression** | ⛔ **省略** | 依赖 Mixin 给 `Level`/`LevelChunk` 加接口 + 改 `setBlockState` 副作用 |
-| **Allay 收集修复** | ⚠️ **省略** | 影响小 |
-| **镜像修复**（箱子/铁轨/楼梯 180°） | ✅ 粘贴时内联 | 靠 `BlockState.mirror()/rotate()` 自身行为，降级可能不完美 |
-| **/data get 权限覆盖** | ✅ Bukkit op 权限等价 | — |
+| **EasyPlace**（Tweakeroo 精确放置） | **已实现**（「改写放行」双挂点，PacketEvents） | ① `EasyPlaceListener`（netty 线程）拦原版 `PLAYER_BLOCK_PLACEMENT`：编码包**不取消**、不读任何玩家状态，仅把 `cursor.x` 改写回 `relX∈[0,1)`（过 vanilla 逐轴 hitVec 校验，等效上游 NetworkHandler Mixin；ack 由 vanilla 原生回，**消除 netty 读手持的换手 desync 竞态**）+ 登记 pv 到 `EasyPlacePending`（TTL 1000ms，条目含 canBuild 暂存）；② `EasyPlaceFixListener`（主线程双挂点）：`BlockCanBuildEvent`（HIGHEST，fire 于 `BlockItem.canPlace` 体内、**先于全部放置副作用**）以事件 BlockData（= vanilla 候选态，上游 Mixin 注入点 `stateOrig` 的同位等价物，判定世界为放置前状态）为基座跑 `applyPlacementProtocolV3`——拒绝（null / 修正态 canSurvive 失败 / 实体碰撞失败，后者与 vanilla `canPlace` 逐字同构）→ `setBuildable(false)` → vanilla place 在 placeBlock 前整次 FAIL（与上游 `setReturnValue(null)` 同位同效、零残差）；放行 → 暂存修正态；`BlockPlaceEvent`（HIGHEST）退化纯写入（`setBlock(UPDATE_ALL_IMMEDIATE)` + 双半格 `setPlacedBy` 派生）。PacketEvents 类引用隔离在 `EasyPlaceBootstrap`（反射加载 + `catch(Throwable)` 降级——`try/catch` 抓不到方法解析阶段的类加载失败）。运行时需服务器装 packetevents 插件（`softdepend`），未装优雅跳过。**与上游的有意差异**：门/垂滴叶双半格（`DoubleBlockHalf`）下半修正后以修正态重演 `setPlacedBy` 派生上半（`BlockMultiPlaceEvent` 经父类 HandlerList 派发实收，两半构造性一致）；床编码朝向≠vanilla 且头位可替换时两半错位（已知差异，上游为写入前整体改向）；**修正态 canSurvive + 实体碰撞补查恒生效、不受 `easy_place_validator_enabled` 门控（我方比上游严）**；vanilla 基座检查失败保守不动；恢复 vanilla 距离/保护检查；保护插件重新可见放置事件；canBuild→place 间隙病态扰动 → place 侧 canSurvive 复查失败降级保留 vanilla 态；物品 BLOCK_STATE 组件（pick-block）改写的最终态会被修正覆盖（极边缘）；`EasyPlacePending` TTL 1s 内 stale 条目理论上可命中同位手动放置（罕见、自愈、有界） |
+| **潜影盒可堆叠** | **不可能实现 + 已删全部代码** | 改 `ItemStack.getMaxStackSize()` / `HopperBlockEntity` 全局行为，Paper 无 Mixin 无等价（反射改不了方法返回值；Bukkit 事件在 `maxStackSize=1` 前提下恒失败；设 `MAX_STACK_SIZE` 组件污染序列化）。`TweaksDataProvider` **不下发** `stackingShulkers` 元数据——否则客户端 tweakeroo 据其自动开堆叠渲染而服务端不配合 → 不一致 |
+| **UpdateSuppression** | **省略** | 依赖 Mixin 给 `Level`/`LevelChunk` 加接口 + 改 `setBlockState` 副作用 |
+| **Allay 收集修复** | **省略** | 影响小 |
+| **镜像修复**（箱子/铁轨/楼梯 180°） | 粘贴时内联 | 靠 `BlockState.mirror()/rotate()` 自身行为，降级可能不完美 |
+| **/data get 权限覆盖** | Bukkit op 权限等价 | — |
 
 ### 5.4 Syncmatica 侧（概览）
 

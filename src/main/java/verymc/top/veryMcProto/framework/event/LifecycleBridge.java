@@ -234,7 +234,7 @@ public class LifecycleBridge implements Listener
     {
         String channel = event.getChannel();
         ServerPlayer player = Nms.toNms(event.getPlayer());
-        // ★ 最关键诊断点：客户端声明监听某通道 = 装了对应 mod 的可靠信号（configuration phase 完成后到达）。
+        // 最关键诊断点：客户端声明监听某通道 = 装了对应 mod 的可靠信号（configuration phase 完成后到达）。
         // 记录声明的通道名 + 当前全部监听集合，可定位 entity/tweaks/litematics 的 metadata 为何 not_enabled：
         //   - 若客户端从不声明某 servux:* 通道 → 该 mod 未装（如未装 Tweakeroo/实体查询 mod）；
         //   - 若声明了但服务端无 provider 主动响应（sendMetadata）→ 该 provider 缺 onPlayerRegisterChannel 钩子。

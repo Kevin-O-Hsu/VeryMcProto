@@ -45,7 +45,7 @@
 | **Litematica** | `>=0.27.11- <0.28.0`（建议用 syncmatica 兼容的 LTS fork，如 sakura-ryoko） | 投影客户端 |
 | **Malilib** | `>=0.28.10- <0.29.0`（Litematica 前置） | Litematica 前置 |
 
-> ⚠️ syncmatica `fabric.mod.json` 的 `breaks` 声明：malilib `<0.28.10-` / litematica `<0.27.11-` 会冲突。务必用足版本的 LTS fork。
+> **注意**：syncmatica `fabric.mod.json` 的 `breaks` 声明：malilib `<0.28.10-` / litematica `<0.27.11-` 会冲突。务必用足版本的 LTS fork。
 
 **至少 2 个客户端账号**（用于多玩家协同测试，§11）。单机多开或两台机器均可。
 
@@ -424,10 +424,10 @@ DownloadExchange: close(true)（取消包 CANCEL_LITEMATIC）
 
 | 功能 | 状态 | 影响 |
 |---|---|---|
-| 材料配送（material） | ⛔ 不实现 | 原版就是死代码，无协议、无 GUI 实际接入，客户端无感知 |
-| RedirectFileStorage | ⛔ 不实现 | 仅客户端装饰器，服务端不需要 |
+| 材料配送（material） | 不实现 | 原版就是死代码，无协议、无 GUI 实际接入，客户端无感知 |
+| RedirectFileStorage | 不实现 | 仅客户端装饰器，服务端不需要 |
 | 客户端 GUI 集成 | — | 由 syncmatica 客户端 mod 提供，服务端无关 |
-| 单机 / Open-to-LAN | ⛔ 不适用 | Paper 恒 dedicated server |
+| 单机 / Open-to-LAN | 不适用 | Paper 恒 dedicated server |
 | `/syncmatica save/upload/list`（误传的命令） | — | 原版本就无此命令；真实命令见 §2.2 |
 
 > **无「改服务端行为」类降级**（对比 Servux EasyPlace / UpdateSuppression）：syncmatica 纯协议层，功能完整性 = 协议保真度，无降级损失。
@@ -450,7 +450,7 @@ DownloadExchange: close(true)（取消包 CANCEL_LITEMATIC）
 | | | §10 配额 | | | | |
 | | | §11 多玩家 | | | | |
 
-> **通过标准**：§3–§7 全 ✅ + §9 持久化 ✅ + §11 多玩家核心场景 ✅ → syncmatica 移植功能可用，可合并主线。§8/§10 为辅助验证。
+> **通过标准**：§3–§7 全过 + §9 持久化通过 + §11 多玩家核心场景通过 → syncmatica 移植功能可用，可合并主线。§8/§10 为辅助验证。
 
 ---
 

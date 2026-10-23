@@ -8,7 +8,7 @@ import net.minecraft.resources.Identifier;
  * <p>syncmatica 用<b>单物理通道</b> {@code syncmatica:main}（C2S/S2C 共用），内部第一字段是逻辑通道 Identifier
  * （即本枚举的 {@link #identifier}），其后是 body。详见 docs/syncmatica/protocol.md §2。
  *
- * <p>⚠️ <b>path 拼写陷阱（逐字照抄，勿改）</b>：
+ * <p><b>path 拼写陷阱（逐字照抄，勿改）</b>：
  * <ul>
  *   <li>{@link #REQUEST_LITEMATIC} 的 path 是 {@code request_download}（非 request_litematic）；</li>
  *   <li>{@link #MESSAGE} 的 path 是 {@code mesage}（原版拼写错误，注释「can't fix the typo here lol」，

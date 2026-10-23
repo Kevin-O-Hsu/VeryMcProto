@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * carpet:hello 帧构造形状锁（Phase 3 wire 判据）——Rules 帧 / clientCommand 回执 / HI 版本串
+ * carpet:hello 帧构造形状锁（wire 判据）——Rules 帧 / clientCommand 回执 / HI 版本串
  * 的纯函数单测：键名与字段形状对齐上游 {@code carpet/network/ServerNetworkHandler.java}
  * （DataBuilder.withRule :219-239 / handleClientCommand :97-113 / onPlayerJoin :42-44），
  * 防手写帧漂移（客户端对形状错误静默跳过——错一处即规则浏览器空，无任何报错可查）。
