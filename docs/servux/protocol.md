@@ -36,7 +36,7 @@ Servux 用的是 **Mojang 在 1.20.2+ 引入的原版 `CustomPacketPayload`** �
 - `ServuxHudHandler.CHANNEL_ID = Identifier.fromNamespaceAndPath("servux", "hud_metadata")` ← **注意：HUD 通道网络名是 `servux:hud_metadata`，不是 `servux:main`**（"main" 只是 provider 的逻辑名）
 - `ServuxEntitiesHandler.CHANNEL_ID`、`ServuxTweaksHandler.CHANNEL_ID`、`ServuxStructuresHandler.CHANNEL_ID`、`ServuxLitematicaHandler.CHANNEL_ID` 同理在各 Handler 类里定义
 
-> ⚠️ **移植易错点**：provider 的 `getName()`（如 `"hud_data"`、逻辑名 `"main"`）与 `getNetworkChannel()`（网络通道 `servux:hud_metadata`）是**两回事**。Paper 端注册 plugin messaging 通道必须用**通道网络名**，不是 provider 名。逐条核对见下表（移植时务必从各 Handler 的 `CHANNEL_ID` 字段抄）。
+> **移植易错点**：provider 的 `getName()`（如 `"hud_data"`、逻辑名 `"main"`）与 `getNetworkChannel()`（网络通道 `servux:hud_metadata`）是**两回事**。Paper 端注册 plugin messaging 通道必须用**通道网络名**，不是 provider 名。逐条核对见下表（移植时务必从各 Handler 的 `CHANNEL_ID` 字段抄）。
 
 ---
 
@@ -155,7 +155,7 @@ public static final int MAX_REASSEMBLY_SIZE_S2C = 16_777_216;       // 26.1 客�
 
 > **readTag 接收侧配额闸（2026-10 安全修复）**：上述 16MB 是**我方发送**方向的预检；**接收**方向（C2S）在同一 `DataTagIo` 内另有两道闸——①长度前缀闸（`readTag` :77，压缩字节 ≤64MB）；②**解压域 NbtAccounter 闸**（`NbtIo.read(dis, NbtAccounter.create(NETWORK_MAX_BYTES))`，GZIP 流式直读不物化中间 byte[]）：对解压后 NBT 流逐结构计数、**先记账后分配**——gzip bomb（解压膨胀 ~1032×）与长度字段炸弹（小流内声明巨数组驱动 16GB 分配）在同一道闸被拦截，超配额按坏包契约 warn + null 丢弃。与上游对齐：malilib `SizeTracker`（NETWORK_MAX_BYTES=64MB）即在解压流上逐字节计数、超限抛异常断读；上游 servux `NbtUtils` 即 `NbtIo.read(gzip 流, tracker)` 流式写法。**两层关系**：64MB 前缀闸限**压缩字节**（帧长），accounter 闸限**解压后语义字节**（内容），正交覆盖；与 16MB 重组闸（S2C 发送方向）互不重叠。异常三分语义与锁定单测见 [architecture.md](../architecture.md) §8。
 
-> ⚠️ **字节限制教义（26.1 真值）**：Bukkit `Messenger.MAX_MESSAGE_SIZE` = 1048576（~1MiB，1.21.x 起——旧文档称 32768 已过时）；**真正的 S2C 瓶颈是原版客户端对 `ClientboundCustomPayload`（未知通道 discarded 解码）的 32767 字节解码上限**。详见 [architecture.md](../architecture.md) §3.2。我方 S2C 分片常量 32000/31995 即为防御 32767。
+> **字节限制教义（26.1 真值）**：Bukkit `Messenger.MAX_MESSAGE_SIZE` = 1048576（~1MiB，1.21.x 起——旧文档称 32768 已过时）；**真正的 S2C 瓶颈是原版客户端对 `ClientboundCustomPayload`（未知通道 discarded 解码）的 32767 字节解码上限**。详见 [architecture.md](../architecture.md) §3.2。我方 S2C 分片常量 32000/31995 即为防御 32767。
 
 ### 5.3 发送逻辑（切片）
 

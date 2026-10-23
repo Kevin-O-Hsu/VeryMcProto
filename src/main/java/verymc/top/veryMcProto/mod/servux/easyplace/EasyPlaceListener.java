@@ -74,7 +74,7 @@ public class EasyPlaceListener implements PacketListener
         WrapperPlayClientPlayerBlockPlacement pkt = new WrapperPlayClientPlayerBlockPlacement(event);
         Vector3f cursor = pkt.getCursorPosition();
 
-        // ★ EasyPlace V3 接管判定：只改写「已编码」包（见类注释「接管判定命门」）。
+        // EasyPlace V3 接管判定：只改写「已编码」包（见类注释「接管判定命门」）。
         int protocolValue = (int) cursor.x - 2;
         Vector3i bp = pkt.getBlockPosition();
 

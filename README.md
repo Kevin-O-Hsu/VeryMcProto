@@ -5,10 +5,8 @@
 
 ```
 Paper 26.1.2 · Java 25 · paperweight userdev · Version 26.1.2-b8
-Servux ✅  ·  JEI ✅  ·  Syncmatica ✅  ·  Carpet ✅   (all four modules implemented; server-side verified on 26.1.2)
+Servux · JEI · Syncmatica · Carpet — all four modules implemented; server-side verified on 26.1.2
 ```
-
-> **Author:** Kevin O. Hsu · **GitHub:** https://github.com/Kevin-O-Hsu/VeryMcProto · **Modrinth:** https://modrinth.com/plugin/verymcproto
 
 ---
 
@@ -24,6 +22,7 @@ Servux ✅  ·  JEI ✅  ·  Syncmatica ✅  ·  Carpet ✅   (all four modules 
 - [8. FAQ](#8-faq)
 - [9. Credits](#9-credits)
 - [License](#license)
+- [Links](#links)
 
 ---
 
@@ -47,10 +46,10 @@ This project uses **paperweight `userdev`** to reference fully-deobfuscated Moja
 
 | Mod | Client Mod | Nature | Status |
 | --- | --- | --- | --- |
-| **Servux** | masa's **MiniHUD / Litematica / Tweakeroo** | Server→client **one-way broadcast** (6 providers over `servux:*` channels) | ✅ Full |
-| **JEI** | **JEI** (mezz/JustEnoughItems 26.1) | **Full server protocol**: recipe sync + cheat + recipe transfer (`fabric:recipe_sync` / `neoforge:recipe_content` + 10 `jei:*` channels) | ✅ Full |
-| **Syncmatica** | **endte syncmatica** | **Bidirectional, stateful, multi-player shared** schematic repository (`syncmatica:main` + 18 PacketTypes + Exchange sessions) | ✅ Full |
-| **Carpet** | **gnembon/fabric-carpet** (branch 26.1) | **Portable subset of a behavior-injecting mod**: rule framework (`/carpet`, 18 rules, `carpet.conf`) + fake players (`/player` full family) + `carpet:hello` protocol + `/log` HUD framework (tps/mobcaps) + pure-calculation commands (`/distance` `/info` `/perimeterinfo` `/draw` `/spawn`) | ✅ Subset |
+| **Servux** | masa's **MiniHUD / Litematica / Tweakeroo** | Server→client **one-way broadcast** (6 providers over `servux:*` channels) | Full |
+| **JEI** | **JEI** (mezz/JustEnoughItems 26.1) | **Full server protocol**: recipe sync + cheat + recipe transfer (`fabric:recipe_sync` / `neoforge:recipe_content` + 10 `jei:*` channels) | Full |
+| **Syncmatica** | **endte syncmatica** | **Bidirectional, stateful, multi-player shared** schematic repository (`syncmatica:main` + 18 PacketTypes + Exchange sessions) | Full |
+| **Carpet** | **gnembon/fabric-carpet** (branch 26.1) | **Portable subset of a behavior-injecting mod**: rule framework (`/carpet`, 18 rules, `carpet.conf`) + fake players (`/player` full family) + `carpet:hello` protocol + `/log` HUD framework (tps/mobcaps) + pure-calculation commands (`/distance` `/info` `/perimeterinfo` `/draw` `/spawn`) | Subset |
 
 **Servux** delivers world metadata / spawn / weather / TPS / MobCap, structure bounding boxes, entity & block-entity NBT queries, and Litematica schematic paste (C2S upload + server-side paste). EasyPlace (Tweakeroo precise placement) is served via PacketEvents. The S2C file-transmit path was removed — the stock 26.1 client has no receiver for it.
 
@@ -147,13 +146,13 @@ The original Servux has **26 Mixins + 2 AccessWideners**; Syncmatica has **5 ser
 
 | Feature | Handling | Status |
 | --- | --- | --- |
-| Protocol data collection (reading private fields) | **Reflection / direct NMS access** | ✅ |
-| Collection triggers / lifecycle | **Bukkit events + tick scheduling** | ✅ |
-| **EasyPlace** (Tweakeroo precise placement) | **PacketEvents rewrites the encoded `PLAYER_BLOCK_PLACEMENT` packet (vanilla placement untouched) + pre-write veto via `BlockCanBuildEvent` + post-place fix via `BlockPlaceEvent`** | ✅ needs PacketEvents |
-| **Mirror fixes** (chest/rail/stairs) | **Inlined fixes on paste** (`fix_chest_mirror` / `fix_rail_rotations` / `fix_stairs_mirror`) | ✅ (rail/stairs may be less perfect than Mixin) |
-| **Fill/Delete via servux tasks** (26.1 new) | `PACKET_C2S_TASK_REQUEST` group (types 14-17): per-tick budgeted fill/delete + InfoHud status sync | ✅ (26.1+) |
-| **UpdateSuppression** | ⛔ **Omitted** (no Paper equivalent) | ❌ |
-| **Shulker-box stacking** | ⛔ **Impossible + all code removed** (see [FAQ](#8-faq)) | ❌ |
+| Protocol data collection (reading private fields) | **Reflection / direct NMS access** | Implemented |
+| Collection triggers / lifecycle | **Bukkit events + tick scheduling** | Implemented |
+| **EasyPlace** (Tweakeroo precise placement) | **PacketEvents rewrites the encoded `PLAYER_BLOCK_PLACEMENT` packet (vanilla placement untouched) + pre-write veto via `BlockCanBuildEvent` + post-place fix via `BlockPlaceEvent`** | Implemented (needs PacketEvents) |
+| **Mirror fixes** (chest/rail/stairs) | **Inlined fixes on paste** (`fix_chest_mirror` / `fix_rail_rotations` / `fix_stairs_mirror`) | Implemented (rail/stairs may be less perfect than Mixin) |
+| **Fill/Delete via servux tasks** (26.1 new) | `PACKET_C2S_TASK_REQUEST` group (types 14-17): per-tick budgeted fill/delete + InfoHud status sync | Implemented (26.1+) |
+| **UpdateSuppression** | **Omitted** (no Paper equivalent) | Not possible |
+| **Shulker-box stacking** | **Impossible + all code removed** (see [FAQ](#8-faq)) | Not possible |
 | Debug (`SharedConstants.IS_RUNNING_IN_IDE`) | Omitted | — |
 
 ---
@@ -165,12 +164,12 @@ The original Servux has **26 Mixins + 2 AccessWideners**; Syncmatica has **5 ser
 | Doc | Content |
 | --- | --- |
 | [`AGENTS.md`](AGENTS.md) | **Canonical repo guide** — architecture, branch/version model, core constraints, conventions |
-| [`docs/architecture.md`](docs/architecture.md) ⭐ | Global architecture: framework, network paths & byte limits, **Mixin→Paper matrix (canonical)**, Fabric↔Paper comparison, build toolchain, NMS pitfalls |
-| [`docs/servux/protocol.md`](docs/servux/protocol.md) ⭐ | Core Servux network protocol + §9 the authoritative 26.1 wire truths |
-| [`docs/operations.md`](docs/operations.md) ⭐ | **Ops reference**: version-string policy, commands, permissions, config keys, data layout, troubleshooting + MC upgrade SOP |
+| [`docs/architecture.md`](docs/architecture.md) | Global architecture: framework, network paths & byte limits, **Mixin→Paper matrix (canonical)**, Fabric↔Paper comparison, build toolchain, NMS pitfalls |
+| [`docs/servux/protocol.md`](docs/servux/protocol.md) | Core Servux network protocol + §9 the authoritative 26.1 wire truths |
+| [`docs/operations.md`](docs/operations.md) | **Ops reference**: version-string policy, commands, permissions, config keys, data layout, troubleshooting + MC upgrade SOP |
 | [`docs/servux/testing.md`](docs/servux/testing.md) / [`docs/syncmatica/testing.md`](docs/syncmatica/testing.md) | Client compatibility testing (Servux / Syncmatica) |
 | [`docs/syncmatica/architecture.md`](docs/syncmatica/architecture.md) + [`docs/syncmatica/protocol.md`](docs/syncmatica/protocol.md) | Syncmatica implementation notes (architecture / protocol) |
-| [`docs/jei/protocol.md`](docs/jei/protocol.md) ⭐ | Full JEI protocol |
+| [`docs/jei/protocol.md`](docs/jei/protocol.md) | Full JEI protocol |
 | [`docs/carpet/architecture.md`](docs/carpet/architecture.md) + [`docs/carpet/protocol.md`](docs/carpet/protocol.md) | Carpet as-built (rules, fake players, `/log`, commands) + `carpet:hello` protocol |
 
 Building from source: `./gradlew build` (Mojang-mapped jar) · `./gradlew test` · `./gradlew runServer` — JDK 25 resolves automatically via the foojay toolchain plugin. Everything else a developer needs (NMS constraints, versioning & branch model, upgrade runbook) lives in [`AGENTS.md`](AGENTS.md).
@@ -186,7 +185,7 @@ A: Data collection depends heavily on NMS internals (`NaturalSpawner.SpawnState`
 A: Testing showed the pure Fabric syncmatica client is unreachable over the plugin-messaging wire and only reachable via NMS `DiscardedPayload` direct send.
 
 **Q: Do shulker-box stacking / UpdateSuppression work?**
-A: ⛔ No. The former alters a global NMS method (no Mixin / no equivalent on Paper; all code removed); the latter needs a Mixin adding an interface to `Level`/`LevelChunk`, and is omitted.
+A: No. The former alters a global NMS method (no Mixin / no equivalent on Paper; all code removed); the latter needs a Mixin adding an interface to `Level`/`LevelChunk`, and is omitted.
 
 **Q: What happens if PacketEvents isn't installed for EasyPlace?**
 A: EasyPlace is skipped automatically (`EasyPlaceBootstrap` reflective load + `catch(Throwable)` fallback); all other Servux channels, JEI, and Syncmatica are completely unaffected.
@@ -225,6 +224,14 @@ This project is a Paper protocol-layer port of the following Fabric protocol mod
 This project is licensed under the **GNU Lesser General Public License v3.0 only** — SPDX identifier [`LGPL-3.0-only`](https://spdx.org/licenses/LGPL-3.0-only.html). See the [LICENSE](LICENSE) file.
 
 > The reference archives under `OriginImpl/` belong to their respective authors and licenses: `servux` / `litematica` / `malilib` / `minihud` / `tweakeroo` / `itemscroller` (masa → sakura-ryoko) are LGPL-3.0; `syncmatica` (endte → sakura-ryoko) is CC0. VeryMcProto is an independent Paper re-implementation (a protocol-layer port), not a derivative of their source.
+
+---
+
+## Links
+
+- **Author:** Kevin O. Hsu
+- **GitHub:** https://github.com/Kevin-O-Hsu/VeryMcProto
+- **Modrinth:** https://modrinth.com/plugin/verymcproto
 
 ---
 

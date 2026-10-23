@@ -44,7 +44,7 @@ public class ServuxModule implements ModModule
 
         // EasyPlace（Tweakeroo 服务端配合）：拦截原版 use_item_on，用 masa 协议 v3 解码精确放置状态。
         // 运行时依赖 PacketEvents 插件（plugin.yml: softdepend）。
-        // ⚠ PE 类引用必须隔离在 EasyPlaceBootstrap 里、用反射加载：若直接在本方法引用 PE 类，
+        // 注意：PE 类引用必须隔离在 EasyPlaceBootstrap 里、用反射加载：若直接在本方法引用 PE 类，
         //    JVM 解析 onRegister 时就触发 PE 类加载，服务器未装 PE 会抛 NoClassDefFoundError 且发生在
         //    方法体执行前（try 进不去），拖垮整个 ServuxModule / 6 个 provider 注册。
         try

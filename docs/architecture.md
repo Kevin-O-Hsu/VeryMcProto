@@ -17,8 +17,8 @@ fi.dy.masa.servux/
 ├── servux/                     ← 真正的业务监听实现（ServerListener / PlayerListener / ServuxInitHandler）
 ├── event/                      ← 事件分发器（ServerHandler / PlayerHandler / ServerInitHandler）+ 接口
 ├── interfaces/                 ← 抽象接口（IServerListener / IPlayerListener / IServerInitHandler / 线程任务等）
-├── dataproviders/              ← ★ 核心：6 个 Provider + DataProviderManager + 接口/基类
-├── network/                    ← ★ 网络层（见 servux/protocol.md）：ServerPlayHandler / PacketSplitter / IPluginServerPlayHandler / packet/*
+├── dataproviders/              ← 核心：6 个 Provider + DataProviderManager + 接口/基类
+├── network/                    ← 网络层（见 servux/protocol.md）：ServerPlayHandler / PacketSplitter / IPluginServerPlayHandler / packet/*
 ├── loggers/                    ← HUD 子系统：TPS / MobCap 数据采集
 ├── schematic/                  ← Litematica 投影系统（见 servux/schematic.md）
 ├── settings/                   ← 配置项系统（AbstractServuxSetting + 各类型）
@@ -47,7 +47,7 @@ verymc.top.veryMcProto/
 ├── VeryMcProto.java              JavaPlugin 主类（框架入口 + 装配 + 依次注册四个 mod + 命令）
 ├── Reference.java                框架级常量（MC_VERSION / PLUGIN_VERSION——类加载时读 version.properties）
 │
-├── framework/                    ★ 协议 mod 移植框架（与具体 mod 无关，所有 mod 复用）
+├── framework/                    协议 mod 移植框架（与具体 mod 无关，所有 mod 复用）
 │   ├── network/                  通道封装（ChannelManager/ProtocolChannel + C2S 证明兜底）、分片（PacketSplitter）、
 │   │                             字节桥接（FriendlyByteBufs）、Handler 注册表（ServerPlayHandler）
 │   ├── dataproviders/            Provider 契约（IDataProvider/DataProviderBase/DataProviderManager）
@@ -59,7 +59,7 @@ verymc.top.veryMcProto/
 │   ├── settings/                 Servux 配置项体系（Bool/Int/String/StringList/List + 回调）
 │   └── util/                     JsonUtils（Gson pretty + 原子写）/ StringUtils
 │
-└── mod/                          ★ 协议 mod 层（每个被移植的 Fabric 协议 mod 一个目录单元）
+└── mod/                          协议 mod 层（每个被移植的 Fabric 协议 mod 一个目录单元）
     ├── servux/                   app/ServuxModule + command/ + dataproviders/（6 Provider）+ network/（5 Handler+Packet）
     │                             + easyplace/ + loggers/ + scheduler/（task 组五类）+ schematic/ + util/
     ├── jei/                      app/JeiModule + network/（含 RecipeSyncJoinOrderer；payload/ 为其子包、含 legacy/ 子层）
@@ -133,7 +133,7 @@ protected RegistryAccess.Frozen immutable = RegistryAccess.EMPTY;               
 
 ```java
 String getName();                 // 逻辑名（config key，如 "hud_data"）—— ≠ 网络通道名
-Identifier getNetworkChannel();   // ★ 网络通道（如 servux:hud_metadata）
+Identifier getNetworkChannel();   // 网络通道（如 servux:hud_metadata）
 int getProtocolVersion();         // 协议版本（客户端协商，26.1 真值见 servux/protocol.md §5）
 boolean isEnabled(); void setEnabled(boolean);
 void registerHandler();           // 启用：注册通道 + payload + receiver
@@ -164,7 +164,7 @@ List<IServuxSetting<?>> getSettings();
 
 ---
 
-## 3. 网络框架与 S2C 投递路径 ⭐
+## 3. 网络框架与 S2C 投递路径
 
 ### 3.1 通道注册（plugin messaging）
 
@@ -195,10 +195,10 @@ public void register() {
 
 ### 3.3 字节级可行性验证
 
-- ✅ `byte[]` ↔ `FriendlyByteBuf`：`Unpooled.wrappedBuffer(bytes)` 包装、`buf.getBytes(...)`/`buf.array()` 取出。
-- ✅ `CompoundTag` 读写：`FriendlyByteBuf.writeNbt(tag)` / `readNbt()`，NMS 直连。
-- ✅ VarInt / 通道命名（`namespace:key` 规则）。
-- ✅ 26.1 DataTag 线格式：`mod/servux/util/nbt/DataTagIo.java` 与 NMS `NbtIo` 输出逐字节兼容（配单测，见 [servux/protocol.md](servux/protocol.md) §5）。
+- `byte[]` ↔ `FriendlyByteBuf`：`Unpooled.wrappedBuffer(bytes)` 包装、`buf.getBytes(...)`/`buf.array()` 取出。
+- `CompoundTag` 读写：`FriendlyByteBuf.writeNbt(tag)` / `readNbt()`，NMS 直连。
+- VarInt / 通道命名（`namespace:key` 规则）。
+- 26.1 DataTag 线格式：`mod/servux/util/nbt/DataTagIo.java` 与 NMS `NbtIo` 输出逐字节兼容（配单测，见 [servux/protocol.md](servux/protocol.md) §5）。
 
 ### 3.4 Payload record 照抄
 
@@ -220,7 +220,7 @@ public void register() {
 | TPS/MobCap | `tick` 内采集 | `BukkitScheduler` tick 任务 |
 | 客户端就绪 | （原版无此问题） | `PlayerRegisterChannelEvent`（configuration phase 完成的可靠信号） |
 
-### 3.6 ⚠️ NMS 实测坑清单（移植/维护必读）
+### 3.6 NMS 实测坑清单（移植/维护必读）
 
 > 实际编译验证踩过的坑（1.21.11 线成文，26.1 漂移实测标注；升级 MC 版本时务必重新核对）。
 
@@ -282,27 +282,27 @@ public void register() {
 |---|---|---|
 | **A. 反射替代**（读私有字段） | ~4 + 2 AW | `framework/reflect/Reflect`（缓存 + 防御）；`MAGIC_NUMBER=289` 直接硬编码 |
 | **B. 事件/调度替代**（采集触发/生命周期） | ~9 | Bukkit 事件 + `BukkitRunnable`（§4 映射表） |
-| **C. 降级/省略**（改服务端行为） | ~11 | 多数省略；EasyPlace ✅ PacketEvents；镜像修复内联进粘贴代码 |
+| **C. 降级/省略**（改服务端行为） | ~11 | 多数省略；EasyPlace PacketEvents；镜像修复内联进粘贴代码 |
 | **D. 调试** | 1 | 省略（`IS_RUNNING_IN_IDE`，生产无用） |
 
-关键逐项（block 包镜像修复 §1：`MixinChestBlock`/`MixinRailBlocks`/`MixinStairBlock` 只在 Litematica 粘贴时需要 → **内联进 `SchematicPlacingUtils` 方块状态变换**；item 包 §4：`MixinBlockItem_EasyPlace` ✅ 已实现（「改写放行」双挂点，详 §5.2）；`MixinItemStack`+`MixinHopperBlockEntity` 潜影盒堆叠 ⛔ **不可能实现**——改 NMS 全局方法行为，反射改不了返回值、事件在 `maxStackSize=1` 前提下恒失败、组件污染序列化；已删全部代码且**不下发 `stackingShulkers` 元数据**（避免客户端误判）；nbt 包 §5：`IMixinNbtRead/WriteView` → `NbtView` 重写为直接 `Entity.saveWithoutId` / `BlockEntity.saveWithFullMetadata` 绕开；network 包 §6：EasyPlace 网络侧 ✅、QueryNbt 权限覆盖 → Bukkit op 权限等价）。
+关键逐项（block 包镜像修复 §1：`MixinChestBlock`/`MixinRailBlocks`/`MixinStairBlock` 只在 Litematica 粘贴时需要 → **内联进 `SchematicPlacingUtils` 方块状态变换**；item 包 §4：`MixinBlockItem_EasyPlace` 已实现（「改写放行」双挂点，详 §5.2）；`MixinItemStack`+`MixinHopperBlockEntity` 潜影盒堆叠 **不可能实现**——改 NMS 全局方法行为，反射改不了返回值、事件在 `maxStackSize=1` 前提下恒失败、组件污染序列化；已删全部代码且**不下发 `stackingShulkers` 元数据**（避免客户端误判）；nbt 包 §5：`IMixinNbtRead/WriteView` → `NbtView` 重写为直接 `Entity.saveWithoutId` / `BlockEntity.saveWithFullMetadata` 绕开；network 包 §6：EasyPlace 网络侧已实现、QueryNbt 权限覆盖 → Bukkit op 权限等价）。
 
 ### 5.2 功能级决策矩阵
 
 | 功能 | 原实现 | 迁移决策 | 备注 |
 |---|---|---|---|
-| **HUD 元数据/出生点/天气** | MixinMinecraftServer/ServerLevel | ✅ **做**（事件 + API） | 协议核心 |
-| **TPS logger** | IMixinServerTickManager | ✅ **做**（NMS + 反射） | 反射 remainingSprintTicks |
-| **MobCap logger** | (AW MAGIC_NUMBER) | ✅ **做**（硬编码 289） | |
-| **配方下发** | — | ✅ **做**（NMS Recipe.CODEC） | 大包走 NMS 直发 |
-| **实体/方块实体 NBT 查询** | MixinServerPlayNetworkHandler_QueryNbt | ✅ **做**（NMS saveWith*） | 权限走 Bukkit |
-| **结构边界框** | MixinChunkLoadingManager | ✅ **做**（周期扫描触发） | 工作量最大 |
-| **Litematica 投影粘贴** | MixinChestBlock/Rail/Stairs（镜像） | ✅ **做**（投影照抄 + 镜像修复内联；PasteTask 任务化——见 [servux/schematic.md](servux/schematic.md) §9） | |
-| **潜影盒可堆叠** | MixinItemStack/Hopper | ⛔ **不可能实现**（已删代码） | §5.1 |
-| **Allay 收集修复** | MixinMob/ItemEntity/Allay | ⚠️ **省略** | 改行为，影响小 |
-| **EasyPlace** | MixinBlockItem + NetworkHandler | ✅ **已实现**（PacketEvents） | 详下 |
-| **UpdateSuppression** | MixinLevel/LevelChunk/Block | ❌ **省略** | 改行为，无等价 |
-| **调试 (IDE 模式)** | MixinSharedConstants | ❌ **省略** | 生产无用 |
+| **HUD 元数据/出生点/天气** | MixinMinecraftServer/ServerLevel | **做**（事件 + API） | 协议核心 |
+| **TPS logger** | IMixinServerTickManager | **做**（NMS + 反射） | 反射 remainingSprintTicks |
+| **MobCap logger** | (AW MAGIC_NUMBER) | **做**（硬编码 289） | |
+| **配方下发** | — | **做**（NMS Recipe.CODEC） | 大包走 NMS 直发 |
+| **实体/方块实体 NBT 查询** | MixinServerPlayNetworkHandler_QueryNbt | **做**（NMS saveWith*） | 权限走 Bukkit |
+| **结构边界框** | MixinChunkLoadingManager | **做**（周期扫描触发） | 工作量最大 |
+| **Litematica 投影粘贴** | MixinChestBlock/Rail/Stairs（镜像） | **做**（投影照抄 + 镜像修复内联；PasteTask 任务化——见 [servux/schematic.md](servux/schematic.md) §9） | |
+| **潜影盒可堆叠** | MixinItemStack/Hopper | **不可能实现**（已删代码） | §5.1 |
+| **Allay 收集修复** | MixinMob/ItemEntity/Allay | **省略** | 改行为，影响小 |
+| **EasyPlace** | MixinBlockItem + NetworkHandler | **已实现**（PacketEvents） | 详下 |
+| **UpdateSuppression** | MixinLevel/LevelChunk/Block | **省略** | 改行为，无等价 |
+| **调试 (IDE 模式)** | MixinSharedConstants | **省略** | 生产无用 |
 
 **EasyPlace as-built**（「改写放行」双挂点范式）：① `EasyPlaceListener`（PacketEvents netty 线程）拦 `PLAYER_BLOCK_PLACEMENT`：编码包不取消、不读玩家状态，仅把 `cursor.x` 改写回 `relX∈[0,1)`（过 vanilla 逐轴 hitVec 校验，等效上游 NetworkHandler Mixin）+ 登记 pv 到 `EasyPlacePending`（TTL 1000ms）；② `EasyPlaceFixListener`（主线程双挂点）：`BlockCanBuildEvent`（HIGHEST，fire 于 `BlockItem.canPlace` 体内、先于全部放置副作用）以事件 BlockData（= vanilla 候选态，上游 Mixin 注入点 `stateOrig` 的同位等价物）为基座跑 `applyPlacementProtocolV3`——拒绝 → `setBuildable(false)` → vanilla place 在 placeBlock 前整次 FAIL（与上游 `setReturnValue(null)` 同位同效、零残差）；`BlockPlaceEvent`（HIGHEST）退化纯写入。已知有意差异与边缘语义（双半格派生 / 床两半错位 / 修正态 canSurvive+碰撞补查恒生效）详见归档件 04 §4 与 [operations.md](operations.md) 排错节。PacketEvents 类引用隔离在 `EasyPlaceBootstrap`（反射加载 + `catch(Throwable)` 降级）。
 
@@ -431,6 +431,6 @@ tasks {
 | 网络协议字节 | **100%** | 同一 `FriendlyByteBuf`/`CompoundTag`/DataTag 线格式，字节级一致 |
 | 通道/版本号 | **100%** | 通道名、协议版本号与原版逐字对齐（26.1 真值见 [servux/protocol.md](servux/protocol.md) §5） |
 | 数据采集 | **≈95%** | 绝大多数 NMS 直连；个别反射字段版本敏感 |
-| 服务端行为改造 | **部分降级** | EasyPlace ✅；UpdateSuppression/Allay 省略；潜影盒堆叠不可能（§5） |
+| 服务端行为改造 | **部分降级** | EasyPlace 已实现；UpdateSuppression/Allay 省略；潜影盒堆叠不可能（§5） |
 
 > **结论**：对"Fabric 客户端 + Paper 服务端"核心场景（HUD/结构/投影/实体查询/投影共享/配方同步/Carpet 子集）达到与原版**功能等价**；仅少数"服务端行为增强"特性降级，均不影响协议主功能。

@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * /distance 三距离公式纯函数锚（Phase 5 验证方式"实机 + 纯算法单测"——
+ * /distance 三距离公式纯函数锚（验证方式"实机 + 纯算法单测"——
  * {@link DistanceCalculator#findDistanceBetweenTwoPoints} 返回组件列表、零 source 依赖，
  * 纯 JVM 直调；公式体上游逐字，断言锁 %.2f/%.2f/%.1f 输出面）。
  *

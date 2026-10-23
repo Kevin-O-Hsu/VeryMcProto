@@ -35,7 +35,7 @@ import com.google.gson.JsonObject;
  *   <li>去掉 {@code registerReceivers()}（通道注册移到 P9 {@code SyncmaticaApp} 的 {@code onEnable}）；</li>
  *   <li>{@code Syncmatica.LOGGER} → {@link SyncmaticaLog}；</li>
  *   <li>FileStorage 不再 {@code setContext}，改为 {@code setDownloadStateProvider}（函数式注入 comMan.getDownloadState）；</li>
- *   <li>IService（Quota/Debug）不再 {@code setContext}（P3 解耦）。</li>
+ *   <li>IService（Quota/Debug）不再 {@code setContext}（服务层解耦改造）。</li>
  * </ul>
  */
 public class SyncmaticaContext

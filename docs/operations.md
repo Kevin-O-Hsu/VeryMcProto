@@ -314,7 +314,7 @@ commands:
 | `permission_level` | int [0..4] | 0 | 基础权限 |
 | `update_interval` | int [40..1200] | 120 | 推送间隔（tick） |
 
-> ⛔ 原 `stackable_shulkers` / `stackable_shulkers_count` / `stackable_shulkers_fix` **已删除**——潜影盒堆叠在无 Mixin 的 Paper 上不可能实现（见 [`07`](architecture.md) §4 降级矩阵）；保留会令客户端 Tweakeroo 开堆叠渲染而服务端不配合 → 不一致。
+> 原 `stackable_shulkers` / `stackable_shulkers_count` / `stackable_shulkers_fix` **已删除**——潜影盒堆叠在无 Mixin 的 Paper 上不可能实现（见 [`07`](architecture.md) §4 降级矩阵）；保留会令客户端 Tweakeroo 开堆叠渲染而服务端不配合 → 不一致。
 
 #### `structure_bounding_boxes`（`servux:structures`）
 

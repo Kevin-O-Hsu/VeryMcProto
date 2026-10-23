@@ -64,7 +64,7 @@ public class DownloadExchange extends AbstractExchange
         {
             final int size = packetBuf.readInt();
             bytesSent += size;
-            // Paper 适配：QuotaService.isOverQuota 改接收 persistentName（P3 解耦 ExchangeTarget）
+            // Paper 适配：QuotaService.isOverQuota 改接收 persistentName（解耦 ExchangeTarget）
             if (getContext().isServer() && getContext().getQuotaService().isOverQuota(getPartner().getPersistentName(), bytesSent))
             {
                 close(true);
