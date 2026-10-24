@@ -101,7 +101,7 @@ public class EasyPlaceListener implements PacketListener
         BlockPos pos = new BlockPos(bp.x, bp.y, bp.z);
         Vector3f cursor = pkt.getCursorPosition();
 
-        // ★ EasyPlace V3 接管判定：只接管「已编码」包（见类注释「接管判定命门」）。
+        // EasyPlace V3 接管判定：只接管「已编码」包（见类注释「接管判定命门」）。
         int protocolValue = (int) cursor.x - 2;
         if (protocolValue < 0)
         {
@@ -118,7 +118,7 @@ public class EasyPlaceListener implements PacketListener
         Vec3 hitVec = new Vec3(pos.getX() + cursor.x, pos.getY() + cursor.y, pos.getZ() + cursor.z);
         final int sequence = pkt.getSequence();
 
-        // ⚠ setBlock / setPlacedBy / playSound / shrink / ack 必须在世界 tick 线程（主线程）。
+        // 注意：setBlock / setPlacedBy / playSound / shrink / ack 必须在世界 tick 线程（主线程）。
         // PacketEvents 的 onPacketReceive 在 Netty IO 线程触发，直接调 level.setBlock 会被 Paper
         // AsyncCatcher 拦截（"block onPlace" 主线程检查）。取消包后调度到下一 tick 主线程执行放置。
         Bukkit.getScheduler().runTask(Reference.plugin(), () ->

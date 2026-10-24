@@ -35,9 +35,9 @@ import verymc.top.veryMcProto.Reference;
  *   <li>写盘加原子 tmp/move（仓库配置落盘纪律，上游为直写）；</li>
  *   <li>命令面解耦到 Bukkit {@code CarpetCommand}（上游内嵌 brigadier 命令树，B 侧无该注册面）；</li>
  *   <li>删 Translations/scarpet/网络推送的<b>内嵌实现</b>——{@link #notifyRuleChanged} 经注入的
- *       回调（{@link #setRuleChangedCallback}）转发给 Phase 3 的 carpet:hello 规则推送
+ *       回调（{@link #setRuleChangedCallback}）转发给 carpet:hello 规则推送
  *       （docs/carpet/protocol.md）；回调经 setter 注入以保持本包零 network/ 依赖（纯 JVM 单测
- *       可独立构造本类，P1 测试形态不被破坏）。</li>
+ *       可独立构造本类，测试形态不被破坏）。</li>
  * </ul>
  */
 public class SettingsManager
@@ -48,7 +48,7 @@ public class SettingsManager
     private final String fancyName;
     private final Path configDir;
     private boolean locked;
-    /** 规则变更回调（Phase 3 carpet:hello 推送挂载；null = 无网络推送——单测/P1 形态）。 */
+    /** 规则变更回调（carpet:hello 推送挂载；null = 无网络推送——单测形态）。 */
     private volatile BiConsumer<CommandSender, ParsedRule<?>> ruleChangedCallback;
 
     record ConfigReadResult(Map<String, String> ruleMap, boolean locked) { }
@@ -330,7 +330,7 @@ public class SettingsManager
         }
     }
 
-    /** 注入规则变更回调（Phase 3 装配期由 CarpetModule 挂 CarpetHelloHandler::onRuleChanged）。 */
+    /** 注入规则变更回调（装配期由 CarpetModule 挂 CarpetHelloHandler::onRuleChanged）。 */
     public void setRuleChangedCallback(BiConsumer<CommandSender, ParsedRule<?>> callback)
     {
         this.ruleChangedCallback = callback;

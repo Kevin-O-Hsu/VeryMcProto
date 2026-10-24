@@ -15,16 +15,16 @@ servux 共 5 条通道，对应 **3 个 masa 客户端 mod**。映射关系由�
 
 | 通道 | 协议版本 | 客户端 Mod（声明源） | 功能 | 当前状态 |
 |---|---|---|---|---|
-| `servux:hud_metadata` | 2 | **MiniHUD** (`ServuxHudHandler`) | spawn / seed / 天气 / TPS / MobCap HUD | ✅ 已验证 |
-| `servux:structures` | 2 | **MiniHUD** (`ServuxStructuresHandler`) | 结构边界框渲染 | ✅ 已验证 |
-| `servux:entity_data` | 1 | **MiniHUD** (`ServuxEntitiesHandler`) | 实体 / 方块实体 NBT 查询 | ✅ 已验证 |
-| `servux:tweaks` | 1 | **Tweakeroo** (`ServuxTweaksHandler`) | NBT 查询（潜影盒堆叠未实现） | ✅ 已验证 |
-| `servux:litematics` | 1 | **Litematica** (`ServuxLitematicaHandler`) + Tweakeroo | NBT 查询 + **批量区块 NBT 拉取** + 投影传输/粘贴 | ✅ 已验证 |
+| `servux:hud_metadata` | 2 | **MiniHUD** (`ServuxHudHandler`) | spawn / seed / 天气 / TPS / MobCap HUD | 已验证 |
+| `servux:structures` | 2 | **MiniHUD** (`ServuxStructuresHandler`) | 结构边界框渲染 | 已验证 |
+| `servux:entity_data` | 1 | **MiniHUD** (`ServuxEntitiesHandler`) | 实体 / 方块实体 NBT 查询 | 已验证 |
+| `servux:tweaks` | 1 | **Tweakeroo** (`ServuxTweaksHandler`) | NBT 查询（潜影盒堆叠未实现） | 已验证 |
+| `servux:litematics` | 1 | **Litematica** (`ServuxLitematicaHandler`) + Tweakeroo | NBT 查询 + **批量区块 NBT 拉取** + 投影传输/粘贴 | 已验证 |
 
 > **itemscroller 不碰任何 servux 通道**（源码无 `servux` namespace 引用），无需测试。
 >
 > **关键事实**：MiniHUD 只监听 hud / structure / entity 三条通道（`OriginImpl/minihud-*/network/`），
-> 不碰 tweaks / litematics。所以「minihud 全兼容」≠「所有通道都通」。**接下来要测的是 Litematica 和 Tweakeroo**。
+> 不碰 tweaks / litematics。所以「minihud 全兼容」≠「所有通道都通」。**尚未验证的客户端为 Litematica 与 Tweakeroo**（测试步骤见 §5 与 §6）。
 
 ### 测试顺序建议
 
@@ -60,9 +60,9 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 | 客户端显示 | 含义 | 是否服务端 bug |
 |---|---|---|
-| `not_enabled` | 客户端自己的同步开关（`entityDataSync`）**没开**——纯客户端本地配置检查，**根本不与服务端通信** | ❌ **不是**。去客户端开配置 |
-| `not_connected` | 开关开了但握手没成功（C2S 请求没得到 S2C 响应） | ⚠️ **可能是**。查服务端 debug 日志 |
-| 正常显示数据 | 握手成功，数据流通 | ✅ |
+| `not_enabled` | 客户端自己的同步开关（`entityDataSync`）**没开**——纯客户端本地配置检查，**根本不与服务端通信** | **不是**。去客户端开配置 |
+| `not_connected` | 开关开了但握手没成功（C2S 请求没得到 S2C 响应） | **可能是**。查服务端 debug 日志 |
+| 正常显示数据 | 握手成功，数据流通 | 否（握手成功，非服务端 bug） |
 
 > **`entityDataSync` 在 litematica / tweakeroo 里默认都是 `false`**（已查源码确认）。
 > 所以测试第一步**永远是先开这个开关**，否则必然 `not_enabled`，与插件无关。
@@ -102,7 +102,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 ---
 
-## 4. 回归基线：MiniHUD（hud / structure / entity）✅
+## 4. 回归基线：MiniHUD（hud / structure / entity）
 
 已验证通过，作为「机制正常」的对照基线。若 tweakeroo / litematica 出问题，先用 minihud 确认基础链路没退化。
 
@@ -114,7 +114,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 ---
 
-## 5. 测试一：Litematica（`servux:litematics`）⭐ 优先测
+## 5. 测试一：Litematica（`servux:litematics`，优先测）
 
 ### 5.1 Litematica 用这条通道做什么（源码依据）
 
@@ -123,11 +123,11 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 1. **握手 + 单个 NBT 查询**：`entityDataSync` 开 → C2S `requestMetadata` → S2C 响应后，逐个查询
    方块实体 / 实体 NBT（`requestServuxBlockEntityData` / `requestServuxEntityData`）。
    用途：渲染真实世界的容器内容（箱子、漏斗等的物品）。
-2. **批量区块 NBT 拉取** ⭐（黄金验证点）：`requestServuxBulkEntityData(chunkPos, minY, maxY)`
+2. **批量区块 NBT 拉取**（黄金验证点）：`requestServuxBulkEntityData(chunkPos, minY, maxY)`
    （`EntityDataManager.java:679`）—— **保存投影（Save Schematic）时**，对该区域每个区块请求
    全部方块实体 + 实体的完整 NBT。响应 `BulkEntityReply`（`TileEntities` + `Entities` + `chunkX/Z`）。
-3. **投影文件传输**（服务器→客户端投递 .litematic）：`Litematic-TransmitStart/Data/End`。**✅ 服务端已实现**（`/servux litematic transmit <file> [player]` 触发；但**修复版 litematica 客户端 ≥0.26.11 对 Transmit 帧双向静默丢弃——仅旧版客户端可实际接收**）
-4. **投影粘贴**（C2S 上传投影让服务端放置）：`handleClientPasteRequest`。**✅ 已实现**（客户端上传 NBT → 重组 → `handleClientPasteRequest` → `pasteTo` 写世界；需创造模式 + paste 权限。原 C2S 文件落盘链 `SchematicBufferManager` 组装 → `createFromFile` 已于 2026-10 随安全修复移除——路径穿越任意写删）
+3. **投影文件传输**（服务器→客户端投递 .litematic）：`Litematic-TransmitStart/Data/End`。**服务端已实现**（`/servux litematic transmit <file> [player]` 触发；但**修复版 litematica 客户端 ≥0.26.11 对 Transmit 帧双向静默丢弃——仅旧版客户端可实际接收**）
+4. **投影粘贴**（C2S 上传投影让服务端放置）：`handleClientPasteRequest`。**已实现**（客户端上传 NBT → 重组 → `handleClientPasteRequest` → `pasteTo` 写世界；需创造模式 + paste 权限。原 C2S 文件落盘链 `SchematicBufferManager` 组装 → `createFromFile` 已于 2026-10 随安全修复移除——路径穿越任意写删）
 
 > 我们的插件 `LitematicsDataProvider.onBulkEntityRequest` 在响应批量请求时会向玩家**聊天框**发送
 > `Litematics bulk reply: <世界> <区块> TE=<方块实体数> E=<实体数> (<耗时>ms)`——**这是最直观的验证信号**。
@@ -144,13 +144,13 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 **预期（成功判据）—— 三处任一可见即通过**：
 
-- ✅ 服务端日志：`[DBG/PACKET] C2S litematics ← <玩家> type=PACKET_C2S_METADATA_REQUEST`
-- ✅ 服务端日志：`[DBG/HANDSHAKE] litematic sendMetadata → <玩家> ok=true servux=servux-paper-... ver=1`
-- ✅ 客户端日志（`.minecraft/logs/latest.log`）：`LitematicDataChannel: joining Servux version servux-paper-...`
+- 服务端日志：`[DBG/PACKET] C2S litematics ← <玩家> type=PACKET_C2S_METADATA_REQUEST`
+- 服务端日志：`[DBG/HANDSHAKE] litematic sendMetadata → <玩家> ok=true servux=servux-paper-... ver=1`
+- 客户端日志（`.minecraft/logs/latest.log`）：`LitematicDataChannel: joining Servux version servux-paper-...`
 
 **若失败**：服务端只有 C2S 没有 `ok=true` 的 S2C → 握手回程丢包，查 §7 排错。
 
-### 5.3 测试 B：保存投影触发批量 NBT 拉取 ⭐ 最直观
+### 5.3 测试 B：保存投影触发批量 NBT 拉取（最直观）
 
 **前提**：测试 A 握手已成功（`hasServuxServer=true`）。
 
@@ -163,11 +163,11 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 **预期（成功判据）**：
 
-- ✅ **服务端聊天框**（玩家可见）：`Litematics bulk reply: minecraft:overworld [chunkX, chunkZ] TE=<数> E=<数> (<ms>)`
+- **服务端聊天框**（玩家可见）：`Litematics bulk reply: minecraft:overworld [chunkX, chunkZ] TE=<数> E=<数> (<ms>)`
   - `TE=` 是方块实体数，`E=` 是实体数。框了箱子 → `TE>0`；区域有动物 → `E>0`。
-- ✅ 服务端 debug 日志（`packet` 分类）：可见 `C2S litematics ← ... type=PACKET_C2S_BULK_ENTITY_NBT_REQUEST`
+- 服务端 debug 日志（`packet` 分类）：可见 `C2S litematics ← ... type=PACKET_C2S_BULK_ENTITY_NBT_REQUEST`
   与分包发送日志。
-- ✅ 客户端日志：`EntityDataManager#handleBulkEntityData(): chunkPos ... received TE: [n], and E: [n] entiries from Servux`
+- 客户端日志：`EntityDataManager#handleBulkEntityData(): chunkPos ... received TE: [n], and E: [n] entiries from Servux`
 
 > 即使个别情况下走的是「逐个查询」而非「批量」路径，服务端 debug（`packet` 分类）也必然能看到
 > litematic 通道的 `BLOCK_ENTITY_REQUEST` / `ENTITY_REQUEST` + 响应。**只要握手后做保存投影，
@@ -177,9 +177,9 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 | 功能 | 状态 | 表现 |
 |---|---|---|
-| 投影文件传输（服务器投递投影给客户端） | ✅ 服务端已实现 | `/servux litematic transmit <file>` → `sendTransmitFile` 16KiB 分片投递（op 参数 + 目录包含性守卫；**修复版客户端 ≥0.26.11 双向静默丢弃，仅旧版客户端可接收**，见 [11](../archive/11-schematic-migration-plan.md)） |
-| 投影粘贴（客户端上传投影让服务端放置） | ✅ 已实现 | 客户端 Litematica 上传 NBT → `handleClientPasteRequest` → `pasteTo` 写世界（创造模式 + paste 权限；C2S 文件落盘链 `receiveFileTransmit` 已于 2026-10 安全修复移除）。详见 [11](../archive/11-schematic-migration-plan.md) |
-| 单个 / 批量 NBT 查询 | ✅ 已实现 | 上述测试 A / B 覆盖 |
+| 投影文件传输（服务器投递投影给客户端） | 服务端已实现 | `/servux litematic transmit <file>` → `sendTransmitFile` 16KiB 分片投递（op 参数 + 目录包含性守卫；**修复版客户端 ≥0.26.11 双向静默丢弃，仅旧版客户端可接收**，见 [11](../archive/11-schematic-migration-plan.md)） |
+| 投影粘贴（客户端上传投影让服务端放置） | 已实现 | 客户端 Litematica 上传 NBT → `handleClientPasteRequest` → `pasteTo` 写世界（创造模式 + paste 权限；C2S 文件落盘链 `receiveFileTransmit` 已于 2026-10 安全修复移除）。详见 [11](../archive/11-schematic-migration-plan.md) |
+| 单个 / 批量 NBT 查询 | 已实现 | 上述测试 A / B 覆盖 |
 
 ---
 
@@ -265,12 +265,12 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 | 功能 | 所属通道 | 降级表现 |
 |---|---|---|
-| 投影文件传输（服务器→客户端投递投影） | litematics | ✅ 已实现（`/servux litematic transmit`） |
-| 投影粘贴（C2S 上传放置） | litematics | ✅ 已实现（客户端上传 → pasteTo） |
-| 服务端潜影盒堆叠行为 | tweaks | ⛔ 不可能实现（已删代码） |
-| EasyPlace（Tweakeroo 服务端配合放置） | servux_main | ✅ 已实现（PacketEvents）；调试 `/servux set servux_main:debug_log true` 看 `EasyPlace in/out` 日志 |
+| 投影文件传输（服务器→客户端投递投影） | litematics | 已实现（`/servux litematic transmit`） |
+| 投影粘贴（C2S 上传放置） | litematics | 已实现（客户端上传 → pasteTo） |
+| 服务端潜影盒堆叠行为 | tweaks | 不可能实现（已删代码） |
+| EasyPlace（Tweakeroo 服务端配合放置） | servux_main | 已实现（PacketEvents）；调试 `/servux set servux_main:debug_log true` 看 `EasyPlace in/out` 日志 |
 | UpdateSuppression | — | 省略 |
-| 镜像修复（箱子 180°） | litematics | ✅ 已实现（SchematicPlacingUtils 内联 + fixChestMirror setting）。铁轨/楼梯靠 BlockState.mirror/rotate 自身（原版 Mixin 降级，可能不完美） |
+| 镜像修复（箱子 180°） | litematics | 已实现（SchematicPlacingUtils 内联 + fixChestMirror setting）。铁轨/楼梯靠 BlockState.mirror/rotate 自身（原版 Mixin 降级，可能不完美） |
 
 > **已实现且应正常工作的**：所有通道的握手 + 实体/方块实体 NBT 查询 + 批量 NBT 拉取 +
 > HUD 数据 + 结构边界框。

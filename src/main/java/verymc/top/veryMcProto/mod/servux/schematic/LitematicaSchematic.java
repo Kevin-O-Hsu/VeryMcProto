@@ -592,7 +592,7 @@ public class LitematicaSchematic
                 output.remove("Slice");
                 output.remove("Size");
                 output.remove("Data");
-                // ★ 修复 servux 原版 bug：原版误写 totalSlices（总片数），
+                // 修复 servux 原版 bug：原版误写 totalSlices（总片数），
                 //   客户端 SchematicBuffer.receiveSlice 要求 number ∈ [0, totalSlices)，
                 //   写 totalSlices 会越界被丢弃 → 客户端永远 Received:0。应为当前片号 currentSlice。
                 output.putInt("Slice", currentSlice);
@@ -752,7 +752,7 @@ public class LitematicaSchematic
                             palette = this.convertBlockStatePalette_to_1_20_5(palette, minecraftDataVersion);
                         }
 
-                        // ★ 体积一致性预检（我方安全增强，上游无对应检查——上游是客户端 GUI 语境，靠
+                        // 体积一致性预检（我方安全增强，上游无对应检查——上游是客户端 GUI 语境，靠
                         // readFromData 的 catch(OutOfMemoryError) 兜底；我方服务端 paste 上传链的 Size 键
                         // 完全客户端可控，且与 BlockStates 实长可任意脱钩：声明 20000³ 只给 1 个 long）。
                         // 声明体积必须被 BlockStates 实际容量背书，否则虚假大体积直达粘贴层——paste

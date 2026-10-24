@@ -31,7 +31,7 @@
 
 > **本项目的本质是"协议层移植"**：客户端仍是 masa / syncmatica 的 Fabric Mod；我们要在 Paper 服务端复刻它们期待的**网络协议 + 数据采集**，使"Fabric 客户端 + Paper 服务端"的组合能像"Fabric 客户端 + 原版服务端 Mod"一样工作。
 
-> 📚 **所有技术文档**都在 [`docs/`](docs/) 下（全局四件留根 + 模块子目录，三线同构命名），互相索引。**强烈建议先读 [`docs/index.md`](docs/index.md)** 获取文档地图与推荐阅读路线。
+> **所有技术文档**都在 [`docs/`](docs/) 下（全局四件留根 + 模块子目录，三线同构命名），互相索引。**强烈建议先读 [`docs/index.md`](docs/index.md)** 获取文档地图与推荐阅读路线。
 
 ---
 
@@ -196,7 +196,7 @@ Servux 共 **26 个 Mixin + 2 个 AccessWidener 字段**；Syncmatica 共 **5 �
 |---|---|---|
 | **协议数据采集必需**（读私有字段） | **反射 / NMS 直接访问** | `ServerTickRateManager.remainingSprintTicks`、`NaturalSpawner.MAGIC_NUMBER`、`ChunkAccess.getAllReferences()` |
 | **采集触发 / 生命周期**（钩子） | **Bukkit 事件 / 调度器替代** | `ServerLoadEvent` / `PlayerJoinEvent` / `PlayerQuitEvent` / `PlayerRegisterChannelEvent` + tick 调度 |
-| **服务端行为改造**（改逻辑） | **降级 / PacketEvents / 事件 / 省略** | EasyPlace（✅ PacketEvents）、UpdateSuppression（⛔ 省略）、潜影盒堆叠（⛔ 不可能，见 §3） |
+| **服务端行为改造**（改逻辑） | **降级 / PacketEvents / 事件 / 省略** | EasyPlace（PacketEvents）、UpdateSuppression（省略）、潜影盒堆叠（不可能，见 §3） |
 | **调试** | 省略 | `SharedConstants.IS_RUNNING_IN_IDE` |
 | AccessWidener | 反射 | `SharedConstants.DEBUG_ENABLED`、`NaturalSpawner.MAGIC_NUMBER` |
 
@@ -204,10 +204,10 @@ Servux 共 **26 个 Mixin + 2 个 AccessWidener 字段**；Syncmatica 共 **5 �
 
 ### 3. EasyPlace / UpdateSuppression / 镜像修复 / 潜影盒堆叠 —— "改变服务端行为"类降级最严重
 
-- **EasyPlace**（Tweakeroo 服务端配合）：✅ **已用 PacketEvents 全量实现**。`EasyPlaceListener` 拦截原版 `PLAYER_BLOCK_PLACEMENT`，取消包后调 `PlacementHandler.applyPlacementProtocolV3` 解码精确状态，手动复刻 `BlockItem.place` 副作用（setBlock / setPlacedBy / placeSound / shrink / ack）。PacketEvents 类引用**隔离**在 `EasyPlaceBootstrap`（反射加载，`catch(Throwable)` 降级）——见 [`docs/architecture.md`](docs/architecture.md) §5 降级矩阵与 memory「可选依赖类隔离」。运行时需服务器装 packetevents 插件（`softdepend`），未装则优雅跳过、其余通道不受影响。
-- **UpdateSuppression**：⛔ **省略**。依赖 Mixin 给 `Level`/`LevelChunk` 加接口 + 改 `setBlockState` 副作用，Paper 无 Mixin 无等价。
-- **镜像修复**（箱子/铁轨/楼梯 180° 镜像）：✅ **已实现**（粘贴时用）。箱子镜像修复在 `SchematicPlacingUtils` 内联照抄（`fixChestMirror` setting）；铁轨/楼梯靠 `BlockState.mirror()/rotate()` 自身行为（`fixRailRotations`/`fixStairs_mirror` settings，原版靠 Mixin，Paper 降级可能不完美）。
-- **潜影盒堆叠**（Tweakeroo `tweakShulkerBoxStacking` 服务端配合）：⛔ **不可能实现 + 已删全部代码**。改 NMS 全局方法行为，Paper 无 Mixin 无等价（反射改不了方法返回值；Bukkit 事件在 `maxStackSize=1` 前提下恒失败；设 `MAX_STACK_SIZE` 组件污染序列化）。`TweaksDataProvider` **不下发** `stackingShulkers` 元数据——否则客户端 tweakeroo 据其开客户端堆叠渲染而服务端不配合 → 不一致。
+- **EasyPlace**（Tweakeroo 服务端配合）：**已用 PacketEvents 全量实现**。`EasyPlaceListener` 拦截原版 `PLAYER_BLOCK_PLACEMENT`，取消包后调 `PlacementHandler.applyPlacementProtocolV3` 解码精确状态，手动复刻 `BlockItem.place` 副作用（setBlock / setPlacedBy / placeSound / shrink / ack）。PacketEvents 类引用**隔离**在 `EasyPlaceBootstrap`（反射加载，`catch(Throwable)` 降级）——见 [`docs/architecture.md`](docs/architecture.md) §5 降级矩阵与 memory「可选依赖类隔离」。运行时需服务器装 packetevents 插件（`softdepend`），未装则优雅跳过、其余通道不受影响。
+- **UpdateSuppression**：**省略**。依赖 Mixin 给 `Level`/`LevelChunk` 加接口 + 改 `setBlockState` 副作用，Paper 无 Mixin 无等价。
+- **镜像修复**（箱子/铁轨/楼梯 180° 镜像）：**已实现**（粘贴时用）。箱子镜像修复在 `SchematicPlacingUtils` 内联照抄（`fixChestMirror` setting）；铁轨/楼梯靠 `BlockState.mirror()/rotate()` 自身行为（`fixRailRotations`/`fixStairs_mirror` settings，原版靠 Mixin，Paper 降级可能不完美）。
+- **潜影盒堆叠**（Tweakeroo `tweakShulkerBoxStacking` 服务端配合）：**不可能实现 + 已删全部代码**。改 NMS 全局方法行为，Paper 无 Mixin 无等价（反射改不了方法返回值；Bukkit 事件在 `maxStackSize=1` 前提下恒失败；设 `MAX_STACK_SIZE` 组件污染序列化）。`TweaksDataProvider` **不下发** `stackingShulkers` 元数据——否则客户端 tweakeroo 据其开客户端堆叠渲染而服务端不配合 → 不一致。
 
 ### 4. 1.21.11 关键 NMS 约束（与 VeryMcBot 一致，移植时注意）
 
@@ -242,7 +242,7 @@ Litematica 投影子系统（`mod/servux/schematic/`，约 8000 行）已移植�
 
 - **粘贴**（C2S）：客户端上传 `.litematic` → `ServuxLitematicaHandler` 经 `PacketSplitter.receive` 重组 → 重组完成后无条件走 `LitematicsDataProvider.handleClientPasteRequest`（Task 门控在 Provider 内，非 `LitematicaPaste` 静默忽略）→ `SchematicPlacement.pasteTo` → `SchematicPlacingUtils.placeToWorldWithinChunk`（真实 `setBlock` + 方块实体 + 实体放置，含 ReplaceMode / PasteLayerBehavior / LayerRange）。需创造模式 + paste 权限。
 - **文件投递**（S2C）：`/servux litematic transmit <file> [player]` 加载 `schematics/*.litematic` 通过 `servux:litematics` 通道投递给客户端（文件名来自 op 命令参数非网络输入，命令入口有目录包含性守卫 `resolveContained`；**修复版 litematica 客户端 ≥0.26.11 对 Transmit 帧双向静默丢弃——仅旧版客户端可接收**，该线 `currentSlice` 修复仍存在且禁止随模板回退）。
-- **文件接收**（C2S，⛔ **已移除 2026-10·安全修复**）：客户端可控 `FileName` 直达 `Path.of`/`dir.resolve` 无包含性检查，构成**路径穿越任意写/删/读回**原语（上游公告漏洞同源；另有 `new Slice[客户端控长]` OOM 向量）——`Litematic-Transmit*` 分流 + `receiveFileTransmit` + `SchematicBufferManager` 整链物理删除（`SchematicBuffer` 保留仅作 `BUFFER_SIZE` S2C 分片常量载体），重组完成后无条件走 `handleClientPasteRequest`（上游 0.9.5 `:153` 同构），恢复走 git revert。
+- **文件接收**（C2S，**已移除 2026-10·安全修复**）：客户端可控 `FileName` 直达 `Path.of`/`dir.resolve` 无包含性检查，构成**路径穿越任意写/删/读回**原语（上游公告漏洞同源；另有 `new Slice[客户端控长]` OOM 向量）——`Litematic-Transmit*` 分流 + `receiveFileTransmit` + `SchematicBufferManager` 整链物理删除（`SchematicBuffer` 保留仅作 `BUFFER_SIZE` S2C 分片常量载体），重组完成后无条件走 `handleClientPasteRequest`（上游 0.9.5 `:153` 同构），恢复走 git revert。
 - 历史移植蓝图冻结于 [`docs/archive/11-schematic-migration-plan.md`](docs/archive/11-schematic-migration-plan.md)；as-built 见 [`docs/servux/schematic.md`](docs/servux/schematic.md)。
 
 **移植方法**：照抄原版纯算法（BitArray/Palette/Container/几何/transmit）+ NMS 直连（`BlockState`/`CompoundTag`/`NbtIo`/`ServerLevel`）；仅 3 类强制降级——`SchematicConversionMaps`（DataFixer，`readFromNBT(enableFixers=false)` 守卫下零影响）、`IMixinWorldTickScheduler`（保存投影读 tick，粘贴不需要）、`WorldUtils`（Mixin → no-op，靠 `setBlock` 的 flags 控制邻居更新）。`LitematicaSchematic` 因 `selection↔placement↔schematic↔PositionUtils` 四元循环依赖，用**桩版**（移除引用未移植类的方法 + 准确注释）分阶段引入、逐步回填。
@@ -270,7 +270,7 @@ Litematica 投影子系统（`mod/servux/schematic/`，约 8000 行）已移植�
   - **syncmatica**：`OriginImpl/syncmatica-LTS-1.21.11/`。
   - **carpet**：`OriginImpl/fabric-carpet-1.21.11/`（gnembon/fabric-carpet 分支 `1.21.11`，mod_version `1.4.194`）——Carpet 模块唯一对照；协议/规则/命令/日志层的字段语义以该树为准（移植范围已终局定案，as-built 见本线 docs/carpet/architecture.md）。
   - **JEI**（本线权威）：`OriginImpl/JustEnoughItems-1.21.11/`（mezz 分支 `1.21.11`，clone 命令 `git clone --depth 1 --branch 1.21.11 https://github.com/mezz/JustEnoughItems.git`——协议权威文件：`Common/src/main/java/mezz/jei/common/network/packets/*` + `common/transfer/*` + `common/util/ServerCommandUtil.java` + `fabric/config/ServerConfig.java`）。`fabric:recipe_sync` wire 真权威 = Fabric API 分支 `1.21.11`（`OriginImpl/fabric-1.21.11/` 的 `fabric-recipe-api-v1`）。`OriginImpl/JEIRecipeBridge-1.21.11/`（Mrbysco）保留作 neoforge:recipe_content 层 wire 参考 + 本线旧桥历史。**jei 模块跨线 cherry-pick 禁止，一律手工重写**（本线 2026-10 迁移实录见 docs/jei/protocol.md §8）。
-  - ⚠️ 原版里**未被调用的公开 API**（如 `LitematicaSchematic.sendTransmitFile`）可能是**未经验证的死代码**、含字段语义 bug——照抄后必须对照客户端源码验证（见 §6 教训 2）。
+  - **注意**：原版里**未被调用的公开 API**（如 `LitematicaSchematic.sendTransmitFile`）可能是**未经验证的死代码**、含字段语义 bug——照抄后必须对照客户端源码验证（见 §6 教训 2）。
 
 ---
 
@@ -279,18 +279,18 @@ Litematica 投影子系统（`mod/servux/schematic/`，约 8000 行）已移植�
 | 文档 | 内容 |
 |---|---|
 | [`docs/index.md`](docs/index.md) | 文档总索引 + 约定 + 历史锚点映射表 + 推荐阅读路线 |
-| [`docs/architecture.md`](docs/architecture.md) ⭐ | **全局架构与迁移参考**（01/06/07 + 04/09 活内容蒸馏归并）：分层/框架契约、网络框架与 S2C 投递路径（字节限制唯一权威 §3）、生命周期、**Mixin→Paper 处置矩阵（唯一权威 §5）**、Fabric↔Paper 逐域对照（§6）、构建工具链（reobf 基线 §7）、**NMS 坑清单（§3.6）**、防御要点（§8） |
-| [`docs/servux/protocol.md`](docs/servux/protocol.md) ⭐ | **五通道 wire 规范 + §9 1.21.11 wire 真值（权威）**：Payload 模型、PacketSplitter 分片（128MB 重组预检）、协议版本全表/MOD_STRING paper 形态/逐通道差异 |
+| [`docs/architecture.md`](docs/architecture.md) | **全局架构与迁移参考**（01/06/07 + 04/09 活内容蒸馏归并）：分层/框架契约、网络框架与 S2C 投递路径（字节限制唯一权威 §3）、生命周期、**Mixin→Paper 处置矩阵（唯一权威 §5）**、Fabric↔Paper 逐域对照（§6）、构建工具链（reobf 基线 §7）、**NMS 坑清单（§3.6）**、防御要点（§8） |
+| [`docs/servux/protocol.md`](docs/servux/protocol.md) | **五通道 wire 规范 + §9 1.21.11 wire 真值（权威）**：Payload 模型、PacketSplitter 分片（128MB 重组预检）、协议版本全表/MOD_STRING paper 形态/逐通道差异 |
 | [`docs/servux/providers.md`](docs/servux/providers.md) | 5 个 Provider 的协议数据内容 + 数据采集（含 loggers TPS/MobCap）+ 设置语义 |
-| [`docs/servux/schematic.md`](docs/servux/schematic.md) ⭐ | Litematica 投影系统：压缩/传输/序列化/几何/粘贴（同步直放 + 镜像修复内联） |
+| [`docs/servux/schematic.md`](docs/servux/schematic.md) | Litematica 投影系统：压缩/传输/序列化/几何/粘贴（同步直放 + 镜像修复内联） |
 | [`docs/servux/testing.md`](docs/servux/testing.md) | **Servux 客户端兼容测试**：5 通道↔3 mod 映射、测试步骤、排错流程 |
-| [`docs/syncmatica/architecture.md`](docs/syncmatica/architecture.md) ⭐ | 实际架构 + **与 Servux 本质差异对比表** + Exchange 会话模型 + **§10 Mixin→Bukkit 迁移记录（含命门清单）** |
-| [`docs/syncmatica/protocol.md`](docs/syncmatica/protocol.md) ⭐ | 单通道 `[Identifier][body]` 包体、18 PacketType、Feature 协商、Exchange 状态机、stop-and-wait 分片 |
+| [`docs/syncmatica/architecture.md`](docs/syncmatica/architecture.md) | 实际架构 + **与 Servux 本质差异对比表** + Exchange 会话模型 + **§10 Mixin→Bukkit 迁移记录（含命门清单）** |
+| [`docs/syncmatica/protocol.md`](docs/syncmatica/protocol.md) | 单通道 `[Identifier][body]` 包体、18 PacketType、Feature 协商、Exchange 状态机、stop-and-wait 分片 |
 | [`docs/syncmatica/testing.md`](docs/syncmatica/testing.md) | **Syncmatica 客户端兼容测试**：握手/分享/下载/修改/持久化/多玩家步骤 + 排错 |
-| [`docs/jei/protocol.md`](docs/jei/protocol.md) ⭐ | **JEI 完整协议 + 2026-10 迁移实录**：三层全景、通道声明契约、wire 逐字段、cheat 权限、配方转移、进服时序整形、实机验证清单 |
-| [`docs/carpet/architecture.md`](docs/carpet/architecture.md) ⭐ | **Carpet 本线自含 as-built**：模块装配与规则框架（18 规则 + carpet.conf）、假人 /player 全族（ActionPack 三调用点 1.21.11 形态）、/log 日志与跨会话持久、五命令族、**本线适配记录（掉落伤害 per-line 决策）与验收** |
+| [`docs/jei/protocol.md`](docs/jei/protocol.md) | **JEI 完整协议 + 2026-10 迁移实录**：三层全景、通道声明契约、wire 逐字段、cheat 权限、配方转移、进服时序整形、实机验证清单 |
+| [`docs/carpet/architecture.md`](docs/carpet/architecture.md) | **Carpet 本线自含 as-built**：模块装配与规则框架（18 规则 + carpet.conf）、假人 /player 全族（ActionPack 三调用点 1.21.11 形态）、/log 日志与跨会话持久、五命令族、**本线适配记录（掉落伤害 per-line 决策）与验收** |
 | [`docs/carpet/protocol.md`](docs/carpet/protocol.md) | **carpet:hello 协议 as-built**（HI="1.4.194"）：通道与载体、消息面全表、握手时序与名册、规则同步链 |
-| [`docs/operations.md`](docs/operations.md) ⭐ | **运维参考（docs 内唯一权威，原 README §6–§12 运维手册迁入）**：版本字串策略（§0）、四 mod 命令、权限节点（含 Perms 语义 + LuckPerms）、配置全键（含 carpet.conf/carpet-logs.json）、数据布局、排错速查、升级工作法（§6） |
+| [`docs/operations.md`](docs/operations.md) | **运维参考（docs 内唯一权威，原 README §6–§12 运维手册迁入）**：版本字串策略（§0）、四 mod 命令、权限节点（含 Perms 语义 + LuckPerms）、配置全键（含 carpet.conf/carpet-logs.json）、数据布局、排错速查、升级工作法（§6） |
 | [`docs/references.md`](docs/references.md) | 参考资源链接 |
 | `docs/archive/` | 冻结归档件 14 件（04/06/08/09/11/22/23/TECH_DEBT + research/×6；清单与冻结约定唯一权威 = `docs/archive/README.md`） |
 

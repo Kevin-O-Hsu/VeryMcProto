@@ -36,7 +36,7 @@ Servux 用的是 **Mojang 在 1.20.2+ 引入的原版 `CustomPacketPayload`** �
 - `ServuxHudHandler.CHANNEL_ID = Identifier.fromNamespaceAndPath("servux", "hud_metadata")` ← **注意：HUD 通道网络名是 `servux:hud_metadata`，不是 `servux:main`**（"main" 只是 provider 的逻辑名）
 - `ServuxEntitiesHandler.CHANNEL_ID`、`ServuxTweaksHandler.CHANNEL_ID`、`ServuxStructuresHandler.CHANNEL_ID`、`ServuxLitematicaHandler.CHANNEL_ID` 同理在各 Handler 类里定义
 
-> ⚠️ **移植易错点**：provider 的 `getName()`（如 `"hud_data"`、逻辑名 `"main"`）与 `getNetworkChannel()`（网络通道 `servux:hud_metadata`）是**两回事**。Paper 端注册 plugin messaging 通道必须用**通道网络名**，不是 provider 名。逐条核对见下表（移植时务必从各 Handler 的 `CHANNEL_ID` 字段抄）。
+> **移植易错点**：provider 的 `getName()`（如 `"hud_data"`、逻辑名 `"main"`）与 `getNetworkChannel()`（网络通道 `servux:hud_metadata`）是**两回事**。Paper 端注册 plugin messaging 通道必须用**通道网络名**，不是 provider 名。逐条核对见下表（移植时务必从各 Handler 的 `CHANNEL_ID` 字段抄）。
 
 ---
 
@@ -146,7 +146,7 @@ public static final int DEFAULT_MAX_RECEIVE_SIZE_S2C = 67_108_864;  // 64 MiB（
 // C2S 上传（servux litematic 粘贴）的 receive 也走 DEFAULT_MAX_RECEIVE_SIZE_S2C（64MB）。
 ```
 
-> ⚠️ **移植核心风险点**：Bukkit plugin messaging 单包硬上限是 `Messenger.MAX_MESSAGE_SIZE = 32768`（32 KiB），**远小于** S2C 的 1 MiB。详见 [07](../architecture.md) §网络层 · 字节限制方案。若 Paper 端全程走 plugin messaging，S2C 分片常量须改为 ≤32760。
+> **移植核心风险点**：Bukkit plugin messaging 单包硬上限是 `Messenger.MAX_MESSAGE_SIZE = 32768`（32 KiB），**远小于** S2C 的 1 MiB。详见 [07](../architecture.md) §网络层 · 字节限制方案。若 Paper 端全程走 plugin messaging，S2C 分片常量须改为 ≤32760。
 
 ### 5.3 发送逻辑（切片）
 
@@ -207,7 +207,7 @@ private static class ReadingSession {
 
 **移植要点**：`PacketSplitter` 是**纯算法 + NMS `FriendlyByteBuf`/`Unpooled`**，可近乎照抄；唯一改动是 §5.2 的分片常量（受 plugin messaging 32KiB 限制）和 §5.4 的 session key 存储。
 
-> ⚠️ **会话生命周期治理（我方增强，1.21.11 上游无此机制）**：`ReadingSession` 带 `lastReceivedTime`（每片刷新），`LifecycleBridge` 心跳每 `CLEANER_INTERVAL_TICKS=100t`（≈5s）调 `PacketSplitter.evictStaleSessions()` 驱逐超 `STALE_TIMEOUT_MS=10s` 未收片的会话并 `release()` 其 netty buffer——26.x 上游 "PacketSplitter-Cleaner" 守护线程的**主线程等价物**（冻结期不驱逐，更宽松）；`LifecycleBridge.stop()` 时 `releaseAllSessions()` 确定性回收。玩家退出由 `ServuxLitematicaHandler.onPlayerQuit(UUID)` 清键+`discardSession`（防 TTL 窗口内重进复用键命中僵尸会话、新上传被追加旧 buffer 腐坏）；receive 异常路径（超限/零长带余字节/正长无载荷）废弃会话，调用方 catch(IAE|NPE) 清键。契约由 `PacketSplitterTest` 固化。
+> **会话生命周期治理（我方增强，1.21.11 上游无此机制）**：`ReadingSession` 带 `lastReceivedTime`（每片刷新），`LifecycleBridge` 心跳每 `CLEANER_INTERVAL_TICKS=100t`（≈5s）调 `PacketSplitter.evictStaleSessions()` 驱逐超 `STALE_TIMEOUT_MS=10s` 未收片的会话并 `release()` 其 netty buffer——26.x 上游 "PacketSplitter-Cleaner" 守护线程的**主线程等价物**（冻结期不驱逐，更宽松）；`LifecycleBridge.stop()` 时 `releaseAllSessions()` 确定性回收。玩家退出由 `ServuxLitematicaHandler.onPlayerQuit(UUID)` 清键+`discardSession`（防 TTL 窗口内重进复用键命中僵尸会话、新上传被追加旧 buffer 腐坏）；receive 异常路径（超限/零长带余字节/正长无载荷）废弃会话，调用方 catch(IAE|NPE) 清键。契约由 `PacketSplitterTest` 固化。
 
 ---
 

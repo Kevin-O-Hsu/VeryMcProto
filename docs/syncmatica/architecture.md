@@ -31,7 +31,7 @@
 | **配置/数据** | `servux.json`（开关） | `syncmatica-config.json`（quota/debug）+ `placements.json`（投影表）+ `syncmatics/*.litematic`（文件） | 三套落盘，原子写策略见 §6 / [22](../archive/22-syncmatica-mixin-migration.md) |
 | **装配入口** | `onRegister(DataProviderManager)` 走框架 provider 模型 | `SyncmaticaModule.enable(plugin)` 独立装配 | 见 §3 |
 
-> ⚠️ **最大心智陷阱**：不要把 syncmatica 当成「又一个 Servux provider」。它是一个**有状态的多玩家协同协议**，核心复杂度在 Exchange 会话状态机与文件中转，而非数据采集。
+> **最大心智陷阱**：不要把 syncmatica 当成「又一个 Servux provider」。它是一个**有状态的多玩家协同协议**，核心复杂度在 Exchange 会话状态机与文件中转，而非数据采集。
 
 ---
 
@@ -39,12 +39,12 @@
 
 ```
 mod/syncmatica/
-├── SyncmaticaContext.java         ← ★ 领域根容器：聚合 files/comMan/synMan/quota/debug + 配置 + 生命周期
+├── SyncmaticaContext.java         ← 领域根容器：聚合 files/comMan/synMan/quota/debug + 配置 + 生命周期
 ├── SyncmaticaReference.java       ← 常量（MOD_ID / NETWORK_ID / 文件名 / MOD_VERSION=插件版本（1.21.11-b5 式））
 ├── Feature.java                   ← 9 个 Feature 枚举（协议特性协商，见 §5.3）
 │
 ├── app/
-│   └── SyncmaticaModule.java      ← ★ 装配入口（单例）：enable/disable + 双保险握手 + 玩家监听
+│   └── SyncmaticaModule.java      ← 装配入口（单例）：enable/disable + 双保险握手 + 玩家监听
 │
 ├── network/                       ← 【传输层】单通道 handler + 18 PacketType
 │   ├── SyncmaticaHandler.java     ← 实现 IPluginServerPlayHandler：解析 [Identifier][body] → onPacket
@@ -52,13 +52,13 @@ mod/syncmatica/
 │
 ├── communication/                 ← 【会话层】Exchange 多步请求-应答状态机
 │   ├── CommunicationManager.java       ← 抽象基类：onPacket 派发 + metadata/position 编解码 + exchange 调度
-│   ├── ServerCommunicationManager.java ← ★ 服务端实现：onPlayerJoin/Leave + handle(4 类一次性请求) + handleExchange(广播)
+│   ├── ServerCommunicationManager.java ← 服务端实现：onPlayerJoin/Leave + handle(4 类一次性请求) + handleExchange(广播)
 │   ├── ExchangeTarget.java             ← 「一个连接」的抽象：持 Player + ongoingExchanges 列表 + FeatureSet + sendPacket（NMS DiscardedPayload 直发）
 │   ├── FeatureSet.java                 ← Feature 集合序列化（\n 分隔字符串）
 │   ├── MessageType.java                ← SUCCESS/INFO/WARNING/ERROR（MESSAGE 包用）
 │   └── exchange/
 │       ├── Exchange.java               ← 接口
-│       ├── AbstractExchange.java       ← ★ 状态机基类：finished/success 状态 + checkUUID peek
+│       ├── AbstractExchange.java       ← 状态机基类：finished/success 状态 + checkUUID peek
 │       ├── VersionHandshakeServer.java ← 进服握手：版本 → Feature 协商 → CONFIRM_USER 全量下发
 │       ├── FeatureExchange.java        ← Feature 协商抽象基类（FEATURE_REQUEST / FEATURE）
 │       ├── DownloadExchange.java       ← 接收文件方：REQUEST → 收 SEND 分片 → 回 RECEIVED → 校验 MD5
@@ -66,7 +66,7 @@ mod/syncmatica/
 │       └── ModifyExchangeServer.java   ← 修改锁：MODIFY_REQUEST → ACCEPT 占锁 → MODIFY_FINISH 应用 + 广播
 │
 ├── data/                          ← 【数据层】placement 注册表 + 文件存储 + 持久化
-│   ├── ServerPlacement.java          ← ★ 核心数据模型：一个投影放置的全部元数据（纯 JSON 序列化）
+│   ├── ServerPlacement.java          ← 核心数据模型：一个投影放置的全部元数据（纯 JSON 序列化）
 │   ├── SyncmaticManager.java         ← placement 注册表：Map<UUID,ServerPlacement> + loadServer/saveServer（原子写）
 │   ├── IFileStorage.java / FileStorage.java  ← 投影文件存储：<hash>.litematic 内容寻址 + LocalLitematicState 判定
 │   ├── LocalLitematicState.java      ← 4 态枚举：NO_LOCAL / DESYNC / DOWNLOADING / PRESENT
@@ -334,13 +334,13 @@ syncmatica 与 Servux 共享 `framework/network`（servux 移植沉淀的通用�
 
 | framework 类 | syncmatica 用法 | 说明 |
 |---|---|---|
-| `framework.network.ChannelManager` | ✅ **直接用** | 注册 `syncmatica:main` 一条通道（incoming + outgoing），plugin messaging fallback 路径 |
-| `framework.network.ServerPlayHandler` | ✅ **直接用** | handler 注册表，`SyncmaticaHandler` 经它注册到 `syncmatica:main` |
-| `framework.network.FriendlyByteBufs` | ✅ **直接用** | `byte[]` ↔ `FriendlyByteBuf` 桥接（`readableBytes` / `buffer` / `extractAndRelease`） |
-| `framework.network.IPluginServerPlayHandler` | ✅ **实现** | `SyncmaticaHandler` 实现它，`receivePlayPayload` 里做 PacketType 派发；`encodeWithSplitter` 空实现（不用 PacketSplitter） |
-| `framework.nms.Nms` / `framework.reflect` | ✅ **直接用** | `Nms.toNms(player)` 拿 `ServerPlayer` 直发 `ClientboundCustomPayloadPacket` |
-| `framework.network.PacketSplitter` | ❌ **不用** | servux 透明流式重组（首包写总长 VarInt + 连续流）；syncmatica 是 exchange 级 **stop-and-wait 应答式分片**（SEND↔RECEIVED 逐片 + UUID 匹配）——模型不同，分片在 UploadExchange/DownloadExchange 内自写 |
-| `framework.dataproviders.DataProviderManager` / `IDataProvider` | ❌ **不用** | provider 推送模型不适合 exchange 会话；syncmatica 由 `SyncmaticaModule` 独立 enable（见 §3.1） |
+| `framework.network.ChannelManager` | 直接用 | 注册 `syncmatica:main` 一条通道（incoming + outgoing），plugin messaging fallback 路径 |
+| `framework.network.ServerPlayHandler` | 直接用 | handler 注册表，`SyncmaticaHandler` 经它注册到 `syncmatica:main` |
+| `framework.network.FriendlyByteBufs` | 直接用 | `byte[]` ↔ `FriendlyByteBuf` 桥接（`readableBytes` / `buffer` / `extractAndRelease`） |
+| `framework.network.IPluginServerPlayHandler` | 实现它 | `SyncmaticaHandler` 实现它，`receivePlayPayload` 里做 PacketType 派发；`encodeWithSplitter` 空实现（不用 PacketSplitter） |
+| `framework.nms.Nms` / `framework.reflect` | 直接用 | `Nms.toNms(player)` 拿 `ServerPlayer` 直发 `ClientboundCustomPayloadPacket` |
+| `framework.network.PacketSplitter` | **不用** | servux 透明流式重组（首包写总长 VarInt + 连续流）；syncmatica 是 exchange 级 **stop-and-wait 应答式分片**（SEND↔RECEIVED 逐片 + UUID 匹配）——模型不同，分片在 UploadExchange/DownloadExchange 内自写 |
+| `framework.dataproviders.DataProviderManager` / `IDataProvider` | **不用** | provider 推送模型不适合 exchange 会话；syncmatica 由 `SyncmaticaModule` 独立 enable（见 §3.1） |
 
 > 🔑 **物理包体是复合结构** `[逻辑通道 Identifier][body]`（对应原版 `SyncmaticaPacket.toPacket` = `writeIdentifier(channel) + writeBytes(body)`）。`SyncmaticaHandler.receivePlayPayload` 照此解析：先 `readIdentifier()` 得 PacketType，再读 body。**这与 Servux（每通道 byte[] 直接是 body）不同**，是 syncmatica 网络层的最大坑点。S2C 端 `ExchangeTarget.sendPacket` 同样构造此复合结构再 NMS 直发。
 
@@ -404,13 +404,13 @@ syncmatica 与 Servux 共享 `framework/network`（servux 移植沉淀的通用�
 
 | 功能 | 处置 | 原因/影响 |
 |---|---|---|
-| `material/`（材料配送） | ⛔ 不移植，字段一起去掉 | 原版死代码（仅 `ServerPlacement.matList` 持有，无 exchange/命令/持久化引用） |
-| `RedirectFileStorage` | ⛔ 不移植 | 客户端装饰器；服务端纯 `FileStorage` 即可 |
-| `extended_core/`（CORE_EX） | ✅ 照抄 | owner / lastModifiedBy / subregion 是协议字段（影响 metadata 编码） |
-| `litematica/schematic/`（peek） | ✅ 照抄（`data/litematica/`） | 轻量解析不依赖 litematica mod；`Schema` 版本表与上游逐条一致 |
-| 版本协商（VERSION feature） | ✅ 照抄 | `MOD_VERSION` 带构建号后缀永不命中版本正则 → 恒触发 FEATURE 交换 |
-| 客户端 exchange（3 个） | ⛔ 不实现类，但服务端 `handle` 须回应其包 | 见 [protocol.md](protocol.md) |
-| `isClient/isIntegratedServer/isOpenToLan` 分支 | ⚠️ 简化删除 | Paper 恒 dedicated |
+| `material/`（材料配送） | 不移植，字段一起去掉 | 原版死代码（仅 `ServerPlacement.matList` 持有，无 exchange/命令/持久化引用） |
+| `RedirectFileStorage` | 不移植 | 客户端装饰器；服务端纯 `FileStorage` 即可 |
+| `extended_core/`（CORE_EX） | 照抄 | owner / lastModifiedBy / subregion 是协议字段（影响 metadata 编码） |
+| `litematica/schematic/`（peek） | 照抄（`data/litematica/`） | 轻量解析不依赖 litematica mod；`Schema` 版本表与上游逐条一致 |
+| 版本协商（VERSION feature） | 照抄 | `MOD_VERSION` 带构建号后缀永不命中版本正则 → 恒触发 FEATURE 交换 |
+| 客户端 exchange（3 个） | 不实现类，但服务端 `handle` 须回应其包 | 见 [protocol.md](protocol.md) |
+| `isClient/isIntegratedServer/isOpenToLan` 分支 | 简化删除 | Paper 恒 dedicated |
 
 ### 10.5 服务层要点与 DebugService 修正
 

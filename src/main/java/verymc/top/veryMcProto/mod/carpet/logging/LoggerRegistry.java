@@ -9,7 +9,7 @@ import verymc.top.veryMcProto.Reference;
 
 /**
  * logger 注册表（克隆上游 {@code carpet/logging/LoggerRegistry.java} 1.21.11 树，逐段同构——对照行号见
- * 各方法注释；注册面锚 :40-48 为 P4 子集：仅 tps/mobcaps 两条 HUD 型，五条 chat 型与 counter/packets
+ * 各方法注释；注册面锚 :40-48 为 /log 子集：仅 tps/mobcaps 两条 HUD 型，五条 chat 型与 counter/packets
  * 见 scope §4 后置/不做判定）。
  *
  * <p>与上游的偏差（对账登记，docs/carpet/architecture.md）：
@@ -46,7 +46,7 @@ public final class LoggerRegistry
         registerLoggers();
     }
 
-    /** 注册面（上游 :38-50 的 P4 子集）。 */
+    /** 注册面（上游 :38-50 的 /log 子集）。 */
     static void registerLoggers()
     {
         // 上游 :44 / :47 逐字（tps 无默认 option 无选项；mobcaps 默认 dynamic 四选项）

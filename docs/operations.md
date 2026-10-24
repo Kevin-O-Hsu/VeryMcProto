@@ -174,7 +174,7 @@ commands:
 **`entity_data`**：`permission_level`=0 / `nbt_query_override` bool=false / `nbt_query_permission_level`=2 / `fix_allay_gathering` bool=true / `nbt_allow_player_inventory` bool=true / `nbt_allow_player_ender_items` bool=true / `player_inventory_permission_level`=2 / `player_ender_items_permission_level`=2。
 
 **`tweaks_data`**：`permission_level`=0 / `update_interval` int[40..1200]=120。
-> ⛔ 原 `stackable_shulkers` / `stackable_shulkers_count` / `stackable_shulkers_fix` **已删除**——潜影盒堆叠在 Paper 无 Mixin 下不可能实现（见 [architecture.md](architecture.md) §5）；保留该键会使客户端 tweakeroo 开堆叠渲染而服务端不配合 → 不一致。
+> 原 `stackable_shulkers` / `stackable_shulkers_count` / `stackable_shulkers_fix` **已删除**——潜影盒堆叠在 Paper 无 Mixin 下不可能实现（见 [architecture.md](architecture.md) §5）；保留该键会使客户端 tweakeroo 开堆叠渲染而服务端不配合 → 不一致。
 
 **`structure_bounding_boxes`**：`permission_level`=0 / `structures_blacklist_enabled` bool=false / `structures_whitelist_enabled` bool=false / `structures_blacklist` string[]=`["minecraft:buried_treasure"]` / `structures_whitelist` string[]=[] / `update_interval` int[1..1200]=40 / `timeout` int[40..1200]=600。
 

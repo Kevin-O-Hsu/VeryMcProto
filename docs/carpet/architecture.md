@@ -18,7 +18,7 @@
 - `app/CarpetModule implements ModModule`：`onRegister` 装配链 = SettingsManager 单例 → 解析 `CarpetSettings` → `carpet.conf` 载入 → 行为监听器（`CarpetRuleListener`）→ 假人子系统（`FakePlayerListener` + `ActionPackManager`）→ `/player`（Paper Brigadier lifecycle 注册）→ cleanLogs log4j 过滤器 → carpet:hello 通道 + 规则推送回调 + 在线补扫 HI → `/log` 子系统（store 载入 + LoggerRegistry + HUD 任务）→ 五命令逐条注册（单命令失败只降级）。
 - **规则框架**（`settings/`，上游 `api/settings/SettingsManager.java` 集群同构）：`@Rule` 注解 + 反射解析 + `carpet.conf` 纯文本持久化（逐行 `<rule> <value>`、`#` 注释、首行 `locked` = 锁定；文件从不主动创建；写盘原子 tmp/move）。上游注释怪癖逐字保留（值首字符 `#` 重读被吞——`SettingsManagerConfRoundtripTest` 锁定）。
 - **`/carpet` 四子命令**（Bukkit `CarpetCommand`）：`list` / `setDefault <rule> <value…>` / `query <rule>` / `removeDefault <rule>`。**双层门禁**：plugin.yml 静态 `carpet.command`（op）+ 运行时动态 `carpetCommandPermissionLevel` 规则（`ops`/`2`/`4` 经 NMS 判级）。
-- **18 条规则**（上游实名逐字）：P1 地基 8（`language` / `carpetCommandPermissionLevel` / `superSecretSetting` / `explosionNoBlockDamage` / `commandTick` / `perfPermissionLevel` / `customMOTD` / `cleanLogs`）+ 假人 3（`commandPlayer` / `allowSpawningOfflinePlayers` / `allowListingFakePlayers`）+ 日志 2（`commandLog` / `defaultLoggers`）+ 命令族 5（`commandSpawn` / `commandDistance` / `commandInfo` / `commandPerimeterInfo` / `commandDraw`）。**规则名必须逐字存在于上游 `CarpetSettings` 注册表**（客户端规则浏览器可达性硬门禁）。
+- **18 条规则**（上游实名逐字）：地基 8（`language` / `carpetCommandPermissionLevel` / `superSecretSetting` / `explosionNoBlockDamage` / `commandTick` / `perfPermissionLevel` / `customMOTD` / `cleanLogs`）+ 假人 3（`commandPlayer` / `allowSpawningOfflinePlayers` / `allowListingFakePlayers`）+ 日志 2（`commandLog` / `defaultLoggers`）+ 命令族 5（`commandSpawn` / `commandDistance` / `commandInfo` / `commandPerimeterInfo` / `commandDraw`）。**规则名必须逐字存在于上游 `CarpetSettings` 注册表**（客户端规则浏览器可达性硬门禁）。
 - 行为面要点：`explosionNoBlockDamage` = EntityExplode/BlockExplode 双事件 `blockList().clear()`；`customMOTD` = `ServerListPingEvent#setMotd`；`cleanLogs` = log4j 过滤器（默认 false=**抑制**命名死亡日志行，极性勿反转）；`perfPermissionLevel` 只读登记（值 4 天然同构、值 2 结构性不可达）；`commandTick` 零行为死规则（上游同构——`/tick` 即原版命令）。
 
 ## §2 假人子系统（/player 全族）
@@ -65,7 +65,7 @@
 ## §5 移植范围与非目标（速览）
 
 - **不做**：Scarpet 整体（引擎/事件/图形/AppStore）、TNT/爆炸优化、红石重写、活塞可移动方块、刷怪表注入、漏斗计数器、性能剖析类规则、`/profile`（spark 生态替代）、`/counter`、`/draw plop`、`/spawn` tracking 五连、`viewDistance`/`simulationDistance`（Paper 原生自带）。
-- **不做（终局）**：五条近似 chat logger（tnt/explosions/projectiles/fallingBlocks/pathfinding）与近似规则池（23 条 ⚠️ 近似规则）——近似实现无法对等上游语义，不纳入。移植范围**已终局定案，无后续实现**（早期预研/规划文档已删除，历史见 git）。
+- **不做（终局）**：五条近似 chat logger（tnt/explosions/projectiles/fallingBlocks/pathfinding）与近似规则池（23 条近似规则）——近似实现无法对等上游语义，不纳入。移植范围**已终局定案，无后续实现**（早期预研/规划文档已删除，历史见 git）。
 
 ## §6 本线（1.21.11）适配记录与验收
 

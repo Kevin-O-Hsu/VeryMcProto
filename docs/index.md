@@ -33,39 +33,39 @@
 
 | 文档 | 内容速览 |
 |---|---|
-| [architecture.md](architecture.md) ⭐ | **全局架构与迁移参考**（01/06/07 + 04/09 活内容蒸馏归并）：分层架构与框架契约、网络框架与 S2C 投递路径（字节限制唯一权威 §3）、生命周期、**Mixin→Paper 处置矩阵（唯一权威 §5）**、Fabric↔Paper 逐域对照（原 06 并入 §6）、构建与工具链（reobf 基线 §7）、**NMS 实测坑清单（§3.6）**、防御性要点（§8） |
-| [operations.md](operations.md) ⭐ | **运维全键唯一权威 + 升级 SOP**：**版本字串策略（§0）**、四 mod 命令/权限（含 Perms 语义与 LuckPerms 示例）/配置全键（含 carpet.conf/carpet-logs.json 例外）/数据布局/排错速查（§1–§5，原 README §6–§12 运维手册迁入）+ 升级工作法（§6） |
+| [architecture.md](architecture.md) | **全局架构与迁移参考**（01/06/07 + 04/09 活内容蒸馏归并）：分层架构与框架契约、网络框架与 S2C 投递路径（字节限制唯一权威 §3）、生命周期、**Mixin→Paper 处置矩阵（唯一权威 §5）**、Fabric↔Paper 逐域对照（原 06 并入 §6）、构建与工具链（reobf 基线 §7）、**NMS 实测坑清单（§3.6）**、防御性要点（§8） |
+| [operations.md](operations.md) | **运维全键唯一权威 + 升级 SOP**：**版本字串策略（§0）**、四 mod 命令/权限（含 Perms 语义与 LuckPerms 示例）/配置全键（含 carpet.conf/carpet-logs.json 例外）/数据布局/排错速查（§1–§5，原 README §6–§12 运维手册迁入）+ 升级工作法（§6） |
 | [references.md](references.md) | 外部参考链接汇总（全仓库唯一登记处） |
-| [archive/](archive/README.md) | 冻结归档件 14 件（清单与冻结约定唯一权威 = archive/README.md） |
+| [archive/](archive/README.md) | 冻结归档件 14 件（清单与冻结约定唯一权威 = archive/README.md；归档仅作历史留存备查——万一后续需要从旧文档寻找线索用，内容冻结于归档日、不代表现状） |
 
 ## Servux（`servux/`）
 
 | 文档 | 内容速览 |
 |---|---|
-| [servux/protocol.md](servux/protocol.md) ⭐ | **五通道 wire 规范 + §9 1.21.11 wire 真值（权威）**：Payload 模型、PacketSplitter 分片（128MB 重组预检）、收发时序；§9 协议版本全表（2/1/1/2/1）/MOD_STRING paper 形态/S2C transmit 保留与 C2S 接收移除/逐通道差异 |
+| [servux/protocol.md](servux/protocol.md) | **五通道 wire 规范 + §9 1.21.11 wire 真值（权威）**：Payload 模型、PacketSplitter 分片（128MB 重组预检）、收发时序；§9 协议版本全表（2/1/1/2/1）/MOD_STRING paper 形态/S2C transmit 保留与 C2S 接收移除/逐通道差异 |
 | [servux/providers.md](servux/providers.md) | 5 个 Provider 的协议数据内容（NBT 字段）+ 数据采集实现 + loggers（TPS/MobCap）+ 设置语义 |
-| [servux/schematic.md](servux/schematic.md) ⭐ | **Litematica 投影子系统**：BitArray/Palette/Container 压缩、两级分包、四阶段传输帧、NBT 序列化、几何、粘贴（同步直放 + 镜像修复内联） |
+| [servux/schematic.md](servux/schematic.md) | **Litematica 投影子系统**：BitArray/Palette/Container 压缩、两级分包、四阶段传输帧、NBT 序列化、几何、粘贴（同步直放 + 镜像修复内联） |
 | [servux/testing.md](servux/testing.md) | **客户端兼容测试**：5 通道↔3 mod 映射、判官逻辑、测试步骤、排错流程 |
 
 ## Syncmatica（`syncmatica/`）
 
 | 文档 | 内容速览 |
 |---|---|
-| [syncmatica/architecture.md](syncmatica/architecture.md) ⭐ | **架构 + 迁移记录**：与 Servux 本质差异对比表、**包结构全树（唯一权威，含逐文件迁移标注）**、双保险握手命门（含 disable→enable 卡死修复）、Exchange 会话层、数据模型、**§10 Mixin→Bukkit 迁移记录（含命门清单）** |
-| [syncmatica/protocol.md](syncmatica/protocol.md) ⭐ | **单通道协议**：`[Identifier][body]` 包体、18 PacketType 全表（⚠️ `request_download`/`mesage` 拼写陷阱）、Feature 协商、Exchange 状态机、stop-and-wait 分片、MD5→UUID hash |
+| [syncmatica/architecture.md](syncmatica/architecture.md) | **架构 + 迁移记录**：与 Servux 本质差异对比表、**包结构全树（唯一权威，含逐文件迁移标注）**、双保险握手命门（含 disable→enable 卡死修复）、Exchange 会话层、数据模型、**§10 Mixin→Bukkit 迁移记录（含命门清单）** |
+| [syncmatica/protocol.md](syncmatica/protocol.md) | **单通道协议**：`[Identifier][body]` 包体、18 PacketType 全表（**注意** `request_download`/`mesage` 拼写陷阱——上游原样保留，勿"修正"）、Feature 协商、Exchange 状态机、stop-and-wait 分片、MD5→UUID hash |
 | [syncmatica/testing.md](syncmatica/testing.md) | **客户端兼容测试**：握手/分享/下载/修改/删除/命令/持久化/配额/多玩家协同测试步骤、判官逻辑、排错 + 症状表 |
 
 ## JEI（`jei/`）
 
 | 文档 | 内容速览 |
 |---|---|
-| [jei/protocol.md](jei/protocol.md) ⭐ | **完整协议**（mezz 1.21.11 分支）：三层全景、通道声明契约（isJeiOnServer 门禁）、12 通道 wire 逐字段、cheat 权限模型、配方转移算法、配方同步双触发、尺寸模型、上游源码索引、实机验证清单 |
+| [jei/protocol.md](jei/protocol.md) | **完整协议**（mezz 1.21.11 分支）：三层全景、通道声明契约（isJeiOnServer 门禁）、12 通道 wire 逐字段、cheat 权限模型、配方转移算法、配方同步双触发、尺寸模型、上游源码索引、实机验证清单 |
 
 ## Carpet（`carpet/`）
 
 | 文档 | 内容速览 |
 |---|---|
-| [carpet/architecture.md](carpet/architecture.md) ⭐ | **本线自含 as-built**：模块装配与规则框架（18 规则）、假人子系统（ActionPack 三调用点 1.21.11 形态）、/log 日志与跨会话持久、五命令族、移植范围、**本线适配记录与验收（含掉落伤害 per-line 决策 §6.2）** |
+| [carpet/architecture.md](carpet/architecture.md) | **本线自含 as-built**：模块装配与规则框架（18 规则）、假人子系统（ActionPack 三调用点 1.21.11 形态）、/log 日志与跨会话持久、五命令族、移植范围、**本线适配记录与验收（含掉落伤害 per-line 决策 §6.2）** |
 | [carpet/protocol.md](carpet/protocol.md) | **carpet:hello 协议 as-built**（HI=`"1.4.194"`）：通道与载体（S2C NMS 直发唯一性）、消息面全表、握手时序与名册、规则同步链、偏差清单 |
 
 > Carpet 移植范围在三线均已**终局定案**：可移植子集全部实现完毕，其余面永不纳入（各线 carpet/architecture.md §5）。

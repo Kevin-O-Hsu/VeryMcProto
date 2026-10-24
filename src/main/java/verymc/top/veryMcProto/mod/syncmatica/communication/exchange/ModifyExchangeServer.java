@@ -16,7 +16,7 @@ import io.netty.buffer.Unpooled;
  * 收 {@code MODIFY_FINISH}[uuid + positionData] → {@code receivePositionData} 应用 + setLastModifiedBy → {@code succeed}。
  *
  * <p><b>Paper 适配</b>：原版 {@code createOrGet(getPartner())}（ExchangeTarget 重载）→ 改用
- * {@code createOrGet(uuid, name)}（P2 删了 ExchangeTarget 重载，从 ExchangeTarget 取 playerId + 名字）。
+ * {@code createOrGet(uuid, name)}（上游已删 ExchangeTarget 重载，从 ExchangeTarget 取 playerId + 名字）。
  */
 public class ModifyExchangeServer extends AbstractExchange
 {

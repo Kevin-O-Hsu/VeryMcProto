@@ -247,7 +247,7 @@ public class TweaksDataProvider extends DataProviderBase
     @Override
     public void onPlayerRegisterChannel(ServerPlayer player, String channel)
     {
-        // ★ 修复 tweaks sync not_enabled：onPlayerJoin 时通道未声明，sendMetadata 丢弃；
+        // 修复 tweaks sync not_enabled：onPlayerJoin 时通道未声明，sendMetadata 丢弃；
         // 客户端声明 servux:tweaks（= 装了 Tweakeroo 等）时立即重发。sendMetadata 幂等。
         if (this.getNetworkChannel().toString().equals(channel))
         {

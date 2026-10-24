@@ -113,7 +113,7 @@ VarInt entryCount
 
 **防护与降级**：无证据绝不发送（~100KB 载荷给 vanilla 客户端会命中未知通道 32767 断连）；vanilla/慢网客户端走 **3s 超时放行**（配方书晚到上界，`ClientboundUpdateRecipesPacket.Entry` 自包含 RecipeDisplay 无损坏面）；一切内部失败（反射漂移双名回退 / 管线异常 fail-open / reconfigure 经 `Channel.attr` 跳过）降级为现状时序（JEI 警告依旧，无新增损害）。扣留期又来 UpdateRecipes（进服 3s 内 /reload 竞态）按原 wire 序放行被扣包再透传新包。
 
-**已知局限（后续工单）**：① reconfigure（服务端发起重配）后不重发——通道集合从 play 相位携带、无 register 事件可作证据，JEI 用旧 synced 配方重启（无警告但配方陈旧）；② `/reload` 后不重发（上游 `reloadResources` 对全体玩家重发）；③ neoforge 腿（join+brand）仍为旧时序，NeoForge 客户端同样晚于 UpdateRecipes（需 NeoForge 实机环境验证后再对齐）。
+**已知局限**：① reconfigure（服务端发起重配）后不重发——通道集合从 play 相位携带、无 register 事件可作证据，JEI 用旧 synced 配方重启（无警告但配方陈旧）；② `/reload` 后不重发（上游 `reloadResources` 对全体玩家重发）；③ neoforge 腿（join+brand）仍为旧时序，NeoForge 客户端同样晚于 UpdateRecipes（需 NeoForge 实机环境验证后再对齐）。
 
 ### 5.3 neoforge:recipe_content（NeoForge 加载器 wire，参考 Mrbysco 1.21.11）
 
@@ -202,7 +202,7 @@ command/JeiCommand     /jei status|enable|disable
 4. vanilla 客户端进服 → 零聊天骚扰、零断连（jei:* REGISTER 声明无害）；
 5. NeoForge 客户端（若有）→ 配方 + tag 同步；
 6. `/jei disable` → 新进服玩家不同步、在线玩家 C2S 被静默丢弃、**无人被踢**；
-7. **本线观察项（后续工单）**：`AsyncPlayerConnectionConfigureEvent` 在 1.21.11 的 fire 时机/线程语义与 26.2 等价性（类存在已 jar 实证，行为待实机；若不等价，fabric 腿时序整形 fail-open 退化为 join 后 RegisterChannel 触发 = 旧桥行为，不劣化）。
+7. **本线观察项**：`AsyncPlayerConnectionConfigureEvent` 在 1.21.11 的 fire 时机/线程语义与 26.2 等价性（类存在已 jar 实证，行为待实机；若不等价，fabric 腿时序整形 fail-open 退化为 join 后 RegisterChannel 触发 = 旧桥行为，不劣化）。
 
 ## 10. 上游源码索引（OriginImpl/JustEnoughItems-1.21.11/）
 

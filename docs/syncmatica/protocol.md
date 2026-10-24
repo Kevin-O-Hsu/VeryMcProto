@@ -77,7 +77,7 @@
 |---|---|---|---|
 | `REGISTER_METADATA` | `syncmatica:register_metadata` | 双向 | 创建/广播一个 placement 的完整 metadata |
 | `CANCEL_SHARE` | `syncmatica:cancel_share` | S→C | 分享失败通知（客户端据此取消上传） |
-| `REQUEST_LITEMATIC` | `syncmatica:`**`request_download`** ⚠️ | 双向 | 请求下载投影文件（path 拼写与枚举名不同） |
+| `REQUEST_LITEMATIC` | `syncmatica:`**`request_download`** | 双向 | 请求下载投影文件（path 拼写与枚举名不同） |
 | `SEND_LITEMATIC` | `syncmatica:send_litematic` | 文件发送方→接收方 | 传输一片文件（16KB） |
 | `RECEIVED_LITEMATIC` | `syncmatica:received_litematic` | 接收方→发送方 | 确认收到一片，触发下一片（stop-and-wait） |
 | `FINISHED_LITEMATIC` | `syncmatica:finished_litematic` | 发送方→接收方 | 文件传输结束标记 |
@@ -92,9 +92,9 @@
 | `MODIFY_REQUEST_DENY` | `syncmatica:modify_request_deny` | S→C | 拒绝修改（被他人占用等） |
 | `MODIFY_REQUEST_ACCEPT` | `syncmatica:modify_request_accept` | S→C | 接受修改（占锁成功） |
 | `MODIFY_FINISH` | `syncmatica:modify_finish` | C→S | 客户端修改完成，提交最终位置 |
-| `MESSAGE` | `syncmatica:`**`mesage`** ⚠️ | 双向 | 显示消息（path 是原版拼写错误，注释「can't fix the typo here lol」`PacketType.java:90-92`） |
+| `MESSAGE` | `syncmatica:`**`mesage`** | 双向 | 显示消息（path 是原版拼写错误，注释「can't fix the typo here lol」`PacketType.java:90-92`） |
 
-> ⚠️ **两个拼写陷阱（原版继承，不可改）**：`REQUEST_LITEMATIC`→`request_download`、`MESSAGE`→`mesage`。改了客户端认不出。本实现的枚举构造已逐字用 path 值（`PacketType.java:29,90`）。
+> **两个拼写陷阱（原版继承，不可改）**：`REQUEST_LITEMATIC`→`request_download`、`MESSAGE`→`mesage`。改了客户端认不出。本实现的枚举构造已逐字用 path 值（`PacketType.java:29,90`）。
 
 ---
 
@@ -175,7 +175,7 @@ putMetaData(metaData, buf, target)                          // CommunicationMana
 └─ putPositionData(metaData, buf, target)                  // 接 §4.2
 ```
 
-> ⚠️ **fileName 出口 = basename 清洗**（`ServerPlacement.getCleanFileName()`，正则 `[^/\]+$` 取尾段、find 失败返回原串——上游 `ServerPlacement:107-121` 同构）。`/syncmatica load` 构造的 placement 内存 fileName 为服务端绝对路径，wire 出口（本处 putMetaData——进服握手全量推送/广播/修改重发三时机共用）与落盘出口（`SyncmaticManager.saveServer` 的 Sanitize 块 + `setFileName` 突变收敛，上游 `:124-137` 同构）双重清洗，杜绝服务端目录结构泄露。清洗对为移植时整体遗漏、已回正（勿随模板回退）。
+> **fileName 出口 = basename 清洗**（`ServerPlacement.getCleanFileName()`，正则 `[^/\]+$` 取尾段、find 失败返回原串——上游 `ServerPlacement:107-121` 同构）。`/syncmatica load` 构造的 placement 内存 fileName 为服务端绝对路径，wire 出口（本处 putMetaData——进服握手全量推送/广播/修改重发三时机共用）与落盘出口（`SyncmaticManager.saveServer` 的 Sanitize 块 + `setFileName` 突变收敛，上游 `:124-137` 同构）双重清洗，杜绝服务端目录结构泄露。清洗对为移植时整体遗漏、已回正（勿随模板回退）。
 
 ### 4.2 putPositionData（origin + 朝向 + 子区域）
 
@@ -194,9 +194,9 @@ putPositionData(metaData, buf, target)                     // CommunicationManag
         └─ writeInt(mirror.ordinal())
 ```
 
-> ⚠️ **字段顺序依赖握手阶段已确定的 FeatureSet**。`onFeatureSetReceive` 在 `setFeatureSet` **之后**才调（`VersionHandshakeServer.handle` 命中默认集分支 `:60-64`，或 `FeatureExchange.handle` 收 FEATURE 后 `:37-38`），故 `putMetaData` 调用时 FeatureSet 必然已就绪。
+> **字段顺序依赖握手阶段已确定的 FeatureSet**。`onFeatureSetReceive` 在 `setFeatureSet` **之后**才调（`VersionHandshakeServer.handle` 命中默认集分支 `:60-64`，或 `FeatureExchange.handle` 收 FEATURE 后 `:37-38`），故 `putMetaData` 调用时 FeatureSet 必然已就绪。
 >
-> ⚠️ **Rotation / Mirror 用 ordinal 传输**（非 name）。原版注释（`CommunicationManager.java:140-143`）说明这是有意为之——传输「非修改性枚举」给同应用另一实例，不关心序号持久性。本实现用 `net.minecraft.world.level.block.Rotation` / `Mirror` 的 `values()[ordinal]`（`CommunicationManager.java:50-51,225-226`）直接还原，枚举顺序与原版一致。
+> **Rotation / Mirror 用 ordinal 传输**（非 name）。原版注释（`CommunicationManager.java:140-143`）说明这是有意为之——传输「非修改性枚举」给同应用另一实例，不关心序号持久性。本实现用 `net.minecraft.world.level.block.Rotation` / `Mirror` 的 `values()[ordinal]`（`CommunicationManager.java:50-51,225-226`）直接还原，枚举顺序与原版一致。
 
 ### 4.3 接收镜像（已实现，对照确认）
 
@@ -295,7 +295,7 @@ writeBytes(buffer, 0, bytesRead)
 | `sendCancelPacket` | 发 | `MODIFY_REQUEST_DENY` | `writeUUID(placementId)`（`:81-86`） |
 | `onClose` | — | — | 若当前 modifier 是自己则清锁（`:91-97`）——`setModifier(placement, null)` 解锁 |
 
-> ⚠️ **modifyState 的 null 解锁语义（我方修复，勿随模板回退）**：上游 `modifyState` 为 HashMap，「写 null 值」即解锁；本仓库为 **ConcurrentHashMap（禁 null 值）**，`setModifier(placement, null)` 若照搬上游必抛 NPE（迁移引入——曾致 MODIFY 成功不广播/REMOVE 中断/onPlayerLeave 清理中断/suspendAll 锁泄漏四条路径静默失效，锁残留使后续 MODIFY 恒 DENY）。修复 = setModifier 内 null→`Map.remove` 翻译（读点仅 `get`，与上游 null 值残留可观测等价）；getModifier 对 null placement（幽灵 id）返回 null 守卫（上游原生缺陷：NPE 且 close 中 onClose 先于 sendCancelPacket 致 DENY 永不发出）——契约由 `ModifyStateTest` 固化。
+> **modifyState 的 null 解锁语义（我方修复，勿随模板回退）**：上游 `modifyState` 为 HashMap，「写 null 值」即解锁；本仓库为 **ConcurrentHashMap（禁 null 值）**，`setModifier(placement, null)` 若照搬上游必抛 NPE（迁移引入——曾致 MODIFY 成功不广播/REMOVE 中断/onPlayerLeave 清理中断/suspendAll 锁泄漏四条路径静默失效，锁残留使后续 MODIFY 恒 DENY）。修复 = setModifier 内 null→`Map.remove` 翻译（读点仅 `get`，与上游 null 值残留可观测等价）；getModifier 对 null placement（幽灵 id）返回 null 守卫（上游原生缺陷：NPE 且 close 中 onClose 先于 sendCancelPacket 致 DENY 永不发出）——契约由 `ModifyStateTest` 固化。
 
 成功后由 `ServerCommunicationManager.handleExchange` 广播 `MODIFY`：
 
@@ -309,7 +309,7 @@ putPositionData(placement, buf, client)            // §4.2
 
 对**不支持 MODIFY** feature 的客户端，退化兼容：先发 `REMOVE_SYNCMATIC[uuid]`，再发 `REGISTER_METADATA`（重发完整 metadata）。
 
-> ⚠️ **addPlacement 的 null target 守卫（我方修复，勿随模板回退）**：`addPlacement(@Nullable t, placement)` 的控制台路径（`/syncmatica load` 无发起方玩家）传 `t=null`——上游 `fromExistingPlayer(null)` 在 playerMap 非空时自身 NPE，本仓库不复刻该缺陷：null 仅跳过「已存在 id」分支对 origin 的 `cancelShare` 通知，注册+广播照常。console load 因此与玩家路径同型（在线已握手客户端即时收到 REGISTER_METADATA）。
+> **addPlacement 的 null target 守卫（我方修复，勿随模板回退）**：`addPlacement(@Nullable t, placement)` 的控制台路径（`/syncmatica load` 无发起方玩家）传 `t=null`——上游 `fromExistingPlayer(null)` 在 playerMap 非空时自身 NPE，本仓库不复刻该缺陷：null 仅跳过「已存在 id」分支对 origin 的 `cancelShare` 通知，注册+广播照常。console load 因此与玩家路径同型（在线已握手客户端即时收到 REGISTER_METADATA）。
 
 ### 5.5 客户端 Exchange（服务端需回应的包）
 
@@ -346,7 +346,7 @@ UploadExchange(发送方)                    DownloadExchange(接收方)
 4. **配额检查**（仅服务端 DownloadExchange，§5.3）：每片累加 `bytesSent`，超额 `close(true)` + 发 MESSAGE(ERROR)。`UploadExchange`（S2C）**不查配额**。
 5. **hash 校验**（`DownloadExchange.java:104-105`）：`UUID.nameUUIDFromBytes(md5.digest())` 与 `placement.getHash()` 比对。不相等 `close(false)`（不发 cancel，因对端已 FINISHED）。
 
-> ⚠️ **不复用 framework 的 `PacketSplitter`**：那是 Servux 的「首包写总长 VarInt + 连续流 + session key 重组」透明流式模型，接收端被动收齐。syncmatica 是「业务级 stop-and-wait + 显式 RECEIVED 应答 + UUID 路由」——两者不兼容。文件传输分片**在 `UploadExchange`/`DownloadExchange` 内自写**。`SyncmaticaHandler.encodeWithSplitter` 因此是空实现。
+> **不复用 framework 的 `PacketSplitter`**：那是 Servux 的「首包写总长 VarInt + 连续流 + session key 重组」透明流式模型，接收端被动收齐。syncmatica 是「业务级 stop-and-wait + 显式 RECEIVED 应答 + UUID 路由」——两者不兼容。文件传输分片**在 `UploadExchange`/`DownloadExchange` 内自写**。`SyncmaticaHandler.encodeWithSplitter` 因此是空实现。
 
 ---
 

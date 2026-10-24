@@ -15,7 +15,7 @@ import verymc.top.veryMcProto.mod.carpet.network.CarpetHelloHandler;
 import verymc.top.veryMcProto.mod.carpet.settings.SettingsManager;
 
 /**
- * Carpet 模块装配（mod 层，第四模块——gnembon/fabric-carpet 1.21.11 线移植 Phase 1「模块地基」）。
+ * Carpet 模块装配（mod 层，第四模块——gnembon/fabric-carpet 1.21.11 线移植「模块地基」）。
  *
  * <p>上游是<b>行为注入型</b> Fabric mod（171 服务端 Mixin），本移植按 scope 判定面走事件/等价路径
  * （docs/carpet/architecture.md）。装配链：
@@ -27,9 +27,9 @@ import verymc.top.veryMcProto.mod.carpet.settings.SettingsManager;
 public final class CarpetModule implements ModModule
 {
     private static volatile SettingsManager settingsManager;
-    /** carpet:hello 协议处理器（Phase 3；disable 置 null——null = 已卸载）。 */
+    /** carpet:hello 协议处理器（disable 置 null——null = 已卸载）。 */
     private static volatile CarpetHelloHandler carpetHelloHandler;
-    /** /log 订阅持久册（Phase 4；disable 置 null）。 */
+    /** /log 订阅持久册（disable 置 null）。 */
     private static volatile verymc.top.veryMcProto.mod.carpet.logging.LogSubscriptionStore logStore;
 
     @Override
@@ -62,7 +62,7 @@ public final class CarpetModule implements ModModule
         // 行为规则事件挂点（常驻注册 + 事件时读值）
         Bukkit.getPluginManager().registerEvents(new CarpetRuleListener(), Reference.plugin());
 
-        // 假人子系统（Phase 2）：侧表 tick 驱动 + quit/respawn/velocity 事件处理
+        // 假人子系统：侧表 tick 驱动 + quit/respawn/velocity 事件处理
         Bukkit.getPluginManager().registerEvents(new verymc.top.veryMcProto.mod.carpet.listener.FakePlayerListener(), Reference.plugin());
         verymc.top.veryMcProto.mod.carpet.helpers.ActionPackManager.start(Reference.plugin());
 
@@ -82,7 +82,7 @@ public final class CarpetModule implements ModModule
         // cleanLogs 日志过滤器（install 幂等）
         CleanLogsFilter.install();
 
-        // carpet:hello 协议（Phase 3）：通道注册（incoming 接收 + outgoing 声明成对，黄金模板
+        // carpet:hello 协议：通道注册（incoming 接收 + outgoing 声明成对，黄金模板
         // JeiModule.enable 注册形态）→ join/quit 监听 → 规则推送回调挂载 → 在线玩家补扫 HI。
         // 插件中途启用（reload）时在线玩家无 join 事件——补发 HI 闭合握手空窗（上游 init 期无在线
         // 玩家、无此路径，B 侧增补，偏差登记 docs/carpet/protocol.md）
@@ -103,7 +103,7 @@ public final class CarpetModule implements ModModule
             Reference.logger().warning("[Carpet] failed to send HI to already-online players: " + t.getMessage());
         }
 
-        // /log 日志子系统（Phase 4）：注册 tps/mobcaps 两 logger → 持久册载入 → join/quit 监听 →
+        // /log 日志子系统：注册 tps/mobcaps 两 logger → 持久册载入 → join/quit 监听 →
         // /log 命令注册（Brigadier，plugin.yml 无条目）→ HUD 20 tick 任务 → 在线玩家补扫（reload 时
         // 无 join 事件，hello 补扫同款 B 侧增补）。整块失败只降级日志，不影响规则框架与其余子系统
         try
@@ -132,7 +132,7 @@ public final class CarpetModule implements ModModule
             Reference.logger().severe("[Carpet] failed to start /log subsystem: " + t.getMessage());
         }
 
-        // Phase 5 命令族（纯计算类）：/distance /info /spawn 三条免上下文命令逐条注册（plugin.yml
+        // 命令族（纯计算类）：/distance /info /spawn 三条免上下文命令逐条注册（plugin.yml
         // 无条目，Brigadier 自足）。逐命令独立 try-catch——单命令注册失败只降级，不影响其余命令与子系统
         try
         {
@@ -220,7 +220,7 @@ public final class CarpetModule implements ModModule
         {
             Reference.logger().warning("[Carpet] action pack shutdown exception: " + e.getMessage());
         }
-        // /log 子系统清理（Phase 4）：停 HUD 任务并清在线订阅者 footer（须先于 stopLoggers——订阅名册
+        // /log 子系统清理：停 HUD 任务并清在线订阅者 footer（须先于 stopLoggers——订阅名册
         // 仍存活）→ 持久册兜底落盘（对冲最后一次变更写失败窗口）→ 注册表清空
         try
         {

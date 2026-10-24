@@ -191,7 +191,7 @@ public final class ProtocolChannel
             return false;
         }
 
-        // ★ Paper 命门（26.1.2 反编译实锤）：CraftPlayer.sendPluginMessage 有 channels().contains(channel) 门控，
+        // Paper 命门（26.1.2 反编译实锤）：CraftPlayer.sendPluginMessage 有 channels().contains(channel) 门控，
         // 玩家声明包被 Paper 处理前 S2C 一律静默丢弃——而声明处理晚于客户端首个 C2S（进服首握手回复曾被吞，
         // minihud structures 的 metadata 接受窗口是单次的，错过即 not_connected）。
         boolean listening = player.getListeningPluginChannels().contains(name());

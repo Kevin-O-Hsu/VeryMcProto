@@ -6,7 +6,7 @@ import net.minecraft.resources.Identifier;
  * Carpet mod 专用常量（mod 层，第四模块）。上游对照 = {@code OriginImpl/fabric-carpet-1.21.11/}（分支 1.21.11）。
  *
  * <p>与既有三 mod 的 Reference 差异：carpet 的版本串域是<b>上游 carpet 自身的 mod_version</b>（逐字常量），
- * 不是本插件版本——P3 协议握手 HI 帧将携带该值，客户端 {@code ClientNetworkHandler} 对其做
+ * 不是本插件版本——carpet:hello 协议握手 HI 帧将携带该值，客户端 {@code ClientNetworkHandler} 对其做
  * {@code equals} 严格比较，发插件版本号（mcVersion-bN 之类）必触发版本不匹配 warn
  * （docs/carpet/protocol.md 裁决；26.2 线该值为 "26.2"、26.1 线该值为 "26.1"，均无法从本仓库 gradle.properties 派生）。
  */
@@ -21,11 +21,11 @@ public final class CarpetReference
      * 与本线 mcVersion 不同值（1.21.x 线沿用语义版本号），勿改用 Reference.PLUGIN_VERSION（见类 javadoc）。
      */
     public static final String CARPET_VERSION = "1.4.194";
-    /** 协议握手标识（P3 HI 帧用；P1 仅常量，无网络行为）。 */
+    /** 协议握手标识（HI 帧用；仅常量，无网络行为）。 */
     public static final String MOD_STRING = MOD_ID + "-" + CARPET_VERSION;
-    /** 通道网络名（上游 carpet/network/CarpetClient.java:48 逐字）。P3 接线，P1 仅声明。 */
+    /** 通道网络名（上游 carpet/network/CarpetClient.java:48 逐字）。carpet:hello 接线，仅声明。 */
     public static final Identifier CARPET_CHANNEL = Identifier.fromNamespaceAndPath("carpet", "hello");
-    /** 上游 HI/HELLO 消息 key（CarpetClient.java:40-41 逐字，CompoundTag 内字符串键）。P3 使用。 */
+    /** 上游 HI/HELLO 消息 key（CarpetClient.java:40-41 逐字，CompoundTag 内字符串键）。carpet:hello 使用。 */
     public static final String KEY_HI = "69";
     public static final String KEY_HELLO = "420";
     /** 规则持久化文件名（= SettingsManager 的 identifier + ".conf"，上游 getFile() 同式）。 */

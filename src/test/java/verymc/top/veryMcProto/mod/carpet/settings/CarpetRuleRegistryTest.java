@@ -63,20 +63,20 @@ class CarpetRuleRegistryTest
                 "cleanLogs",
                 "commandTick",
                 "perfPermissionLevel",
-                // P2 假人家族 3 条（scope §5.1，上游 :595-602）
+                // 假人家族 3 条（scope §5.1，上游 :595-602）
                 "commandPlayer",
                 "allowSpawningOfflinePlayers",
                 "allowListingFakePlayers",
-                // P4 日志 2 条（scope §5.1，上游 :453-463）
+                // 日志 2 条（scope §5.1，上游 :453-463）
                 "commandLog",
                 "defaultLoggers",
-                // P5 命令族 5 条（scope §5.1，上游 :411-412/:465-490）
+                // 命令族 5 条（scope §5.1，上游 :411-412/:465-490）
                 "commandSpawn",
                 "commandDistance",
                 "commandInfo",
                 "commandPerimeterInfo",
                 "commandDraw"), names,
-                "P1 foundation (8) + P2 fake-player family (3) + P4 log family (2) + P5 command family (5) rule set");
+                "8 foundation + 3 fake-player + 2 log + 5 command-family rules (18 total)");
     }
 
     @Test
@@ -93,19 +93,19 @@ class CarpetRuleRegistryTest
         assertEquals(4, manager.getRule("perfPermissionLevel").defaultValue);
         assertEquals(Integer.class, manager.getRule("perfPermissionLevel").type);
         assertEquals(false, manager.getRule("cleanLogs").defaultValue);
-        // P2 假人家族（上游 :595-602 逐字）
+        // 假人家族（上游 :595-602 逐字）
         assertEquals("ops", manager.getRule("commandPlayer").defaultValue);
         assertEquals(String.class, manager.getRule("commandPlayer").type);
         assertEquals(true, manager.getRule("allowSpawningOfflinePlayers").defaultValue);
         assertEquals(Boolean.class, manager.getRule("allowSpawningOfflinePlayers").type);
         assertEquals(false, manager.getRule("allowListingFakePlayers").defaultValue);
         assertEquals(Boolean.class, manager.getRule("allowListingFakePlayers").type);
-        // P4 日志家族（上游 :453-463 逐字）
+        // 日志家族（上游 :453-463 逐字）
         assertEquals("true", manager.getRule("commandLog").defaultValue);
         assertEquals(String.class, manager.getRule("commandLog").type);
         assertEquals("none", manager.getRule("defaultLoggers").defaultValue);
         assertEquals(String.class, manager.getRule("defaultLoggers").type);
-        // P5 命令族（上游 :411-412/:465-490 逐字）
+        // 命令族（上游 :411-412/:465-490 逐字）
         assertEquals("ops", manager.getRule("commandSpawn").defaultValue);
         assertEquals(String.class, manager.getRule("commandSpawn").type);
         assertEquals("true", manager.getRule("commandDistance").defaultValue);
@@ -133,7 +133,7 @@ class CarpetRuleRegistryTest
         assertEquals(Validator.CommandLevel.OPTIONS, manager.getRule("commandTick").options);
         assertTrue(manager.getRule("commandTick").options.contains("false"), "locked 时 disableBooleanCommands 需要 'false' 建议");
 
-        // commandPlayer：String + COMMAND 类目同款推断（P2）
+        // commandPlayer：String + COMMAND 类目同款推断
         assertEquals(Validator.CommandLevel.OPTIONS, manager.getRule("commandPlayer").options);
 
         assertEquals(List.of("2", "4"), manager.getRule("perfPermissionLevel").options);
@@ -141,17 +141,17 @@ class CarpetRuleRegistryTest
         assertEquals(List.of("_"), manager.getRule("customMOTD").options);
         assertFalse(manager.getRule("customMOTD").isStrict, "customMOTD is strict=false (any value)");
 
-        // P2 boolean 规则 options 自动推断 [true, false]
+        // boolean 规则 options 自动推断 [true, false]
         assertEquals(List.of("true", "false"), manager.getRule("allowSpawningOfflinePlayers").options);
         assertEquals(List.of("true", "false"), manager.getRule("allowListingFakePlayers").options);
 
-        // P4：commandLog = String + COMMAND 类目 → 推断 CommandLevel.OPTIONS（commandTick/commandPlayer 同款）
+        // commandLog = String + COMMAND 类目 → 推断 CommandLevel.OPTIONS（commandTick/commandPlayer 同款）
         assertEquals(Validator.CommandLevel.OPTIONS, manager.getRule("commandLog").options);
         // defaultLoggers：显式 options（上游 :460 逐字含复合值 "mobcaps,tps"）+ 非 strict
         assertEquals(List.of("none", "tps", "mobcaps,tps"), manager.getRule("defaultLoggers").options);
         assertFalse(manager.getRule("defaultLoggers").isStrict, "defaultLoggers is strict=false (csv values)");
 
-        // P5：五条 command 规则均为 String + COMMAND 类目无显式 options → 推断 CommandLevel.OPTIONS
+        // 五条 command 规则均为 String + COMMAND 类目无显式 options → 推断 CommandLevel.OPTIONS
         //（上游 :412/:470/:480/:487/:490 均无 options，commandTick/commandPlayer/commandLog 同款推断）
         assertEquals(Validator.CommandLevel.OPTIONS, manager.getRule("commandSpawn").options);
         assertEquals(Validator.CommandLevel.OPTIONS, manager.getRule("commandDistance").options);

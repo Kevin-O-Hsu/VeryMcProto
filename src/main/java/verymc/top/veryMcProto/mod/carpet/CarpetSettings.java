@@ -16,7 +16,7 @@ import verymc.top.veryMcProto.mod.carpet.settings.Validator;
  *   <li>{@code language} 的 LanguageValidator 删 Translations 副作用（B 侧无 i18n，仓库铁律对外英文；
  *       strict + options 已足约束值域）；</li>
  *   <li>{@code superSecretSetting} / {@code language} 为纯壳规则（上游行为面 = 客户端 i18n 切换 /
- *       Mixin 强制命令堆栈 debug 日志，均不随 P1 移植）；{@code commandTick} 为上游三线零使用死规则
+ *       Mixin 强制命令堆栈 debug 日志，均不随地基移植）；{@code commandTick} 为上游三线零使用死规则
  *       （注册仅为规则面完整，上游 /tick 即原版命令，Paper 天然同构）；</li>
  *   <li>{@code cleanLogs} 的 desc/extra 为上游逐字——其声称的 "Maximum sound pool size" 行与上游唯一
  *       机制（LivingEntity_cleanLogsMixin 命名死亡日志门控）脱节，系上游 desc 陈旧；B 侧按 mixin 代数

@@ -416,7 +416,7 @@ public class LitematicsDataProvider extends DataProviderBase
     @Override
     public void onPlayerRegisterChannel(ServerPlayer player, String channel)
     {
-        // ★ 修复 litematic sync not_enabled：onPlayerJoin 时通道未声明，sendMetadata 丢弃；
+        // 修复 litematic sync not_enabled：onPlayerJoin 时通道未声明，sendMetadata 丢弃；
         // 客户端声明 servux:litematics（= 装了 Litematica）时立即重发。sendMetadata 幂等。
         if (this.getNetworkChannel().toString().equals(channel))
         {

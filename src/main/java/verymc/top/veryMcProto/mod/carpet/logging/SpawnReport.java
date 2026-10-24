@@ -20,9 +20,9 @@ import verymc.top.veryMcProto.mod.carpet.util.Messenger;
 
 /**
  * mobcaps 采集与格式化（上游 {@code carpet/utils/SpawnReporter.java} 的 B 侧承载切片：
- * P4 = :93,:99-152 短行 HUD 面 + {@code Messenger.java:30-123} 色表的 § 码化；P5 追加 =
- * :99-152 多行组件面与 :234-258 实体清单，供 /spawn mobcaps,entities——见文件尾部 P5 节，
- * P4 短行 § 码面与其单测零触碰）。
+ * /log = :93,:99-152 短行 HUD 面 + {@code Messenger.java:30-123} 色表的 § 码化；命令族追加 =
+ * :99-152 多行组件面与 :234-258 实体清单，供 /spawn mobcaps,entities——见文件尾部命令族节，
+ * /log 短行 § 码面与其单测零触碰）。
  *
  * <p><b>硬编码魔数</b>：{@value #MAGIC_NUMBER} = 17×17（上游 SpawnReporter.java:93 亦为硬编码
  * {@code (int)Math.pow(17.0, 2.0)}；vanilla 来源 = NaturalSpawner 私有常量）——注释标来源防漂移，
@@ -135,7 +135,7 @@ public final class SpawnReport
         };
     }
 
-    // ───── Phase 5（/spawn mobcaps,entities）命令侧扩展——append-only，P4 短行面零触碰 ─────
+    // ─────（/spawn mobcaps,entities）命令侧扩展——append-only，/log 短行面零触碰 ─────
 
     /** 上游 cachedMobCategories()（SpawnReporter.java:295-297 = MobCategory.values() 缓存副本）同构。 */
     public static MobCategory[] cachedMobCategories()
@@ -147,7 +147,7 @@ public final class SpawnReport
      * 维度 mobcaps 组件报告（上游 printMobcapsForDimension(world, multiline) :99-152 的组件面——
      * 表头 + 逐类整行 / 短码单行，/spawn mobcaps 与 entities 裸分支消费）。
      *
-     * <p>rounds 段：上游读 spawn_tries 追踪 map（tracking 面 ⛔ 未移植）→ rounds 恒 1 → {@code "w "}
+     * <p>rounds 段：上游读 spawn_tries 追踪 map（tracking 面未移植）→ rounds 恒 1 → {@code "w "}
      * 空段（上游 :124-127 rounds==1 同位行为）。色走 {@link Messenger} 字母码（本类 § 码私有函数
      * 为 HUD footer String 传输面，双体系并存——传输载体差异，非冗余）。
      */

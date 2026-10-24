@@ -16,10 +16,10 @@ schematic/
 ├── SchematicMetadata.java            元数据（作者/时间/尺寸/区域名…）
 ├── SchematicSchema.java              版本信息（record）
 ├── conversion/SchematicConversionMaps.java  老版本数据转换
-├── container/                        ★ 纯算法压缩：BitArray + Palette + Container
+├── container/                        纯算法压缩：BitArray + Palette + Container
 ├── placement/                        SchematicPlacement / SubRegionPlacement（旋转/镜像/定位 + 粘贴）
 ├── selection/                        Box / AreaSelection / BoxSliced / SelectionManager（几何）
-└── transmit/                         ★ 纯 Java 分片：SchematicBuffer / SchematicBufferManager
+└── transmit/                         纯 Java 分片：SchematicBuffer / SchematicBufferManager
 ```
 
 **两个核心好消息**：
@@ -44,7 +44,7 @@ public final Map<String, BlockPos>                       subRegionPositions;
 public final Map<String, BlockPos>                       subRegionSizes;
 ```
 
-### 1.2 `LitematicaBitArray` —— 位级压缩（★纯算法，照抄）
+### 1.2 `LitematicaBitArray` —— 位级压缩（纯算法，照抄）
 
 > `container/LitematicaBitArray.java`（113 行）。仅依赖 `long[]`，零 NMS。
 
@@ -69,7 +69,7 @@ private final long arraySize;          // 条目总数
 
 **动态扩展**（`LitematicaBlockStateContainer.setBits`）：palette 增长 → 提升 bits → 重建 BitArray + 迁移旧数据 + 迁移 palette。
 
-> ⚠️ `BlockState` 是 NMS 类型（`net.minecraft.world.level.block.state.BlockState`）。Paper 用 paperweight userdev 可直接用 NMS 的它（保真度最高），或换 Bukkit `BlockData`（需双向转换，工作量大）。**推荐保留 NMS `BlockState`**——粘贴、序列化、镜像修复都依赖它。
+> **注意**：`BlockState` 是 NMS 类型（`net.minecraft.world.level.block.state.BlockState`）。Paper 用 paperweight userdev 可直接用 NMS 的它（保真度最高），或换 Bukkit `BlockData`（需双向转换，工作量大）。**推荐保留 NMS `BlockState`**——粘贴、序列化、镜像修复都依赖它。
 
 ### 1.4 `LitematicaBlockStateContainer` —— BitArray + Palette 整合
 
@@ -211,7 +211,7 @@ PacketSplitter.send(this, buffer, player, player.connection);
 
 ---
 
-## 5. 几何系统：`Box` / `AreaSelection`（★纯 Java）
+## 5. 几何系统：`Box` / `AreaSelection`（纯 Java）
 
 > `selection/Box.java`（224 行）+ `AreaSelection.java`（447 行）+ `BoxSliced.java` 等。
 
@@ -259,8 +259,8 @@ class AreaSelection {
 
 | 组件 | 行数 | NMS 依赖 | 迁移方式 |
 |---|---|---|---|
-| `LitematicaBitArray` | 113 | ✅ 无 | **照抄** |
-| `SchematicBuffer` / `Manager` | 154+143 | ✅ 无 | **照抄** |
+| `LitematicaBitArray` | 113 | 无依赖 | **照抄** |
+| `SchematicBuffer` / `Manager` | 154+143 | 无依赖 | **照抄** |
 | `Box` / `AreaSelection` / `BoxSliced` | ~700 | 值类型 | **照抄** |
 | `SchematicMetadata` / `SchematicSchema` | ~380 | 值类型 | **照抄** |
 | `LitematicaBlockStateContainer` | 195 | `RegistryAccess`（解析 palette） | 照抄 + registry 改参数传入 |

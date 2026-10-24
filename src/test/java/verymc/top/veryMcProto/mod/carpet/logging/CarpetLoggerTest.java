@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * /log 子系统纯 JVM 单测（Phase 4）：注册表订阅语义（含桶迁移——纯 JVM 环境 playerFromName 恒 null
+ * /log 子系统纯 JVM 单测：注册表订阅语义（含桶迁移——纯 JVM 环境 playerFromName 恒 null
  * = 恒离线桶，恰好使 onPlayerConnect 的 offline→online 迁移可测）、持久册墓碑模型与 round-trip、
  * join 分支矩阵（经 {@link LoggerListener#onPlayerJoin} 静态入口驱动）、defaultLoggers CSV 解析、
  * 热力色阈值与 mobcaps 行格式。

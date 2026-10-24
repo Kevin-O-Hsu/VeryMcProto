@@ -26,9 +26,9 @@ import com.google.gson.*;
  *
  * <p><b>Paper 适配</b>：
  * <ul>
- *   <li>{@code fromJson(elem, context)} → {@code fromJson(elem, context.getPlayerIdentifierProvider())}（P2 解耦）；</li>
+ *   <li>{@code fromJson(elem, context)} → {@code fromJson(elem, context.getPlayerIdentifierProvider())}（解耦改造）；</li>
  *   <li>服务端 peek 修正（原版在 fromJson 内 {@code context.isServer()} 分支）→ 读 JSON 后调
- *       {@link ServerPlacement#correctMetadataFromPeek}（P2 抽出）；</li>
+ *       {@link ServerPlacement#correctMetadataFromPeek}（上游抽出）；</li>
  *   <li>去掉旧路径迁移（{@code Reference.CONFIG_ROOT}，Paper 无等价）；</li>
  *   <li>{@code Syncmatica.LOGGER} → {@link SyncmaticaLog}；路径用 {@link SyncmaticaReference#PLACEMENTS_FILE_NAME}。</li>
  * </ul>
@@ -210,7 +210,7 @@ public class SyncmaticManager
                 boolean dirty = false;
                 for (final JsonElement elem : arr)
                 {
-                    // Paper：fromJson 改接收 PlayerIdentifierProvider（P2 解耦）
+                    // Paper：fromJson 改接收 PlayerIdentifierProvider（解耦改造）
                     final ServerPlacement placement = ServerPlacement.fromJson(elem.getAsJsonObject(),
                             context.getPlayerIdentifierProvider());
 

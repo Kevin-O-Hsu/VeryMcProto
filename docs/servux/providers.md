@@ -27,7 +27,7 @@
 
 ---
 
-## 1. `HudDataProvider`（配 MiniHUD）⭐ 最核心
+## 1. `HudDataProvider`（配 MiniHUD，最核心）
 
 > 原版：`dataproviders/HudDataProvider.java`（795 行）。协议通道 `servux:hud_metadata`，协议版本 **2**。
 
@@ -90,7 +90,7 @@ CompoundTag:
 - 采集：`player.level().recipeAccess().getRecipes()` → 对每个 `RecipeHolder`，用 `Recipe.CODEC.encodeStart(NbtOps.INSTANCE, recipeEntry.value())` 序列化。
 - **Paper 迁移**：`Recipe.CODEC` + `NbtOps` 是 NMS，paperweight 可直连；或遍历 Bukkit `Bukkit.recipeIterator()` 自行拼装（保真度略低）。**必须走 PacketSplitter 分包**（配方表常 > 32KiB）。
 
-### 1.6 DataLogger 子系统（TPS / MobCap）⭐
+### 1.6 DataLogger 子系统（TPS / MobCap）
 
 > `loggers/` 目录。HUD 的 `tick` 里按 `update_interval`（logger 模式 15t）周期采集，对每个订阅玩家发 `S2C_DATA_LOGGER_TICK(7)`。
 
@@ -238,7 +238,7 @@ name="tweaks_data", id="servux:tweaks", version=1, servux=<MOD_STRING>
 
 ---
 
-## 4. `StructureDataProvider`（配 MiniHUD 的结构边界框）⭐ 高难度
+## 4. `StructureDataProvider`（配 MiniHUD 的结构边界框，高难度）
 
 > 原版：`dataproviders/StructureDataProvider.java`（557 行）。协议通道 `servux:structures`，协议版本 **2**。
 
@@ -287,7 +287,7 @@ Identifier type = BuiltInRegistries.STRUCTURE_TYPE.getKey(structure.type());    
 
 ---
 
-## 5. `LitematicsDataProvider`（配 Litematica）⭐ 大模块
+## 5. `LitematicsDataProvider`（配 Litematica，大模块）
 
 > 原版：`dataproviders/LitematicsDataProvider.java`（424 行）。协议通道 `servux:litematics`，协议版本 1。
 > 投影数据结构与传输协议详见 [schematic.md](schematic.md)。本节只列协议操作。

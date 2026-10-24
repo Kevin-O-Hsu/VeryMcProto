@@ -9,7 +9,7 @@ import verymc.top.veryMcProto.framework.network.FriendlyByteBufs;
 import verymc.top.veryMcProto.mod.carpet.CarpetReference;
 
 /**
- * carpet:hello S2C 直发器（mod 层，Phase 3）。构造 {@code new ClientboundCustomPayloadPacket(
+ * carpet:hello S2C 直发器（mod 层，carpet:hello 协议）。构造 {@code new ClientboundCustomPayloadPacket(
  * new DiscardedPayload(CARPET_CHANNEL, bytes))} 经 {@code ServerPlayer.connection.send} 投递——
  * 与 Paper 自身放行路径逐字同构（黄金模板 {@code JeiPacketSender.send} 同款）。
  *
