@@ -4,7 +4,7 @@
 > The client still uses the original Fabric mods; the server swaps from "Fabric server + server-side mod" to "standard Paper server + this plugin", with identical protocol behavior.
 
 ```
-Paper 1.21.11 · Java 21 · paperweight userdev · Version 1.21.11-b6
+Paper 1.21.11 · Java 21 · paperweight userdev · Version 1.21.11-b7
 Servux · JEI · Syncmatica · Carpet — all four modules implemented and tested
 ```
 
