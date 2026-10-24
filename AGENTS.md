@@ -55,10 +55,10 @@
 
 **当前版本**（尚未冻结）的 Bug 直接走 `dev → main`，不为它开 `ver/*` 分支——避免同一件事存在多个改动入口。`ver/*` 对只在上游出现新版本的那一刻创建。
 
-**当前状态**（2026-09，以上游版本清单为准）：
-- 上游最新 release **26.2**，snapshot **26.3-pre-2**（26.3 将近）。
+**当前状态**（2026-10，以上游版本清单为准）：
+- 上游最新 release **26.3**，snapshot **26.4-snapshot-5**。
 - **1.21.11 已是旧版本**：`ver/1.21.11` + `ver/1.21.11-dev` 维护对已从 `main`（tag `v1.21.11-b1`）冻结切出；本仓库全部代码基于 1.21.11 NMS。
-- `dev → main` 是最新版本开发线，**尚未适配 26.x**（`mcVersion` 仍为 1.21.11）；适配 26.2 属于后续工作（改 `mcVersion` + dev bundle + NMS 漂移核对，见「升级 Minecraft 版本」）。
+- `dev → main` 是最新版本开发线，**尚未适配 26.x**（`mcVersion` 仍为 1.21.11）；适配 26.x 属于后续工作（改 `mcVersion` + dev bundle + NMS 漂移核对，见「升级 Minecraft 版本」）。
 
 **发版**（版本内更新）：所在开发线（`dev` 或 `ver/<X>-dev`）`buildNumber` +1 并提交 → 合入对应发布线（`main` 或 `ver/<X>`）→ `./gradlew build` → tag `v<版本>`（如 `v1.21.11-b1`）。
 
@@ -76,7 +76,9 @@ gradle.properties（mcVersion=1.21.11 · buildNumber=1）          ← 唯一改
        │  Reference 类加载时 Properties.load 读回
        ▼
    Reference.MC_VERSION / Reference.PLUGIN_VERSION（框架级常量）
-       ├─ ServuxReference.MOD_STRING   = "servux-paper-<mcVersion>-b<buildNumber>"（三段式；本线客户端仅前缀识别）
+       ├─ ServuxReference.MOD_STRING   = "servux-fabric-<mcVersion>-b<buildNumber>"（三段式；v3 世代
+       │    masa 客户端前缀硬门禁要求 fabric 形态——minihud 校验 "servux-fabric"、litematica/tweakeroo
+       │    校验 "servux-fabric-<mcVersion>"；与 26.x 线同款伪装，见 docs/servux/protocol.md §9.2）
        ├─ SyncmaticaReference.MOD_VERSION = "<mcVersion>-b<buildNumber>"（-b 后缀永不命中
        │    FeatureSet.fromVersionString 的 ^\d+(\.\d+){2,4}$ 正则 → 恒触发 FEATURE 交换）
        └─ （JEI 无版本握手支腿——jei 协议无 MOD_STRING/版本协商字段，服务端检测走通道声明 jei:delete_player_item）
@@ -265,8 +267,8 @@ Litematica 投影子系统（`mod/servux/schematic/`，约 8000 行）已移植�
 - **升级 Minecraft 版本**（顺应上游）：先从 `main` 冻结旧版本（切 `ver/<旧版本>` + `ver/<旧版本>-dev` 对）→ 再在 `dev` 上改 `gradle.properties` 的 `mcVersion` + `build.gradle.kts` 的 dev bundle → 重跑 paperweight → 按 [`docs/architecture.md`](docs/architecture.md) §3.5 反射点清单逐一核对 NMS 字段/方法签名漂移（尤其 `FriendlyByteBuf`、`CustomPacketPayload`、`CompoundTag` Optional 化、`StructureStart.createTag` 签名、`DiscardedPayload` 构造）。
 - **旧版本修 Bug**：在 `ver/<X>-dev` 提交 → 合入 `ver/<X>` 出包；若 `dev`（新版本）同样存在该 Bug，cherry-pick 回 `dev`。
 - **参考源码**（`OriginImpl/` 下，逐行对照的权威实现；**遇到分歧以真实源码为准**；本地目录已 gitignore，不入库）：
-  - **servux**：`OriginImpl/servux-LTS-1.21.11/`——服务端协议实现。
-  - **litematica / malilib**（masa 客户端，**协议的接收端**）：`OriginImpl/litematica-LTS-1.21.11/`、`OriginImpl/malilib-LTS-1.21.11/`。任何协议字段语义、分包重组、Task 分派都要回来对照客户端源码确认，**不要凭服务端代码猜客户端行为**（见 §6 教训 1）。
+  - **servux**：`OriginImpl/servux-LTS-1.21.11/`（= sakura-ryuko LTS 分支 0.9.5 快照，**v2 世代 wire**，仅作历史对照）；**本线现行为 v3 世代**（2026-10 对齐）——v3 wire 权威 = 上游同分支 HEAD（`https://github.com/sakura-ryuko/servux.git` 分支 `LTS/1.21.11`，0.9.9：gzip 帧 / fabric 前缀门禁 / UNREGISTER_REPLY / join 不入册），对照时以 HEAD 为准，as-built 真值见 docs/servux/protocol.md §9。
+  - **litematica / malilib**（masa 客户端，**协议的接收端**）：`OriginImpl/litematica-LTS-1.21.11/`、`OriginImpl/malilib-LTS-1.21.11/`（= 0.26.12 / 0.27.16，**v2 世代**）；v3 世代客户端读侧（minihud 0.38.16+ / malilib 0.27.20+ / litematica 0.26.16）同样以 `sakura-ryuko/{minihud,malilib,litematica,tweakeroo}` 的 `LTS/1.21.11` 分支 HEAD 为准（DataByteBufUtils 帧格式、前缀门禁、版本期望）。任何协议字段语义、分包重组、Task 分派都要回来对照客户端源码确认，**不要凭服务端代码猜客户端行为**（见 §6 教训 1）。
   - **syncmatica**：`OriginImpl/syncmatica-LTS-1.21.11/`。
   - **carpet**：`OriginImpl/fabric-carpet-1.21.11/`（gnembon/fabric-carpet 分支 `1.21.11`，mod_version `1.4.194`）——Carpet 模块唯一对照；协议/规则/命令/日志层的字段语义以该树为准（移植范围已终局定案，as-built 见本线 docs/carpet/architecture.md）。
   - **JEI**（本线权威）：`OriginImpl/JustEnoughItems-1.21.11/`（mezz 分支 `1.21.11`，clone 命令 `git clone --depth 1 --branch 1.21.11 https://github.com/mezz/JustEnoughItems.git`——协议权威文件：`Common/src/main/java/mezz/jei/common/network/packets/*` + `common/transfer/*` + `common/util/ServerCommandUtil.java` + `fabric/config/ServerConfig.java`）。`fabric:recipe_sync` wire 真权威 = Fabric API 分支 `1.21.11`（`OriginImpl/fabric-1.21.11/` 的 `fabric-recipe-api-v1`）。`OriginImpl/JEIRecipeBridge-1.21.11/`（Mrbysco）保留作 neoforge:recipe_content 层 wire 参考 + 本线旧桥历史。**jei 模块跨线 cherry-pick 禁止，一律手工重写**（本线 2026-10 迁移实录见 docs/jei/protocol.md §8）。

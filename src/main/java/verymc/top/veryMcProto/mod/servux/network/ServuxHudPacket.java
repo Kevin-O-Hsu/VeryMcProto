@@ -10,13 +10,17 @@ import io.netty.buffer.Unpooled;
 
 import verymc.top.veryMcProto.Reference;
 import verymc.top.veryMcProto.framework.network.IServerPayloadData;
+import verymc.top.veryMcProto.mod.servux.util.ServuxNbtFrames;
 
 /**
- * HUD 通道协议帧（mod 层）。照抄原版 {@code ServuxHudPacket}（去 Fabric 注解 + jul logger）。
+ * HUD 通道协议帧（mod 层）。照抄原版 {@code ServuxHudPacket}（去 Fabric 注解 + jul logger），
+ * 对齐上游 servux 0.9.9（v3 世代 wire）。
  *
- * <p>协议版本 {@value #PROTOCOL_VERSION}。10 种 Type；Payload 内部字节布局：
- * {@code VarInt(packetType) + NBT（CompoundTag）/ raw bytes（buffer slice）}。
- * {@code PACKET_S2C_NBT_RESPONSE_DATA} 携带分包单片（raw bytes）；其余携带 NBT。
+ * <p>协议版本 {@value #PROTOCOL_VERSION}。11 种 Type；Payload 内部字节布局：
+ * {@code VarInt(packetType) + NBT 体}。其中 <b>metadata 双向恒为 vanilla NBT</b>（跨代协商/注册通道，
+ * 客户端 {@code receiveServuxMetadata} 在此校验版本与前缀）；<b>其余 NBT 体（spawn/weather/logger/
+ * recipe 请求与注销回执）为 v3 帧</b> {@code [int32 BE][GZIP 命名根流]}（见 {@link ServuxNbtFrames}）。
+ * {@code PACKET_S2C_NBT_RESPONSE_DATA} 携带分包单片（raw bytes）。
  *
  * <p>{@link Payload} record 保留（与原版一致），用于协议帧定义与未来方案 B（NMS 发包）；
  * 方案 A（plugin messaging）收发走 byte[]，由 {@code ServuxHudHandler.sendPlayPayload} 完成。
@@ -26,7 +30,7 @@ public class ServuxHudPacket implements IServerPayloadData
     private Type packetType;
     private CompoundTag nbt;
     private FriendlyByteBuf buffer;
-    public static final int PROTOCOL_VERSION = 2;
+    public static final int PROTOCOL_VERSION = 3;
 
     private ServuxHudPacket(Type type)
     {
@@ -91,6 +95,14 @@ public class ServuxHudPacket implements IServerPayloadData
         return packet;
     }
 
+    /** v3 新增：客户端注销回执（C2S；客户端在版本/前缀不匹配的失败路径上发送，服务端应摘除名册）。 */
+    public static ServuxHudPacket UnregisterReply(@Nullable CompoundTag nbt)
+    {
+        var packet = new ServuxHudPacket(Type.PACKET_C2S_UNREGISTER_REPLY);
+        if (nbt != null) { packet.nbt.merge(nbt); }
+        return packet;
+    }
+
     /** 大包起始（NBT，走 PacketSplitter 分包）。 */
     public static ServuxHudPacket ResponseS2CStart(CompoundTag nbt)
     {
@@ -149,12 +161,18 @@ public class ServuxHudPacket implements IServerPayloadData
                 try { output.writeBytes(this.buffer.copy()); }
                 catch (Exception e) { Reference.logger().warning("ServuxHudPacket#toPacket: failed to write buffer: " + e.getMessage()); }
             }
-            case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA, PACKET_C2S_SPAWN_DATA_REQUEST, PACKET_S2C_SPAWN_DATA,
-                 PACKET_S2C_WEATHER_TICK, PACKET_C2S_RECIPE_MANAGER_REQUEST, PACKET_S2C_DATA_LOGGER_TICK,
-                 PACKET_C2S_DATA_LOGGER_REQUEST ->
+            case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA ->
             {
+                // metadata 双向恒 vanilla NBT（跨代协商/注册通道）
                 try { output.writeNbt(this.nbt); }
                 catch (Exception e) { Reference.logger().warning("ServuxHudPacket#toPacket: failed to write NBT: " + e.getMessage()); }
+            }
+            case PACKET_C2S_SPAWN_DATA_REQUEST, PACKET_S2C_SPAWN_DATA, PACKET_S2C_WEATHER_TICK,
+                 PACKET_C2S_RECIPE_MANAGER_REQUEST, PACKET_S2C_DATA_LOGGER_TICK, PACKET_C2S_DATA_LOGGER_REQUEST,
+                 PACKET_C2S_UNREGISTER_REPLY ->
+            {
+                // v3 帧：[int32 BE][GZIP 命名根流]（对齐上游 DataByteBufUtils.toByteBuf）
+                ServuxNbtFrames.write(output, this.nbt);
             }
             default -> Reference.logger().warning("ServuxHudPacket#toPacket: unknown packet type!");
         }
@@ -179,12 +197,41 @@ public class ServuxHudPacket implements IServerPayloadData
                 case PACKET_S2C_NBT_RESPONSE_DATA -> { return ServuxHudPacket.ResponseS2CData(new FriendlyByteBuf(input.readBytes(input.readableBytes()))); }
                 case PACKET_C2S_METADATA_REQUEST -> { return ServuxHudPacket.MetadataRequest(input.readNbt()); }
                 case PACKET_S2C_METADATA -> { return ServuxHudPacket.MetadataResponse(input.readNbt()); }
-                case PACKET_C2S_SPAWN_DATA_REQUEST -> { return ServuxHudPacket.SpawnRequest(input.readNbt()); }
-                case PACKET_S2C_SPAWN_DATA -> { return ServuxHudPacket.SpawnResponse(input.readNbt()); }
-                case PACKET_C2S_DATA_LOGGER_REQUEST -> { return ServuxHudPacket.DataLoggerRequest(input.readNbt()); }
-                case PACKET_S2C_DATA_LOGGER_TICK -> { return ServuxHudPacket.DataLoggerTick(input.readNbt()); }
-                case PACKET_S2C_WEATHER_TICK -> { return ServuxHudPacket.WeatherTick(input.readNbt()); }
-                case PACKET_C2S_RECIPE_MANAGER_REQUEST -> { return ServuxHudPacket.RecipeManagerRequest(input.readNbt()); }
+                case PACKET_C2S_SPAWN_DATA_REQUEST ->
+                {
+                    CompoundTag nbt = ServuxNbtFrames.read(input);
+                    if (nbt != null) { return ServuxHudPacket.SpawnRequest(nbt); }
+                }
+                case PACKET_C2S_DATA_LOGGER_REQUEST ->
+                {
+                    CompoundTag nbt = ServuxNbtFrames.read(input);
+                    if (nbt != null) { return ServuxHudPacket.DataLoggerRequest(nbt); }
+                }
+                case PACKET_S2C_DATA_LOGGER_TICK ->
+                {
+                    CompoundTag nbt = ServuxNbtFrames.read(input);
+                    if (nbt != null) { return ServuxHudPacket.DataLoggerTick(nbt); }
+                }
+                case PACKET_S2C_WEATHER_TICK ->
+                {
+                    CompoundTag nbt = ServuxNbtFrames.read(input);
+                    if (nbt != null) { return ServuxHudPacket.WeatherTick(nbt); }
+                }
+                case PACKET_C2S_RECIPE_MANAGER_REQUEST ->
+                {
+                    CompoundTag nbt = ServuxNbtFrames.read(input);
+                    if (nbt != null) { return ServuxHudPacket.RecipeManagerRequest(nbt); }
+                }
+                case PACKET_C2S_UNREGISTER_REPLY ->
+                {
+                    CompoundTag nbt = ServuxNbtFrames.read(input);
+                    if (nbt != null) { return ServuxHudPacket.UnregisterReply(nbt); }
+                }
+                case PACKET_S2C_SPAWN_DATA ->
+                {
+                    CompoundTag nbt = ServuxNbtFrames.read(input);
+                    if (nbt != null) { return ServuxHudPacket.SpawnResponse(nbt); }
+                }
                 default -> Reference.logger().warning("ServuxHudPacket#fromPacket: unknown packet type!");
             }
         }
@@ -224,6 +271,7 @@ public class ServuxHudPacket implements IServerPayloadData
         PACKET_C2S_RECIPE_MANAGER_REQUEST(6),
         PACKET_S2C_DATA_LOGGER_TICK(7),
         PACKET_C2S_DATA_LOGGER_REQUEST(8),
+        PACKET_C2S_UNREGISTER_REPLY(9),
         // For Packet Splitter (Oversize Packets, S2C)
         PACKET_S2C_NBT_RESPONSE_START(10),
         PACKET_S2C_NBT_RESPONSE_DATA(11);

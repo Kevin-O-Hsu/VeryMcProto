@@ -15,8 +15,10 @@ import verymc.top.veryMcProto.Reference;
 /**
  * 应用层分包器（框架层）。移植自原版 {@code fi.dy.masa.servux.network.PacketSplitter}（源自 QuickCarpet by skyrising）。
  *
- * <p><b>方案 A 适配（plugin messaging）</b>：Bukkit plugin messaging 单包硬上限 {@code Messenger.MAX_MESSAGE_SIZE = 32768}，
- * 故 S2C 分片常量从原版 1 MiB 下调到 {@value #MAX_TOTAL_PER_PACKET_S2C}（留余量给 VarInt 头 + 通道开销）。
+ * <p><b>方案 A 适配（plugin messaging）</b>：真正的 S2C 瓶颈是原版客户端对 custom payload 的
+ * 32767 字节解码上限（Bukkit {@code Messenger.MAX_MESSAGE_SIZE} 为 1 MiB，是 plugin messaging API 层
+ * 硬拒上限，非 32 KiB——旧注释口径有误），故 S2C 分片常量取 {@value #MAX_TOTAL_PER_PACKET_S2C}
+ * （留余量给 VarInt 头 + 通道开销）。
  *
  * <p><b>并发安全增强</b>（相对原版）：
  * <ul>
@@ -31,7 +33,7 @@ import verymc.top.veryMcProto.Reference;
  */
 public class PacketSplitter
 {
-    // 方案 A：plugin messaging 32KiB 上限。S2C 分片留余量（防御客户端 ClientboundCustomPayload 32767 解码上限）。
+    // S2C 分片上限（防御客户端 ClientboundCustomPayload 32767 解码上限；plugin messaging API 层上限为 1 MiB）。
     public static final int MAX_TOTAL_PER_PACKET_S2C = 32_000;
     public static final int MAX_PAYLOAD_PER_PACKET_S2C = MAX_TOTAL_PER_PACKET_S2C - 5;
 

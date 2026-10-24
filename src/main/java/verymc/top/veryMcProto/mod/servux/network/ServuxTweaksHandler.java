@@ -14,6 +14,7 @@ import verymc.top.veryMcProto.framework.network.IPluginServerPlayHandler;
 import verymc.top.veryMcProto.framework.network.IServerPayloadData;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
 import verymc.top.veryMcProto.mod.servux.dataproviders.TweaksDataProvider;
+import verymc.top.veryMcProto.mod.servux.util.ServuxNbtFrames;
 
 /**
  * Tweaks 通道收发 Handler（mod 层）。移植自原版 {@code ServuxTweaksHandler}（去 Fabric + networkHandler 形参 +
@@ -71,11 +72,22 @@ public class ServuxTweaksHandler implements IPluginServerPlayHandler
         ServuxTweaksPacket packet = (ServuxTweaksPacket) data;
         if (!channel.equals(CHANNEL_ID)) { return; }
 
+        // 观测行：v3 世代 version 为 int；v2 世代为 string（不受支持，静默降级留痕）
+        if (packet.getType() == ServuxTweaksPacket.Type.PACKET_C2S_METADATA_REQUEST)
+        {
+            int declared = packet.getCompound().getIntOr("version", -1);
+            String genInfo = declared != -1
+                    ? String.valueOf(declared)
+                    : packet.getCompound().getStringOr("version", "absent") + " (v2 generation, unsupported)";
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "tweaks METADATA_REQUEST <- " + player.getName().getString() + " declaredVersion=" + genInfo);
+        }
+
         switch (packet.getType())
         {
-            case PACKET_C2S_METADATA_REQUEST -> TweaksDataProvider.INSTANCE.register(player); // 上游 :79 同构：请求即注册（入册+推送）
+            case PACKET_C2S_METADATA_REQUEST -> TweaksDataProvider.INSTANCE.register(player); // 上游同构：请求即注册（入册+推送）
             case PACKET_C2S_BLOCK_ENTITY_REQUEST -> TweaksDataProvider.INSTANCE.onBlockEntityRequest(player, packet.getPos());
             case PACKET_C2S_ENTITY_REQUEST -> TweaksDataProvider.INSTANCE.onEntityRequest(player, packet.getEntityId());
+            case PACKET_C2S_UNREGISTER_REPLY -> TweaksDataProvider.INSTANCE.removePlayer(player); // v2：客户端失败路径注销回执
             // PACKET_C2S_NBT_RESPONSE_DATA（C2S 分片接收）原版注释禁用，保持注释省略
             default -> Reference.logger().warning("ServuxTweaksHandler#decodeServerData: invalid packetType " + packet.getPacketType()
                     + " from " + player.getName().getString() + ", size=" + packet.getTotalSize());
@@ -101,10 +113,9 @@ public class ServuxTweaksHandler implements IPluginServerPlayHandler
         {
             ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData tweaks -> " + player.getName().getString()
                     + " type=" + packet.getType() + " -> PacketSplitter fragmentation");
-            // 大包：VarInt transactionId + NBT，走 PacketSplitter
+            // v3 帧：splitter 载荷 = [int32][GZIP NBT]（对齐上游 DataByteBufUtils.toByteBuf → PacketSplitter.send）
             FriendlyByteBuf buffer = new FriendlyByteBuf(io.netty.buffer.Unpooled.buffer());
-            buffer.writeVarInt(packet.getTransactionId());
-            buffer.writeNbt(packet.getCompound());
+            ServuxNbtFrames.write(buffer, packet.getCompound());
             verymc.top.veryMcProto.framework.network.PacketSplitter.send(this, buffer, player);
         }
         else if (!this.sendPlayPayload(player, packet))

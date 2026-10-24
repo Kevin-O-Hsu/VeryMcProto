@@ -87,7 +87,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
   完整分类见 `framework/debug/Debug.java` 的 `Cat` 枚举：`lifecycle / handshake / network / packet / tick / permission / provider / config`。
 - **持久化**：编辑 `run-1.21.11/plugins/VeryMcProto/servux.json`，设 `servux_main.debug_log: true`，重启。
 
-> 开启后日志形如：`[DBG/HANDSHAKE] litematic sendMetadata → Steve ok=true servux=servux-paper-1.21.11-b2 ver=1`。
+> 开启后日志形如：`[DBG/HANDSHAKE] litematic sendMetadata → Steve ok=true servux=servux-fabric-1.21.11-<b> ver=2`。
 
 ### 3.2 服务端：确认权限（当前默认全员可用）
 
@@ -145,8 +145,8 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 **预期（成功判据）—— 三处任一可见即通过**：
 
 - 服务端日志：`[DBG/PACKET] C2S litematics ← <玩家> type=PACKET_C2S_METADATA_REQUEST`
-- 服务端日志：`[DBG/HANDSHAKE] litematic sendMetadata → <玩家> ok=true servux=servux-paper-... ver=1`
-- 客户端日志（`.minecraft/logs/latest.log`）：`LitematicDataChannel: joining Servux version servux-paper-...`
+- 服务端日志：`[DBG/HANDSHAKE] litematic sendMetadata → <玩家> ok=true servux=servux-fabric-... ver=2`
+- 客户端日志（`.minecraft/logs/latest.log`）：`LitematicDataChannel: joining Servux version servux-fabric-...`
 
 **若失败**：服务端只有 C2S 没有 `ok=true` 的 S2C → 握手回程丢包，查 §7 排错。
 
@@ -199,7 +199,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 - 客户端开关仍是 **Tweakeroo** 配置 → Generic → `entityDataSync`。
 - **预期服务端日志**：`[DBG/HANDSHAKE] tweaks sendMetadata → <玩家> ok=true ... keys=[...]`
-- **预期客户端日志**：`tweaksDataChannel: joining Servux version servux-paper-...`
+- **预期客户端日志**：`tweaksDataChannel: joining Servux version servux-fabric-...`
 
 ### 6.3 测试 B：实体 / 方块实体 NBT 查询
 
@@ -246,15 +246,17 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 ### 7.3 协议版本不匹配告警
 
-客户端若收到版本不符会 warn（如 `Mis-matched protocol version!`）。对照：
+客户端若收到版本不符会 warn（如 `Mis-matched protocol version! (Expected: 3 but got 2 ...)`——v2 世代服务端的典型症状；此外 v3 客户端对 `servux` 字段做 `startsWith("servux-fabric...")` 前缀门禁，前缀不符同样静默拒收且告警可能被版本分支掩盖，排错时两处都要核对）。本线已对齐 v3 世代（服务端收到 METADATA_REQUEST / STRUCTURES_REGISTER 时会记一行 `declaredVersion=` 供对照）：
 
-| 通道 | 客户端期望（`PROTOCOL_VERSION`） | 我们下发 |
+| 通道 | 客户端期望（v3 世代 `PROTOCOL_VERSION`） | 我们下发 |
 |---|---|---|
-| hud_metadata | 2 | 2（`ServuxHudPacket.PROTOCOL_VERSION`） |
-| entity_data | 1 | 1 |
-| structures | 2 | 2 |
-| tweaks | 1 | 1 |
-| litematics | 1 | 1 |
+| hud_metadata | 3 | 3（`ServuxHudPacket.PROTOCOL_VERSION`） |
+| entity_data | 2 | 2 |
+| structures | 3 | 3 |
+| tweaks | 2 | 2 |
+| litematics | 2 | 2 |
+
+v2 世代客户端（minihud ≤0.38.13 / malilib ≤0.27.16 / litematica ≤0.26.12）连接本线时：不崩溃、通道数据静默不可用（其收包解析失败被客户端逐包 catch 丢弃），服务端观测行会记 `declaredVersion=<字符串> (v2 generation, unsupported)`。
 
 ---
 

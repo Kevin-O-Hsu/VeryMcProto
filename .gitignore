@@ -37,6 +37,8 @@ bin/
 #       因此【不要】单独写顶层 world/ 规则——那会误伤 OriginImpl 的 mixin/world/ 源码包。
 run/
 run-1.21.11/
+run-26.1.2/
+run-26.2/
 run-data/
 logs/
 *.log

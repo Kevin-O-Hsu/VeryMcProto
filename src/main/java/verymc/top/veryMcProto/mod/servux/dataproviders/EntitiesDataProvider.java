@@ -228,18 +228,17 @@ public class EntitiesDataProvider extends DataProviderBase
 
     @Override public boolean hasPermission(ServerPlayer player) { return Perms.check(player, this.permNode, this.permissionLevel.getValue()); }
 
-    @Override public void onPlayerJoin(ServerPlayer player) { this.register(player); } // 上游 PlayerListener join→register 同构
+    // 对齐上游 0.9.9：join 不自动入册（注册唯一入口 = 客户端 C2S METADATA_REQUEST）
+    @Override public void onPlayerJoin(ServerPlayer player) { }
 
     @Override
     public void onPlayerRegisterChannel(ServerPlayer player, String channel)
     {
-        // 修复 entity sync not_enabled 根因：onPlayerJoin 时客户端尚未声明 servux:entity_data（configuration phase），
-        // sendMetadata 的 ProtocolChannel.send 会因 getListeningPluginChannels 不含该通道而失败丢弃 metadata。
-        // 客户端声明该通道（= 装了实体查询 mod）时立即重发，确保 metadata 可达。sendMetadata 幂等，重复无害。
+        // 客户端声明该通道（= 装了实体查询 mod）时重发 metadata，确保可达（sendMetadata 幂等，重复无害）。
         if (this.getNetworkChannel().toString().equals(channel))
         {
-            // 名册白名单：仅已注册玩家重发（上游无此补偿路径；未注册玩家的 deny 语义不被旁路——
-            // 未注册者经 join→register 或 C2S METADATA_REQUEST→register 入册）
+            // 名册白名单：仅已注册玩家重发（未注册者唯一入册路径是 C2S METADATA_REQUEST→register；
+            // join 自动入册已按上游 0.9.9 停用，未注册玩家的 deny 语义不被旁路）
             if (!this.isPlayerRegistered(player)) { return; }
             ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "entity onPlayerRegisterChannel: client declared " + channel + " -> resending metadata");
             this.sendMetadata(player);

@@ -4,7 +4,6 @@ import javax.annotation.Nullable;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -12,10 +11,15 @@ import io.netty.buffer.Unpooled;
 
 import verymc.top.veryMcProto.Reference;
 import verymc.top.veryMcProto.framework.network.IServerPayloadData;
+import verymc.top.veryMcProto.mod.servux.util.ServuxNbtFrames;
 
 /**
- * Entities 通道协议帧（mod 层）。照抄原版 {@code ServuxEntitiesPacket}（去注解 + jul logger）。
- * 协议版本 {@value #PROTOCOL_VERSION}，通道 servux:entity_data。
+ * Entities 通道协议帧（mod 层）。照抄原版 {@code ServuxEntitiesPacket}（去注解 + jul logger），
+ * 对齐上游 servux 0.9.9（v2 世代 wire）。协议版本 {@value #PROTOCOL_VERSION}，通道 servux:entity_data。
+ *
+ * <p>wire 变化（相对 v1）：Simple 响应的 NBT 体改为 v3 帧格式（{@link ServuxNbtFrames}）；
+ * C2S 实体/方块实体请求<b>删除 transactionId 前缀</b>（直写 blockPos / varint entityId）；
+ * 新增 {@code PACKET_C2S_UNREGISTER_REPLY(7)}；metadata 双向恒 vanilla NBT。
  */
 public class ServuxEntitiesPacket implements IServerPayloadData
 {
@@ -25,7 +29,7 @@ public class ServuxEntitiesPacket implements IServerPayloadData
     private BlockPos pos;
     private CompoundTag nbt;
     private FriendlyByteBuf buffer;
-    public static final int PROTOCOL_VERSION = 1;
+    public static final int PROTOCOL_VERSION = 2;
 
     private ServuxEntitiesPacket(Type type)
     {
@@ -78,6 +82,14 @@ public class ServuxEntitiesPacket implements IServerPayloadData
     {
         var packet = new ServuxEntitiesPacket(Type.PACKET_C2S_ENTITY_REQUEST);
         packet.entityId = entityId;
+        return packet;
+    }
+
+    /** v2 新增：客户端注销回执（C2S；失败路径自摘）。 */
+    public static ServuxEntitiesPacket UnregisterReply(@Nullable CompoundTag nbt)
+    {
+        var packet = new ServuxEntitiesPacket(Type.PACKET_C2S_UNREGISTER_REPLY);
+        if (nbt != null) { packet.nbt.merge(nbt); }
         return packet;
     }
 
@@ -151,22 +163,23 @@ public class ServuxEntitiesPacket implements IServerPayloadData
         {
             case PACKET_C2S_BLOCK_ENTITY_REQUEST ->
             {
-                try { output.writeVarInt(this.transactionId); output.writeBlockPos(this.pos); }
+                // v2 wire：不再携带 transactionId 前缀（对齐上游）
+                try { output.writeBlockPos(this.pos); }
                 catch (Exception e) { Reference.logger().warning("ServuxEntitiesPacket#toPacket BlockEntityRequest: " + e.getMessage()); }
             }
             case PACKET_C2S_ENTITY_REQUEST ->
             {
-                try { output.writeVarInt(this.transactionId); output.writeVarInt(this.entityId); }
+                try { output.writeVarInt(this.entityId); }
                 catch (Exception e) { Reference.logger().warning("ServuxEntitiesPacket#toPacket EntityRequest: " + e.getMessage()); }
             }
             case PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE ->
             {
-                try { output.writeBlockPos(this.pos); output.writeNbt(this.nbt); }
+                try { output.writeBlockPos(this.pos); ServuxNbtFrames.write(output, this.nbt); }
                 catch (Exception e) { Reference.logger().warning("ServuxEntitiesPacket#toPacket BlockResponse: " + e.getMessage()); }
             }
             case PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE ->
             {
-                try { output.writeVarInt(this.entityId); output.writeNbt(this.nbt); }
+                try { output.writeVarInt(this.entityId); ServuxNbtFrames.write(output, this.nbt); }
                 catch (Exception e) { Reference.logger().warning("ServuxEntitiesPacket#toPacket EntityResponse: " + e.getMessage()); }
             }
             case PACKET_S2C_NBT_RESPONSE_DATA, PACKET_C2S_NBT_RESPONSE_DATA ->
@@ -176,8 +189,13 @@ public class ServuxEntitiesPacket implements IServerPayloadData
             }
             case PACKET_C2S_METADATA_REQUEST, PACKET_S2C_METADATA ->
             {
+                // metadata 双向恒 vanilla NBT（跨代协商/注册通道）
                 try { output.writeNbt(this.nbt); }
                 catch (Exception e) { Reference.logger().warning("ServuxEntitiesPacket#toPacket NBT: " + e.getMessage()); }
+            }
+            case PACKET_C2S_UNREGISTER_REPLY ->
+            {
+                ServuxNbtFrames.write(output, this.nbt);
             }
             default -> Reference.logger().warning("ServuxEntitiesPacket#toPacket: unknown packet type!");
         }
@@ -199,14 +217,29 @@ public class ServuxEntitiesPacket implements IServerPayloadData
         {
             switch (type)
             {
-                case PACKET_C2S_BLOCK_ENTITY_REQUEST -> { input.readVarInt(); return ServuxEntitiesPacket.BlockEntityRequest(input.readBlockPos()); }
-                case PACKET_C2S_ENTITY_REQUEST -> { input.readVarInt(); return ServuxEntitiesPacket.EntityRequest(input.readVarInt()); }
-                case PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE -> { return ServuxEntitiesPacket.SimpleBlockResponse(input.readBlockPos(), (CompoundTag) input.readNbt(NbtAccounter.create(verymc.top.veryMcProto.mod.servux.util.nbt.NbtUtils.NETWORK_MAX_BYTES))); }
-                case PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE -> { return ServuxEntitiesPacket.SimpleEntityResponse(input.readVarInt(), (CompoundTag) input.readNbt(NbtAccounter.create(verymc.top.veryMcProto.mod.servux.util.nbt.NbtUtils.NETWORK_MAX_BYTES))); }
+                case PACKET_C2S_BLOCK_ENTITY_REQUEST -> { return ServuxEntitiesPacket.BlockEntityRequest(input.readBlockPos()); }
+                case PACKET_C2S_ENTITY_REQUEST -> { return ServuxEntitiesPacket.EntityRequest(input.readVarInt()); }
+                case PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE ->
+                {
+                    BlockPos pos = input.readBlockPos();
+                    CompoundTag nbt = ServuxNbtFrames.read(input);
+                    if (nbt != null) { return ServuxEntitiesPacket.SimpleBlockResponse(pos, nbt); }
+                }
+                case PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE ->
+                {
+                    int entityId = input.readVarInt();
+                    CompoundTag nbt = ServuxNbtFrames.read(input);
+                    if (nbt != null) { return ServuxEntitiesPacket.SimpleEntityResponse(entityId, nbt); }
+                }
                 case PACKET_S2C_NBT_RESPONSE_DATA -> { return ServuxEntitiesPacket.ResponseS2CData(new FriendlyByteBuf(input.readBytes(input.readableBytes()))); }
                 case PACKET_C2S_NBT_RESPONSE_DATA -> { return ServuxEntitiesPacket.ResponseC2SData(new FriendlyByteBuf(input.readBytes(input.readableBytes()))); }
                 case PACKET_C2S_METADATA_REQUEST -> { return ServuxEntitiesPacket.MetadataRequest(input.readNbt()); }
                 case PACKET_S2C_METADATA -> { return ServuxEntitiesPacket.MetadataResponse(input.readNbt()); }
+                case PACKET_C2S_UNREGISTER_REPLY ->
+                {
+                    CompoundTag nbt = ServuxNbtFrames.read(input);
+                    if (nbt != null) { return ServuxEntitiesPacket.UnregisterReply(nbt); }
+                }
                 default -> Reference.logger().warning("ServuxEntitiesPacket#fromPacket: unknown packet type!");
             }
         }
@@ -247,6 +280,7 @@ public class ServuxEntitiesPacket implements IServerPayloadData
         PACKET_C2S_ENTITY_REQUEST(4),
         PACKET_S2C_BLOCK_NBT_RESPONSE_SIMPLE(5),
         PACKET_S2C_ENTITY_NBT_RESPONSE_SIMPLE(6),
+        PACKET_C2S_UNREGISTER_REPLY(7),
         // For Packet Splitter (Oversize Packets, S2C)
         PACKET_S2C_NBT_RESPONSE_START(10),
         PACKET_S2C_NBT_RESPONSE_DATA(11),

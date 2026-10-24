@@ -16,23 +16,24 @@ import verymc.top.veryMcProto.framework.network.IPluginServerPlayHandler;
 import verymc.top.veryMcProto.framework.network.IServerPayloadData;
 import verymc.top.veryMcProto.framework.network.PacketSplitter;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
-import verymc.top.veryMcProto.mod.servux.dataproviders.HudDataProvider;
 import verymc.top.veryMcProto.mod.servux.dataproviders.StructureDataProvider;
+import verymc.top.veryMcProto.mod.servux.util.ServuxNbtFrames;
 
 /**
- * Structures 通道收发 Handler（mod 层）。移植自原版 {@code ServuxStructuresHandler}（去 Fabric + networkHandler 形参）。
- * 通道 servux:structures，协议版本 2。
+ * Structures 通道收发 Handler（mod 层）。移植自原版 {@code ServuxStructuresHandler}（去 Fabric + networkHandler 形参），
+ * 对齐上游 servux 0.9.9（v3 世代 wire）。通道 servux:structures，协议版本 3。
  *
  * <p>收（C2S）：{@link #receivePlayPayload} 还原 {@link ServuxStructuresPacket} → {@link #decodeServerData} 分发：
  * <ul>
- *   <li>{@code PACKET_C2S_STRUCTURES_REGISTER/UNREGISTER} → {@link StructureDataProvider} 注册/注销；</li>
- *   <li>{@code PACKET_C2S_REQUEST_SPAWN_METADATA} → 跨通道转发 {@link HudDataProvider#refreshSpawnMetadata}
- *       （原版如此：spawn/天气元数据由 HUD provider 生成，但客户端可能经 structures 通道请求）。</li>
+ *   <li>{@code PACKET_C2S_STRUCTURES_REGISTER/UNREGISTER} → {@link StructureDataProvider} 注册/注销
+ *       （v3 客户端的注册入口即 REGISTER——本通道无 C2S metadata 请求类型，版本键装在 REGISTER 的 NBT 中）。</li>
  * </ul>
+ * v2 遗留的跨通道 spawn 转发（{@code PACKET_C2S_REQUEST_SPAWN_METADATA}，枚举 11）已随上游 v3 删除。
  *
  * <p>发（S2C）：{@link #encodeServerData} 普通包走 {@link #sendPlayPayload}（plugin messaging）；
- * 大包（{@code PACKET_S2C_STRUCTURE_DATA_START}）走 {@link PacketSplitter} 分片，每片经
- * {@link #encodeWithSplitter} 包装成 {@code PACKET_S2C_STRUCTURE_DATA} 发送。
+ * 大包（{@code PACKET_S2C_STRUCTURE_DATA_START}）走 {@link PacketSplitter} 分片，<b>内层载荷为 v3 帧</b>
+ * （{@link ServuxNbtFrames}，客户端重组后解帧），每片经 {@link #encodeWithSplitter} 包装成
+ * {@code PACKET_S2C_STRUCTURE_DATA} 发送。
  *
  * <p><b>失败重试</b>：{@link #sendPlayPayload} 返回 false（客户端未声明监听该通道 = 未装 MiniHUD）
  * 累计 {@value #MAX_FAILURES} 次后注销该玩家结构订阅。
@@ -107,12 +108,16 @@ public class ServuxStructuresHandler implements IPluginServerPlayHandler
             // 仅 NBT 类型包来自 MiniHUD（Structures 通道不走 PacketSplitter 接收）
             case PACKET_C2S_STRUCTURES_REGISTER ->
             {
-                ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeStructuresPacket(): received Structures Register from " + player.getName().getString());
+                // 观测行：v3 客户端在 REGISTER 的 NBT 中携带 int version；v2 世代为 string（不受支持，静默降级留痕）
+                int declared = packet.getCompound().getIntOr("version", -1);
+                String genInfo = declared != -1
+                        ? String.valueOf(declared)
+                        : packet.getCompound().getStringOr("version", "absent") + " (v2 generation, unsupported)";
+                ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeStructuresPacket(): received Structures Register from "
+                        + player.getName().getString() + " declaredVersion=" + genInfo);
                 StructureDataProvider.INSTANCE.unregister(player);
                 StructureDataProvider.INSTANCE.register(player);
             }
-            // 保留 handler，转发给 HudDataProvider（spawn/天气元数据由其生成）
-            case PACKET_C2S_REQUEST_SPAWN_METADATA -> HudDataProvider.INSTANCE.refreshSpawnMetadata(player, packet.getCompound());
             case PACKET_C2S_STRUCTURES_UNREGISTER ->
             {
                 ServuxDebug.log(ServuxDebug.Cat.PACKET, "decodeStructuresPacket(): received Structures Un-Register from " + player.getName().getString());
@@ -141,9 +146,10 @@ public class ServuxStructuresHandler implements IPluginServerPlayHandler
         {
             ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData structures -> " + player.getName().getString()
                     + " type=" + packet.getType() + " -> PacketSplitter fragmentation");
-            // 大包：NBT，走 PacketSplitter 分片
+            // v3 帧：splitter 载荷 = [int32][GZIP NBT]（对齐上游 DataByteBufUtils.toByteBuf → PacketSplitter.send；
+            // 客户端重组后以 DataByteBufUtils.fromByteBuf 解帧）
             FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
-            buffer.writeNbt(packet.getCompound());
+            ServuxNbtFrames.write(buffer, packet.getCompound());
             PacketSplitter.send(this, buffer, player);
         }
         else if (!this.sendPlayPayload(player, packet))

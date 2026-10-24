@@ -24,11 +24,11 @@ Servux 用的是 **Mojang 在 1.20.2+ 引入的原版 `CustomPacketPayload`** �
 
 | 通道 ID（channel） | 协议版本 | Provider（逻辑名） | Packet 类 | 客户端配套 Mod | 用途 |
 |---|---|---|---|---|---|
-| `servux:hud_metadata` | **2** | `HudDataProvider`（hud_data） | `ServuxHudPacket` | **MiniHUD** | 世界元数据 / 出生点 / 天气 / 配方 / TPS·MobCap logger |
-| `servux:entity_data` | 1 | `EntitiesDataProvider`（entity_data） | `ServuxEntitiesPacket` | MiniHUD / Tweakeroo | 方块实体 & 实体 NBT 查询（含玩家背包权限过滤） |
-| `servux:tweaks` | 1 | `TweaksDataProvider`（tweaks_data） | `ServuxTweaksPacket` | Tweakeroo | NBT 查询（潜影盒堆叠未实现，见 [04](../archive/04-mixin-analysis.md)） |
-| `servux:structures` | **2** | `StructureDataProvider`（structure_bounding_boxes） | `ServuxStructuresPacket` | MiniHUD | 原版结构边界框（村庄/神殿/要塞…） |
-| `servux:litematics` | 1 | `LitematicsDataProvider`（litematic_data） | `ServuxLitematicaPacket` | **Litematica** | Litematica 投影投递 / 粘贴 / 批量实体数据 |
+| `servux:hud_metadata` | **3** | `HudDataProvider`（hud_data） | `ServuxHudPacket` | **MiniHUD** | 世界元数据 / 出生点 / 天气 / 配方 / TPS·MobCap logger |
+| `servux:entity_data` | 2 | `EntitiesDataProvider`（entity_data） | `ServuxEntitiesPacket` | MiniHUD / Tweakeroo | 方块实体 & 实体 NBT 查询（含玩家背包权限过滤） |
+| `servux:tweaks` | 2 | `TweaksDataProvider`（tweaks_data） | `ServuxTweaksPacket` | Tweakeroo | NBT 查询（潜影盒堆叠未实现，见 [04](../archive/04-mixin-analysis.md)） |
+| `servux:structures` | **3** | `StructureDataProvider`（structure_bounding_boxes） | `ServuxStructuresPacket` | MiniHUD | 原版结构边界框（村庄/神殿/要塞…） |
+| `servux:litematics` | 2 | `LitematicsDataProvider`（litematic_data） | `ServuxLitematicaPacket` | **Litematica** | Litematica 投影投递 / 粘贴 / 批量实体数据 |
 
 > **配置 provider**：`ConfigProvider`（逻辑名 `servux_main`，`DataProviderBase` 元信息 channel 标记为 `servux:main`，但 `registerHandler` 是 NO-OP——**不注册网络通道、不下发网络包**），承载全局 settings（permission_level / easy_place / debug 等），走 `/servux` 命令与 `servux.json` 持久化。
 
@@ -112,7 +112,7 @@ public enum Type {
 
 ```java
 public interface IServerPayloadData {
-    int getVersion();      // PROTOCOL_VERSION（HUD=2, Entities=1, ...）
+    int getVersion();      // PROTOCOL_VERSION（HUD=3, Entities=2, ...）
     int getPacketType();   // 子消息 type id
     int getTotalSize();    // 估算字节数（用于诊断日志）
     boolean isEmpty();
@@ -301,7 +301,7 @@ ServuxHudHandler.encodeServerData(player, data)                    // :121
 4. **分包常量**：S2C 分片从 1MiB 改 ≤32760（若走 plugin messaging）；session key 逻辑照搬。
 5. **Payload record / StreamCodec / toPacket / fromPacket**：几乎照抄（去掉 `@Environment`）。
 6. **C2S 不踢人**：plugin messaging 注册的通道 Paper 内置路由，不会因"未知 payload"踢玩家。
-7. **协议版本号保持一致**（HUD=2 等），否则客户端协商失败。
+7. **协议版本号保持一致**（HUD=3 / Entities=2 / Tweaks=2 / Structures=3 / Litematics=2，v3 世代——见 §9.1），否则客户端协商失败。
 
 完整迁移设计、字节限制方案、NMS vs plugin messaging 取舍见 [architecture.md](../architecture.md) §3。
 
@@ -309,35 +309,37 @@ ServuxHudHandler.encodeServerData(player, data)                    // :121
 
 ## 9. 1.21.11 线 wire 真值（as-built，权威）
 
-> 本节是本线协议面真值（本文 §1–§8 对原版的分析即成文于 1.21.11 LTS 源码，与本线一致）；26.1 起的协议面变化（DataTag 载体 / MOD_STRING fabric 硬门禁 / 协议版本提升 / UNREGISTER_REPLY 等）见 26.1.2 线 `servux/protocol.md` §9——跨线移植时勿把 26.x 形态带回本线。
+> 本节是本线协议面真值。**本线已对齐 v3 世代 wire**（sakura-ryuko LTS/1.21.11 线 servux 0.9.9 / minihud 0.38.16+ / malilib 0.27.20+，2026-10 迁移）：部署客户端为 1.21.11 线 v3 世代（gzip 帧 / fabric 前缀硬门禁 / 协议版本提升 / UNREGISTER_REPLY 等全部实存于本线客户端），v2 世代形态（≤0.38.13/0.9.5）已成历史——旧世代客户端在本线下不崩溃但静默无数据（用户裁决的接受边界）。本文 §1–§8 对原版的分析成文于 v2 世代源码，wire 细节以本节为准。**v2→v3 世代对齐的根因**：v3 客户端把非 metadata NBT 体的头 4 字节读作 int32 帧长（gzip 帧格式），裸 vanilla NBT 直发会触发客户端解码越界并断连（102 字节尾随崩溃，五次会话实证）。
 
 ### 9.1 协议版本全表（客户端 `!=` 严格相等）
 
-HUD `ServuxHudPacket.PROTOCOL_VERSION` = **2**、Entities = **1**、Tweaks = **1**、Structures = **2**、Litematics = **1**。
+HUD `ServuxHudPacket.PROTOCOL_VERSION` = **3**、Entities = **2**、Tweaks = **2**、Structures = **3**、Litematics = **2**（对齐上游 servux 0.9.9）。
 
-### 9.2 MOD_STRING 形态
+### 9.2 MOD_STRING 形态与前缀门禁
 
-`ServuxReference.MOD_STRING = "servux-paper-<mcVersion>-b<buildNumber>"`（`MOD_TYPE = "paper"`）——1.21.11 客户端只认 `servux-` 前缀并比对版本号段，`paper` 前缀在本线**合法**（26.1 起客户端硬门禁 `servux-fabric-<精确上游id>` 前缀，26.x 线改用伪装——跨线勿互抄）。
+`ServuxReference.MOD_STRING = "servux-fabric-<mcVersion>-b<buildNumber>"`（`MOD_TYPE = "fabric"`，与 26.x 线同款伪装）。**v3 世代客户端（1.21.11 线 0.38.16+）对 "servux" 字段做前缀硬门禁**：minihud 三通道校验 `startsWith("servux-fabric")`，litematica/tweakeroo 校验 `startsWith("servux-fabric-1.21.11")`（带 MC 版本段）；任一不满足即静默拒收该通道全部数据。旧称 `paper` 前缀在 v3 世代**非法**（v2 世代无字符串校验，故 fabric 形态对两代安全）。
 
-### 9.3 NBT 载体与 C2S 形态
+### 9.3 NBT 载体与 C2S 形态（v3 帧）
 
-- 业务包 NBT = **vanilla `writeNbt/readNbt`** 载体（无 DataTag 线格式——26.1 线形态）。
-- C2S 请求带 `transactionId` 前置 VarInt（26.1 起整体删除——收端解析勿跨线照抄）。
-- **无 `UNREGISTER_REPLY`** 枚举（26.1 新增）；METADATA_REQUEST = 直接再注册语义（26.1 变为先 unregister）。
-- 客户端重组上限 = **128MB**（malilib `DEFAULT_MAX_RECEIVE_SIZE_S2C`；服务端 `PacketSplitter.MAX_REASSEMBLY_SIZE_S2C` 同值预检）。
+- **metadata 双向恒 vanilla `writeNbt/readNbt`**（跨代协商/注册通道——客户端在此校验版本与前缀）。
+- **其余 NBT 体 = v3 gzip 帧** `[int32 BE 长度][GZIP(命名根 NBT 流)]`（服务端实现 `mod/servux/util/ServuxNbtFrames`，与上游 `DataByteBufUtils` 字节等价；读侧 ZipException 回退非压缩 + 越界长度拒包）。覆盖：HUD spawn/weather/logger 各型与 recipe START 内层、Entities/Tweaks/Litematics 的 Simple/Bulk 响应体、Structures 的 DATA_START 内层、C2S spawn/recipe/logger 请求体与 litematic 上传重组产物。
+- C2S 实体/方块实体请求**无 transactionId 前缀**（直写 blockPos / varint entityId——v3 世代删除）。
+- `UNREGISTER_REPLY` 存在，枚举 id 各通道不同：**HUD=9、Litematics=8、Entities=7、Tweaks=7**（客户端在版本/前缀不匹配的失败路径发送，服务端摘名册；structures 用既有 `STRUCTURES_UNREGISTER(4)`）。
+- 注册入口 = 客户端 C2S：四通道 `METADATA_REQUEST`（NBT 携带 int `version`）+ Structures `STRUCTURES_REGISTER(3)`；**join 不自动入册**（对齐上游 0.9.9 PlayerListener 停用）。
+- 客户端重组上限 = **128MB**（malilib `DEFAULT_MAX_RECEIVE_SIZE_S2C`；服务端 `PacketSplitter.MAX_REASSEMBLY_SIZE_S2C` 同值预检；gzip 帧只缩不涨）。
 
 ### 9.4 本线特有功能面
 
-- **S2C 投影文件投递保留**（`/servux litematic transmit`，op 命令 + 目录包含性守卫；仅旧版 litematica 客户端可接收——修复版 ≥0.26.11 对 Transmit 帧双向静默丢弃）。
+- **S2C 投影文件投递保留**（`/servux litematic transmit`，op 命令 + 目录包含性守卫；仅旧版 litematica 客户端可接收——修复版 ≥0.26.11 对 Transmit 帧双向静默丢弃，v3 世代接收 case 为注释死路——遗留链保持字节冻结，未做帧化）。
 - **C2S 文件接收链已移除**（客户端可控 `FileName` 路径穿越任意写删——2026-10 安全修复整链删除，恢复走 git revert）。
-- 投影粘贴 = 同步直放（无 task 化——26.1 客户端才强制 task 路径，26.1 线随之任务化）。
+- 投影粘贴 = 同步直放（上传重组产物为 v3 帧，解帧后按 `Task` 键分发；上游 Task 引擎（枚举 14-17，工具菜单 servux 侧 Fill/Replace 任务）**本移植未实现**——客户端 Task 请求按未知类型丢弃并告警，粘贴/投递/上传主流程不依赖）。
 
 ### 9.5 逐通道 as-built 差异速览
 
 | 通道 | 要点 |
 |---|---|
-| HUD（v2） | 天气采集 = tick 周期读 `getLevelData()` 天气族；出生点 = Bukkit `getSpawnLocation` 周期同步；join 握手延迟 40t + RegisterChannel 兜底 + C2S 主动请求三道保障 |
-| Entities（v1） | `be.saveWithFullMetadata(registryAccess)` / `entity.saveWithoutId`（NbtView 重写绕开 Mixin）；`nbt_query_override` 关闭时回落 vanilla `minecraft.command.data`（op 2） |
-| Tweaks（v1） | 复用 Entities 权限；潜影盒堆叠已删（不下发 `stackingShulkers` 元数据——见 [architecture.md](../architecture.md) §5）；修正原版 ResponseS2CData 重复赋值 bug |
-| Structures（v2） | 触发 = 周期扫描（原版 Mixin 精确触发）；NMS 采集直连（`getAllReferences/getStartForStructure/createTag`）；含 spawn/weather 元数据 type 10/11/12（26.1 起收敛到 HUD 删除） |
-| Litematics（v1） | S2C transmit 保留 + C2S 接收已删（§9.4）；粘贴同步直放 + 镜像修复内联（[schematic.md](schematic.md) §6） |
+| HUD（v3） | 天气采集 = tick 周期读 `getLevelData()` 天气族；出生点 = Bukkit `getSpawnLocation` 周期同步；注册入口 = C2S METADATA_REQUEST（join 不入册）+ RegisterChannel 名册白名单重发；UNREGISTER_REPLY(9) |
+| Entities（v2） | `be.saveWithFullMetadata(registryAccess)` / `entity.saveWithoutId`（NbtView 重写绕开 Mixin）；`nbt_query_override` 关闭时回落 vanilla `minecraft.command.data`（op 2）；请求无 transactionId；bulk S2C splitter 路径上游已死（本线同步移除）；UNREGISTER_REPLY(7) |
+| Tweaks（v2） | 复用 Entities 权限；潜影盒堆叠已删（不下发 `stackingShulkers` 元数据——见 [architecture.md](../architecture.md) §5）；修正原版 ResponseS2CData 重复赋值 bug；UNREGISTER_REPLY(7) |
+| Structures（v3） | 触发 = 周期扫描（原版 Mixin 精确触发）；NMS 采集直连（`getAllReferences/getStartForStructure/createTag`）；v2 遗留死枚举 10/11/12 已删（spawn/weather 元数据本就归 HUD 通道）；DATA_START 内层为 v3 帧，其余包体恒 vanilla |
+| Litematics（v2） | S2C transmit 保留（遗留链未帧化）+ C2S 接收已删（§9.4）；上传重组产物为 v3 帧→解帧粘贴；粘贴同步直放 + 镜像修复内联（[schematic.md](schematic.md) §6）；UNREGISTER_REPLY(8)；Task 族（14-17）未实现（§9.4） |

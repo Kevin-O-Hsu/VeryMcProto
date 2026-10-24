@@ -129,7 +129,7 @@ JsonObject toJson(); void fromJson(JsonObject);        // settings 序列化
 
 ### 2.4 Reference / i18n / 日志
 
-- `MOD_STRING` = `servux-paper-<mcVersion>-b<buildNumber>`（**本线 `MOD_TYPE="paper"`**——1.21.11 客户端只认 `servux-` 前缀 + 比对版本号；26.1 起客户端才硬门禁 `fabric` 前缀，26.x 线改用伪装，本线保持 paper 原生形态）。
+- `MOD_STRING` = `servux-fabric-<mcVersion>-b<buildNumber>`（**本线 `MOD_TYPE="fabric"`（与 26.x 线同款伪装）**——v3 世代 1.21.11 客户端（minihud 0.38.16+ 等，2026-10 起部署主流）即对 "servux" 字段做前缀硬门禁：minihud 校验 `startsWith("servux-fabric")`、litematica/tweakeroo 校验 `startsWith("servux-fabric-<mcVersion>")`；旧称 `paper` 前缀在该世代下被静默拒收全部数据。v2 世代（≤0.38.13）无字符串校验，fabric 形态两代安全）。
 - 配置目录 = `plugin.getDataFolder()`；日志 = `JavaPlugin.getLogger()`（SLF4J 占位符用 `Log.java` shim 机械替换）；i18n 硬编码中英文消息（masa 客户端不关心服务端消息语言）。
 
 ---

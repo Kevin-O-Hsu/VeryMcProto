@@ -6,8 +6,6 @@ import java.util.List;
 import java.util.UUID;
 import javax.annotation.Nullable;
 
-import org.bukkit.scheduler.BukkitRunnable;
-
 import com.mojang.serialization.DataResult;
 
 import net.minecraft.core.BlockPos;
@@ -24,7 +22,6 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.ServerLevelData;
 
-import verymc.top.veryMcProto.Reference;
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderBase;
 import verymc.top.veryMcProto.mod.servux.ServuxDebug;
 import verymc.top.veryMcProto.framework.network.IPluginServerPlayHandler;
@@ -44,7 +41,8 @@ import verymc.top.veryMcProto.mod.servux.network.ServuxHudHandler;
 import verymc.top.veryMcProto.mod.servux.network.ServuxHudPacket;
 
 /**
- * HUD Provider（mod 层，配 MiniHUD）。移植自原版 {@code HudDataProvider}（通道 servux:hud_metadata，协议版本 2）。
+ * HUD Provider（mod 层，配 MiniHUD）。移植自原版 {@code HudDataProvider}（通道 servux:hud_metadata，协议版本 3，
+ * 对齐上游 servux 0.9.9 v3 世代 wire：非 metadata NBT 体走 gzip 帧格式，见 {@code ServuxNbtFrames}）。
  *
  * <p><b>适配点</b>：
  * <ul>
@@ -53,7 +51,7 @@ import verymc.top.veryMcProto.mod.servux.network.ServuxHudPacket;
  *       改 {@link ServerPlayHandler#registerServerPlayHandler}（内含通道注册）；</li>
  *   <li>{@code sendMetadata}：去 NMS networkHandler 重载，统一走 plugin messaging（{@code HANDLER.sendPlayPayload}）；</li>
  *   <li>{@code tick}：去 ProfilerFiller 形参与 push/pop；</li>
- *   <li>{@code onPlayerJoin}：plugin messaging 握手需时间，延迟 sendMetadata（原版走 Mixin placeNewPlayer 直推）；</li>
+ *   <li>{@code onPlayerJoin}：对齐上游 0.9.9 不自动入册（注册唯一入口 = 客户端 C2S METADATA_REQUEST）；</li>
  *   <li>天气采集：原版 Mixin advanceWeatherCycle 触发 tickWeather，Paper 改在 tick 内周期读 {@link ServerLevel} 天气计时。</li>
  * </ul>
  */
@@ -634,17 +632,11 @@ public class HudDataProvider extends DataProviderBase
     @Override
     public void onPlayerJoin(ServerPlayer player)
     {
-        if (!this.isEnabled()) { return; }
-        // 上游 PlayerListener join→register 同构（Paper 适配：延迟 40t 等客户端声明/codec 就绪后入册+推送）
-        try
-        {
-            new BukkitRunnable()
-            {
-                @Override
-                public void run() { HudDataProvider.this.register(player); }
-            }.runTaskLater(Reference.plugin(), 40L); // 2s
-        }
-        catch (Exception e) { ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "onPlayerJoin delayed register failed: " + e.getMessage()); }
+        // 对齐上游 0.9.9：join 不自动入册/推送（上游 PlayerListener 的 join 注册整块停用——
+        // "Stop automatically registering clients"）。注册唯一入口 = 客户端 C2S METADATA_REQUEST
+        // （携带 version 键）；推送门 isPlayerRegistered 由此保证推送前客户端世代语义已知。
+        ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "onPlayerJoin: " + player.getName().getString()
+                + " (no auto-register; waiting for C2S METADATA_REQUEST)");
     }
 
     @Override
@@ -654,8 +646,8 @@ public class HudDataProvider extends DataProviderBase
     public void onPlayerRegisterChannel(ServerPlayer player, String channel)
     {
         // 客户端声明监听 servux:hud_metadata = 装了 MiniHUD（configuration phase 后的可靠信号）。
-        // 名册白名单：仅已注册玩家重发（上游无此补偿路径；未注册玩家的 deny 语义不被重发旁路——
-        // 未注册者经 join→register 或 C2S METADATA_REQUEST→register 入册）
+        // 名册白名单：仅已注册玩家重发（未注册者唯一入册路径是 C2S METADATA_REQUEST→register；
+        // join 自动入册已按上游 0.9.9 停用，未注册玩家的 deny 语义不被重发旁路）
         if (ServuxReference.CHANNEL_HUD.toString().equals(channel))
         {
             if (!this.isPlayerRegistered(player)) { return; }

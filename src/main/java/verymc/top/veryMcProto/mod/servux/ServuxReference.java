@@ -6,9 +6,12 @@ import verymc.top.veryMcProto.Reference;
 /**
  * Servux mod 专用常量（mod 层）。
  *
- * <p>协议握手字段 {@link #MOD_STRING} = {@code servux-paper-1.21.11-b1}（保持 {@code servux-} 前缀，
- * masa 客户端据此识别服务端装载了 Servux 协议——客户端仅做前缀识别与展示，不分段解析；
- * 具体版本协商走各通道的 protocol version）。
+ * <p>协议握手字段 {@link #MOD_STRING} = {@code servux-fabric-1.21.11-b<构建号>}。<b>{@link #MOD_TYPE} 必须为
+ * {@code "fabric"}</b>：v3 世代 masa 客户端（minihud 0.38.16+ / malilib 0.27.20+ / litematica 0.26.16+ /
+ * tweakeroo 0.27.15+）在 metadata 校验中对 "servux" 字段做前缀硬门禁——minihud 三通道校验
+ * {@code startsWith("servux-fabric")}（HudDataManager/EntityDataManager/DataStorage），litematica 与
+ * tweakeroo 校验 {@code startsWith("servux-fabric-1.21.11")}（带 MC 版本段）；任一不满足即静默拒收该通道
+ * 全部数据。旧世代（v2，≤0.38.13）无字符串校验，故本值对两代安全。
  *
  * <p><b>通道网络名</b>（{@link Identifier}）：严格取自原版各 Handler 的 {@code CHANNEL_ID} 字段（源码实证，
  * 非文档表格）。注意 provider 逻辑名（hud_data / tweaks_data / ...）≠ 通道网络名：
@@ -30,7 +33,11 @@ public final class ServuxReference
     public static final String MC_VERSION = Reference.MC_VERSION;
     /** 插件版本（= MC 版本-b构建号，源自框架 Reference，勿手写）。 */
     public static final String MOD_VERSION = Reference.PLUGIN_VERSION;
-    public static final String MOD_TYPE = "paper";
+    /**
+     * 服务端类型段（v3 客户端前缀门禁要求 "servux-fabric[-mcVersion]" 形状；见类 javadoc）。
+     * 本插件实际运行于 Paper，但协议身份必须伪装为上游 Fabric 形态——与上游 MOD_TYPE 语义对齐。
+     */
+    public static final String MOD_TYPE = "fabric";
     /** 协议握手字段（metadata 的 "servux" 字段值）；PLUGIN_VERSION 自带 MC 版本，故为三段式。 */
     public static final String MOD_STRING = MOD_ID + "-" + MOD_TYPE + "-" + Reference.PLUGIN_VERSION;
     public static final boolean DEV_DEBUG = false;

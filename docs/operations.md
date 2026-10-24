@@ -13,7 +13,7 @@
 - **唯一来源**：插件版本 = `<mcVersion>-b<buildNumber>`，唯一来源 `gradle.properties`；源码、plugin.yml、docs 一律不得手写版本号。
 - **README 例外（唯一活值位）**：README 封面 Version 行为本仓库发版流程认可的例外，**语义 = 最近已发版版本（tag 所指版本）**，随发版提交同步更新。本线（1.21.11）形态：Version 行具体值；**安装节 jar 名保持占位形态 `VeryMcProto-<version>-reobf.jar`**（本线 reobf 未废除，无逐版同步的活值位）。dev/26.1.2 线两处均为具体值形态。
 - **占位化范围**：AGENTS.md 与 docs/ 内一切 buildNumber 活值一律占位化（`-b<N>` / `<buildNumber>` / 「现值见 gradle.properties」表述）——发版提交不再追改文档版本引用。
-- **豁免清单（保留原文的具体值）**：tag 格式示例（如 `v1.21.11-b1`）；历史事故记录值；协议语义 mcVersion 值（MOD_STRING `servux-paper-1.21.11`、carpet HI 版本串 `"1.4.194"` 等——绑死上游 id 与协议语义，与构建号无关）。
+- **豁免清单（保留原文的具体值）**：tag 格式示例（如 `v1.21.11-b1`）；历史事故记录值；协议语义 mcVersion 值（MOD_STRING `servux-fabric-1.21.11`（v3 世代客户端前缀门禁要求 fabric 形态，见 servux/protocol.md §9.2）、carpet HI 版本串 `"1.4.194"` 等——绑死上游 id 与协议语义，与构建号无关）。
 
 ---
 

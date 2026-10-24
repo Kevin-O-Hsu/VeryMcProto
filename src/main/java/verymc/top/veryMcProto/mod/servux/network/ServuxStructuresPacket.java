@@ -15,8 +15,10 @@ import verymc.top.veryMcProto.framework.network.IServerPayloadData;
 /**
  * Structures 通道协议帧（mod 层）。照抄原版 {@code ServuxStructuresPacket}（去 Fabric 注解 + jul logger）。
  *
- * <p>协议版本 {@value #PROTOCOL_VERSION}，通道 servux:structures。字节布局：
- * {@code VarInt(packetType) + NBT（CompoundTag）/ raw bytes（buffer slice）}。
+ * <p>协议版本 {@value #PROTOCOL_VERSION}（对齐上游 servux 0.9.9），通道 servux:structures。字节布局：
+ * {@code VarInt(packetType) + NBT（CompoundTag）/ raw bytes（buffer slice）}——本通道包体 NBT 恒 vanilla
+ * （不走 gzip 帧），仅 {@code PACKET_S2C_STRUCTURE_DATA_START} 的 <b>splitter 内层载荷</b>为 v3 帧
+ * （见 {@link ServuxStructuresHandler}）。v3 删除 v2 遗留死枚举 10/11/12（上游同构）。
  * {@code PACKET_S2C_STRUCTURE_DATA} 携带分包单片（raw bytes，由 {@link ServuxStructuresHandler#encodeWithSplitter} 包装）；
  * 其余携带 NBT。
  *
@@ -28,7 +30,7 @@ public class ServuxStructuresPacket implements IServerPayloadData
     private Type packetType;
     private CompoundTag nbt;
     private FriendlyByteBuf buffer;
-    public static final int PROTOCOL_VERSION = 2;
+    public static final int PROTOCOL_VERSION = 3;
 
     public ServuxStructuresPacket(Type type, @Nullable CompoundTag nbt)
     {
@@ -186,10 +188,7 @@ public class ServuxStructuresPacket implements IServerPayloadData
         PACKET_S2C_STRUCTURE_DATA(2),
         PACKET_C2S_STRUCTURES_REGISTER(3),
         PACKET_C2S_STRUCTURES_UNREGISTER(4),
-        PACKET_S2C_STRUCTURE_DATA_START(5),
-        PACKET_S2C_SPAWN_METADATA(10),
-        PACKET_C2S_REQUEST_SPAWN_METADATA(11),
-        PACKET_S2C_WEATHER_DATA(12);
+        PACKET_S2C_STRUCTURE_DATA_START(5);
 
         private final int type;
 

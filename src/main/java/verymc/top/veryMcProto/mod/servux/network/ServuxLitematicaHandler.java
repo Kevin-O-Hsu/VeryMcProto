@@ -5,7 +5,6 @@ import java.util.Map;
 import java.util.UUID;
 
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -19,15 +18,19 @@ import verymc.top.veryMcProto.framework.network.IServerPayloadData;
 import verymc.top.veryMcProto.framework.network.PacketSplitter;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
 import verymc.top.veryMcProto.mod.servux.dataproviders.LitematicsDataProvider;
+import verymc.top.veryMcProto.mod.servux.util.ServuxNbtFrames;
 
 /**
- * Litematics 通道收发 Handler（mod 层）。移植自原版 {@code ServuxLitematicaHandler}（去 Fabric + networkHandler 形参）。
+ * Litematics 通道收发 Handler（mod 层）。移植自原版 {@code ServuxLitematicaHandler}（去 Fabric + networkHandler 形参），
+ * 对齐上游 servux 0.9.9（v2 世代 wire）。
  *
- * <p>通道 servux:litematics，协议版本 1。收 C2S（metadata / block entity / entity / 批量 / 投影粘贴分片）
+ * <p>通道 servux:litematics，协议版本 2。收 C2S（metadata / block entity / entity / 批量 / 注销回执 / 投影粘贴分片）
  * → 分发到 {@link LitematicsDataProvider}；发 S2C 响应（plugin messaging，大包走 PacketSplitter）。
  *
- * <p><b>投影粘贴</b>：客户端上传的投影 NBT（{@code PACKET_C2S_NBT_RESPONSE_DATA} 分片）走 PacketSplitter.receive 重组，
- * 组装完成后无条件走 LitematicsDataProvider.handleClientPasteRequest 直接粘贴（上游 0.9.5 同构）。
+ * <p><b>投影粘贴</b>：客户端上传的投影（{@code PACKET_C2S_NBT_RESPONSE_DATA} 分片）走 PacketSplitter.receive 重组，
+ * <b>v2 wire：重组产物是 v3 帧</b>（`[int32][GZIP NBT]`，客户端上传侧 DataByteBufUtils.toByteBuf 同构）——
+ * 解帧后读 Task 键（默认 LitematicaPaste）并走 LitematicsDataProvider.handleClientPasteRequest 直接粘贴
+ * （上游 0.9.9 handleBulkData 同构）。
  * <b>C2S 文件接收链（Litematic-Transmit* → receiveFileTransmit 落盘）已于 2026-10 随安全修复整链移除</b>：
  * 客户端可控 FileName 直达 Path.of/dir.resolve 无包含性检查，构成路径穿越任意写/删/读回原语（上游公告漏洞同源）；
  * 修复版 stock 客户端亦不再发送上传帧。恢复走 git revert 该修复 commit。
@@ -84,12 +87,23 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
         ServuxLitematicaPacket packet = (ServuxLitematicaPacket) data;
         if (!channel.equals(CHANNEL_ID)) { return; }
 
+        // 观测行：v3 世代 version 为 int；v2 世代为 string（不受支持，静默降级留痕）
+        if (packet.getType() == ServuxLitematicaPacket.Type.PACKET_C2S_METADATA_REQUEST)
+        {
+            int declared = packet.getCompound().getIntOr("version", -1);
+            String genInfo = declared != -1
+                    ? String.valueOf(declared)
+                    : packet.getCompound().getStringOr("version", "absent") + " (v2 generation, unsupported)";
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematics METADATA_REQUEST <- " + player.getName().getString() + " declaredVersion=" + genInfo);
+        }
+
         switch (packet.getType())
         {
-            case PACKET_C2S_METADATA_REQUEST -> LitematicsDataProvider.INSTANCE.registerPlayer(player); // 上游 :83 同构：请求即注册（入册+推送）
+            case PACKET_C2S_METADATA_REQUEST -> LitematicsDataProvider.INSTANCE.registerPlayer(player); // 上游同构：请求即注册（入册+推送）
             case PACKET_C2S_BLOCK_ENTITY_REQUEST -> LitematicsDataProvider.INSTANCE.onBlockEntityRequest(player, packet.getPos());
             case PACKET_C2S_ENTITY_REQUEST -> LitematicsDataProvider.INSTANCE.onEntityRequest(player, packet.getEntityId());
             case PACKET_C2S_BULK_ENTITY_NBT_REQUEST -> LitematicsDataProvider.INSTANCE.onBulkEntityRequest(player, packet.getChunkPos(), packet.getCompound());
+            case PACKET_C2S_UNREGISTER_REPLY -> LitematicsDataProvider.INSTANCE.removePlayer(player); // v2：客户端失败路径注销回执
             case PACKET_C2S_NBT_RESPONSE_DATA ->
             {
                 UUID uuid = player.getUUID();
@@ -117,14 +131,22 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
                         try
                         {
                             this.readingSessionKeys.remove(uuid);
-                            // 上游 0.9.5 ServuxLitematicaHandler:139-153 同构：重组完成无条件走 paste 受理
+                            // v2 wire：重组产物为 v3 帧（客户端上传侧 DataByteBufUtils.toByteBuf 同构）——
+                            // 解帧后读 Task 键（上游 0.9.9 handleBulkData 同构），无条件走 paste 受理
                             //（Task 门控在 Provider：非 LitematicaPaste 静默忽略）；Transmit* 接收链已随安全修复移除
-                            LitematicsDataProvider.INSTANCE.handleClientPasteRequest(player, fullPacket.readVarInt(), (CompoundTag) fullPacket.readNbt(NbtAccounter.create(verymc.top.veryMcProto.mod.servux.util.nbt.NbtUtils.NETWORK_MAX_BYTES)));
-                        }
-                        catch (net.minecraft.nbt.NbtAccounterException e)
-                        {
-                            // 超配额（先记账后分配拦截——长度字段炸弹类膨胀），丢弃本流（客户端可重传更小的）
-                            Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: schematic NBT over quota (>" + verymc.top.veryMcProto.mod.servux.util.nbt.NbtUtils.NETWORK_MAX_BYTES + " accounted bytes), dropping: " + e.getMessage());
+                            CompoundTag tags = ServuxNbtFrames.read(fullPacket);
+
+                            if (tags != null)
+                            {
+                                ServuxDebug.log(ServuxDebug.Cat.SCHEMATIC, "handleBulkData: received task: "
+                                        + tags.getStringOr("Task", "LitematicaPaste") + " from " + player.getName().getString()
+                                        + " [Bytes: " + fullPacket.readableBytes() + "]");
+                                LitematicsDataProvider.INSTANCE.handleClientPasteRequest(player, tags);
+                            }
+                            else
+                            {
+                                Reference.logger().warning("ServuxLitematicaHandler#decodeServerData: framed schematic NBT parse failed, dropping upload");
+                            }
                         }
                         catch (Exception e)
                         {
@@ -163,10 +185,9 @@ public class ServuxLitematicaHandler implements IPluginServerPlayHandler
         {
             ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData litematics -> " + player.getName().getString()
                     + " type=" + packet.getType() + " -> PacketSplitter fragmentation");
-            // 大包：VarInt transactionId + NBT，走 PacketSplitter
+            // v3 帧：splitter 载荷 = [int32][GZIP NBT]（对齐上游 DataByteBufUtils.toByteBuf → PacketSplitter.send）
             var buf = new FriendlyByteBuf(io.netty.buffer.Unpooled.buffer());
-            buf.writeVarInt(packet.getTransactionId());
-            buf.writeNbt(packet.getCompound());
+            ServuxNbtFrames.write(buf, packet.getCompound());
             PacketSplitter.send(this, buf, player);
         }
         else if (!this.sendPlayPayload(player, packet))

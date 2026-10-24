@@ -242,16 +242,16 @@ public class TweaksDataProvider extends DataProviderBase
 
     @Override public boolean hasPermission(ServerPlayer player) { return Perms.check(player, this.permNode, this.permissionLevel.getValue()); }
 
-    @Override public void onPlayerJoin(ServerPlayer player) { this.register(player); } // 上游 PlayerListener join→register 同构
+    // 对齐上游 0.9.9：join 不自动入册（注册唯一入口 = 客户端 C2S METADATA_REQUEST）
+    @Override public void onPlayerJoin(ServerPlayer player) { }
 
     @Override
     public void onPlayerRegisterChannel(ServerPlayer player, String channel)
     {
-        // 修复 tweaks sync not_enabled：onPlayerJoin 时通道未声明，sendMetadata 丢弃；
-        // 客户端声明 servux:tweaks（= 装了 Tweakeroo 等）时立即重发。sendMetadata 幂等。
+        // 客户端声明 servux:tweaks（= 装了 Tweakeroo 等）时重发 metadata，确保可达。sendMetadata 幂等。
         if (this.getNetworkChannel().toString().equals(channel))
         {
-            // 名册白名单：仅已注册玩家重发（上游无此补偿路径；deny 语义不被旁路）
+            // 名册白名单：仅已注册玩家重发（未注册者唯一入册路径是 C2S METADATA_REQUEST→register；deny 语义不被旁路）
             if (!this.isPlayerRegistered(player)) { return; }
             ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "tweaks onPlayerRegisterChannel: client declared " + channel + " -> resending metadata");
             this.sendMetadata(player);

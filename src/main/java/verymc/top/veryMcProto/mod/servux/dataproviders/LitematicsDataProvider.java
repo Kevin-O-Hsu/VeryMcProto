@@ -360,7 +360,7 @@ public class LitematicsDataProvider extends DataProviderBase
      * 粘贴请求：从客户端上传的 NBT 加载 SchematicPlacement，按 ReplaceMode / PasteLayerBehavior /
      * LayerRange 调 SchematicPlacement.pasteTo 放置到玩家所在世界。需创造模式 + paste 权限。
      */
-    public void handleClientPasteRequest(ServerPlayer player, int transactionId, CompoundTag tags)
+    public void handleClientPasteRequest(ServerPlayer player, CompoundTag tags)
     {
         if (!this.isEnabled()) { return; }
 
@@ -404,23 +404,17 @@ public class LitematicsDataProvider extends DataProviderBase
         return this.hasPermission(player) && Perms.check(player, this.permNode + ".paste", this.pastePermissionLevel.getValue());
     }
 
+    // 对齐上游 0.9.9：join 不自动入册（注册唯一入口 = 客户端 C2S METADATA_REQUEST）
     @Override
-    public void onPlayerJoin(ServerPlayer player)
-    {
-        if (!this.isEnabled()) { return; }
-        // 上游 PlayerListener join→register 同构（Paper 适配：configuration phase 多半失败，
-        // 由 onPlayerRegisterChannel 名册白名单重发与 C2S METADATA_REQUEST→registerPlayer 兜底）
-        this.registerPlayer(player);
-    }
+    public void onPlayerJoin(ServerPlayer player) { }
 
     @Override
     public void onPlayerRegisterChannel(ServerPlayer player, String channel)
     {
-        // 修复 litematic sync not_enabled：onPlayerJoin 时通道未声明，sendMetadata 丢弃；
-        // 客户端声明 servux:litematics（= 装了 Litematica）时立即重发。sendMetadata 幂等。
+        // 客户端声明 servux:litematics（= 装了 Litematica）时重发 metadata，确保可达。sendMetadata 幂等。
         if (this.getNetworkChannel().toString().equals(channel))
         {
-            // 名册白名单：仅已注册玩家重发（上游无此补偿路径；deny 语义不被旁路）
+            // 名册白名单：仅已注册玩家重发（未注册者唯一入册路径是 C2S METADATA_REQUEST→registerPlayer；deny 语义不被旁路）
             if (!this.isPlayerRegistered(player)) { return; }
             ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "litematic onPlayerRegisterChannel: client declared " + channel + " -> resending metadata");
             this.sendMetadata(player);

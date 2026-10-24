@@ -17,6 +17,7 @@ import verymc.top.veryMcProto.framework.network.IServerPayloadData;
 import verymc.top.veryMcProto.framework.network.PacketSplitter;
 import verymc.top.veryMcProto.mod.servux.ServuxReference;
 import verymc.top.veryMcProto.mod.servux.dataproviders.HudDataProvider;
+import verymc.top.veryMcProto.mod.servux.util.ServuxNbtFrames;
 
 /**
  * HUD 通道收发 Handler（mod 层）。移植自原版 {@code ServuxHudHandler}（去 Fabric + networkHandler 形参）。
@@ -100,12 +101,24 @@ public class ServuxHudHandler implements IPluginServerPlayHandler
             return;
         }
 
+        // 观测行（对齐裁决）：v3 世代客户端 version 为 int；v2 世代为 string（如 "minihud-fabric-…"）。
+        // v2 世代不在支持范围（静默降级），此处留痕使其可诊断——区分"设计内静默"与"配置故障"。
+        if (packet.getType() == ServuxHudPacket.Type.PACKET_C2S_METADATA_REQUEST)
+        {
+            int declared = packet.getCompound().getIntOr("version", -1);
+            String genInfo = declared != -1
+                    ? String.valueOf(declared)
+                    : packet.getCompound().getStringOr("version", "absent") + " (v2 generation, unsupported)";
+            ServuxDebug.log(ServuxDebug.Cat.HANDSHAKE, "hud METADATA_REQUEST <- " + player.getName().getString() + " declaredVersion=" + genInfo);
+        }
+
         switch (packet.getType())
         {
-            case PACKET_C2S_METADATA_REQUEST -> HudDataProvider.INSTANCE.register(player); // 上游 :79 同构：请求即注册（入册+推送）
+            case PACKET_C2S_METADATA_REQUEST -> HudDataProvider.INSTANCE.register(player); // 上游同构：请求即注册（入册+推送）
             case PACKET_C2S_SPAWN_DATA_REQUEST -> HudDataProvider.INSTANCE.refreshSpawnMetadata(player, packet.getCompound());
             case PACKET_C2S_RECIPE_MANAGER_REQUEST -> HudDataProvider.INSTANCE.refreshRecipeManager(player, packet.getCompound());
             case PACKET_C2S_DATA_LOGGER_REQUEST -> HudDataProvider.INSTANCE.refreshLoggers(player, packet.getCompound());
+            case PACKET_C2S_UNREGISTER_REPLY -> HudDataProvider.INSTANCE.removePlayer(player); // v3：客户端失败路径注销回执（版本/前缀不匹配时自摘）
             default -> Reference.logger().warning("ServuxHudHandler#decodeServerData: invalid packetType " + packet.getPacketType()
                     + " from " + player.getName().getString() + ", size=" + packet.getTotalSize());
         }
@@ -131,7 +144,8 @@ public class ServuxHudHandler implements IPluginServerPlayHandler
             ServuxDebug.log(ServuxDebug.Cat.PACKET, "encodeServerData hud -> " + player.getName().getString()
                     + " type=" + packet.getType() + " -> PacketSplitter fragmentation");
             FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
-            buffer.writeNbt(packet.getCompound());
+            // v3 帧：splitter 载荷 = [int32][GZIP NBT]（对齐上游 DataByteBufUtils.toByteBuf → PacketSplitter.send）
+            ServuxNbtFrames.write(buffer, packet.getCompound());
             PacketSplitter.send(this, buffer, player);
         }
         else if (!this.sendPlayPayload(player, packet))
