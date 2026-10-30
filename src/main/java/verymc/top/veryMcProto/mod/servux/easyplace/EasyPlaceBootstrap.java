@@ -3,6 +3,10 @@ package verymc.top.veryMcProto.mod.servux.easyplace;
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.event.PacketListenerPriority;
 
+import org.bukkit.Bukkit;
+
+import verymc.top.veryMcProto.Reference;
+
 /**
  * EasyPlace 启动桥（隔离 PacketEvents 类引用）。
  *
@@ -20,10 +24,13 @@ public final class EasyPlaceBootstrap
 {
     private EasyPlaceBootstrap() { }
 
-    /** 注册 EasyPlace 包监听器。仅当服务器已安装 PacketEvents 时可调用。 */
+    /** 注册 EasyPlace 包监听器（netty 侧改写）+ Bukkit 放置修正钩子（主线程收口）。仅当服务器已安装 PacketEvents 时可调用。 */
     public static void register()
     {
         PacketEvents.getAPI().getEventManager()
                 .registerListener(new EasyPlaceListener(), PacketListenerPriority.NORMAL);
+        // 修正钩子本身不依赖 PE 类，但只在 PE 在场（本方法被反射调到）时启用——
+        // 无 PE 时无编码包登记，修正钩子空转无意义，保持「整个 EasyPlace 随 PE 缺失优雅降级」的语义。
+        Bukkit.getPluginManager().registerEvents(new EasyPlaceFixListener(), Reference.plugin());
     }
 }

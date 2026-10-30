@@ -18,8 +18,6 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.ComparatorBlock;
-import net.minecraft.world.level.block.RepeaterBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.*;
 import net.minecraft.world.level.material.Fluids;
@@ -37,8 +35,9 @@ import verymc.top.veryMcProto.mod.servux.dataproviders.ConfigProvider;
  *
  * <p><b>无 Mixin 依赖</b>：原版用两个 Mixin（{@code MixinBlockItem_EasyPlace} 拦截 {@code getPlacementState}、
  * {@code MixinServerPlayNetworkHandler_EasyPlace} 把 hitVec 距离检查短路）接入。Paper 无 Mixin，本移植改用
- * PacketEvents 拦截原版 {@code use_item_on}（= {@code PLAYER_BLOCK_PLACEMENT}）包后手动调用本类 + 手动复刻
- * {@code BlockItem.place} 副作用。详见 {@code EasyPlaceListener}。
+ * 「改写放行」范式：PacketEvents 在 netty 侧把编码包剥码放行（等效距离检查短路），主线程
+ * {@code EasyPlaceFixListener} 在 {@code BlockCanBuildEvent}/{@code BlockPlaceEvent} 双挂点内调用本类修正
+ * 最终状态。详见 {@code EasyPlaceListener} / {@code EasyPlaceFixListener}。
  *
  * <p><b>适配</b>：{@code ServuxConfigProvider.INSTANCE} → {@link ConfigProvider#INSTANCE}；
  * {@code Servux.LOGGER.warn(msg, e)} → {@link Reference#logger()} 的 JUL（打完整堆栈）。算法逻辑零改动。
@@ -243,10 +242,19 @@ public class PlacementHandler
         {
             if (state.getBlock() instanceof BedBlock)
             {
+                // 本地分支（勿随上游模板回退）：上游传 NMS BlockPlaceContext 查床头可替换性
+                // （canBeReplaced(ctx)），而 1.21.11 vanilla 基类实现为
+                // {@code state.canBeReplaced() && (ctx.getItemInHand().isEmpty() || ...)}——短路仅保护
+                // 「不可替换」分支，可替换分支（含空气这一常态：AIR 注册即 .replaceable()）无条件解引用
+                // ctx（1.21.11 Mache 源码 BlockBehaviour 实证）。本范式 UseContext.itemPlacementContext
+                // 恒 null（无 Mixin 取不到 NMS BlockPlaceContext），原样照抄必 NPE。改为无参
+                // canBeReplaced()：canBuild 时点修正朝向的床头位恒未被本次 vanilla 放置触碰
+                // （vanilla 只写事件位与 vanilla 朝向床头，Direction.relative 单射），当前态 == 放置前态，
+                // 判定等价上游。与带参版差异两枝：手持物品==床头位方块 asItem 时上游拒绝/我方放行
+                // （更宽）；Paper isDestroyable 枝（replaceable 且不可毁的组合现实中≈空集）。
                 BlockPos headPos = context.pos().relative(facing);
-                BlockPlaceContext ctx = context.itemPlacementContext();
 
-                if (context.world().getBlockState(headPos).canBeReplaced(ctx) == false)
+                if (context.world().getBlockState(headPos).canBeReplaced() == false)
                 {
                     return null;
                 }
@@ -258,80 +266,16 @@ public class PlacementHandler
         return state;
     }
 
-    public static BlockState applyPlacementProtocolV2(BlockState state, UseContext context)
-    {
-        int protocolValue = (int) (context.hitVec().x - (double) context.pos().getX()) - 2;
-
-        if (protocolValue < 0)
-        {
-            return state;
-        }
-
-        Optional<EnumProperty<@NotNull Direction>> property = BlockUtils.getFirstDirectionProperty(state);
-
-        if (property.isPresent())
-        {
-            state = applyDirectionProperty(state, context, property.get(), protocolValue);
-
-            if (state == null)
-            {
-                return null;
-            }
-        }
-        else if (state.hasProperty(BlockStateProperties.AXIS))
-        {
-            Direction.Axis axis = Direction.Axis.VALUES[((protocolValue >> 1) & 0x3) % 3];
-
-            if (BlockStateProperties.AXIS.getPossibleValues().contains(axis))
-            {
-                state = state.setValue(BlockStateProperties.AXIS, axis);
-            }
-        }
-
-        // Divide by two, and then remove the 4 bits used for the facing
-        protocolValue >>>= 5;
-
-        if (protocolValue > 0)
-        {
-            Block block = state.getBlock();
-
-            if (block instanceof RepeaterBlock)
-            {
-                Integer delay = protocolValue;
-
-                if (RepeaterBlock.DELAY.getPossibleValues().contains(delay))
-                {
-                    state = state.setValue(RepeaterBlock.DELAY, delay);
-                }
-            }
-            else if (block instanceof ComparatorBlock)
-            {
-                state = state.setValue(ComparatorBlock.MODE, ComparatorMode.SUBTRACT);
-            }
-        }
-
-        if (state.hasProperty(BlockStateProperties.HALF))
-        {
-            state = state.setValue(BlockStateProperties.HALF, protocolValue > 0 ? Half.TOP : Half.BOTTOM);
-        }
-
-        return state;
-    }
-
     /**
-     * EasyPlace 放置上下文（record，照抄原版）。
+     * EasyPlace 放置上下文（record，照抄原版语义；side 组件为零引用死输入已删）。
      *
-     * <p>{@link EasyPlaceListener} 直接 {@code new UseContext(level, pos, face, hitVec, player, hand, null)} 构造，
-     * 不走 {@link #from(BlockPlaceContext, InteractionHand)}（那是原版 Mixin 注入路径，Paper 不用，保留签名仅为保真）。
+     * <p>{@link EasyPlaceFixListener} 直接 {@code new UseContext(level, pos, hitVec, player, hand, null)} 构造
+     * （hitVec.x 按编码公式重推 pv；{@code itemPlacementContext} 恒 null——无 Mixin 取不到 NMS
+     * {@code BlockPlaceContext}，床头检查已按该前提适配，见 {@link #applyDirectionProperty} 内注释）。
+     * 解码器对 {@code hand / hitVec.y / hitVec.z} 同样零引用，仅为上下文保真保留。
      */
-	public record UseContext(Level world, BlockPos pos, Direction side, Vec3 hitVec, LivingEntity entity,
-	                         InteractionHand hand, @Nullable BlockPlaceContext itemPlacementContext)
-	{
-		public static UseContext from(BlockPlaceContext ctx, InteractionHand hand)
-		{
-			Vec3 pos = ctx.getClickLocation();
-			return new UseContext(ctx.getLevel(), ctx.getClickedPos(), ctx.getClickedFace(), new Vec3(pos.x, pos.y, pos.z),
-			                      ctx.getPlayer(), hand, ctx);
-		}
-	}
+    public record UseContext(Level world, BlockPos pos, Vec3 hitVec, LivingEntity entity,
+                             InteractionHand hand, @Nullable BlockPlaceContext itemPlacementContext)
+    {
+    }
 }

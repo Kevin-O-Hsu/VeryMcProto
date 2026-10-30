@@ -270,7 +270,7 @@ v2 世代客户端（minihud ≤0.38.13 / malilib ≤0.27.16 / litematica ≤0.2
 | 投影文件传输（服务器→客户端投递投影） | litematics | 已实现（`/servux litematic transmit`） |
 | 投影粘贴（C2S 上传放置） | litematics | 已实现（客户端上传 → pasteTo） |
 | 服务端潜影盒堆叠行为 | tweaks | 不可能实现（已删代码） |
-| EasyPlace（Tweakeroo 服务端配合放置） | servux_main | 已实现（PacketEvents）；调试 `/servux set servux_main:debug_log true` 看 `EasyPlace in/out` 日志 |
+| EasyPlace（Tweakeroo 服务端配合放置） | servux_main | 已实现（PacketEvents「改写放行 + 双挂点」：netty 侧剥码放行原版包，主线程 `BlockCanBuildEvent`/`BlockPlaceEvent` 内修正状态）；调试开 `easyplace` 分类——已编码包日志 `[*] Coded packet -> rewrite-allow ...`，普通包 `Allowing unencoded ...`，修正 `in pv=... / out final= / Placement corrected`，拒绝 `Placement rejected (pre-write FAIL...)` |
 | UpdateSuppression | — | 省略 |
 | 镜像修复（箱子 180°） | litematics | 已实现（SchematicPlacingUtils 内联 + fixChestMirror setting）。铁轨/楼梯靠 BlockState.mirror/rotate 自身（原版 Mixin 降级，可能不完美） |
 
@@ -293,6 +293,7 @@ v2 世代客户端（minihud ≤0.38.13 / malilib ≤0.27.16 / litematica ≤0.2
 | | tweaks | Tweakeroo | 握手 | ⬜ | |
 | | tweaks | Tweakeroo | NBT 查询 | ⬜ | |
 | 2026-07-01 | servux_main | Tweakeroo | EasyPlace 精确放置 | ✅ | chest facing/type + rail shape 精确纠正（commit 460df45 主线程调度修复后）；需装 packetevents 插件 |
+| 2026-10-30 | servux_main | Litematica 0.26.16 | EasyPlace「改写放行」架构迁移后全量回归 | ✅ | dropper/observer/hopper/barrel/chest（含 type）/piston 交替阵列朝向全对、repeater delay 修正（pv=42→east+delay3）、621 行日志零 Exception 零错型（手持竞态消除）；修复 0.26.16 客户端全错回归（netty 手持竞态 + defaultBlockState 基态 + setBlock(包pos) 错位三偏差） |
 
 ---
 

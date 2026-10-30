@@ -257,7 +257,7 @@ public void register() {
 | **S2C 投影文件投递** | — | **保留**（`/servux litematic transmit`；仅旧版 litematica 客户端可接收——修复版 ≥0.26.11 对 Transmit 帧双向静默丢弃；命令入口有目录包含性守卫） | |
 | **潜影盒可堆叠** | MixinItemStack/Hopper | **不可能实现**（已删代码） | §5.1 |
 | **Allay 收集修复** | MixinMob/ItemEntity/Allay | **省略** | 改行为，影响小 |
-| **EasyPlace** | MixinBlockItem + NetworkHandler | **已实现**（PacketEvents） | 详 [operations.md](operations.md) §5 |
+| **EasyPlace** | MixinBlockItem + NetworkHandler | **已实现**（PacketEvents「改写放行」+ Bukkit 双挂点：netty 剥码放行原版包，`BlockCanBuildEvent` 写入前否决 / `BlockPlaceEvent` 属性级修正——手持读取/放置副作用/ack 全归 vanilla 主线程队列，结构性消除 netty 手持竞态；已知差异与上游：pending miss 盲区（包 pos≠放置位路径属性修正降级）、床两半错位、validator 恒严，详见 `EasyPlaceFixListener` javadoc） | 详 [operations.md](operations.md) §5 |
 | **UpdateSuppression** | MixinLevel/LevelChunk/Block | **省略** | 改行为，无等价 |
 | **调试 (IDE 模式)** | MixinSharedConstants | **省略** | 生产无用 |
 

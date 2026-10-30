@@ -231,7 +231,7 @@ plugins/VeryMcProto/
 |---|---|
 | 客户端连上但收不到数据 | `/servux list` 查 provider 启停；查 `permission_level`；开 `handshake` 分类看握手是否成功 |
 | 大投影投递/粘贴失败 | 查客户端是否因 32,767 字节断连；开 `network`/`packet` 看分片（字节限制教义见 [architecture.md](architecture.md) §3.2） |
-| EasyPlace 无反应 | 确认 packetevents 插件已装（`softdepend`）；开 `easyplace` 分类 |
+| EasyPlace 无反应 | 确认 packetevents 插件已装（`softdepend`）；开 `easyplace` 分类——已编码包应有 `[*] Coded packet -> rewrite-allow` 日志，持续只有 `Allowing unencoded` = 客户端未启用 EasyPlace 协议（未握手 servux / 配置关闭）；放置方向/属性错 = 看 `in pv= / out final=` 解码行 |
 | Syncmatica 客户端连不上 | 默认 NMS 直发；`/syncmatica debug s2c` 确认路径；开 `handshake` 看链：declare → tryStartHandshake → REGISTER_VERSION → 版本应答 → FeatureSet → CONFIRM_USER → broadcastTargets |
 | JEI 配方不同步 / cheat 与转移不可用 | `/jei status` 查 enabled；客户端功能门禁要求服务端声明过 `jei:delete_player_item` 通道（模块加载即自动声明） |
 | Carpet 规则浏览器空 / HUD 不显示 | `[Carpet]` 日志查 hello 是否到达 + 规则名是否在上级注册表（[carpet/protocol.md](carpet/protocol.md) §3）；HUD 先 `/log` 裸命令看订阅态 |
