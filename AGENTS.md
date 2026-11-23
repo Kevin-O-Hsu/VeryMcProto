@@ -58,7 +58,7 @@
 
 **当前状态**（2026-10，以上游版本清单为准；版本策略 = **对齐 latest-1**——latest 可能出小版本更新，故 latest.release 下一版才是目标）：
 - 上游最新 release **26.3**，snapshot **26.4-snapshot-2**——latest-1 = **26.2**；26.3 暂缓跟进（26.2 线仍在收敛，待其稳定与社区生态成熟后按下方升级流程启动）。
-- **`dev → main` 承载 26.2 线**：26.1.2→26.2 迁移已完成（构建面 bundle `26.2.build.129-stable` / paperweight beta.24 / packetevents 2.14.0 / api-version 模板化、协议面**零变化**——对照 `OriginImpl/*-LTS-26.2` 五路全树逐文件实证、NMS 漂移仅 4 处——`EntityTypes.PLAYER` 常量类拆分 / `EntitySpawnRequest` / `CONCRETE_POWDERS`），`./gradlew build` 19 个测试类 / 113 个单测全绿，Paper 26.2 实机起服验证通过（升级方法论与验证判据见 docs/operations.md §6）。
+- **`dev → main` 承载 26.2 线**：26.1.2→26.2 迁移已完成（构建面 bundle `26.2.build.129-stable` / paperweight beta.24 / packetevents 2.14.0 / api-version 模板化、协议面**零变化**——对照 `OriginImpl/*-LTS-26.2` 五路全树逐文件实证、NMS 漂移仅 4 处——`EntityTypes.PLAYER` 常量类拆分 / `EntitySpawnRequest` / `CONCRETE_POWDERS`），`./gradlew build` 29 个测试类 / 177 个单测全绿，Paper 26.2 实机起服验证通过（升级方法论与验证判据见 docs/operations.md §6）。
 - **1.21.11 与 26.1.2 均为旧版本**：`ver/1.21.11`(+`-dev`) 与 `ver/26.1.2`(+`-dev`) 维护对均已冻结切出。
 - 适配 26.3 走标准升级流程（上游 26.4 出现时冻结 ver/26.2 对 → dev 升 mcVersion=26.3 + bundle → NMS/协议漂移核对，见「升级 Minecraft 版本」）。
 

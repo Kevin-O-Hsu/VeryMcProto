@@ -3,8 +3,10 @@ package verymc.top.veryMcProto.framework.util;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -473,22 +475,26 @@ public class JsonUtils
             writer.write(GSON.toJson(root));
             writer.close();
 
-            if (Files.exists(file))
+            // 原子落盘：REPLACE_EXISTING + ATOMIC_MOVE 直接覆盖旧文件（同族范式
+            // SettingsManager#writeConfig）——不再先删旧文件，"删旧 + 非原子移动"在
+            // 删除与改名之间崩溃会把新旧两份数据同时丢掉。
+            // ATOMIC_MOVE 不受支持时（如跨文件系统）回退普通移动（REPLACE_EXISTING 保留）。
+            try
+            {
+                Files.move(fileTemp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                return true;
+            }
+            catch (AtomicMoveNotSupportedException err)
             {
                 try
                 {
-                    Files.delete(file);
+                    Files.move(fileTemp, file, StandardCopyOption.REPLACE_EXISTING);
+                    return true;
                 }
-                catch (Exception err)
+                catch (Exception e2)
                 {
-                    Reference.logger().warning("writeJson: Failed to delete file: " + file);
+                    Reference.logger().warning("writeJson: Failed to move file: " + file);
                 }
-            }
-
-            try
-            {
-                Files.move(fileTemp, file);
-                return true;
             }
             catch (Exception err)
             {

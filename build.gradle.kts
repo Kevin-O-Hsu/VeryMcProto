@@ -66,6 +66,12 @@ idea.module {
 tasks {
     test {
         useJUnitPlatform()
+        // 裸 @TempDir 根目录固定到 build/tmp/test-tempdir：绝对路径经系统属性传给测试进程，
+        // 由全局工厂 BuildDirTempDirFactory 读取（见 src/test/resources/junit-platform.properties），
+        // 目录收敛进 build/ 由 gradlew clean 统一回收，规避 Windows 上 @TempDir 清理与
+        // 刚写完文件的句柄竞态。.get() 只在此配置期求值、值是纯 String——未把 Project/Provider
+        // 捕获进执行期，配置缓存安全（同 runServer 块的 providers 取值先例）。
+        systemProperty("verymc.test.tempdir", layout.buildDirectory.dir("tmp/test-tempdir").get().asFile.absolutePath)
     }
 
     runServer {

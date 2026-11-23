@@ -581,6 +581,7 @@ S2C 路径排查：`/syncmatica debug s2c`（查看）→ `/syncmatica debug s2c
 | `DistanceCalculatorTest`（4 用例） | 命令族：三距离公式数值锚（3-4-5 / 纯垂直 cylindrical 归零 / float 域减法 / 对称性——`findDistanceBetweenTwoPoints` 零 source 依赖纯 JVM 直调） | [`carpet/architecture.md`](carpet/architecture.md) §21 |
 | `CommandHelperTest`（3 用例） | parseLevel 纯函数矩阵（ops→2 / 0-4 / 其他→-1） | 同上 |
 | `PacketSplitterTest` / `FeatureSet` / `LitematicaBitArray` | 分片重组 / 版本正则 / 位打包纯函数 | — |
+| `JsonUtilsAtomicWriteTest`（2 用例） | JsonUtils 原子落盘（REPLACE_EXISTING + ATOMIC_MOVE 覆盖、不先删旧文件）：已存在目标写入后新值生效且无 `.tmp` 残留 / 落盘文件重解析等价 | — |
 
 ### 6.9 观察项（升级窗口消费）
 
