@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 规则注册表面锁单测（判据③：/carpet list 输出与注册表一致——本测试锁死注册表本身的
+ * 规则注册表面锁单测（/carpet list 输出与注册表一致——本测试锁死注册表本身的
  * 名称/默认值/选项域/严格性，list 输出直接由 getRulesSorted 派生）。
  * 默认值与选项域 = 上游 carpet/CarpetSettings.java 逐字（对照行号见 CarpetSettings 注释）。
  */
@@ -63,14 +63,14 @@ class CarpetRuleRegistryTest
                 "cleanLogs",
                 "commandTick",
                 "perfPermissionLevel",
-                // 假人家族 3 条（scope §5.1，上游 :595-602）
+                // 假人家族 3 条（上游 :595-602）
                 "commandPlayer",
                 "allowSpawningOfflinePlayers",
                 "allowListingFakePlayers",
-                // 日志 2 条（scope §5.1，上游 :453-463）
+                // 日志 2 条（上游 :453-463）
                 "commandLog",
                 "defaultLoggers",
-                // 命令族 5 条（scope §5.1，上游 :411-412/:465-490）
+                // 命令族 5 条（上游 :411-412/:465-490）
                 "commandSpawn",
                 "commandDistance",
                 "commandInfo",

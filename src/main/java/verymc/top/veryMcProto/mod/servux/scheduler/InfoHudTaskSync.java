@@ -10,7 +10,7 @@ import net.minecraft.world.level.ChunkPos;
 /**
  * task 组 type 16（TASK_STATUS_SYNC）组帧器（26.1 移植，纯函数，单测锁形状）。
  *
- * <p>对照上游 {@code scheduler/info_hud/InfoHudSync.java:46-78 + InfoHudSyncChunks.java:38-72}（v3 极简合并）。
+ * <p>对照上游 {@code scheduler/info_hud/InfoHudSync.java:46-78 + InfoHudSyncChunks.java:38-72}（两上游类合并为单类承载）。
  * 线格式（客户端读端 litematica {@code InfoHudSync.onReceiveInfoSync:85-122} 实证）：
  * <ul>
  *   <li>进度帧：{@code {InfoHudComplete:false, InfoHudSync:[{Type:"REMAINING_CHUNKS", Data:[{n,rc,cx,cz}×≤10]}]}}，

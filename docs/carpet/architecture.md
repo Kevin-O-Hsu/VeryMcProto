@@ -52,7 +52,7 @@
 | `customMOTD` | `_` | 非 strict | `:705-712` | `_` = server.properties 原生；否则 `ServerListPingEvent#setMotd` |
 | `cleanLogs` | `false` | — | `:897-905` | log4j 过滤器，代数见 §7 |
 
-测试锚：`SettingsManagerConfRoundtripTest`（8 用例，判据②）/ `CarpetRuleRegistryTest`（4 用例，判据③——锁 8 规则名/默认/类型/选项域）/ `CommandHelperTest`（3 用例）。
+测试锚：`SettingsManagerConfRoundtripTest`（8 用例，setDefault 落盘往返）/ `CarpetRuleRegistryTest`（4 用例，锁 8 规则名/默认/类型/选项域——`/carpet list` 输出即由注册表派生）/ `CommandHelperTest`（3 用例）。
 
 ## §6 权限发送端矩阵
 
@@ -137,7 +137,7 @@ Paper 移植侧结构（`mod/carpet/` 下）：
 
 ## §13 spawn / kill / respawn 三链（Paper 补丁栈交互 as-built）
 
-- **spawn**：`createFake` 异步 profile 解析（`spawning` 名册防重入）→ `placeNewPlayer(FakeClientConnection, fake, CommonListenerCookie.createInitial(profile, false))` 走原版进服管线（读 playerdata/入名册/入世界/PlayerJoinEvent）→ 返回后 `new NetHandlerPlayServerFake(...)` 替换监听器（ctor 自动 `player.connection = this`；被弃的真实例无全局注册面；Paper `createTextFilterForPlayer` 恒 DUMMY，双 join 无害——placeNewPlayer 内对真监听器的 suspendFlushing/teleport 调用落在被弃实例，无害）→ loadPlayerData/teleportTo/setHealth/STEP_HEIGHT/gameMode/广播 RotateHead+PositionSync/model layers/flying。**Paper 26.2 的 `CommonListenerCookie` 为 7 组件 record**（vanilla 4 参已扩：clientBrand/channels/KeepAlive）——createFake 用 `createInitial`（cli=createDefault 逐字段等价），createShadow 用 7 参 canonical（cli 沿用原玩家自定义）。
+- **spawn**：`createFake` 异步 profile 解析（`spawning` 名册防重入）→ `placeNewPlayer(FakeClientConnection, fake, CommonListenerCookie.createInitial(profile, false))` 走原版进服管线（读 playerdata/入名册/入世界/PlayerJoinEvent）→ 返回后 `new NetHandlerPlayServerFake(...)` 替换监听器（ctor 自动 `player.connection = this`；被弃的真实例无全局注册面；Paper `createTextFilterForPlayer` 恒 DUMMY，双 join 无害——placeNewPlayer 内对真监听器的 suspendFlushing/teleport 调用落在被弃实例，无害）→ loadPlayerData/teleportTo/setHealth/STEP_HEIGHT/gameMode/广播 RotateHead+PositionSync/model layers/flying。**Paper 26.2/26.3 的 `CommonListenerCookie` 为 7 组件 record**（vanilla 4 参已扩：clientBrand/channels/KeepAlive）——createFake 用 `createInitial`（cli=createDefault 逐字段等价），createShadow 用 7 参 canonical（cli 沿用原玩家自定义）。
 - **kill**（假人唯一移除协议）：`shakeOff`（卸载玩家乘客）→ duplicate_login 立即 / 其余 schedule 下 tick → `this.connection.onDisconnect(details)`——`this.connection` 静态类型 = **SGPL**（`ServerPlayer.connection` 字段声明），`SGPL.onDisconnect` = 完整退出链（`removePlayerFromWorld` → PlayerQuitEvent + 名册/世界移除 + 存档），不经 kick 终端、与 `NetHandlerPlayServerFake.disconnect` 覆写无递归。`die()` = shakeOff + super.die + setHealth(20) + new FoodData + kill(deathMessage)——假人死亡即移除不留尸。
 - **respawn**：**Paper `PlayerList.respawn` 为实例复用**（`ServerPlayer serverPlayer = player`，vanilla `new ServerPlayer` 已被 CraftBukkit 移除，playerweight 源码实证）——上游 Mixin ② 的 respawnFake 重定向在 Paper 移植侧**无对应现实**，假人子类身份与 fake 监听器 respawn 后天然保留，零重组代码（预研期"手工三步重组"方案作废，勘误记档）。唯一触发源 = 上游 `teleport(TeleportTransition)` override 的 wonGame 分支（PERFORM_RESPAWN 经 `connection.handleClientCommand` 走 vanilla respawn 链，末地门场景）——照抄。`fixStartingPosition` 字段删除（其唯一消费点 = 上游 Mixin ① 的 placeNewPlayer 内注入；Paper 移植侧定位由 spawn 后 `teleportTo` 承载，差异 = placeNewPlayer 过程中假人短暂处于读档位置，调参级）。
 - **shadow**：原玩家 `disconnect(duplicate_login)` → **名册守卫**（`getPlayer(uuid) != null` → 中止——Paper 的顶号踢线可被第三方插件取消（PlayerKickEvent），上游 Fabric 无事件面不存在此竞态）→ 复用 GameProfile/ClientInformation placeNewPlayer → ActionPack copyFrom（侧表覆盖真实玩家语义的来源）。
@@ -146,7 +146,7 @@ Paper 移植侧结构（`mod/carpet/` 下）：
 
 | # | 偏差 | 理由 |
 |---|---|---|
-| 19 | kick 拦截面 = `disconnect(DisconnectionDetails)` 终端（上游 = `disconnect(Component)` 单参壳） | Paper 26.2 kick 重载族全部收敛于终端（PlayerKickEvent fire 点亦在终端内）；单参壳已退化为转发壳，照抄即失效 → 幽灵假人 |
+| 19 | kick 拦截面 = `disconnect(DisconnectionDetails)` 终端（上游 = `disconnect(Component)` 单参壳） | Paper 26.2 kick 重载族全部收敛于终端（PlayerKickEvent fire 点亦在终端内；26.3 终端重载编译存活——§25 验收注）；单参壳已退化为转发壳，照抄即失效 → 幽灵假人 |
 | 20 | kick 对假人不 fire PlayerKickEvent | fire 点位于被覆写吞掉的终端方法内部（上游 Fabric 无事件面，同语义；第三方插件不会观察到假人被踢） |
 | 21 | respawn 不做 Mixin ② 替代（respawnFake 删除） | Paper 实例复用天然保留假人身份（§13） |
 | 22 | 击退 = `PlayerVelocityEvent` cancel + `syncVelocity` 门控（26.2 前名 `hurtMarked`；上游 = `Player.causeExtraKnockback` @Redirect） | Paper 注入点不存在（该方法仍在但无 Mixin 运行时）；事件 cancelled 路径跳过“回滚服务端速度”三件套 = 上游 Mixin 语义逐位等价；门控字段 = 上游被 redirect 的同位字段（26.3 上游 `Player_fakePlayersMixin` :20/:28 同位；攻击路径事件恰在 syncVelocity 置位后 fire，插件主动 setVelocity 路径无此不变量；甄别依据见 §25 #69）；残余窗口见 §11 |
@@ -156,7 +156,7 @@ Paper 移植侧结构（`mod/carpet/` 下）：
 | 26 | 命令载体 = Paper Brigadier API lifecycle 注册（上游 = Fabric Dispatcher） | §12；偏差 #3 勘误的前置 |
 | 27 | NMS Argument 取值 = `context.getArgument`（上游 = NMS 静态 get） | Paper 树泛型与 NMS context 泛型不兼容；语义等价 |
 | 28 | `Messenger` 输出 → `sendFailure`/bold 组件（消息文本逐字英文） | Paper 移植侧无 carpet Messenger |
-| 29 | `CommonListenerCookie` = `createInitial` / 7 参 canonical（上游 = vanilla 4 参） | Paper 26.2 扩展 record（§13） |
+| 29 | `CommonListenerCookie` = `createInitial` / 7 参 canonical（上游 = vanilla 4 参） | Paper 26.2/26.3 扩展 record（§13） |
 | 30 | 插件卸载 kill 全假人（上游 = CarpetServer 关服链） | 防插件 reload 后 NMS 对象引用已卸载类 → NoClassDefFoundError |
 | 31 | shadow 名册守卫（上游无） | Paper 特有：顶号踢线可被插件取消 → 同 UUID 双实体 |
 | 32 | `/ban` 只入 userbanlist 不移除在线假人 | 上游同语义（假人不响应 disconnect；移除走 `/player kill`；再 spawn 被 cantSpawn 拒） |
@@ -198,7 +198,7 @@ Paper 移植侧结构（`mod/carpet/` 下）：
 
 **内存册**（上游同构）：`playerSubscriptions`（名→logger→option，HashMap 容 null 值——tps 默认 option 即 null）+ 每 Logger 内 online/offline 名键双桶（quit/connect 桶迁移，会话内重登保活）。
 
-**持久册**（`carpet-logs.json`，Paper 移植侧新增——判据②跨会话持久）双信号模型：
+**持久册**（`carpet-logs.json`，Paper 移植侧新增——/log 订阅要求跨会话持久）双信号模型：
 
 - `subs` = **显式**订阅（/log 命令产生），UUID 键 + 名字快照；
 - `off` = **退订墓碑**（/log clear 产生）——压制默认施用对已显式退订者的重施（防「退订项重登复活」）；
@@ -224,7 +224,7 @@ Paper 移植侧结构（`mod/carpet/` 下）：
 | 41 | HUD 缓冲键 = 玩家名（上游 ServerPlayer 实例） | Bukkit Player 引用不持有（reload 防泄漏）；flush 经 getPlayerExact 复查在线 |
 | 42 | 行分隔 = `String.join("\n")`（上游 `Component.literal("\n")` 组件） | String 载体等价物 |
 | 43 | 消息载体 = § 码 String[]（上游 Messenger Component DSL + 色字母） | tab footer API 的 String 形态；色字母→§ 码映射 SpawnReport 静态化（g=§7/e=§2/y=§e/r=§c/m=§d/n=§4/f=§8/v=§1/q=§3/w=§f） |
-| 44 | 跨会话持久层 `carpet-logs.json` 新增（上游纯内存、重启即失，stopLoggers 全清） | 判据②明确要求跨会话持久——上游无对应物；双信号模型（显式+墓碑+默认不落盘）见 §16.1 |
+| 44 | 跨会话持久层 `carpet-logs.json` 新增（上游纯内存、重启即失，stopLoggers 全清） | /log 验收要求订阅跨会话持久——上游无对应物；双信号模型（显式+墓碑+默认不落盘）见 §16.1 |
 | 45 | 命令形状 = `/log`（裸列表）/`subscribe <logger> [option]`/`clear [logger]`（上游 flat 树 `/log <name> [option] [player]` + toggle + `<name> clear`） | 字面 subscribe/clear 形；自用面无 `<player>` 定向参、无 toggle |
 | 46 | listLogs 纯文本 + 命令提示行（上游可点击/悬停组件 `!`/`^`） | 假人偏差 #28 Messenger 替换范式同判；option-less logger（tps）分支结构保持 |
 | 47 | console/非玩家全子命令统一 "For players only" 拒绝（上游各执行体经 getPlayerByName(null) 恒失败走 "No player specified"） | 自用面无目标参，收敛为同一句（上游裸 /log 文案同源） |
@@ -339,3 +339,5 @@ dev 线 26.2→26.3 随线升级的编译驱动适配（上游锚 = `OriginImpl/
 | 70 | Snoopy 构造随 `CommandSourceStack` 公开构造收缩同构重写：公开 7 参（`PermissionSet, server, entity`）super + 子类镜像 `namesProvider` 字段（FOR_ENTITY）+ `with*` 传参面改传字段（删 26.2 时代 simpleName/name 快照字段）；wire 与回执面零变化 | 上游 v26.3：`CommandSourceStack.java:68-91` 公开仅两个 7 参（8/13 参转 private :93-141）、`SnoopyCommandSource` NamesProvider 化（:34/:58/:72-80/:98-100/:119-181 同构）。语义甄别：取 FOR_ENTITY entity 版 7 参——对玩家派生名 = `gameProfile.name()`（`Player.java:1625-1627`），逐值等价 26.2 快照式构造；回执 `return` 恒 0 无可观测影响（上游 `ServerNetworkHandler.java:103` 写真实值——protocol.md §8 #2） |
 | 71 | `PerimeterDiagnostics` 三处 `getMobsAt` 首参 `Holder<Biome>` → `Level`（:164/:167/:176） | 上游 v26.3 同位逐字 |
 | 72 | ActionPack 喂马修复随迁（ENTITY 分支：`handItem` 局部量 + `isFeedingHorse`（AbstractHorse && isAlive && isFood && 非 SkeletonHorse）并入消费判定、恒消耗动作；上游 :336-355） | 上游 v26.3 同位逐字（客户端行为对齐）；不随迁则假人喂马在马 interact 拒绝时动作不结算。文件事实：上游 v26.3 树 640 行为基，除包名/导入/javadoc 与 4 处 duck 接口替换外逐字同构，我方文件 650 行（§11） |
+
+**实机验收注（2026-11）**：本清单适配经两级验收成立——服务端侧 clean build 全绿 + run-26.3 起服零 ERROR（Paper 26.3-257）；真实 26.3 客户端互通实机验收无异常（用户实测）。§13/§14 中 Paper 26.2 行为实证条目随线更新：`CommonListenerCookie` 7 组件 record 与 kick 终端重载在 26.3 编译面存活（编译实证），checkFallDamage 客户端权威门 #69 已附 26.3 反编译锚。

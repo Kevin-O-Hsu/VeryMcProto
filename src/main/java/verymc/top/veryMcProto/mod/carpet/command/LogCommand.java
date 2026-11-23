@@ -46,7 +46,7 @@ import static net.minecraft.commands.SharedSuggestionProvider.suggest;
  *   <li>console / 非玩家对任意子命令统一回执拒绝（上游裸 /log "For players only" :71-79 同款文案——
  *       其余子命令上游经 getPlayerByName(null) 恒失败 "No player specified"，Paper 移植侧自用面无目标参，
  *       统一为同一句拒绝）；</li>
- *   <li>每次订阅变更同步 {@link LogSubscriptionStore}（显式 + 墓碑，跨会话持久判据②）。</li>
+ *   <li>每次订阅变更同步 {@link LogSubscriptionStore}（显式 + 墓碑，跨会话持久）。</li>
  * </ul>
  */
 public class LogCommand

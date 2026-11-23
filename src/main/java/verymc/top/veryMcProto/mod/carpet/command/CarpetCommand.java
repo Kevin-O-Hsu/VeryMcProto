@@ -26,7 +26,7 @@ import verymc.top.veryMcProto.mod.carpet.util.CommandHelper;
  * NMS PermissionSet 精确判定，上游 root {@code .requires(canUseCommand && !locked)} 的 Bukkit 形态）。
  * <b>locked（conf 首行 {@code locked}）= 拒绝全部子命令</b>（含 list/query，等价上游整树 requires）。
  *
- * <p>子命令：{@code list}（全量规则 = 注册表视图，判据③）/ {@code setDefault <rule> <value...>}
+ * <p>子命令：{@code list}（全量规则 = 注册表视图）/ {@code setDefault <rule> <value...>}
  * （live set + conf 落盘，即时生效）/ {@code query <rule>}（规则菜单）/ {@code removeDefault <rule>}
  * （conf 覆盖移除 + 复位默认）。裸 {@code /carpet} = 版本行 + 规则计数 + USAGE。
  */

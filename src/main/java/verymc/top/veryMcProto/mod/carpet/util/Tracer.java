@@ -17,7 +17,7 @@ import net.minecraft.world.phys.Vec3;
  *
  * <p>唯一消费面 = 假人 ActionPack 的 {@code getTarget}（USE/ATTACK 瞄准）——方块 clip 与实体拾取的
  * 合并 + 同载具豁免语义是 vanilla 单一 {@code clip} 不提供的组合。上游宿主为 scarpet 工具包，但本类
- * 零 scarpet 依赖（纯算法）——Scarpet 整体不移植（scope §7），故迁至 mod/carpet/util（偏差登记）。
+ * 零 scarpet 依赖（纯算法）——Scarpet 整体不移植，故迁至 mod/carpet/util（偏差登记）。
  */
 public class Tracer
 {

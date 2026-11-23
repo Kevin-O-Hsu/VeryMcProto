@@ -101,7 +101,7 @@ public class SettingsManager
         return rules.get(name);
     }
 
-    /** 注册表视图（判据③：/carpet list 输出与本视图一致）。 */
+    /** 注册表视图（/carpet list 输出与本视图一致）。 */
     public Collection<ParsedRule<?>> getRules()
     {
         return Collections.unmodifiableCollection(rules.values());

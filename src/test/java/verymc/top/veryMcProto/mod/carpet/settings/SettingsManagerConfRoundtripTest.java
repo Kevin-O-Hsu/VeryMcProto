@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * carpet.conf 持久化往返单测（判据②：setDefault → 落盘 → 重启读回一致）。
+ * carpet.conf 持久化往返单测（setDefault → 落盘 → 重启读回一致）。
  * 形态先例 = JeiConfigMigrationTest（@TempDir + 重新构造读回）；静态规则字段跨实例共享，
  * 每例前后全量复位（loadConfigurationFromConf 自带复位，AfterEach 兜底防污染其他测试类）。
  */
@@ -77,7 +77,7 @@ class SettingsManagerConfRoundtripTest
     @Test
     void setDefaultAppliesImmediatelyAndSurvivesRestartRoundtrip()
     {
-        // 判据②：live set（即时生效）+ 落盘
+        // live set（即时生效）+ 落盘
         assertTrue(manager.setDefault(null, manager.getRule("explosionNoBlockDamage"), "true"));
         assertTrue(manager.setDefault(null, manager.getRule("customMOTD"), "round trip value"));
         assertEquals(true, CarpetSettings.explosionNoBlockDamage, "setDefault applies immediately (upstream live set)");

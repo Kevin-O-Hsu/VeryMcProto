@@ -19,7 +19,7 @@ import verymc.top.veryMcProto.mod.servux.util.position.PositionUtils;
 /**
  * Litematica task 组服务端任务基类（26.1 移植；paste 任务化时自 FillDeleteTask 上提的共享面）。
  *
- * <p>对照上游 {@code TaskBase + TaskProcessChunkBase} 的共享骨架，按本仓 v3 合并形态单点承载
+ * <p>对照上游 {@code TaskBase + TaskProcessChunkBase} 的共享骨架，按本仓合并形态单点承载
  * （Fill/Delete 与 Paste 仅在 {@link #execute()} 执行体、预算模型、区块加载判定半径上分叉）：
  * <ul>
  *   <li>timer：初值 0 = 下一次 runTasks 即首启（上游 {@code createTimer + setNextDelay(0)} 等价承载）；</li>

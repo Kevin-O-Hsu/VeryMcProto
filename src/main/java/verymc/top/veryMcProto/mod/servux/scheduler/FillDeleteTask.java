@@ -26,7 +26,7 @@ import verymc.top.veryMcProto.mod.servux.util.WorldUtils;
 import verymc.top.veryMcProto.mod.servux.util.position.PositionUtils;
 
 /**
- * Litematica Fill/Delete 选区任务（26.1 移植，v3 合并形态；timer / 队列 / 推帧 / 完成链共享面已上提
+ * Litematica Fill/Delete 选区任务（26.1 移植，本仓合并形态；timer / 队列 / 推帧 / 完成链共享面已上提
  * {@link LitematicaTask}——paste 任务化时基类化，共享面上提属有意设计）。
  *
  * <p>合并上游五个类：{@code TaskBase + TaskProcessChunkBase + TaskProcessChunkMultiPhase + TaskFillArea +

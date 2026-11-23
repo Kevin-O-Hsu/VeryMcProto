@@ -12,7 +12,7 @@ import verymc.top.veryMcProto.Reference;
 import verymc.top.veryMcProto.mod.carpet.CarpetSettings;
 
 /**
- * cleanLogs 规则的 log4j 过滤器（scope §5.1 指定机制——仓内无先例新建；上游真机制 =
+ * cleanLogs 规则的 log4j 过滤器（Paper 移植侧指定机制——仓内无先例新建；上游真机制 =
  * {@code carpet/mixins/LivingEntity_cleanLogsMixin.java:23-27} 的 {@code hasCustomName()} Redirect 代数）。
  *
  * <p><b>代数（勿改极性）</b>：上游使 die() 内的命名实体死亡日志仅在

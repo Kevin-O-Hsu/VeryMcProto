@@ -50,14 +50,14 @@
 carpetVersionLiteralGuard` 单测锁死。ver 线 per-line 取值（**as-built 2026-10-19，两线已铺开**：
 26.1.2 线 = `"26.1"`（commit `0e278bc`）、1.21.11 线 = `"1.4.194"`（commit `71fe5b7`）；ver/26.2 线
 = `"26.2"`（2026-11 自 `main` 冻结切出，对照树 `OriginImpl/fabric-carpet-26.2/`）——各线
-上游 `gradle.properties` 逐字对齐，字面锁随线同步；各线 as-built 见其自含文档 `31-carpet.md` /
-`carpet.md`）。
+上游 `gradle.properties` 逐字对齐，字面锁随线同步；各线 as-built 见其自含文档（各线
+`docs/carpet/architecture.md` + `docs/carpet/protocol.md`，运维键在各线 `docs/operations.md` carpet 节）。
 
-**版本 warn 语义（判据①口径）**：客户端对其自身版本与 HI 值做 `equals` 严格比较
+**版本 warn 语义（验收判据口径）**：客户端对其自身版本与 HI 值做 `equals` 严格比较
 （`ClientNetworkHandler.java:95-102`），不等仅本地 LOG.warn（非聊天、不断连）。真实发布的 carpet
 客户端版本串带 `+v<构建日期>` 后缀（上游 `build.gradle:10` 无条件拼接）→ 发 `"26.3"` 时此类客户端
 必打一条 warn——与两个不同日期构建的上游 carpet 服互连行为完全同源，属上游语义的一部分；
-**判据① = 无 chat 可见/断连级警告**（服务端镜像 info=匹配 / warn=不匹配，照抄上游 :56-63）。
+**验收判据 = 无 chat 可见/断连级警告**（服务端镜像 info=匹配 / warn=不匹配，照抄上游 :56-63）。
 
 ## §3 握手时序与名册
 
@@ -138,7 +138,7 @@ carpet 客户端（装 carpet mod）            vanilla / 未装 carpet / 假人
   布尔串化（"true"/"false"）+ Manager=="carpet" + 撞名 "2" 循环（直构双同名规则）+ clientCommand
   回执缺省键（error/output 空则无键）+ 版本串/键名/通道名字面守卫（`"26.3"`/`"69"`/`"420"`/
   `carpet:hello`——防误换插件版本号）。
-- **实机判据（四条；判据①为改写口径）**：① carpet Fabric 客户端进服无 chat 可见/
+- **实机判据（四条）**：① carpet Fabric 客户端进服无 chat 可见/
   断连级警告（客户端本地 LOG.warn 属上游 equals 语义同源产物，接受）；② 客户端规则浏览器显示
   我方 13 条规则集（值随 `/carpet setDefault` 即时变更）；③ `clientCommand` 请求-回执往返（carpet
   客户端 `/call <cmd>`，输出回显于客户端日志）；④ 未握手（vanilla / 未装 carpet）玩家零影响
