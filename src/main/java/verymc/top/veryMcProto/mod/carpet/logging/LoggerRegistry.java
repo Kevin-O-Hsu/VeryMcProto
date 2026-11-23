@@ -8,7 +8,7 @@ import java.util.Set;
 import verymc.top.veryMcProto.Reference;
 
 /**
- * logger 注册表（克隆上游 {@code carpet/logging/LoggerRegistry.java} 26.2 树，逐段同构——对照行号见
+ * logger 注册表（克隆上游 {@code carpet/logging/LoggerRegistry.java} 26.3 树，逐段同构——对照行号见
  * 各方法注释；注册面锚 :40-48 为 /log 子集：仅 tps/mobcaps 两条 HUD 型，五条 chat 型与 counter/packets
  * 见 scope §4 后置/不做判定）。
  *

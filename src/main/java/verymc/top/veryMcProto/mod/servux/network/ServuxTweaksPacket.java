@@ -15,7 +15,7 @@ import verymc.top.veryMcProto.mod.servux.util.nbt.DataTagIo;
 
 /**
  * Tweaks 通道协议帧（mod 层）。照抄原版 {@code ServuxTweaksPacket}（去注解 + jul logger）。
- * 协议版本 {@value #PROTOCOL_VERSION}（26.1：2，删除 transactionId 前置 VarInt）。载体分组：
+ * 协议版本 {@value #PROTOCOL_VERSION}（26.1：2，26.3 复核同值，删除 transactionId 前置 VarInt）。载体分组：
  * Type 1/2 vanilla NBT；Type 5/6（simple 响应）与 Type 7（UNREGISTER_REPLY）DataTag 线格式；
  * Type 10-13 分片恒裸 bytes（重组后整体为 DataTag 帧）。
  * {@code ResponseC2SData} 保留对原版重复赋值 bug 的修正（统一单次 copy）。

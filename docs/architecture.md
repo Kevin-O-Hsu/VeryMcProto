@@ -156,7 +156,7 @@ public void register() {
 
 **路径 B（NMS 直发）**：`nms.connection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, bytes)))`——JEI 配方包（常超 1MiB）、syncmatica S2C（plugin messaging wire 对纯 Fabric 客户端不可达）的主路径。
 
-**兜底（servux「同通道 C2S 证明」）**：Paper `CraftPlayer.sendPluginMessage` 按 `channels().contains(channel)` 门控、玩家声明包被处理前 S2C **静默丢弃**（26.1.2 反编译实锤；26.2.build.129 源码复核存活 `CraftPlayer.java:2225`）——这曾吞掉 minihud structures 的进服首握手回复（其客户端 metadata 接受窗口是**单次**的：`DataStorage.java:288` 开门 → 首个 `%20` tick `:804` 关门，错过即恒 not_connected 直到手动 toggle；上游行号属 1.21.11 树）。修复：`ProtocolChannel.send` 对**已在本通道发过 C2S 的玩家**（= 装有对应 mod，能发即能收）在 `listening=false` 时改走路径 B 的 NMS 直发（与 Paper 自身放行路径逐字同构；证明集合随 `PlayerQuitEvent` 清除）。未发过 C2S 的玩家（vanilla / 未装 mod）**构造性不受兜底影响**，仍走 sendPluginMessage 由 Paper 丢弃——设计**不押注**「原版客户端对未知通道 S2C 的行为」（服务端侧对称机制 `CustomPacketPayload.codec` 的 fallback 把未知 id 解码为 DiscardedPayload 后忽略，vanilla 大概率静默丢弃、断连风险主要在 NeoForge 网络层）。**已知限制**：REGISTER 回复 RTT 超过客户端剩余 `%20` 窗口时仍需手动 toggle——与上游 Fabric servux 同源，不劣于上游。
+**兜底（servux「同通道 C2S 证明」）**：Paper `CraftPlayer.sendPluginMessage` 按 `channels().contains(channel)` 门控、玩家声明包被处理前 S2C **静默丢弃**（26.1.2 反编译实锤；26.2.build.129 源码复核存活 `CraftPlayer.java:2225`；26.3 复核：门控判定 = `CraftPlayer.java:2226`，方法声明 :2222）——这曾吞掉 minihud structures 的进服首握手回复（其客户端 metadata 接受窗口是**单次**的：`DataStorage.java:288` 开门 → 首个 `%20` tick `:804` 关门（`%20` 门在 `:776`），错过即恒 not_connected 直到手动 toggle；上游行号属 1.21.11 树）。修复：`ProtocolChannel.send` 对**已在本通道发过 C2S 的玩家**（= 装有对应 mod，能发即能收）在 `listening=false` 时改走路径 B 的 NMS 直发（与 Paper 自身放行路径逐字同构；证明集合随 `PlayerQuitEvent` 清除）。未发过 C2S 的玩家（vanilla / 未装 mod）**构造性不受兜底影响**，仍走 sendPluginMessage 由 Paper 丢弃——设计**不押注**「原版客户端对未知通道 S2C 的行为」（服务端侧对称机制 `CustomPacketPayload.codec` 的 fallback 把未知 id 解码为 DiscardedPayload 后忽略，vanilla 大概率静默丢弃、断连风险主要在 NeoForge 网络层）。**已知限制**：REGISTER 回复 RTT 超过客户端剩余 `%20` 窗口时仍需手动 toggle——与上游 Fabric servux 同源，不劣于上游。
 
 > **勿直发自定义 Payload record**：走 NMS 直发必须用字面量 `DiscardedPayload`——自定义 Payload record 会 ClassCastException 踢人。客户端用其自行注册的 codec 解码 payload data，与原版 Fabric 服务端发的 wire 一致。
 
@@ -182,11 +182,13 @@ public void register() {
 | 常量/上限 | 值 | 方向与语义 |
 |---|---|---|
 | Bukkit `Messenger.MAX_MESSAGE_SIZE` | **1048576**（~1MiB） | plugin messaging API 层（1.21.x 起；旧文档称 32768 已过时） |
-| 原版未知通道 discarded payload 解码上限（2026-10 javap 双线勘误，26.2 与 1.21.11 两 jar 实证） | clientbound（S2C）**1048576** / serverbound（C2S）**32767** | 未知通道超限解码拒绝；已知通道（客户端已注册 codec，如 `fabric:recipe_sync` 注册为 64MB large payload）不受此限。**旧记述把 32767 记为「客户端 S2C 瓶颈」系方向记反**——32767 是 C2S 值 |
+| 原版未知通道 discarded payload 解码上限（2026-10 javap 勘误，26.2 / 1.21.11 / 26.3 三 jar 实证，26.3 复核同值） | clientbound（S2C）**1048576** / serverbound（C2S）**32767** | 未知通道超限解码拒绝；已知通道（客户端已注册 codec，如 `fabric:recipe_sync` 注册为 64MB large payload）不受此限。**旧记述把 32767 记为「客户端 S2C 瓶颈」系方向记反**——32767 是 C2S 值 |
 | `PacketSplitter.MAX_TOTAL_PER_PACKET_S2C` | **32_000** | 我方发送单片总上限（32KiB 时代历史取值，对 1MiB 与历史两代上限均保守——**勿上调**） |
 | `PacketSplitter.MAX_PAYLOAD_PER_PACKET_S2C` | **31_995**（=32000−5） | 留余量给 VarInt 头 |
 | `PacketSplitter.DEFAULT_MAX_RECEIVE_SIZE_S2C` | **67_108_864**（64MB） | 我方接收（C2S 上传）缓冲上限 |
 | `PacketSplitter.MAX_REASSEMBLY_SIZE_S2C` | **16_777_216**（16MB） | 客户端（malilib，当前线）重组上限——我方发送前预检阈值，`send` 入口严格 `>` 判定（恰好相等放行），超限**整帧拒发** + warn（log-and-drop，有意不限频） |
+
+**26.3 复核注**：上表两解码上限 26.3 javap 复核同值（paperweight output.jar 直读）。26.3 起 vanilla 承载包类 `ClientboundCustomPayloadPacket` / `ServerboundCustomPayloadPacket` 并入 `net.minecraft.network.protocol.common` 包（play/configuration 分用 `GAMEPLAY_STREAM_CODEC` / `CONFIG_STREAM_CODEC`，未知通道 fallback = `DiscardedPayload.codec(Identifier, int)`）——本文各处均为裸类名引用不受影响，引全名处随线取 26.3 包路径；vanilla 列表封顶 65536 仍在，常量更名 `MAX_INITIAL_COLLECTION_SIZE`（原 `MAX_INITIAL_LIST_CAPACITY`）。
 
 **16MB 预检覆盖**：被检量 = DataTag 帧化后 buffer 的 `writerIndex()`（= 4 + GZIP 压缩长 = 首包 VarInt 下发、客户端 `expectedSize` 读取的同一个数，三方同源）；超限帧发出去会被客户端销毁重组 session 并抛异常，后续分片还会以垃圾 expectedSize 重建残留会话污染下一帧。覆盖全部 S2C 分片大帧（RecipeManager 全量帧 / BulkEntityReply / Structures 全量帧三活跃点 + 两死分支）。**上游 servux 无此预检——我方增强，勿随上游模板回退**。
 
@@ -202,7 +204,7 @@ C2S 接收方向的解压配额闸（gzip bomb / 长度字段炸弹拦截）见 
 
 ### 3.6 NMS API 实测坑清单（升级核对参考）
 
-> 1.21.11 线成文、26.1/26.2 漂移已复核合并；升级 MC 版本时逐行重核（升级 SOP 见 [operations.md](operations.md)）。
+> 1.21.11 线成文、26.1/26.2/26.3 漂移已复核合并；升级 MC 版本时逐行重核（升级 SOP 见 [operations.md](operations.md)）。
 
 | 坑 | 正确做法 |
 |---|---|
@@ -212,7 +214,7 @@ C2S 接收方向的解压配额闸（gzip bomb / 长度字段炸弹拦截）见 
 | `player.serverLevel()` | 用 `(ServerLevel) player.level()` |
 | `ServerLevel.getSharedSpawnPos()` | 用 Bukkit `world.getSpawnLocation()` → BlockPos |
 | `LevelData` 天气方法 | 直接走 `ServerLevel.getWeatherData()`（`WeatherData` 同名方法保留） |
-| `CommandSourceStack.hasPermission(int)` 签名漂移 | 不用；Perms 用 `Nms.server()` + `isOp()` |
+| `CommandSourceStack.hasPermission(int)` 签名漂移 | 不用；Perms 经公开链 `getProfilePermissions(...).level().id()` 精确取 op 等级 |
 | `MinecraftServer.getProfiler()` 不存在 | `IDataProvider.tick` 去掉 `ProfilerFiller` 形参 |
 | `ServerLoadEvent.LoadType.STARTED` 枚举漂移 | 去掉类型判断，处理所有 ServerLoadEvent |
 | `CompoundTag` Optional 语义 | `getXxx` 返回 Optional → 用 `getBooleanOr/getStringOr/getIntOr/...` 或 `.orElse()`；`putXxx` 返回 void（非链式） |
@@ -224,6 +226,8 @@ C2S 接收方向的解压配额闸（gzip bomb / 长度字段炸弹拦截）见 
 | `@NotNull`/`@Environment` 注解 | Fabric 专有，全部删除 |
 
 26.2 线新增漂移：`EntityType.PLAYER` 等常量迁至 `EntityTypes` 常量类；`EntityType.create` 第三参 `new EntitySpawnRequest(EntitySpawnReason.LOAD, true)`；`BlockTags.CONCRETE_POWDER`→`CONCRETE_POWDERS`。
+
+26.3 线新增漂移（编译驱动实测 18 处，归并 7 组）：`LivingEntity.drop` 第三参 boolean → `Prediction`（假人/转移链传 `Prediction.SERVER_ONLY`）；`LivingEntity.swing(InteractionHand)` 单参删除，新 `boolean swing(hand, SwingAnimation, boolean)` 三参且 `SwingSource.SERVER` 改名 `SERVER_ONLY`；`Entity.hurtMarked` 删除，真后继 `syncVelocity`（markHurt 置位链；`needsSync` 是 push 链，勿跟错）；`CommandSourceStack` 公开构造收缩为两个 7 参（`NamesProvider` 化，8/13 参转 private）；`ChunkGenerator.getMobsAt` 首参 `Holder<Biome>` → `Level`；`Recipe.CODEC` 原型改名（`CODEC` 变 `Codec<Holder<Recipe<?>>>`，原形 = `Recipe.DIRECT_CODEC`，wire NBT 与 26.2 逐字节一致）；`BlockPos(Vec3i)` 拷贝构造删除（仅存 `(int,int,int)` 构造，分量展开）。
 
 ### 3.7 防御性编程要点（框架级）
 
@@ -355,8 +359,8 @@ syncmatica 原版 19 Mixin（`mixin/` 9 + `litematica_mixin/` 10），服务端�
 
 | Fabric | Paper 等价 |
 |---|---|
-| `Permissions.check(player, node, level)` | `framework.permission.Perms.check(...)`（显式设置优先 → `level<=0` 全员 → op 二值；节点表见 [operations.md](operations.md) §2） |
-| permission level 0-4 | Bukkit 权限 + `default`（`op` / `true`） |
+| `Permissions.check(player, node, level)` | `framework.permission.Perms.check(...)`（显式设置优先 → 否则精确比较 op 等级 0-4；节点表见 [operations.md](operations.md) §2） |
+| permission level 0-4 | `Perms` 回退时精确比较（公开 NMS 链）；plugin.yml `default` 承载命令派发器侧声明 |
 | `FabricLoader.getConfigDir()` → `config/servux.json` | `plugin.getDataFolder()` → `plugins/VeryMcProto/servux.json` |
 | `Reference.DEFAULT_RUN_DIR = getGameDir()` | `Bukkit.getWorldContainer()` |
 | Gson 配置 | 保留 Gson（Bukkit 自带）；保持 JSON |
@@ -371,7 +375,9 @@ syncmatica 原版 19 Mixin（`mixin/` 9 + `litematica_mixin/` 10），服务端�
 
 ### 6.4 NMS 采集可达性
 
-绝大多数采集 API paperweight dev bundle **可直接 import**：`ServerLevel.getSeed()` / `recipeAccess()` / `getChunkSource().getLastSpawnState()`、`Recipe.CODEC.encodeStart(NbtOps.INSTANCE, ...)`、`BlockEntity.saveWithFullMetadata` / `Entity.saveWithoutId`、`ChunkAccess.getAllReferences()` / `getStartForStructure()` / `StructureStart.createTag`、`MinecraftServer.registryAccess()`——原版要 Mixin/AW 才能访问的，反而因 paperweight 给了完整映射而简化。仅以下需反射：`ServerTickRateManager.remainingSprintTicks`、`NaturalSpawner.MAGIC_NUMBER`(=289，可硬编码)、`TagValueInput/Output` 私有字段（已重写绕开）、`LevelTicks.allContainers`（已省略）。
+绝大多数采集 API paperweight dev bundle **可直接 import**：`ServerLevel.getSeed()` / `recipeAccess()` / `getChunkSource().getLastSpawnState()`、`Recipe.DIRECT_CODEC.encodeStart(NbtOps.INSTANCE, ...)`（26.3 起原形改名 `DIRECT_CODEC`——`CODEC` 变 `Codec<Holder<Recipe<?>>>`，wire NBT 不变）、`BlockEntity.saveWithFullMetadata` / `Entity.saveWithoutId`、`ChunkAccess.getAllReferences()` / `getStartForStructure()` / `StructureStart.createTag`、`MinecraftServer.registryAccess()`——原版要 Mixin/AW 才能访问的，反而因 paperweight 给了完整映射而简化。仅以下需反射：`ServerTickRateManager.remainingSprintTicks`、`NaturalSpawner.MAGIC_NUMBER`(=289，可硬编码)、`TagValueInput/Output` 私有字段（已重写绕开）、`LevelTicks.allContainers`（已省略）。
+
+26.3 复核（26.3.build.257 dev bundle 直读）：九个反射访问点全存活零失效——`Connection.channel`（:69→:68）、`PaperCommonConnection.packetListener`（两版均 :25）、`ServerTickRateManager.remainingSprintTicks`（:12）、`TagValueInput.input`（:32）/ `TagValueOutput.output`（:19）；`Connection.handle` 仍不存在（防御死回退不变）。Paper 两行为点位：`CraftPlayer.sendPluginMessage` 声明 :2222 / 通道门控 :2226，`handleUseItemOn` 游标逐轴校验 :2177-2178（26.2 :2221/:2225、:2113-2114 作历史注记保留）。
 
 ### 6.5 一页纸转换清单
 
@@ -410,6 +416,7 @@ plugins {
 dependencies {
     paperweight.paperDevBundle("<mcVersion>.build.<N>-stable")
     // 26.1 起新格式 <mc>.build.<N>-stable；提供 Mojang 全映射 net.minecraft.* + io.papermc.paper.*
+    // 26.3 起坐标改由 gradle.properties 的 devBundle 键派生（整坐标一键；MC 段与 mcVersion 同线，verifyVersionInjection 终检断言前缀）
     // 可选依赖（EasyPlace）：compileOnly("com.github.retrooper:packetevents-spigot:<版本>")
     // ——类引用必须隔离到独立引导类（EasyPlaceBootstrap）+ 反射加载 + catch(Throwable)
 }

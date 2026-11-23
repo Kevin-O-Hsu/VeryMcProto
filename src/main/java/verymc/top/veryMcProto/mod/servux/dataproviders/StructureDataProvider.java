@@ -46,7 +46,7 @@ import verymc.top.veryMcProto.mod.servux.util.PlayerDimensionPosition;
 
 /**
  * Structures Provider（mod 层，配 MiniHUD 结构边界框）。移植自原版 {@code StructureDataProvider}
- * （通道 servux:structures，协议版本 3——26.1 真值，常量 ServuxStructuresPacket.PROTOCOL_VERSION）。
+ * （通道 servux:structures，协议版本 3——26.1 真值、26.3 复核同值，常量 ServuxStructuresPacket.PROTOCOL_VERSION）。
  *
  * <p><b>采集触发</b>：原版用 Mixin {@code MixinServerChunkLoadingManager.markChunkPendingToSend}
  * → {@code onStartedWatchingChunk(player, chunk)} 精确触发区块结构采集。Paper 无此 Mixin，
@@ -95,7 +95,7 @@ public class StructureDataProvider extends DataProviderBase
         super("structure_bounding_boxes",
                 ServuxStructuresHandler.CHANNEL_ID,
                 ServuxStructuresPacket.PROTOCOL_VERSION,
-                0, ServuxReference.MOD_ID + ".provider.structure_bounding_boxes",
+                0, ServuxReference.MOD_ID + ":structure_bounding_boxes",
                 "Structure Bounding Boxes data for structures such as Witch Huts, Ocean Monuments, Nether Fortresses etc.");
 
         this.metadata.putString("name", this.getName());
@@ -539,7 +539,7 @@ public class StructureDataProvider extends DataProviderBase
     @Override
     public boolean hasPermission(ServerPlayer player)
     {
-        return Perms.check(player, this.permNode, this.permissionLevel.getValue());
+        return Perms.check(player, this.permNode + ".data_provider", this.permissionLevel.getValue());
     }
 
     @Override

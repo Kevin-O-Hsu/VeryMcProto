@@ -31,7 +31,7 @@ class CarpetRuleRegistryTest
     @BeforeEach
     void setUp()
     {
-        manager = new SettingsManager("26.2", "carpet", "Carpet Mod", dataFolder);
+        manager = new SettingsManager("26.3", "carpet", "Carpet Mod", dataFolder);
         manager.parseSettingsClass(CarpetSettings.class);
         resetAllRules();
     }

@@ -17,7 +17,7 @@ import static io.papermc.paper.command.brigadier.Commands.argument;
 import static io.papermc.paper.command.brigadier.Commands.literal;
 
 /**
- * /distance 命令（上游 {@code carpet/commands/DistanceCommand.java} 26.2 树逐字移植；Paper
+ * /distance 命令（上游 {@code carpet/commands/DistanceCommand.java} 26.3 树逐字移植；Paper
  * Brigadier 载体——{@code PlayerCommand} 范式，plugin.yml 无条目）。
  *
  * <p><b>树形</b>（上游 :19-41 非对称嵌套链，六分支）：

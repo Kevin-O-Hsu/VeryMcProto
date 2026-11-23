@@ -5,7 +5,9 @@ import net.minecraft.nbt.*;
 /**
  * RecipeManager wire 预处理（servux:hud_metadata 通道专用兼容层）。
  *
- * <p>26.1 wire 病灶（26.2 编译/单测通过，wire 形状随客户端冒烟终验）：{@code Recipe.CODEC.encodeStart(NbtOps.INSTANCE, ...)} 的 ingredient 元素域为
+ * <p>26.1 wire 病灶（26.2 编译/单测通过；26.3 起 vanilla {@code Recipe.CODEC} 改为 {@code Codec<Holder<Recipe<?>>>}、原形改名
+ * {@code DIRECT_CODEC}，我方 HudDataProvider:567 已切 {@code DIRECT_CODEC}——上游 26.3 HudDataProvider.java:670 同为
+ * {@code DIRECT_CODEC.encodeStart}，wire NBT 与 26.2 逐字节一致，本归一化器继续适用）：{@code Recipe.CODEC.encodeStart(NbtOps.INSTANCE, ...)} 的 ingredient 元素域为
  * 「单物品 → 裸 StringTag（ExtraCodecs.compactListCodec 单元素裸出）；多物品/tag → ListTag」——
  * 两者混装的 ingredients 列表（全量普查恰 66 条 vanilla 配方）在 {@code ListTag.write} 逐元素写出时
  * 被包装为 {@code {"": x}} Compound 并按声明类型 TAG_Compound(10) 上线；malilib 客户端读端
@@ -18,8 +20,10 @@ import net.minecraft.nbt.*;
  * 同构列表（全串/全列表）原样返回——wire 逐字节不变。
  *
  * <p>注：tag 形 ingredient 在 26.1 plain NbtOps 编码下不存在 "#tag" 串形态——
- * HolderSetCodec 非 RegistryOps 恒走 encodeWithoutRegistry 把 Named 集展开为物品列表
- * （HolderSetCodec.java:72-105）；故此处无需 #tag 特判。若未来编码路径变化出现 # 串，
+ * HolderSetCodec 非 RegistryOps 恒走 encode 的 else 分支把 Named 集展开为物品列表
+ * （26.3 原版 net/minecraft/core/registries/codec/HolderSetCodec.java，encode 方法 :72-85、
+ * 非 RegistryOps 分支 :82-84——26.2 同名类在 resources 包且为独立 encodeWithoutRegistry 方法，
+ * 26.3 已内联、语义不变）；故此处无需 #tag 特判。若未来编码路径变化出现 # 串，
  * 包裹后客户端解码失败的行为与现状等价，不会更糟。
  */
 public class RecipeNbtNormalizer

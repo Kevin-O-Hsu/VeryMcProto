@@ -37,7 +37,7 @@ import static io.papermc.paper.command.brigadier.Commands.literal;
 import static net.minecraft.commands.SharedSuggestionProvider.suggest;
 
 /**
- * /draw 命令——基础形状族（上游 {@code carpet/commands/DrawCommand.java} 26.2 树逐字移植；Paper
+ * /draw 命令——基础形状族（上游 {@code carpet/commands/DrawCommand.java} 26.3 树逐字移植；Paper
  * Brigadier 载体，plugin.yml 无条目）。七 literal：sphere/ball/diamond（center+radius）、pyramid/cone
  * （+height+pointing+orientation）、cylinder/cuboid（center+radius+height+orientation）；形状算法
  * drawSphere/drawDiamond/fillFlat/drawPyramid/drawPrism 单文件内联（上游同——无 ShapeDispatcher）；

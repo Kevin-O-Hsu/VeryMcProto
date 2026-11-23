@@ -28,7 +28,7 @@ import static io.papermc.paper.command.brigadier.Commands.literal;
 import static net.minecraft.commands.SharedSuggestionProvider.suggest;
 
 /**
- * /log 命令（对照上游 {@code carpet/commands/LogCommand.java} 26.2 树；Paper Brigadier 载体——
+ * /log 命令（对照上游 {@code carpet/commands/LogCommand.java} 26.3 树；Paper Brigadier 载体——
  * {@code PlayerCommand} 范式，plugin.yml 无条目）。
  *
  * <p><b>命令形状</b>（subscribe/clear 形——phases §6 交付物① 定义，非上游 flat 树）：

@@ -153,7 +153,7 @@ public final class RecipeSyncJoinOrderer extends ChannelDuplexHandler
 
     private static Object resolveListener(PlayerConfigurationConnection connection)
     {
-        // 字段名 packetListener：26.1.2 bundle 实证、26.2.build.129 复核存活（PaperCommonConnection.java:25 protected final T packetListener）；
+        // 字段名 packetListener：26.1.2 bundle 实证、26.2.build.129 复核存活、26.3.build.257 复核存活（PaperCommonConnection.java:25 protected final T packetListener）；
         // handle 回退对冲 Paper 内部重命名漂移（Reflect.getOr 沿父类链查找）
         Object listener = Reflect.getOr(connection, "packetListener", null);
         if (listener == null)

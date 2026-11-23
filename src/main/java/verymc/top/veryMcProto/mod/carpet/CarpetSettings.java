@@ -8,7 +8,7 @@ import verymc.top.veryMcProto.mod.carpet.settings.Rule;
 import verymc.top.veryMcProto.mod.carpet.settings.Validator;
 
 /**
- * carpet 规则声明（克隆上游 {@code carpet/CarpetSettings.java} 26.2 树的 8 条地基规则——注解与默认值
+ * carpet 规则声明（克隆上游 {@code carpet/CarpetSettings.java} 26.3 树的 8 条地基规则——注解与默认值
  * 逐字；对照行号见各规则注释）。规则值由静态字段承载（volatile：监听器/日志过滤器跨线程读取）。
  *
  * <p>与上游的偏差（对账登记，docs/carpet/architecture.md）：

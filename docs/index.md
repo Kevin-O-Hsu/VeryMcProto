@@ -1,12 +1,12 @@
 # VeryMcProto · 文档总索引
 
-> 本目录是 **VeryMcProto**（Fabric 协议 Mod → Paper 插件移植，当前 26.2 线）的全部技术文档；本文件是 **docs/ 的唯一全量登记索引**（归档件以指针登记，清单与冻结约定见 `archive/README.md`——该目录仅存在于旧维护线；README 文档导航节与根 AGENTS.md 文档地图只做指向路由，不重复维护清单）。
+> 本目录是 **VeryMcProto**（Fabric 协议 Mod → Paper 插件移植，当前 26.3 线）的全部技术文档；本文件是 **docs/ 的唯一全量登记索引**（归档件以指针登记，清单与冻结约定见 `archive/README.md`——该目录仅存在于旧维护线；README 文档导航节与根 AGENTS.md 文档地图只做指向路由，不重复维护清单）。
 >
-> **文档树三线同构**：`dev`（26.2）、`ver/26.1.2-dev`、`ver/1.21.11-dev` 三条线使用同一目录结构与文件命名（内容 per-line 自含）；旧维护线额外携带 `docs/archive/`（冻结归档件）。跨线 cherry-pick 时 docs 路径 1:1 对应，无需重映射。
+> **文档树四线同构**：`dev`（26.3）、`ver/26.2-dev`、`ver/26.1.2-dev`、`ver/1.21.11-dev` 四条线使用同一目录结构与文件命名（内容 per-line 自含）；旧维护线额外携带 `docs/archive/`（冻结归档件）。跨线 cherry-pick 时 docs 路径 1:1 对应，无需重映射。
 >
 > **四个协议 mod 全部已完整实现并实测通过**：
 > - **Servux**（masa 服务端协议）—— 5 数据通道 + schematic（投影粘贴）+ EasyPlace + task 组（Fill/Delete/Paste）。
-> - **JEI 服务端协议**（最上游 mezz/JustEnoughItems 分支 `26.2`）—— 完整三层：配方同步（fabric/neoforge 双腿）+ jei:* 自有 10 通道 + 服务端行为层。
+> - **JEI 服务端协议**（最上游 mezz/JustEnoughItems 分支 `26.3`，发布标签 `v31.23.0`；注意 `v26.3.0` 为 1.21.10 线撞名 tag 非本线锚）—— 完整三层：配方同步（fabric/neoforge 双腿）+ jei:* 自有 10 通道 + 服务端行为层。
 > - **Syncmatica**（投影共享中央仓库）—— 单通道 + Exchange 会话层 + 文件存储 + JSON 持久化。
 > - **Carpet**（行为注入型 mod 的可移植子集）—— **全部实现（规则框架 + /carpet 壳 + 18 规则 + 假人 /player 全族 + carpet:hello 握手/规则同步/clientCommand + /log 订阅框架与跨会话持久 + /distance /info /perimeterinfo /draw /spawn 五命令 + 三线铺开 ver/26.1.2 + ver/1.21.11），移植范围终局定案**（其余面在纯 Paper 形态下技术上不可能实现或无法等价，**永不纳入——无后续实现**；as-built 见 [carpet/architecture.md](carpet/architecture.md) 与 [carpet/protocol.md](carpet/protocol.md)）。
 >
@@ -160,4 +160,4 @@
 
 > Syncmatica 域术语（Exchange / ExchangeTarget / PacketType / placement / hash / Feature / broadcastTargets）见 [syncmatica/architecture.md](syncmatica/architecture.md) §9。
 >
-> **协作约定**：所有文档互相用相对链接索引；提到原版代码时优先给出**相对路径**（`OriginImpl/<mod>-LTS-26.2/src/main/java/...`）与**关键行/方法名**，方便直接跳转对照。
+> **协作约定**：所有文档互相用相对链接索引；提到原版代码时优先给出**相对路径**（`OriginImpl/<mod>-26.3/src/main/java/...`）与**关键行/方法名**，方便直接跳转对照。

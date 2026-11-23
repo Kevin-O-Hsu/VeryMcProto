@@ -10,7 +10,7 @@
 | 资源 | 用途 | 结论 |
 |---|---|---|
 | [FabricMC Discussion #4430 — Sending data from Spigot server to Fabric 1.21 client](https://github.com/orgs/FabricMC/discussions/4430) | Spigot/Paper ↔ Fabric 自定义通道互通 | **决定性证据**：plugin messaging channel（`namespace:path`）直接映射原版 `CustomPacketPayload`；`byte[]` = `FriendlyByteBuf` 裸字节；`sendPluginMessage`/`onPluginMessageReceived` 可直收发。见 [servux/protocol.md](servux/protocol.md) §1、[architecture.md](architecture.md) §3 |
-| [Bukkit `Messenger` Javadoc](https://hub.spigotmc.org/javadocs/spigot/org/bukkit/plugin/messaging/Messenger.html) | plugin messaging 单包上限 | 1.21.x 起 `MAX_MESSAGE_SIZE = 1048576`（~1MiB）——**旧版 32768（32KiB）的说法已过时**。原版两端对**未知通道** discarded payload 的解码上限（2026-10 javap 双线勘误）：**clientbound（S2C）= 1048576、serverbound（C2S）= 32767**（旧文档把 32767 记为 S2C 瓶颈系方向记反）。字节限制教义见 [architecture.md](architecture.md) §3.4 与 [../AGENTS.md](../AGENTS.md) §1 |
+| [Bukkit `Messenger` Javadoc](https://hub.spigotmc.org/javadocs/spigot/org/bukkit/plugin/messaging/Messenger.html) | plugin messaging 单包上限 | 1.21.x 起 `MAX_MESSAGE_SIZE = 1048576`（~1MiB）——**旧版 32768（32KiB）的说法已过时**。原版两端对**未知通道** discarded payload 的解码上限（2026-10 javap 双线勘误；26.3 复核同值）：**clientbound（S2C）= 1048576、serverbound（C2S）= 32767**（旧文档把 32767 记为 S2C 瓶颈系方向记反）。字节限制教义见 [architecture.md](architecture.md) §3.4 与 [../AGENTS.md](../AGENTS.md) §1 |
 | [SpigotMC — How to get around 32767 byte limit for plugin messaging](https://www.spigotmc.org/threads/how-to-get-around-32767-byte-limit-for-plugin-messaging.256652/) | 大包社区解法（历史参考） | 分片重组（与 PacketSplitter 思路一致；该帖语境是客户端 32767 解码上限，非 Bukkit Messenger 限制） |
 
 ---
@@ -30,6 +30,7 @@
 
 | 资源 | 链接 | 用途 |
 |---|---|---|
+| Fabric API（`fabric-recipe-api-v1`） | https://github.com/FabricMC/fabric | **fabric:recipe_sync wire 真权威**（26.3 线锚 `0.166.2+26.3`，本地对照 `OriginImpl/fabric-26.3/`；见 [jei/protocol.md](jei/protocol.md)） |
 | Fabric 网络文档 | https://docs.fabricmc.net/develop/networking | 理解 `ServerPlayNetworking`/`PayloadTypeRegistry`/`CustomPacketPayload`（[servux/protocol.md](servux/protocol.md)） |
 | Fabric Loader | https://docs.fabricmc.net/ | Mod 生命周期、`FabricLoader` |
 | Mixin 文档 | https://github.com/SpongePowered/Mixin/wiki | 理解 `@Inject`/`@WrapOperation`/`@Accessor`（[architecture.md](architecture.md) §5） |
@@ -51,7 +52,7 @@
 
 | 资源 | 链接 | 用途 |
 |---|---|---|
-| PacketEvents | https://docs.packetevents.com/ / https://modrinth.com/plugin/packetevents | **EasyPlace 已实现**（`EasyPlaceListener` 拦截 `PLAYER_BLOCK_PLACEMENT` 改写 cursor 放行 + `EasyPlaceFixListener` 修正）；见 [architecture.md](architecture.md) §5.3 |
+| PacketEvents | https://docs.packetevents.com/ / https://modrinth.com/plugin/packetevents | **EasyPlace 已实现**（`EasyPlaceListener` 拦截 `PLAYER_BLOCK_PLACEMENT` 改写 cursor 放行 + `EasyPlaceFixListener` 修正）；版本 2.14.0（发布标签 `v2.14.0`，本地对照树 `OriginImpl/packetevents-2.14.0`）；见 [architecture.md](architecture.md) §5.3 |
 | LuckPerms | https://luckperms.net/ | 权限增强（可选，替代 fabric-permissions-api；示例见 [operations.md](operations.md) §2.3） |
 | Vault | https://github.com/MilkBowl/Vault | 权限/经济抽象（可选） |
 
@@ -61,15 +62,15 @@
 
 | 资源 | 路径 | 用途 |
 |---|---|---|
-| **Servux 原版（26.2 线对照权威）** | [`../OriginImpl/servux-LTS-26.2/`](../OriginImpl/servux-LTS-26.2/) | 逐行对照（协议常量 / Handler 分发权威）；ver/1.21.11 维护线对照 `servux-LTS-1.21.11/`（26.1 树保留在盘，不再是 dev 线权威） |
+| **Servux 原版（26.3 线对照权威，发布标签 26.3-0.12.1）** | [`../OriginImpl/servux-26.3/`](../OriginImpl/servux-26.3/) | 逐行对照（协议常量 / Handler 分发权威）；旧维护线对照：ver/26.2 → `servux-LTS-26.2/`、ver/26.1.2 → `servux-LTS-26.1/`、ver/1.21.11 → `servux-LTS-1.21.11/`（旧树保留在盘） |
 | — 网络层 | `.../network/`、`.../network/packet/` | [servux/protocol.md](servux/protocol.md) |
 | — 数据采集 | `.../dataproviders/`、`.../loggers/` | [servux/providers.md](servux/providers.md) |
 | — Mixin | `.../mixin/`、`mixins.servux.json`、`servux.accesswidener` | [architecture.md](architecture.md) §5 |
 | — 投影系统 | `.../schematic/` | [servux/schematic.md](servux/schematic.md) |
-| **Syncmatica 原版（26.2 线对照权威）** | [`../OriginImpl/syncmatica-LTS-26.2/`](../OriginImpl/syncmatica-LTS-26.2/) | [syncmatica/architecture.md](syncmatica/architecture.md)–[syncmatica/testing.md](syncmatica/testing.md) |
-| **JEI 原版（26.2 线对照权威）** | `../OriginImpl/JustEnoughItems-26.2/`（mezz，分支 `26.2`） | [jei/protocol.md](jei/protocol.md)；clone 命令与协议权威文件清单见 [../AGENTS.md](../AGENTS.md) §参考源码 |
-| **fabric-carpet 原版（四树并存）** | `../OriginImpl/fabric-carpet-26.2/`（dev 线，tag `v26.2`）；`fabric-carpet-26.1/`（ver/26.1.2 线，分支 `26.1`）；`fabric-carpet-1.21.11/`（ver/1.21.11 线，分支 `1.21.11`）；`fabric-carpet-master/`（26.4-snapshot 观望线） | [carpet/architecture.md](carpet/architecture.md)（as-built 与偏差清单） |
-| masa 客户端（litematica/malilib/minihud/tweakeroo） | `../OriginImpl/*-LTS-26.2/` | **协议接收端与硬门禁所在**，字段语义必查 |
+| **Syncmatica 原版（26.3 线对照权威，发布标签 26.3-0.3.20）** | [`../OriginImpl/syncmatica-26.3/`](../OriginImpl/syncmatica-26.3/) | [syncmatica/architecture.md](syncmatica/architecture.md)–[syncmatica/testing.md](syncmatica/testing.md) |
+| **JEI 原版（26.3 线对照权威）** | `../OriginImpl/JustEnoughItems-26.3/`（mezz，分支 `26.3`，发布标签 `v31.23.0`；**注意 `v26.3.0` 为 MC 1.21.10 线撞名 tag，非本线锚**） | [jei/protocol.md](jei/protocol.md)；clone 命令与协议权威文件清单见 [../AGENTS.md](../AGENTS.md) §参考源码 |
+| **fabric-carpet 原版（五树并存）** | `../OriginImpl/fabric-carpet-26.3/`（dev 线，tag `v26.3`）；`fabric-carpet-26.2/`（ver/26.2 线，tag `v26.2`）；`fabric-carpet-26.1/`（ver/26.1.2 线，分支 `26.1`）；`fabric-carpet-1.21.11/`（ver/1.21.11 线，分支 `1.21.11`）；`fabric-carpet-master/`（26.4-snapshot 观望线） | [carpet/architecture.md](carpet/architecture.md)（as-built 与偏差清单） |
+| masa 客户端（litematica/malilib/minihud/tweakeroo/itemscroller） | `../OriginImpl/*-26.3/`（dev 线；masa 系 26.3 起上游分支名 `26.3`，不带 `LTS/` 前缀；旧线树 `*-LTS-26.2` / `*-LTS-26.1` / `*-LTS-1.21.11` 保留在盘） | **协议接收端与硬门禁所在**，字段语义必查 |
 | **姊妹项目 VeryMcBot（paperweight+NMS 范式参考）** | `I:\Programming\VeryMcBot` | `build.gradle.kts`（userdev）、`reflect/Reflect`（反射工具）、其自身 CLAUDE.md（文档风格） |
 | 本项目权威说明 | [`../AGENTS.md`](../AGENTS.md) | 架构、分支/版本模型、核心设计约束、工作约定 |
 

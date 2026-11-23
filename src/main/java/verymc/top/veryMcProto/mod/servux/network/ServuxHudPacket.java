@@ -15,7 +15,7 @@ import verymc.top.veryMcProto.mod.servux.util.nbt.DataTagIo;
 /**
  * HUD 通道协议帧（mod 层）。照抄原版 {@code ServuxHudPacket}（去 Fabric 注解 + jul logger）。
  *
- * <p>协议版本 {@value #PROTOCOL_VERSION}（26.1：3）。11 种 Type；Payload 内部字节布局（26.1 起 NBT 载体按 Type 分组）：
+ * <p>协议版本 {@value #PROTOCOL_VERSION}（26.1：3，26.3 复核同值）。11 种 Type；Payload 内部字节布局（26.1 起 NBT 载体按 Type 分组）：
  * <ul>
  *   <li>Type 1/2（metadata 请求/响应）：vanilla {@code writeNbt}；</li>
  *   <li>Type 3-9（spawn/weather/recipe/logger/unregister 等）：malilib <b>DataTag 线格式</b>

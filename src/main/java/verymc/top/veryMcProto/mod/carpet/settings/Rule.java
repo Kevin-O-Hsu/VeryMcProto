@@ -6,7 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 规则注解（克隆上游 {@code carpet/settings/Rule.java}，26.2 树——上游 CarpetSettings 的 8 条地基规则
+ * 规则注解（克隆上游 {@code carpet/settings/Rule.java}，26.3 树——上游 CarpetSettings 的 8 条地基规则
  * 实际使用的即这套 legacy 注解）。标注于静态字段即成为 carpet 规则。
  *
  * <p>字段必须为 static，类型限 boolean/int/double/long/float/String/枚举；规则默认值 = 字段初值。

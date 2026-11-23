@@ -120,14 +120,14 @@ class CarpetHelloFrameTest
     }
 
     /**
-     * HI 版本串守卫：必须逐字等于上游 mod_version（OriginImpl/fabric-carpet-26.2/gradle.properties:15）。
-     * 误换成插件版本号（26.2-b3 之类）必触发客户端 equals 严格比较 warn（CarpetReference javadoc 纪律，
+     * HI 版本串守卫：必须逐字等于上游 mod_version（OriginImpl/fabric-carpet-26.3/gradle.properties:15）。
+     * 误换成插件版本号（26.3-b3 之类）必触发客户端 equals 严格比较 warn（CarpetReference javadoc 纪律，
      * 同 servux MOD_STRING 门禁）。
      */
     @Test
     void carpetVersionLiteralGuard()
     {
-        assertEquals("26.2", CarpetReference.CARPET_VERSION);
+        assertEquals("26.3", CarpetReference.CARPET_VERSION);
         assertEquals("carpet", CarpetReference.MOD_ID);
         assertEquals("69", CarpetReference.KEY_HI);
         assertEquals("420", CarpetReference.KEY_HELLO);

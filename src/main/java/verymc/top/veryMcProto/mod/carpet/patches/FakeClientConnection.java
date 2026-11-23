@@ -9,7 +9,7 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
 
 /**
- * 假人连接载体（克隆上游 {@code carpet/patches/FakeClientConnection.java} 26.2 树，47 行逐字同构）。
+ * 假人连接载体（克隆上游 {@code carpet/patches/FakeClientConnection.java} 26.3 树，47 行逐字同构）。
  *
  * <p>挂 {@link EmbeddedChannel}（上游注释明示这让 {@code isOpen} 恒真——末影珍珠等依赖连接存活的
  * 传送路径对假人可用）；{@code send}/{@code handleDisconnection} 等五方法全 no-op——S2C 包在连接层

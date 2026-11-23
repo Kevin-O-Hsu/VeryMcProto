@@ -30,7 +30,7 @@ import verymc.top.veryMcProto.Reference;
  *       中断的分片上传不再留下永生 session 与未释放 buffer。</li>
  * </ul>
  *
- * <p><b>S2C 客户端重组上限预检</b>：26.1+ 客户端（malilib，26.2 复核同值）对分片重组帧有 16MB 硬上限
+ * <p><b>S2C 客户端重组上限预检</b>：26.1+ 客户端（malilib，26.3 复核同值）对分片重组帧有 16MB 硬上限
  * （客户端侧 {@code DEFAULT_MAX_RECEIVE_SIZE_S2C = 16777216}，严格 {@code >}，恰好相等放行），超限即销毁
  * 重组会话并抛异常——后续分片还会以垃圾 expectedSize 重建残留会话污染下一帧。故 {@link #send} 入口对
  * 帧总长预检，超限整帧拒发（零分片发出）并记日志，见 {@link #MAX_REASSEMBLY_SIZE_S2C}。
@@ -231,7 +231,7 @@ public class PacketSplitter
                     throw new IllegalArgumentException("Payload too large: " + this.expectedSize + " > " + maxLength);
                 }
 
-                // 上游同源边界分支（servux:145-149 / malilib:151-156）：声明正长度却无载荷字节 → 坏流，废弃会话
+                // 上游同源边界分支（servux:145-149 / malilib:152-156）：声明正长度却无载荷字节 → 坏流，废弃会话
                 if (this.expectedSize > 0 && data.readableBytes() == 0)
                 {
                     PacketSplitter.READING_SESSIONS.remove(this.key);

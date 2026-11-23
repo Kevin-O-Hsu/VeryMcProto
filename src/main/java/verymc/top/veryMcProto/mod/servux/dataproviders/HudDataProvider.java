@@ -45,7 +45,7 @@ import verymc.top.veryMcProto.mod.servux.network.ServuxHudPacket;
 import verymc.top.veryMcProto.mod.servux.util.nbt.RecipeNbtNormalizer;
 
 /**
- * HUD Provider（mod 层，配 MiniHUD）。移植自原版 {@code HudDataProvider}（通道 servux:hud_metadata，协议版本 3——26.1 真值，常量 ServuxHudPacket.PROTOCOL_VERSION）。
+ * HUD Provider（mod 层，配 MiniHUD）。移植自原版 {@code HudDataProvider}（通道 servux:hud_metadata，协议版本 3——26.1 真值、26.3 复核同值，常量 ServuxHudPacket.PROTOCOL_VERSION）。
  *
  * <p><b>适配点</b>：
  * <ul>
@@ -105,7 +105,7 @@ public class HudDataProvider extends DataProviderBase
         super("hud_data",
                 ServuxHudHandler.CHANNEL_ID,
                 ServuxHudPacket.PROTOCOL_VERSION,
-                0, ServuxReference.MOD_ID + ".provider.hud_data",
+                0, ServuxReference.MOD_ID + ":hud_data",
                 "MiniHUD Meta Data provider for various Server-Side information");
 
         this.metadata.putString("name", this.getName());
@@ -200,7 +200,7 @@ public class HudDataProvider extends DataProviderBase
             {
                 if (this.isPlayerInvalid(player)) { continue; }
 
-                // 上游 tick 传空 CompoundData（非 null）以通过 refresh 入口的 tags==null 门禁（上游 :206-209）
+                // 上游 tick 传空 CompoundData（非 null）以通过 refresh 入口的 tags==null 门禁（上游 :208-210）
                 if (this.shouldRefreshWeatherData()) { this.refreshWeatherData(player, new CompoundTag()); }
                 if (this.shouldRefreshSpawnMetadata()) { this.refreshSpawnMetadata(player, new CompoundTag()); }
             }
@@ -358,7 +358,7 @@ public class HudDataProvider extends DataProviderBase
     }
 
     /**
-     * C2S 注册入口（type 2 METADATA_REQUEST）。上游 HudDataProvider.register（:405-448）字面移植：
+     * C2S 注册入口（type 2 METADATA_REQUEST）。上游 HudDataProvider.register（:406-449）字面移植：
      * isEnabled → 版本门禁（deny 四件套：warn 日志 + 聊天提示 + tickFailures 检疫 + return 不入册）
      * → 权限（不足 debugLog + return 不入册）→ 入册 → sendMetadata。
      */
@@ -384,13 +384,13 @@ public class HudDataProvider extends DataProviderBase
             return;
         }
 
-        // 上游 register 内的 removeInvalidPlayer(:426) 由 sendMetadata 内(:366)调用天然覆盖（终态等价：出 invalid、入 registered）
+        // 上游 register 内的 removeInvalidPlayer(:426) 由 sendMetadata 内同名调用天然覆盖（终态等价：出 invalid、入 registered）
         this.registeredPlayers.add(player.getUUID());
         this.sendMetadata(player);
     }
 
     /**
-     * C2S 注销（UNREGISTER_REPLY）。上游 HudDataProvider.unregister（:451-464）字面移植：
+     * C2S 注销（UNREGISTER_REPLY）。上游 HudDataProvider.unregister（:452-464）字面移植：
      * resetFailures + 出注册名册 + 摘 loggerPlayers；<b>不清</b> invalid 名册（invalid 由
      * removePlayer[quit] / register 成功路径清理）。
      */
@@ -564,7 +564,7 @@ public class HudDataProvider extends DataProviderBase
 
         for (RecipeHolder<?> recipeEntry : recipes)
         {
-            DataResult<Tag> dr = Recipe.CODEC.encodeStart(NbtOps.INSTANCE, recipeEntry.value());
+            DataResult<Tag> dr = Recipe.DIRECT_CODEC.encodeStart(NbtOps.INSTANCE, recipeEntry.value());
 
             if (dr.result().isPresent())
             {
@@ -673,7 +673,7 @@ public class HudDataProvider extends DataProviderBase
     public boolean hasPermissionsForLogger(ServerPlayer player, String type) { return Perms.check(player, this.permNode + ".logger." + type, this.loggerPermissionLevel.getValue()); }
 
     @Override
-    public boolean hasPermission(ServerPlayer player) { return Perms.check(player, this.permNode, this.permissionLevel.getValue()); }
+    public boolean hasPermission(ServerPlayer player) { return Perms.check(player, this.permNode + ".data_provider", this.permissionLevel.getValue()); }
 
     @Override
     public void onPlayerJoin(ServerPlayer player)

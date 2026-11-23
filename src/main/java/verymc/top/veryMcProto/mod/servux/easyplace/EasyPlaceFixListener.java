@@ -38,7 +38,7 @@ import verymc.top.veryMcProto.mod.servux.util.PlacementHandler;
  *   <li>{@link #onBlockCanBuild}（<b>写入前否决</b>）：{@code BlockCanBuildEvent} fire 于
  *       {@code BlockItem.canPlace} 体内（{@code getPlacementState} 调用链内，先于 setBlock/音效/
  *       gameEvent/消耗/进度全部副作用）。事件携带的 {@code BlockData} 即 vanilla 候选态
- *       {@code stateForPlacement.asBlockData()}（26.2.build.129 字节码实证）——与上游 Mixin 注入点
+ *       {@code stateForPlacement.asBlockData()}（26.2.build.129 字节码实证，26.3 复核同构）——与上游 Mixin 注入点
  *       的 {@code stateOrig} 同位等价物，判定世界为放置前状态（与上游完全同位）。否决
  *       {@code setBuildable(false)} → {@code getPlacementState} 返回 null → vanilla 写入前 FAIL，
  *       与上游 {@code setReturnValue(null)} 同位同效、零残差。</li>
@@ -58,8 +58,8 @@ import verymc.top.veryMcProto.mod.servux.util.PlacementHandler;
  *       {@code easy_place_validator_enabled} 门控——validator 关闭时上游连基座检查都旁路
  *       （Mixin {@code @At("HEAD") cancellable} 整体替换方法体），我方恒查，<b>比上游严</b>。</li>
  *   <li><b>vanilla 基座检查失败时保守不动</b>：canBuild 事件 buildable 初值 false（vanilla 候选态
- *       检查失败）时我方不 override 放行——validator 开启时与上游一致（上游 Mixin :48 对原态查
- *       {@code canPlace}），关闭时并入上条「我方更严」方向。</li>
+ *       检查失败）时我方不 override 放行——validator 开启时与上游一致（上游 MixinBlockItem_EasyPlace.java:48
+ *       对原态查 {@code canPlace}），关闭时并入上条「我方更严」方向。</li>
  *   <li>双半格方块（门族 / 垂滴叶族，{@code DoubleBlockHalf} 计数体系）：{@code BlockMultiPlaceEvent}
  *       extends {@code BlockPlaceEvent} 且无自有 HandlerList，经父类派发<b>本监听器实际收到</b>。
  *       下半格修正后以修正态重演 {@code setPlacedBy} 派生上半格，两半构造性一致；不依赖
@@ -108,7 +108,7 @@ public class EasyPlaceFixListener implements Listener
         int protocolValue = pending.protocolValue();
 
         // candidate = vanilla 候选态（事件 BlockData 即 stateForPlacement.asBlockData()，26.2 字节码
-        // 实证）——判定世界为放置前状态，与上游 Mixin 注入点的 getStateForPlacement 基座同位等价。
+        // 实证、26.3 复核同构）——判定世界为放置前状态，与上游 Mixin 注入点的 getStateForPlacement 基座同位等价。
         BlockState candidate = ((CraftBlockData) event.getBlockData()).getState();
 
         // hitVec.x = pos.x + 2 + pv：解码器入口 (int)(hitVec.x − pos.x) − 2 重推出同一 pv；

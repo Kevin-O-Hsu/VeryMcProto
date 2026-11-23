@@ -29,7 +29,7 @@ import static io.papermc.paper.command.brigadier.Commands.argument;
 import static io.papermc.paper.command.brigadier.Commands.literal;
 
 /**
- * /perimeterinfo 命令（上游 {@code carpet/commands/PerimeterInfoCommand.java} 26.2 树逐字移植；
+ * /perimeterinfo 命令（上游 {@code carpet/commands/PerimeterInfoCommand.java} 26.3 树逐字移植；
  * Paper Brigadier 载体，plugin.yml 无条目）。根裸 = 以执行者当前位为心（上游 :33-36）。
  *
  * <p><b>与上游的偏差</b>（登记，docs/carpet/architecture.md）：

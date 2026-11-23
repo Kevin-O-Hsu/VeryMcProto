@@ -23,7 +23,7 @@ import java.util.function.BiConsumer;
 import verymc.top.veryMcProto.Reference;
 
 /**
- * carpet 规则管理器（克隆上游 {@code carpet/api/settings/SettingsManager.java}，26.2 树核心面）：
+ * carpet 规则管理器（克隆上游 {@code carpet/api/settings/SettingsManager.java}，26.3 树核心面）：
  * 反射解析 @Rule 字段 → {@code carpet.conf} 纯文本持久化（逐行 {@code key value}、locked 行、
  * 未知键 error 跳过、值含空格 split(2) 保留）→ setDefault/removeDefault 命令语义
  * （live set → conf read-modify-write 落盘 → 即时生效）。

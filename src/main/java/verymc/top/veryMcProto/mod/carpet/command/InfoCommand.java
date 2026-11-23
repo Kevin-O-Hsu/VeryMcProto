@@ -25,7 +25,7 @@ import static io.papermc.paper.command.brigadier.Commands.argument;
 import static io.papermc.paper.command.brigadier.Commands.literal;
 
 /**
- * /info 命令（上游 {@code carpet/commands/InfoCommand.java} 26.2 树逐字移植；Paper Brigadier 载体，
+ * /info 命令（上游 {@code carpet/commands/InfoCommand.java} 26.3 树逐字移植；Paper Brigadier 载体，
  * plugin.yml 无条目）——<b>block-only 属性清单</b>（无实体分支，scope 文档旧述 "NBT dump" 已勘误）。
  *
  * <p><b>grep 匹配层</b>：正则跑在 {@code line.getString()} 纯文本层（上游 :56——非 § 码/组件样式层）；

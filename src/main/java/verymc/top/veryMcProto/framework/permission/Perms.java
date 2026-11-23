@@ -7,25 +7,53 @@ import net.minecraft.server.level.ServerPlayer;
 import verymc.top.veryMcProto.framework.debug.FrameworkDebug;
 
 /**
- * 权限工具（框架层）。替代原版 {@code me.lucko.fabric.api.permissions.v0.Permissions}。
+ * 权限工具（框架层）。对齐上游 26.3 判定公式：Fabric API {@code fabric-permission-api-v1} 的
+ * {@code PermissionContextOwner.checkPermission(Identifier, PermissionLevel)}。
  *
- * <p>{@link #check(ServerPlayer, String, int)} 语义对齐原版 {@code Permissions.check(player, node, defaultLevel)}：
+ * <p>{@link #check(ServerPlayer, String, int)} 语义（上游公式的 Bukkit 等价物，
+ * 出处 {@code PermissionContextOwner.java:91-93} 与 {@code :119-122}）：
  * <ol>
- *   <li>若玩家被<b>显式授予 / 拒绝</b>该 Bukkit 权限节点（{@code isPermissionSet}，LuckPerms / attachment），
+ *   <li>若玩家被<b>显式授予 / 拒绝</b>该节点（{@code isPermissionSet}，Bukkit 权限插件的
+ *       grant/deny = 上游 {@code PermissionEvents.ON_REQUEST} 显式应答的平台等价物），
  *       以该结果为准；</li>
- *   <li>否则 {@code level <= 0} → 全员放行；</li>
- *   <li>否则按 op 判断（{@link Player#isOp()}）。op 默认等级 4，满足 servux 所有
- *       {@code permission_level}（2/3/4 管理类）；非 op 满足 level 0。</li>
- * </ul>
+ *   <li>否则按等级回退：玩家 op 等级（0-4，{@link #level}）不低于要求等级才放行
+ *       （即上游 {@code permissionLevel.isEqualOrHigherThan(defaultPermissionLevel)} 的同款整数比较）。</li>
+ * </ol>
  *
- * <p><b>注</b>：1.21.5+ 的 {@code CommandSourceStack.hasPermission(int)} 与 {@code PlayerList.ops()}
- * 均已漂移（前者签名改 {@code (Permission, String)}，后者方法名变），细分 op 等级需反射访问 ops 列表。
- * servux 场景下 {@code permission_level} 仅区分「全员(0) / 管理(>=1)」，Bukkit op 二分已足够，
- * 且更稳定（不依赖易漂移的 NMS op API）。需要细分时由 LuckPerms 权限节点精确控制。
+ * <p>玩家等级经公开 NMS 接口读取（{@code ServerPlayer.permissions()} →
+ * {@code MinecraftServer.getProfilePermissions} → {@code LevelBasedPermissionSet.level()}），
+ * 非 op 玩家恒为 0（{@code LevelBasedPermissionSet.ALL}），无反射。
  */
 public final class Perms
 {
     private Perms() { }
+
+    /**
+     * 玩家 op 等级（0-4）。{@code player == null} 返回 0。
+     *
+     * <p>方法链（26.3 公开 NMS 接口，无反射）：{@code player.level().getServer()}（{@code Level.getServer()}，
+     * {@code Level.java:928}）→ {@code getProfilePermissions(player.nameAndId())}（{@code MinecraftServer}，
+     * 26.3 {@code MinecraftServer.java:2598}）→ {@code LevelBasedPermissionSet.level().id()}（{@code PermissionLevel.id()}）。
+     * 非 op 玩家走 {@code getProfilePermissions} 的 else 分支 → {@code LevelBasedPermissionSet.ALL}
+     * → id 0；op 玩家为 ops.json 条目里的等级（0-4）。
+     */
+    public static int level(ServerPlayer player)
+    {
+        if (player == null)
+        {
+            return 0;
+        }
+        return player.level().getServer().getProfilePermissions(player.nameAndId()).level().id();
+    }
+
+    /**
+     * 判定公式纯函数（上游 {@code PermissionContextOwner.checkPermission(Identifier, PermissionLevel)}
+     * 的回退公式）：显式设置优先；无显式设置时玩家等级不低于要求等级才放行。
+     */
+    public static boolean decide(boolean explicitlySet, boolean explicitValue, int playerLevel, int requiredLevel)
+    {
+        return explicitlySet ? explicitValue : playerLevel >= requiredLevel;
+    }
 
     public static boolean check(ServerPlayer player, String node, int level)
     {
@@ -39,22 +67,17 @@ public final class Perms
         {
             Player bukkit = player.getBukkitEntity();
 
-            // 显式权限优先（LuckPerms / permission attachment 设置过的节点）
+            // 显式权限优先（Bukkit 权限插件 grant/deny 过的节点 = 上游 ON_REQUEST 显式应答的等价物）
             if (bukkit != null && bukkit.isPermissionSet(node))
             {
                 result = bukkit.hasPermission(node);
                 reason = "explicit";
             }
-            else if (level <= 0)
-            {
-                result = true; // 全员
-                reason = "level<=0";
-            }
             else
             {
-                // op 满足 level >= 1（servux 的管理类 permission_level 2/3/4）
-                result = bukkit != null && bukkit.isOp();
-                reason = "op";
+                // 等级回退：玩家 op 等级不低于要求等级（上游 checkPermission(Identifier, PermissionLevel) 公式）
+                result = decide(false, false, level(player), level);
+                reason = "level";
             }
         }
         catch (Exception e)

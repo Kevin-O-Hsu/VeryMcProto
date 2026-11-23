@@ -83,7 +83,7 @@ public class SyncmaticaModule
                     // 旧注释「1.21.x 客户端不通过 MC|Register 声明 → 事件不触发」是错误归因——Paper 的
                     // minecraft:register → pluginMessagerChannels → PlayerRegisterChannelEvent 链路完整；
                     // 真因是【因果方向】：syncmatica 客户端的 syncmatica:main receiver 仅在握手 CONFIRM_USER 之后注册
-                    // （VersionHandshakeClient:65 → Context.startup():150-156 → registerReceivers():186，全树唯一链），
+                    // （VersionHandshakeClient:65 → Context.startup():150-156 → registerReceivers():166，全树唯一链），
                     // 声明是握手完成的【下游产物】（晚探针 2-3 RTT）而非独立事件。因此：
                     //   ① 客户端上下文惰性创建、纯被动等探针（VersionHandshakeClient.init() = await message from server），
                     //      无探针则握手永不开始、声明永不发生；

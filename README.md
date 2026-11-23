@@ -4,8 +4,8 @@
 > The client still uses the original Fabric mods; the server swaps from "Fabric server + server-side mod" to "standard Paper server + this plugin", with identical protocol behavior.
 
 ```
-Paper 26.2 · Java 25 · paperweight userdev · Version 26.2-b4
-Servux · JEI · Syncmatica · Carpet — all four modules implemented and tested on 26.2
+Paper 26.3 · Java 25 · paperweight userdev · Version 26.3-b1
+Servux · JEI · Syncmatica · Carpet — all four modules implemented and tested on 26.3
 ```
 
 ---
@@ -28,7 +28,7 @@ Servux · JEI · Syncmatica · Carpet — all four modules implemented and teste
 
 ## 1. What It Is
 
-**VeryMcProto** is a **Paper plugin** that **re-implements the network protocols and data collection expected by several Fabric protocol mods** on a standard Paper 26.2 server, so that a "Fabric client + Paper server" combination behaves exactly like a "Fabric client + vanilla Fabric server mod" combination.
+**VeryMcProto** is a **Paper plugin** that **re-implements the network protocols and data collection expected by several Fabric protocol mods** on a standard Paper 26.3 server, so that a "Fabric client + Paper server" combination behaves exactly like a "Fabric client + vanilla Fabric server mod" combination.
 
 > **It is a *protocol-layer port*, not a port of the Fabric mods themselves.** The client keeps using masa's / endte's / JEI's own Fabric mods; our job is to implement on the Paper server the **custom network channels + server→client data delivery + server-side behavior cooperation** they expect.
 
@@ -47,17 +47,17 @@ This project uses **paperweight `userdev`** to reference fully-deobfuscated Moja
 | Mod | Client Mod | Nature | Status |
 | --- | --- | --- | --- |
 | **Servux** | masa's **MiniHUD / Litematica / Tweakeroo** | Server→client **one-way broadcast** (6 providers over `servux:*` channels) | Full |
-| **JEI** | **JEI** (mezz/JustEnoughItems 26.2) | **Full server protocol**: recipe sync + cheat + recipe transfer (`fabric:recipe_sync` / `neoforge:recipe_content` + 10 `jei:*` channels) | Full |
+| **JEI** | **JEI** (mezz/JustEnoughItems 26.3) | **Full server protocol**: recipe sync + cheat + recipe transfer (`fabric:recipe_sync` / `neoforge:recipe_content` + 10 `jei:*` channels) | Full |
 | **Syncmatica** | **endte syncmatica** | **Bidirectional, stateful, multi-player shared** schematic repository (`syncmatica:main` + 18 PacketTypes + Exchange sessions) | Full |
 | **Carpet** | carpet client (optional; protocol features only) | **Behavior-injection mod, portable subset**: rule framework + `/carpet` shell + fake players via `/player` + `carpet:hello` handshake / rule sync / `/call` clientCommand + `/log` HUD loggers (tps/mobcaps, tab-list footer) + pure-compute commands (`/distance` `/info` `/perimeterinfo` `/draw` `/spawn mobcaps,entities`) | Full |
 
-**Servux** delivers world metadata / spawn / weather / TPS / MobCap, structure bounding boxes, entity & block-entity NBT queries, and Litematica schematic paste (C2S upload + server-side paste). EasyPlace (Tweakeroo precise placement) is served via PacketEvents. The S2C file-transmit path was removed — the stock 26.1+ client has no receiver for it (re-confirmed on 26.2).
+**Servux** delivers world metadata / spawn / weather / TPS / MobCap, structure bounding boxes, entity & block-entity NBT queries, and Litematica schematic paste (C2S upload + server-side paste). EasyPlace (Tweakeroo precise placement) is served via PacketEvents. The S2C file-transmit path was removed — the stock 26.1+ client has no receiver for it (re-confirmed on 26.2; protocol face unchanged through 26.3).
 
 **JEI**: recipe sync (loader-level channels, join-time packet ordering via `RecipeSyncJoinOrderer`), the `jei:*` cheat/transfer channels with a server-side permission model, and the line-by-line ported `BasicRecipeTransferHandlerServer`.
 
 **Syncmatica**: the server acts as a central `.litematic` repository; players upload / download / collaboratively modify placements through Exchange request-acknowledgement sessions, with JSON persistence and upload quotas.
 
-**Carpet** (rule framework + fake players + `carpet:hello` protocol + `/log` HUD loggers + pure-compute commands): an annotation-based rule framework ported in lockstep with upstream `SettingsManager` (`carpet.conf` plain-text persistence, `locked` semantics, validator chains), the `/carpet list|setDefault|query|removeDefault` shell, 18 rules wired to Paper equivalents (explosion block-damage off via explode events, custom MOTD via ping event, `cleanLogs` via a log4j filter, `/perf` permission registry, plus shell/zero-behavior rules), and the **fake-player subsystem** — the upstream `patches/` trio (pure `ServerPlayer`/`Connection`/`ServerGamePacketListenerImpl` subclasses, zero Mixin) plus the 629-line action-pack state machine and the full `/player` command family (spawn/kill/shadow/mount/sneak/sprint/look/turn/move/attack/use/jump/drop/hotbar ...) on the Paper Brigadier API. Fake players occupy the tab list, count toward the sleep percentage (night skip verified in-game), persist to playerdata, and are recognized by vanilla `/tp` and `/ban`. The **`carpet:hello` protocol** layer provides single-CompoundTag channel with the upstream `HI`("69")/`hello`("420") handshake (version string = upstream `mod_version` literal, `"26.2"` — never the plugin version), full & incremental `Rules` sync feeding the carpet client's rule browser, and the `clientCommand` request/reply (`/call`) with output capture via the ported `SnoopyCommandSource`; all S2C frames go via NMS `DiscardedPayload` (the carpet client never registers the channel, so plugin messaging is structurally unreachable). The **`/log` subscription framework** provides an upstream-shaped `LoggerRegistry` with the `tps`/`mobcaps` HUD loggers (upstream MSPT/TPS formula and the 17²=289 mobcap divisor verbatim), delivered as the tab-list footer every 20 ticks via the Bukkit API (zero protocol path — works for vanilla clients too; the carpet client renders it as its HUD panel), `/log subscribe|clear` on the Paper Brigadier API gated by the `commandLog` rule, `defaultLoggers` defaults re-evaluated per join, and cross-session subscription persistence (`carpet-logs.json`, explicit subscriptions + unsubscribe tombstones). The **pure-compute command family** provides `/distance` (two-point spherical/cylindrical/manhattan distances with a per-player from/to workflow), `/info block <pos> [grep]` (upstream block property sheet — registry key, properties, map colour, light, hardness, redstone, wander-chance sampling), `/perimeterinfo` (±128 spawnable-spot census with an optional mob-type specific count), `/draw` (sphere/ball/diamond/pyramid/cone/cylinder/cuboid shape placement with an optional replace filter), and `/spawn mobcaps [dim]` / `spawn entities <category> [all]` — all gated by their own `commandXxx` rules on the Paper Brigadier API, with the upstream `Messenger` component output (clickable tp coordinates) ported verbatim and `/spawn mobcaps` reading the same data source as `/log mobcaps`. The port is **final**: every subsystem that can be fully equivalent on Paper has been implemented; the remainder (Scarpet, TNT/redstone/piston optimizations, approximate rule pools, etc.) is technically impossible without Mixin and will never be included. As-built notes live in `docs/carpet/architecture.md` and `docs/carpet/protocol.md`.
+**Carpet** (rule framework + fake players + `carpet:hello` protocol + `/log` HUD loggers + pure-compute commands): an annotation-based rule framework ported in lockstep with upstream `SettingsManager` (`carpet.conf` plain-text persistence, `locked` semantics, validator chains), the `/carpet list|setDefault|query|removeDefault` shell, 18 rules wired to Paper equivalents (explosion block-damage off via explode events, custom MOTD via ping event, `cleanLogs` via a log4j filter, `/perf` permission registry, plus shell/zero-behavior rules), and the **fake-player subsystem** — the upstream `patches/` trio (pure `ServerPlayer`/`Connection`/`ServerGamePacketListenerImpl` subclasses, zero Mixin) plus the 650-line action-pack state machine and the full `/player` command family (spawn/kill/shadow/mount/sneak/sprint/look/turn/move/attack/use/jump/drop/hotbar ...) on the Paper Brigadier API. Fake players occupy the tab list, count toward the sleep percentage (night skip verified in-game), persist to playerdata, and are recognized by vanilla `/tp` and `/ban`. The **`carpet:hello` protocol** layer provides single-CompoundTag channel with the upstream `HI`("69")/`hello`("420") handshake (version string = upstream `mod_version` literal, `"26.3"` — never the plugin version), full & incremental `Rules` sync feeding the carpet client's rule browser, and the `clientCommand` request/reply (`/call`) with output capture via the ported `SnoopyCommandSource`; all S2C frames go via NMS `DiscardedPayload` (the carpet client never registers the channel, so plugin messaging is structurally unreachable). The **`/log` subscription framework** provides an upstream-shaped `LoggerRegistry` with the `tps`/`mobcaps` HUD loggers (upstream MSPT/TPS formula and the 17²=289 mobcap divisor verbatim), delivered as the tab-list footer every 20 ticks via the Bukkit API (zero protocol path — works for vanilla clients too; the carpet client renders it as its HUD panel), `/log subscribe|clear` on the Paper Brigadier API gated by the `commandLog` rule, `defaultLoggers` defaults re-evaluated per join, and cross-session subscription persistence (`carpet-logs.json`, explicit subscriptions + unsubscribe tombstones). The **pure-compute command family** provides `/distance` (two-point spherical/cylindrical/manhattan distances with a per-player from/to workflow), `/info block <pos> [grep]` (upstream block property sheet — registry key, properties, map colour, light, hardness, redstone, wander-chance sampling), `/perimeterinfo` (±128 spawnable-spot census with an optional mob-type specific count), `/draw` (sphere/ball/diamond/pyramid/cone/cylinder/cuboid shape placement with an optional replace filter), and `/spawn mobcaps [dim]` / `spawn entities <category> [all]` — all gated by their own `commandXxx` rules on the Paper Brigadier API, with the upstream `Messenger` component output (clickable tp coordinates) ported verbatim and `/spawn mobcaps` reading the same data source as `/log mobcaps`. The port is **final**: every subsystem that can be fully equivalent on Paper has been implemented; the remainder (Scarpet, TNT/redstone/piston optimizations, approximate rule pools, etc.) is technically impossible without Mixin and will never be included. As-built notes live in `docs/carpet/architecture.md` and `docs/carpet/protocol.md`.
 
 > 26.1 introduced hard client-side gates (protocol versions must match exactly; the `servux` handshake string must start with `servux-fabric-<exact upstream MC id>`), a new DataTag NBT wire carrier, and a 16MB client reassembly cap. All of this is implemented and documented in [`docs/servux/protocol.md`](docs/servux/protocol.md) §5 (version constraints).
 
@@ -71,7 +71,7 @@ Protocol deep-dives: [docs/servux/protocol.md](docs/servux/protocol.md) (Servux 
 
 | Item | Requirement |
 | --- | --- |
-| Server | **Paper 26.2** (`api-version: '26.2'`, templated from the single version source; standard Paper, no patch / fork needed) |
+| Server | **Paper 26.3** (`api-version: '26.3'`, templated from the single version source; standard Paper, no patch / fork needed) |
 | Java | **25** |
 | Optional | **PacketEvents 2.14.0** (only for EasyPlace; if absent it is gracefully skipped — everything else is unaffected) |
 
@@ -79,17 +79,17 @@ Protocol deep-dives: [docs/servux/protocol.md](docs/servux/protocol.md) (Servux 
 
 | Feature family | Client must install |
 | --- | --- |
-| All of Servux (HUD / structures / NBT query / schematic paste / EasyPlace) | **MiniHUD** + **Litematica** + **Tweakeroo** (the masa suite, 26.2 LTS) |
-| JEI recipe sync + cheat + recipe transfer | **JEI** (mezz/JustEnoughItems, 26.2 line) |
-| Schematic sharing | **Syncmatica** (endte client, 26.2 LTS) |
+| All of Servux (HUD / structures / NBT query / schematic paste / EasyPlace) | **MiniHUD** + **Litematica** + **Tweakeroo** (the masa suite, 26.3) |
+| JEI recipe sync + cheat + recipe transfer | **JEI** (mezz/JustEnoughItems, 26.3 line) |
+| Schematic sharing | **Syncmatica** (endte client, 26.3) |
 
-> The client version must match the server's **MC 26.2 line**. The client is the "receiving end" of these protocols; every field semantic and reassembly behavior is verified against the client sources.
+> The client version must match the server's **MC 26.3 line**. The client is the "receiving end" of these protocols; every field semantic and reassembly behavior is verified against the client sources.
 
 ---
 
 ## 4. Installation
 
-1. Get `VeryMcProto-26.2-b4.jar` from the project Releases page, or build it with `./gradlew build` (the Mojang-mapped artifact loads directly on standard Paper 26.1+ — no reobf step exists anymore).
+1. Get `VeryMcProto-26.3-b1.jar` from the project Releases page, or build it with `./gradlew build` (the Mojang-mapped artifact loads directly on standard Paper 26.1+ — no reobf step exists anymore).
 2. Drop it into the server's `plugins/` directory.
 3. **(Optional, only for EasyPlace)** Install the PacketEvents plugin.
 4. Restart the server; players join with the corresponding client Fabric mods — handshake is automatic.
@@ -97,7 +97,7 @@ Protocol deep-dives: [docs/servux/protocol.md](docs/servux/protocol.md) (Servux 
 On startup the console shows:
 
 ```
-[VeryMcProto] starting (MC 26.2, paper)...
+[VeryMcProto] starting (MC 26.3, paper)...
 [VeryMcProto] registered protocol mod: servux
 [VeryMcProto] registered protocol mod: jei
 [VeryMcProto] registered protocol mod: syncmatica
@@ -181,7 +181,7 @@ Building from source: `./gradlew build` (Mojang-mapped jar) · `./gradlew test` 
 ## 8. FAQ
 
 **Q: Why must we use paperweight / NMS instead of the pure Paper API?**
-A: Data collection depends heavily on NMS internals (`NaturalSpawner.SpawnState`, `ServerTickRateManager`, `ChunkAccess.getAllReferences()`, `StructureStart.createTag()`, `Recipe.CODEC` + `NbtOps`, `BlockEntity.saveWithFullMetadata()`); the network layer reuses vanilla `FriendlyByteBuf` / `CompoundTag`; and JEI/Syncmatica large-packet S2C relies on NMS `ClientboundCustomPayloadPacket`. The pure Paper API cannot reach these.
+A: Data collection depends heavily on NMS internals (`NaturalSpawner.SpawnState`, `ServerTickRateManager`, `ChunkAccess.getAllReferences()`, `StructureStart.createTag()`, `Recipe.DIRECT_CODEC` + `NbtOps`, `BlockEntity.saveWithFullMetadata()`); the network layer reuses vanilla `FriendlyByteBuf` / `CompoundTag`; and JEI/Syncmatica large-packet S2C relies on NMS `ClientboundCustomPayloadPacket`. The pure Paper API cannot reach these.
 
 **Q: Why does Syncmatica default to NMS direct send instead of plugin messaging?**
 A: Testing showed the pure Fabric syncmatica client is unreachable over the plugin-messaging wire and only reachable via NMS `DiscardedPayload` direct send.
@@ -193,10 +193,10 @@ A: No. The former alters a global NMS method (no Mixin / no equivalent on Paper;
 A: EasyPlace is skipped automatically (`EasyPlaceBootstrap` reflective load + `catch(Throwable)` fallback); all other Servux channels, JEI, and Syncmatica are completely unaffected.
 
 **Q: What's the difference between `permission_level` 2 and 3?**
-A: Under pure Bukkit op there is **no difference** (both go through the `isOp()` binary). To differentiate levels, use LuckPerms to explicitly grant the corresponding permission node (see [docs/operations.md](docs/operations.md) §2).
+A: The plugin judges **exact op levels** (0-4): a provider requiring level 2 admits ops at level >= 2, level 3 requires >= 3 (a default `/op` is level 4 and unaffected). To differentiate levels per player, use LuckPerms to explicitly grant the corresponding permission node (see [docs/operations.md](docs/operations.md) §2).
 
 **Q: What does pasting a schematic require?**
-A: The player needs creative mode + the `servux.provider.litematic_data.paste` permission (governed by `litematic_data:permission_level_paste`, default 0 = everyone).
+A: The player needs creative mode + the `servux:litematic_data.paste` permission (governed by `litematic_data:permission_level_paste`, default 0 = everyone).
 
 ---
 
@@ -205,13 +205,13 @@ A: The player needs creative mode + the `servux.provider.litematic_data.paste` p
 This project is a Paper protocol-layer port of the following Fabric protocol mods — full credit to the original authors and the maintainers who keep them alive:
 
 - **Servux** — originally by **masa** ([`maruohon/servux`](https://github.com/maruohon/servux)); now maintained by **sakura-ryoko** ([`sakura-ryoko/servux`](https://github.com/sakura-ryoko/servux)). The server-side protocol implementation delivering data to MiniHUD / Litematica / Tweakeroo.
-- **Litematica / malilib / MiniHUD / Tweakeroo / Item Scroller** — originally by **masa** (`maruohon/*`); now maintained by **sakura-ryoko** since masa retired from active development — the 26.2 LTS builds all live under sakura-ryoko:
+- **Litematica / malilib / MiniHUD / Tweakeroo / Item Scroller** — originally by **masa** (`maruohon/*`); now maintained by **sakura-ryoko** since masa retired from active development — the 26.3 builds all live under sakura-ryoko:
   - [`sakura-ryoko/litematica`](https://github.com/sakura-ryoko/litematica) · [`sakura-ryoko/malilib`](https://github.com/sakura-ryoko/malilib) · [`sakura-ryoko/minihud`](https://github.com/sakura-ryoko/minihud) · [`sakura-ryoko/tweakeroo`](https://github.com/sakura-ryoko/tweakeroo) · [`sakura-ryoko/itemscroller`](https://github.com/sakura-ryoko/itemscroller)
   - These are the client-side receivers of the protocols.
 - **Syncmatica** — originally by **endte** ([`End-Tech/syncmatica`](https://github.com/End-Tech/syncmatica)); now maintained by **sakura-ryoko** ([`sakura-ryoko/syncmatica`](https://github.com/sakura-ryoko/syncmatica)). The shared schematic central repository.
-- **JustEnoughItems (JEI)** — by **mezz** ([`mezz/JustEnoughItems`](https://github.com/mezz/JustEnoughItems), `26.2` branch). **The JEI upstream since 2026-09** — the full server protocol (recipe sync via loader channels + `jei:*` cheat/transfer channels) is ported from it.
+- **JustEnoughItems (JEI)** — by **mezz** ([`mezz/JustEnoughItems`](https://github.com/mezz/JustEnoughItems), `26.3` branch, release `v31.23.0`). **The JEI upstream since 2026-09** — the full server protocol (recipe sync via loader channels + `jei:*` cheat/transfer channels) is ported from it.
 - **JEIRecipeBridge** — by **Mrbysco** ([`Mrbysco/JEIRecipeBridge`](https://github.com/Mrbysco/JEIRecipeBridge)). The historical JEI recipe-sync reference (1.21.11 line still uses it; kept in `OriginImpl/` for the neoforge-layer wire reference).
-- **Carpet** — by **gnembon & contributors** ([`gnembon/fabric-carpet`](https://github.com/gnembon/fabric-carpet), tag `v26.2`). A behavior-injection mod; the portable subset (rule framework + `/carpet` shell + fake-player subsystem) is ported from it.
+- **Carpet** — by **gnembon & contributors** ([`gnembon/fabric-carpet`](https://github.com/gnembon/fabric-carpet), tag `v26.3`). A behavior-injection mod; the portable subset (rule framework + `/carpet` shell + fake-player subsystem) is ported from it.
 
 ### References
 
@@ -238,6 +238,6 @@ This project is licensed under the **GNU Lesser General Public License v3.0 only
 
 ---
 
-<sub>Built for **Paper 26.2** · Java 25 · No Mixin / No patch / No private fork</sub>
+<sub>Built for **Paper 26.3** · Java 25 · No Mixin / No patch / No private fork</sub>
 
 <sub>A protocol-layer port: client uses the original Fabric mods; server uses standard Paper + this plugin.</sub>

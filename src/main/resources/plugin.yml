@@ -11,11 +11,11 @@ commands:
   servux:
     description: Servux protocol configuration and diagnostics command
     usage: /servux reload|save|set|info|list|enable|disable|search|debug|litematic
-    permission: servux.commands
+    permission: 'servux:command.about'
   syncmatica:
     description: Syncmatica schematic sharing command (config management + protocol toggle + .litematic loading)
     usage: /syncmatica status|save|reload|enable|disable|load [file]|debug [...]
-    permission: syncmatica.command
+    permission: 'syncmatica:command'
   jei:
     description: JEI protocol module command (status / enable-disable module, persisted)
     usage: /jei status|enable|disable
@@ -25,66 +25,52 @@ commands:
     usage: /carpet list | setDefault <rule> <value> | query <rule> | removeDefault <rule>
     permission: carpet.command
 permissions:
-  servux.commands:
-    description: Allows the /servux command (root node; Bukkit approximation of upstream servux.commands requiring level 4)
+  'servux:command.about':
+    description: Allows the /servux command root (upstream permission level 3)
     default: op
-  servux.commands.reload:
-    description: Allows /servux reload
+  'servux:command.reload':
+    description: Allows /servux reload (upstream permission level 4)
     default: op
-  servux.commands.save:
-    description: Allows /servux save
+  'servux:command.save':
+    description: Allows /servux save (upstream permission level 4)
     default: op
-  servux.commands.set:
-    description: Allows /servux set (in-memory change only; use save to persist)
+  'servux:command.set':
+    description: Allows /servux set, in-memory change only, use save to persist (upstream permission level 4)
     default: op
-  servux.commands.info:
-    description: Allows /servux info
+  'servux:command.info':
+    description: Allows /servux info (upstream permission level 4)
     default: op
-  servux.commands.list:
-    description: Allows /servux list and /servux search (upstream search reuses the list node)
+  'servux:command.list':
+    description: Allows /servux list and /servux search, upstream search reuses the list node (upstream permission level 4)
     default: op
-  servux.commands.enable:
-    description: Allows /servux enable (our extended subcommand, no upstream counterpart)
+  'servux:command.enable':
+    description: Allows /servux enable (our extended subcommand, no upstream counterpart, upstream permission level 4)
     default: op
-  servux.commands.disable:
-    description: Allows /servux disable (our extended subcommand, no upstream counterpart)
+  'servux:command.disable':
+    description: Allows /servux disable (our extended subcommand, no upstream counterpart, upstream permission level 4)
     default: op
-  servux.commands.debug:
-    description: Allows /servux debug (our extended subcommand, no upstream counterpart)
+  'servux:command.debug':
+    description: Allows /servux debug (our extended subcommand, no upstream counterpart, upstream permission level 4)
     default: op
-  servux.commands.litematic:
-    description: Allows /servux litematic (our extended subcommand, no upstream counterpart)
+  'servux:command.litematic':
+    description: Allows /servux litematic (our extended subcommand, no upstream counterpart, upstream permission level 4)
     default: op
-  servux.command:
-    description: Legacy /servux single node (kept for compatibility; as a parent it inherits the new permission tree, existing grants stay valid)
-    default: op
-    children:
-      servux.commands: true
-      servux.commands.reload: true
-      servux.commands.save: true
-      servux.commands.set: true
-      servux.commands.info: true
-      servux.commands.list: true
-      servux.commands.enable: true
-      servux.commands.disable: true
-      servux.commands.debug: true
-      servux.commands.litematic: true
-  syncmatica.command:
-    description: Allows the /syncmatica command
+  'syncmatica:command':
+    description: Allows the /syncmatica command (upstream permission level 0, all players)
     default: true
   jei.command:
     description: Allows the /jei command (status / enable-disable the JEI protocol module)
     default: op
-  syncmatica.command.admin:
+  'syncmatica:command.admin':
     description: Allows /syncmatica save|reload|enable|disable|status (config and protocol management)
     default: op
-  syncmatica.command.load:
-    description: Allows /syncmatica load
+  'syncmatica:command.load':
+    description: Allows /syncmatica load (upstream permission level 0, all players)
     default: true
-  syncmatica.command.load_each:
-    description: Allows /syncmatica load <file>
+  'syncmatica:command.load_each':
+    description: Allows /syncmatica load <file> (upstream permission level 0, all players)
     default: true
-  syncmatica.command.debug:
+  'syncmatica:command.debug':
     description: Allows /syncmatica debug (debug logging master switch, syncmatica-specific state)
     default: op
   carpet.command:

@@ -13,11 +13,11 @@ import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.Relative;
 
 /**
- * 假人监听器（克隆上游 {@code carpet/patches/NetHandlerPlayServerFake.java} 26.2 树；{@code teleport}
- * 覆写逐字同构，kick 拦截面按 Paper 26.2 漏斗重推导——见下）。
+ * 假人监听器（克隆上游 {@code carpet/patches/NetHandlerPlayServerFake.java} 26.3 树；{@code teleport}
+ * 覆写逐字同构，kick 拦截面按 Paper 26.3 漏斗重推导——见下）。
  *
  * <p><b>kick 拦截（与上游的关键偏差，docs/carpet/architecture.md 偏差清单）</b>：上游覆写
- * {@code disconnect(Component)} 单参方法拦截 idling/重复登录转 kill；Paper 26.2 中该单参方法已退化为
+ * {@code disconnect(Component)} 单参方法拦截 idling/重复登录转 kill；Paper 26.3 中该单参方法已退化为
  * 纯转发壳，且 idling 踢出（{@code ServerGamePacketListenerImpl.tick} keepalive 超时）与重复登录踢出
  * 均直接调用双参重载族，全部收敛于 {@code disconnect(DisconnectionDetails)} 终端（PlayerKickEvent 的
  * fire 点也位于该终端内部）。故 B 侧改拦终端：idling / duplicate_login 两 key 转

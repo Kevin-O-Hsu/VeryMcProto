@@ -1,7 +1,7 @@
 # Servux 五个 DataProvider：协议数据内容与数据采集
 
 > 本文回答每个 Provider：**采集什么数据、NBT 字段长什么样、用什么 NMS API 采集、Paper 迁移难度**。
-> 原版目录：`OriginImpl/servux-LTS-26.2/src/main/java/fi/dy/masa/servux/dataproviders/` 与 `loggers/`。
+> 原版目录：`OriginImpl/servux-26.3/src/main/java/fi/dy/masa/servux/dataproviders/` 与 `loggers/`。
 > 网络协议帧见 [servux/protocol.md](protocol.md)；采集触发点（Mixin）处置见 [architecture.md](../architecture.md) §5；迁移方案见 [architecture.md](../architecture.md)。
 > 配合阅读：[index.md](../index.md)、根 [../AGENTS.md](../../AGENTS.md)。
 
@@ -21,7 +21,7 @@
 
 ## 1. `HudDataProvider`（配 MiniHUD，最核心）
 
-> 原版：`dataproviders/HudDataProvider.java`（795 行）。协议通道 `servux:hud_metadata`，协议版本 **3**。
+> 原版：`dataproviders/HudDataProvider.java`（855 行，servux-26.3 发布标签树）。协议通道 `servux:hud_metadata`，协议版本 **3**。
 
 ### 1.1 回应的 4 类请求 + 1 类主动推送（packetType）
 
@@ -43,9 +43,9 @@
 CompoundTag metadata:
   name           = "hud_data"            (provider 名)
   id             = "servux:hud_metadata" (通道网络名)
-  version        = 3                     (协议版本，26.1→26.2 零变化真值)
-  servux         = "servux-fabric-26.2-b<N>"  (MOD_STRING——MOD_TYPE 恒 "fabric" 伪装，
-                                                26.2 客户端 startsWith 硬门禁（判断式与 26.1 逐字同构），"paper" 会被拒)
+  version        = 3                     (协议版本，26.1→26.2 零变化真值，26.3 复核同值)
+  servux         = "servux-fabric-26.3-b<N>"  (MOD_STRING——MOD_TYPE 恒 "fabric" 伪装，
+                                                26.3 客户端 startsWith 硬门禁（发布标签树五处判断式逐字同构），"paper" 会被拒)
   spawnDimension = "minecraft:overworld" (出生点维度 ResourceLocation)
   spawnPosX/Y/Z  = <int>                 (出生点坐标)
   [worldSeed]    = <long>                (仅 share_seed 且玩家有 seed 权限时)
@@ -53,7 +53,7 @@ CompoundTag metadata:
 ```
 
 > **有意偏离声明（worldSeed 过滤，上游 bug 我方不跟随）**：上游 `HudDataProvider.register`
-> （servux-LTS-26.2 `:429-447`，26.1→26.2 树逐字节相同）构建了剔除 worldSeed 的过滤副本 `nbt`，却发送**未过滤原件**
+> （servux-26.3 发布标签树 `:428-447`，26.1→26.2→26.3 形态不变）构建了剔除 worldSeed 的过滤副本 `nbt`，却发送**未过滤原件**
 > `this.metadata`——无 seed 权限的玩家仍能收到 worldSeed（上游自身 bug）。我方 `register`
 > （`HudDataProvider.java:425-431`）发送**过滤后的副本**：无 `share_seed`/seed 权限时 worldSeed
 > 键不出现。此为已声明的安全增强偏离，与上游行为不同属有意为之。
@@ -88,15 +88,15 @@ SetClear=<int>                            (晴天剩余 tick，>-1 时)
 ```
 CompoundTag:
   RecipeManager = ListTag [
-    { id_reg=<registry>, id_value=<recipeId>, recipe=<Recipe.CODEC 编码的 NBT> }, ...
+    { id_reg=<registry>, id_value=<recipeId>, recipe=<Recipe.DIRECT_CODEC 编码的 NBT> }, ...
   ]
 ```
-- 采集：`player.level().recipeAccess().getRecipes()` → 对每个 `RecipeHolder`，用 `Recipe.CODEC.encodeStart(NbtOps.INSTANCE, recipeEntry.value())` 序列化。
-- **Paper 迁移**：`Recipe.CODEC` + `NbtOps` 是 NMS，paperweight 可直连；或遍历 Bukkit `Bukkit.recipeIterator()` 自行拼装（保真度略低）。**必须走 PacketSplitter 分包**（配方表常超 Bukkit ~1MiB 单包上限；分片常量为 32KiB 时代历史取值，双向保守——字节上限教义见 [architecture.md](../architecture.md) §3.4）。
+- 采集：`player.level().recipeAccess().getRecipes()` → 对每个 `RecipeHolder`，用 `Recipe.DIRECT_CODEC.encodeStart(NbtOps.INSTANCE, recipeEntry.value())` 序列化。
+- **Paper 迁移**：`Recipe.DIRECT_CODEC` + `NbtOps` 是 NMS，paperweight 可直连；或遍历 Bukkit `Bukkit.recipeIterator()` 自行拼装（保真度略低）。26.3 起 `Recipe.CODEC` 变 `Codec<Holder<Recipe<?>>>`，原形改名 `DIRECT_CODEC`（上游 servux-26.3 `HudDataProvider.java:670` 同款）——wire NBT 与 26.2 逐字节一致。**必须走 PacketSplitter 分包**（配方表常超 Bukkit ~1MiB 单包上限；分片常量为 32KiB 时代历史取值，双向保守——字节上限教义见 [architecture.md](../architecture.md) §3.4）。
 
 #### 1.5.1 RecipeNbtNormalizer——混合 ingredients wire 兼容层
 
-`mod/servux/util/nbt/RecipeNbtNormalizer.java`（`HudDataProvider.java:574` 在 `Recipe.CODEC` encode 之后、入 ListTag 之前调用）。26.1→26.2 wire 病灶（零变化）：ingredient 元素域为「单物品 → 裸 StringTag（compactListCodec 单元素裸出）；多物品/tag → ListTag」，两者混装的 ingredients 列表（全量普查恰 66 条 vanilla 配方）在 `ListTag.write` 逐元素写出时被包装为 `{"": x}` Compound 并按 TAG_Compound(10) 上线；malilib 客户端读端（ListData.read，同构语法，全库无解包逻辑）两分支皆拒 → DFU 报 `List is too short: 0, expected range [1-9]`（即 minihud HudDataManager 的 66 条刷屏报错）。本层把混合列表内裸 StringTag 包成单元素 ListTag → 整表同构 → wire 不再包装，客户端解码成功且物品集语义等价（真 vanilla jar + 真数据包配方离线逐字验证）。不变式：已同构（全串/全列表）/ 无 ingredients / 非 CompoundTag 的树**原样返回、wire 逐字节不变**（同构短路）；调用点外裹 `catch(Throwable)` 异常回退原树——兼容层失败不阻断配方下发。7 个单测钉守卫（`RecipeNbtNormalizerTest`，含病灶层字节断言与幂等性用例）。
+`mod/servux/util/nbt/RecipeNbtNormalizer.java`（`HudDataProvider.java:581` 在 `Recipe.DIRECT_CODEC` encode（:567）之后、入 ListTag 之前调用）。26.1→26.2 wire 病灶（零变化）：ingredient 元素域为「单物品 → 裸 StringTag（compactListCodec 单元素裸出）；多物品/tag → ListTag」，两者混装的 ingredients 列表（全量普查恰 66 条 vanilla 配方）在 `ListTag.write` 逐元素写出时被包装为 `{"": x}` Compound 并按 TAG_Compound(10) 上线；malilib 客户端读端（ListData.read，同构语法，全库无解包逻辑）两分支皆拒 → DFU 报 `List is too short: 0, expected range [1-9]`（即 minihud HudDataManager 的 66 条刷屏报错）。本层把混合列表内裸 StringTag 包成单元素 ListTag → 整表同构 → wire 不再包装，客户端解码成功且物品集语义等价（真 vanilla jar + 真数据包配方离线逐字验证）。不变式：已同构（全串/全列表）/ 无 ingredients / 非 CompoundTag 的树**原样返回、wire 逐字节不变**（同构短路）；调用点外裹 `catch(Throwable)` 异常回退原树——兼容层失败不阻断配方下发。7 个单测钉守卫（`RecipeNbtNormalizerTest`，含病灶层字节断言与幂等性用例）。
 
 ### 1.6 DataLogger 子系统（TPS / MobCap）
 
@@ -163,7 +163,7 @@ for (ServerLevel world : server.getAllLevels()) {                       // Paper
 | `loggers_enable_list` | [tps,mob_caps] | 启用的 logger |
 | `logger_permission_level` | 0 | logger 权限 |
 
-权限节点：`servux.provider.hud_data` / `.weather` / `.seed` / `.logger` / `.logger.<type>`。
+权限节点（26.3 起冒号形基名）：基名 `servux:hud_data`（`hasPermission` 查 `servux:hud_data.data_provider`）；细化键 `.weather` / `.seed` / `.logger` / `.logger.<type>` 挂新基名之后（`servux:hud_data.weather` 等）。判定公式见 [operations.md](../operations.md) §2.2。
 
 ### 1.8 失败计数（tickFailures/checkFailures）与 invalid 玩家
 
@@ -179,7 +179,7 @@ for (ServerLevel world : server.getAllLevels()) {                       // Paper
 
 ## 2. `EntitiesDataProvider`（配 MiniHUD/Tweakeroo 的实体查询）
 
-> 原版：`dataproviders/EntitiesDataProvider.java`（300 行）。协议通道 `servux:entity_data`，协议版本 2。
+> 原版：`dataproviders/EntitiesDataProvider.java`（349 行，servux-26.3 发布标签树）。协议通道 `servux:entity_data`，协议版本 2。
 
 ### 2.1 回应请求
 
@@ -217,13 +217,13 @@ if (entity.getType() == EntityType.PLAYER && !entity.getUUID().equals(player.get
 
 ### 2.3 权限
 
-`hasNbtQueryPermission(player)`（覆盖原版 `/data get` 权限，见 `MixinServerPlayNetworkHandler_QueryNbt`）。权限节点 `servux.provider.entity_data` + `.inventory`。
+`hasNbtQueryPermission(player)`：26.3 起回退为纯等级判定（玩家权限等级不低于 2，等价原版 `/data get` 默认；`nbt_query_override` 开启时改查独立节点，显式设置优先）。权限节点基名 `servux:entity_data`（`hasPermission` 查 `servux:entity_data.data_provider`），细化键 `.nbt_query_override` / `.nbt_allow_player_inventory` / `.nbt_allow_player_ender_items` 挂新基名之后。
 
 ---
 
 ## 3. `TweaksDataProvider`（配 Tweakeroo）
 
-> 原版：`dataproviders/TweaksDataProvider.java`（373 行）。协议通道 `servux:tweaks`，协议版本 2。
+> 原版：`dataproviders/TweaksDataProvider.java`（425 行，servux-26.3 发布标签树）。协议通道 `servux:tweaks`，协议版本 2。
 
 ### 3.1 元数据（`:176-199`）
 
@@ -239,13 +239,13 @@ name="tweaks_data", id="servux:tweaks", version=2, servux=<MOD_STRING>
 
 原版“空潜影盒可堆叠”由 Mixin 实现（`MixinItemStack.getMaxStackSize` + `MixinHopperBlockEntity` 改 NMS 方法全局返回行为）。Paper 无 Mixin 运行时：反射改不了方法返回值；Bukkit 事件（`InventoryMoveItemEvent` 等）在服务端 `maxStackSize` 仍为 1 的前提下不成立（NMS 内部 `count < maxStackSize` 恒失败）；给物品设 `DataComponents.MAX_STACK_SIZE` 组件是 per-item、影响新生成物品且污染序列化——三条替代路均不通。
 
-故本 provider **不保留**原版 `stackable_shulkers` 系列 setting，也**不下发** `stackingShulkers` / `stackingShulkersMax` 元数据。否则客户端 tweakeroo 会据 `EntityDataManager.checkTweaksConfigs`（`OriginImpl/tweakeroo-*/.../EntityDataManager.java:420`）自动开启客户端堆叠渲染，而服务端无法配合 → 客户端/服务端不一致（堆叠的潜影盒交互时被服务端按原上限拆开）。详见 [architecture.md](../architecture.md) §5.3。
+故本 provider **不保留**原版 `stackable_shulkers` 系列 setting，也**不下发** `stackingShulkers` / `stackingShulkersMax` 元数据。否则客户端 tweakeroo 会据 `EntityDataManager.checkTweaksConfigs`（`OriginImpl/tweakeroo-26.3/.../data/EntityDataManager.java:471-482`——方法头 :471，每包 metadata 在门禁前先经其检查，调用点 :430）自动开启客户端堆叠渲染，而服务端无法配合 → 客户端/服务端不一致（堆叠的潜影盒交互时被服务端按原上限拆开）。详见 [architecture.md](../architecture.md) §5.3。
 
 ---
 
 ## 4. `StructureDataProvider`（配 MiniHUD 的结构边界框，高难度）
 
-> 原版：`dataproviders/StructureDataProvider.java`（557 行）。协议通道 `servux:structures`，协议版本 **3**。
+> 原版：`dataproviders/StructureDataProvider.java`（665 行，servux-26.3 发布标签树）。协议通道 `servux:structures`，协议版本 **3**。
 
 ### 4.1 数据内容
 
@@ -307,7 +307,7 @@ Identifier type = BuiltInRegistries.STRUCTURE_TYPE.getKey(structure.type());    
 
 ## 5. `LitematicsDataProvider`（配 Litematica，大模块）
 
-> 原版：`dataproviders/LitematicsDataProvider.java`（424 行）。协议通道 `servux:litematics`，协议版本 2。
+> 原版：`dataproviders/LitematicsDataProvider.java`（782 行，servux-26.3 发布标签树）。协议通道 `servux:litematics`，协议版本 2。
 > 投影数据结构与传输协议详见 [servux/schematic.md](schematic.md)。本节只列协议操作。
 
 ### 5.1 提供的操作（packetType / Task）
@@ -337,7 +337,7 @@ output.put("Entities", <ListTag: AABB 内所有非玩家实体 NBT>);
 
 ### 5.3 settings / 权限
 
-`permission_level`(0) + `permission_level_paste`(0) + `permission_level_tasks`(0) + `player_task_feedback`(false) + `fix_rail_rotations`/`fix_stairs_mirror`/`fix_chest_mirror`(true) + **`deduplicate_schematic_entities`(false)**。粘贴需 `player.isCreative()`。节点 `servux.provider.litematic_data` / `.paste`。
+`permission_level`(0) + `permission_level_paste`(0) + `permission_level_tasks`(0) + `player_task_feedback`(false) + `fix_rail_rotations`/`fix_stairs_mirror`/`fix_chest_mirror`(true) + **`deduplicate_schematic_entities`(false)**。粘贴需 `player.isCreative()`。节点基名 `servux:litematic_data`（`hasPermission` 查 `servux:litematic_data.data_provider`），细化键 `.paste` / `.task.fill` / `.task.delete` 挂新基名之后。
 
 ### 5.4 粘贴实体 UUID/ID 撞车重排（对齐上游 `EntityUtils:93-123/:164-198`）
 
@@ -353,7 +353,7 @@ output.put("Entities", <ListTag: AABB 内所有非玩家实体 NBT>);
 | 世界种子 | `ServerLevel.getSeed()` | NMS 公开 | paperweight 直连 |
 | 出生点 | `MixinServerWorld.setRespawnData` 回填 | Bukkit `World#getSpawnLocation` | 事件/API |
 | 天气 | `ServerLevel` weather 字段 | Bukkit `World` API | API |
-| 配方 | `Recipe.CODEC` + `NbtOps` | NMS 公开 | paperweight 直连 |
+| 配方 | `Recipe.DIRECT_CODEC` + `NbtOps` | NMS 公开 | paperweight 直连 |
 | TPS | `MinecraftServer.tickRateManager` + `getAverageTickTimeNanos` | NMS 公开 + 私有字段 | 直连 + 反射 `remainingSprintTicks` |
 | MobCap | `NaturalSpawner.SpawnState` + `MAGIC_NUMBER` | NMS 内部 | **反射** |
 | 结构 | `ChunkAccess.getAllReferences` / `StructureStart.createTag` | NMS（包级方法） | paperweight 直连（不需反射） |

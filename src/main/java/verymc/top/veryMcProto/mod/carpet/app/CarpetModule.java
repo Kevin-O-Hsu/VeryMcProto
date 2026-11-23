@@ -15,7 +15,7 @@ import verymc.top.veryMcProto.mod.carpet.network.CarpetHelloHandler;
 import verymc.top.veryMcProto.mod.carpet.settings.SettingsManager;
 
 /**
- * Carpet 模块装配（mod 层，第四模块——gnembon/fabric-carpet 26.2 线移植「模块地基」）。
+ * Carpet 模块装配（mod 层，第四模块——gnembon/fabric-carpet 26.3 线移植「模块地基」）。
  *
  * <p>上游是<b>行为注入型</b> Fabric mod（171 服务端 Mixin），本移植按 scope 判定面走事件/等价路径
  * （docs/carpet/architecture.md）。装配链：
@@ -269,7 +269,7 @@ public final class CarpetModule implements ModModule
     /**
      * perfPermissionLevel 应用（上游 = {@code PerfCommand_permissionMixin} @Redirect 换 /perf 的
      * requires；Paper 无 Mixin 无 requires 替换面）。<b>只读登记</b>——零变异，定位
-     * {@code minecraft.command.perf} 节点后输出真因果日志（26.2 映射源实证，docs/carpet/architecture.md）：
+     * {@code minecraft.command.perf} 节点后输出真因果日志（26.3 映射源实证：vanilla /perf requires LEVEL_OWNERS，PerfCommand.java:38，docs/carpet/architecture.md）：
      * 值 4（默认）= Paper 天然同构（vanilla /perf requires LEVEL_OWNERS 原样保留）；
      * 值 2 = 结构性不可达；玩家聊天命令链（PlayerCommandPreprocessEvent → Commands.performCommand）
      * 直达 brigadier 树、绕过 bukkit commandMap/testPermission，节点授权对玩家无效；

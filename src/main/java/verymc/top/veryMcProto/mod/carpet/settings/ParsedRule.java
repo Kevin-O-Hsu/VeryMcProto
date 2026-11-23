@@ -10,7 +10,7 @@ import java.util.function.Function;
 import org.bukkit.command.CommandSender;
 
 /**
- * 由静态 {@link Rule} 字段解析出的规则对象（克隆上游 {@code carpet/settings/ParsedRule.java}，26.2 树）。
+ * 由静态 {@link Rule} 字段解析出的规则对象（克隆上游 {@code carpet/settings/ParsedRule.java}，26.3 树）。
  * 当前值存于源静态字段（volatile——监听器/日志过滤器会在非主线程读取，上游同病的加固，对账登记）；
  * 默认值 = 解析时的字段初值快照。
  *

@@ -29,7 +29,7 @@ import static io.papermc.paper.command.brigadier.Commands.literal;
 import static net.minecraft.commands.SharedSuggestionProvider.suggest;
 
 /**
- * /spawn 命令——mobcaps/entities 两子树（上游 {@code carpet/commands/SpawnCommand.java} 26.2 树
+ * /spawn 命令——mobcaps/entities 两子树（上游 {@code carpet/commands/SpawnCommand.java} 26.3 树
  * :95-107 的两 literal 逐字移植；Paper Brigadier 载体，plugin.yml 无条目）：
  * <pre>/spawn mobcaps                    当前维度 mobcaps 多行报告（entities 裸同款，上游 :96/:103）
  * /spawn mobcaps &lt;dimension&gt;       指定维度

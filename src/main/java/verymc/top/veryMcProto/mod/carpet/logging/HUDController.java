@@ -20,14 +20,14 @@ import net.minecraft.world.level.Level;
 import verymc.top.veryMcProto.framework.nms.Nms;
 
 /**
- * HUD 投递器（克隆上游 {@code carpet/logging/HUDController.java} 26.2 树的 /log 面——
+ * HUD 投递器（克隆上游 {@code carpet/logging/HUDController.java} 26.3 树的 /log 面——
  * tps/mobcaps 两行 + footer flush；counter/packets 行与 scarpet 头脚不移植）。
  *
  * <p>与上游的偏差（对账登记，docs/carpet/architecture.md）：
  * <ul>
  *   <li><b>投递面</b>：上游直发 NMS {@code ClientboundTabListPacket}（:109-113，tab 头=scarpet 保留、
  *       脚=logger 内容）；B 侧 = Bukkit {@code setPlayerListFooter(String)}（服务端侧同效 vanilla 包，
- *       paper-api 26.2 实 jar 实证存在）——<b>只写脚、零 header 触碰</b>（scarpet 头机制不移植，
+ *       paper-api 26.3 实 jar 实证存在（CraftPlayer.java:646））——<b>只写脚、零 header 触碰</b>（scarpet 头机制不移植，
  *       他插件 header 不覆写）；§ 码 String 为该 API 的原生输入；</li>
  *   <li><b>节流面</b>：上游每 tick 被调 + 内部 {@code %20} 门（:72）；B 侧以
  *       {@code runTaskTimer(period 20)} 直接承载同拍率（初相 20 = 首帧不抢跑）；</li>

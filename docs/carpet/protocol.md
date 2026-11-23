@@ -1,9 +1,9 @@
 # Carpet carpet:hello 协议（as-built）
 
-> **状态**：已实现（2026-10-18，dev 线 26.2）。本文是 carpet:hello 通道的 **wire as-built 规范**：
+> **状态**：已实现（2026-10-18，dev 线 26.2；2026-11 随线升级 26.3，协议面零变化复核）。本文是 carpet:hello 通道的 **wire as-built 规范**：
 > 通道与载体（§1）、消息面全表（§2）、握手时序与名册（§3）、规则同步链（§4）、clientCommand（§5）、
 > 装配与生命周期（§6）、测试锚与实机判据（§7）、偏差清单（§8）。
-> 上游对照 = `OriginImpl/fabric-carpet-26.2/src/main/java/carpet/network/`（tag v26.2 三件套 +
+> 上游对照 = `OriginImpl/fabric-carpet-26.3/src/main/java/carpet/network/`（tag v26.3 三件套——v26.2→v26.3 该目录逐字节相同，本文上游行号锚零位移 +
 > `CarpetServer.java` 挂点）；模块装配与规则框架 = [carpet/architecture.md](architecture.md)。
 > 字节上限裸值唯一权威 = [architecture.md](../architecture.md) §3.4。
 
@@ -24,7 +24,7 @@
   按 `channels().contains` 静默丢弃）使 plugin messaging S2C 恒不可达；进服首帧 HI 先于任何 C2S，
   「同通道 C2S 证明兜底」（architecture.md §3.2）在握手起点结构性不可用。
 - **C2S 接收**：`ChannelManager.register(CARPET_CHANNEL, handler)`（incoming + outgoing 成对）——
-  Paper 26.2 路由补丁把已注册通道的 C2S 交给 Messenger 分发（不踢人）；敌意 NBT 由 vanilla
+  Paper 26.3 路由补丁把已注册通道的 C2S 交给 Messenger 分发（不踢人；26.3 起服实测路由成立）；敌意 NBT 由 vanilla
   `readNbt()` 自带 `NbtAccounter.defaultQuota()`（2MiB + 512 深度，javap 实证）封顶。
 - **帧尺寸**：恒 KB 级（18 规则全量帧 < 10KB），零分片需求，不涉 `PacketSplitter`。
 - **vanilla / 未装 carpet 客户端**：HI 对所有进服玩家无条件发送（上游同构，无客户端类型 gate）——
@@ -45,16 +45,17 @@
 | 7 | C2S | 未知键 | — | warn 日志丢弃（上游 onClientData 同构） | :117-130 |
 
 **版本串纪律（同 servux MOD_STRING 门禁级）**：HI 帧版本串 = `CarpetReference.CARPET_VERSION` =
-上游 mod_version 逐字值（26.2 线 = `"26.2"`，`OriginImpl/fabric-carpet-26.2/gradle.properties:15`），
-**禁止发插件版本号**（`26.2-b3` 之类必触发客户端 `equals` 严格比较 warn）——`CarpetHelloFrameTest.
+上游 mod_version 逐字值（26.3 线 = `"26.3"`，`OriginImpl/fabric-carpet-26.3/gradle.properties:15`），
+**禁止发插件版本号**（`26.3-b1` 之类必触发客户端 `equals` 严格比较 warn）——`CarpetHelloFrameTest.
 carpetVersionLiteralGuard` 单测锁死。ver 线 per-line 取值（**as-built 2026-10-19，两线已铺开**：
-26.1.2 线 = `"26.1"`（commit `0e278bc`）、1.21.11 线 = `"1.4.194"`（commit `71fe5b7`）——各线
+26.1.2 线 = `"26.1"`（commit `0e278bc`）、1.21.11 线 = `"1.4.194"`（commit `71fe5b7`）；ver/26.2 线
+= `"26.2"`（2026-11 自 `main` 冻结切出，对照树 `OriginImpl/fabric-carpet-26.2/`）——各线
 上游 `gradle.properties` 逐字对齐，字面锁随线同步；各线 as-built 见其自含文档 `31-carpet.md` /
 `carpet.md`）。
 
 **版本 warn 语义（判据①口径）**：客户端对其自身版本与 HI 值做 `equals` 严格比较
-（`ClientNetworkHandler.java:95-101`），不等仅本地 LOG.warn（非聊天、不断连）。真实发布的 carpet
-客户端版本串带 `+v<构建日期>` 后缀（上游 `build.gradle:10` 无条件拼接）→ 发 `"26.2"` 时此类客户端
+（`ClientNetworkHandler.java:95-102`），不等仅本地 LOG.warn（非聊天、不断连）。真实发布的 carpet
+客户端版本串带 `+v<构建日期>` 后缀（上游 `build.gradle:10` 无条件拼接）→ 发 `"26.3"` 时此类客户端
 必打一条 warn——与两个不同日期构建的上游 carpet 服互连行为完全同源，属上游语义的一部分；
 **判据① = 无 chat 可见/断连级警告**（服务端镜像 info=匹配 / warn=不匹配，照抄上游 :56-63）。
 
@@ -62,7 +63,7 @@ carpetVersionLiteralGuard` 单测锁死。ver 线 per-line 取值（**as-built 2
 
 ```
 玩家进服（PlayerJoinEvent，含假人）
-  │ S2C HI {"69":"26.2"}（NMS 直发，无条件）
+  │ S2C HI {"69":"26.3"}（NMS 直发，无条件）
   ▼
 carpet 客户端（装 carpet mod）            vanilla / 未装 carpet / 假人
   │ 记版本 + LOG（equals 严格比较）          │ 未知通道 payload 静默丢弃 / 假连接 no-op 吸收
@@ -106,7 +107,9 @@ carpet 客户端（装 carpet mod）            vanilla / 未装 carpet / 假人
 
 - 执行载体 = `CarpetSnoopyCommandSource`（上游 `SnoopyCommandSource` 移植）：以**玩家自身权限**执行
   （`getProfilePermissions(player.nameAndId())`，无提权；`withPermission/withMaximumPermission` 返回
-  this 锁级），覆写 `sendSuccess/sendFailure` 采集输出/错误；构造走 26.2 public 9 参构造器，
+  this 锁级），覆写 `sendSuccess/sendFailure` 采集输出/错误；构造走 26.3 公开 7 参构造器
+  （`CommandSourceStack.java:68-91`——`PermissionSet, server, entity`，内部经 `NamesProvider.FOR_ENTITY`
+  读时派生，对玩家逐值等价 26.2 快照），
   覆写集 = 上游封闭 11 方法清单（withEntity/withPosition/withRotation/withCallback×2/withPermission/
   withMaximumPermission/withAnchor/withSigningContext/withLevel/facing）。
 - 执行入口 = `server.getCommands().performPrefixedCommand(source, command)`（NMS 直调）。
@@ -133,7 +136,7 @@ carpet 客户端（装 carpet mod）            vanilla / 未装 carpet / 假人
 
 - `CarpetHelloFrameTest`（5 用例，纯 JVM）：Rules 帧 `{Value,Manager,Rule}` 形状 + 全量口径 +
   布尔串化（"true"/"false"）+ Manager=="carpet" + 撞名 "2" 循环（直构双同名规则）+ clientCommand
-  回执缺省键（error/output 空则无键）+ 版本串/键名/通道名字面守卫（`"26.2"`/`"69"`/`"420"`/
+  回执缺省键（error/output 空则无键）+ 版本串/键名/通道名字面守卫（`"26.3"`/`"69"`/`"420"`/
   `carpet:hello`——防误换插件版本号）。
 - **实机判据（四条；判据①为改写口径）**：① carpet Fabric 客户端进服无 chat 可见/
   断连级警告（客户端本地 LOG.warn 属上游 equals 语义同源产物，接受）；② 客户端规则浏览器显示
@@ -149,8 +152,8 @@ carpet 客户端（装 carpet mod）            vanilla / 未装 carpet / 假人
 | # | 偏差 | 理由 |
 |---|---|---|
 | 1 | 名册单表 Map<UUID,String>（上游 valid/remote 双集，键 = ServerPlayer 实例） | Paper 专用服双集恒等价（memory connection 无对应物）；UUID 键 respawn 免疫（加固） |
-| 2 | 回执 `return` 恒 0（上游经 Mixin setupPrivates 写 resultCallback 采真实值） | Paper 无 Mixin，基类私有域不可写；9 参构造器默认 `CommandResultCallback.EMPTY`（no-op）→ 恒 0 为确定性语义；客户端零消费 return（CarpetClient.java:95-112 逐行实证） |
-| 3 | Snoopy 构造 = 9 参 public 构造器 + with* 保型覆写（上游 setupPrivates 写 5 私有域） | 同 #2 的移植路径；覆写集 = 上游封闭 11 方法（26.2 另有的 withSource/withLocation/withSuppressedOutput 上游不覆写，同判） |
+| 2 | 回执 `return` 恒 0（上游 `ServerNetworkHandler.java:103` 经 setupPrivates 写 resultCallback 采真实值） | Paper 无 Mixin，基类私有域不可写；26.3 公开 7 参构造器不携 resultCallback（默认 `CommandResultCallback.EMPTY`，no-op）→ 恒 0 为确定性语义、无可观测影响；客户端零消费 return（CarpetClient.java:95-112 逐行实证） |
+| 3 | Snoopy 构造 = 公开 7 参构造器 + 镜像 `namesProvider` 字段（FOR_ENTITY）+ with* 保型覆写（withEntity 传 FOR_ENTITY；上游 v26.3 `SnoopyCommandSource` :34/:58/:72-80/:98-100/:119-181 同构——setupPrivates 写 5 私有域形态保留；26.2 时代为 9 参快照式构造，26.3 起 `CommandSourceStack` 公开构造收缩为两个 7 参、8/13 参全 private，移植形态随之同构重写） | 同 #2 的移植路径；覆写集 = 上游封闭 11 方法（26.2 另有的 withSource/withLocation/withSuppressedOutput 上游不覆写，同判） |
 | 4 | clientCommand 增补 INFO 审计行（上游无） | performPrefixedCommand 绕过 PlayerCommandPreprocessEvent 与 ops 广播——审计缺口补偿（安全增强，非 wire 变化） |
 | 5 | 畸形包缺键 → warn 丢弃不踢（上游 orElseThrow 异常 = Fabric 层踢人） | plugin messaging 路径结构性语义（jei 同款先例）；我方更保守 |
 | 6 | onRegister 对在线玩家补发 HI（上游 init 期无在线玩家、无此路径） | 闭合插件中途启用（reload）时在线客户端永失握手 + conf 载入推送空窗的半失效态 |

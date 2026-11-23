@@ -27,7 +27,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * carpet 消息组件 DSL（上游 {@code carpet/utils/Messenger.java} 26.2 树逐字迁包——色字母码
+ * carpet 消息组件 DSL（上游 {@code carpet/utils/Messenger.java} 26.3 树逐字迁包——色字母码
  * {@code w/y/m/r/c/l/...} → Style 解析、可点击/悬停组件构造、tp 坐标行、热力/类别色）。
  *
  * <p>为 carpet 命令族的输出层（上游 /distance /info /perimeterinfo /draw /spawn 全经它）。

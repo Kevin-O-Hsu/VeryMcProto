@@ -28,13 +28,14 @@ repositories {
 
 dependencies {
     // paperDevBundle 提供 Mojang 官方映射（全 deobfuscated）的 NMS（net.minecraft.*），开发时直接用 Mojang 名访问。
-    // MC 26.1 起 dev bundle 改为 <mcVersion>.build.<N>-stable 新命名（旧格式 X-R0.1-SNAPSHOT 止于 1.21.x），
-    // 26.2.build.129-stable 为 26.2 线当前最高 stable（repo.papermc.io metadata 实测，2026-10）。
-    paperweight.paperDevBundle("26.2.build.129-stable")
+    // MC 26.1 起 dev bundle 改为 <mcVersion>.build.<N>-stable 新命名（旧格式 X-R0.1-SNAPSHOT 止于 1.21.x）。
+    // 坐标不在此写死：取 gradle.properties 的 devBundle（版本唯一来源）——其 MC 段必须与 mcVersion 同线，
+    // 由 verifyVersionInjection 终检断言前缀一致。
+    paperweight.paperDevBundle(providers.gradleProperty("devBundle").get())
 
     // PacketEvents（EasyPlace 拦截原版 use_item_on）：compileOnly，运行时由服务器独立安装的 packetevents 插件提供。
     // 锁定 2.14.0（codemc 最新 release，2026-09-23；2.13.0 起支持 MC 26.2，2.14.0 增 26.3；本地对照源码
-    // OriginImpl/packetevents-2.0 为 2.13.x 开发版——EasyPlace 用到的 API 面（WrapperPlayClientPlayerBlockPlacement
+    // OriginImpl/packetevents-2.14.0 为发布标签 v2.14.0——EasyPlace 用到的 API 面（WrapperPlayClientPlayerBlockPlacement
     // 的 getCursorPosition/setCursorPosition/getBlockPosition 等）已对照 2.14.0 树实证零破坏）。
     compileOnly("com.github.retrooper:packetevents-spigot:2.14.0")
 
@@ -48,12 +49,14 @@ java {
     toolchain.languageVersion = JavaLanguageVersion.of(25)
 }
 
-// IDEA 索引排雷（经 Gradle idea 模型声明，随 sync 持久化）：OriginImpl = 31 个上游仓库本地检出
-// （12,824 个 Java 文件 / 213MB，仅逐行对照用，已 gitignore 但 IDEA 仍索引）；run-* = 三线本地测试服
-// （服务端 jar + libraries + 世界存档共 ~640MB）。不排除则全部进 dumb mode——索引窗口内插件查询
+// IDEA 索引排雷（经 Gradle idea 模型声明，随 sync 持久化）：OriginImpl = 各版本线的上游仓库本地检出
+// （仅逐行对照用，已 gitignore 但 IDEA 仍索引）；run-* = 四线本地测试服
+// （服务端 jar + libraries + 世界存档，体量可观）。不排除则全部进 dumb mode——索引窗口内插件查询
 // 触发 IndexNotReadyException（IDE 报错实测根因），且每次 sync/重启重付全量索引成本。
 idea.module {
     excludeDirs.add(file("OriginImpl"))
+    // 当前线的 run 目录由 mcVersion 派生，升级零手工；冻结旧线的 run-* 目录逐线显式保留（本地起服仍要用）
+    excludeDirs.add(file("run-" + providers.gradleProperty("mcVersion").get()))
     excludeDirs.add(file("run-26.2"))
     excludeDirs.add(file("run-26.1.2"))
     excludeDirs.add(file("run-1.21.11"))
@@ -99,6 +102,7 @@ tasks {
 
     // 版本注入终检：解包产物 jar，断言内部 version.properties / plugin.yml 与 project.version
     // 一致——把「展开陈旧 / 占位符缺位」这类静默错版转为构建失败（26.1.2-b2 事故后增设）。
+    // 另含 devBundle 前缀断言：paperweight 开发包坐标的 MC 段必须与 mcVersion 同线，错线即构建失败（廉价检查，先于解包）。
     // 无 outputs 声明故每次构建必跑（成本为解包读两Entry）；捕获 Provider 而非 Task，配置缓存安全。
     val verifyVersionInjection = register("verifyVersionInjection") {
         // 依赖必须经 tasks.named 显式取得——registering lambda 内裸引用 `jar` 会静默解析到
@@ -108,13 +112,21 @@ tasks {
         val jarArchive = jarTask.flatMap { it.archiveFile }
         val expectedVersion = project.version.toString()
         // api-version 已模板化（plugin.yml '${mcVersion}'，随唯一来源展开），应逐字等于 mcVersion
-        // （如 26.2；两段/三段皆官方支持，语义 = 低于该值的服务器拒载）。本插件协议面绑死精确上游 id
+        // （如 26.3；两段/三段皆官方支持，语义 = 低于该值的服务器拒载）。本插件协议面绑死精确上游 id
         // （MOD_STRING 硬门禁 + dev bundle），放行旧版本只会让握手静默失败；Modrinth 等平台亦按
         // api-version 标注适用版本——保留终检作展开陈旧的构建期拦截（26.1.2-b2 事故语义）。
         val expectedApiVersion = providers.gradleProperty("mcVersion").get()
+        // devBundle 同样取自版本唯一来源；MC 段是否与 mcVersion 同线由 doLast 的前缀断言把关
+        val expectedDevBundle = providers.gradleProperty("devBundle").get()
         group = "verification"
         dependsOn(jarTask)
         doLast {
+            // 配置一致性断言（廉价，先于解包）：devBundle 的 MC 段必须与 mcVersion 同线
+            if (!expectedDevBundle.startsWith("$expectedApiVersion.")) {
+                throw GradleException(
+                    "devBundle MC segment mismatch: gradle.properties devBundle=$expectedDevBundle, expected to start with \"$expectedApiVersion.\" " +
+                        "(= mcVersion) -- devBundle MC segment is not on the same line as mcVersion, fix gradle.properties")
+            }
             val jarFile = jarArchive.get().asFile
             val expected = expectedVersion
             ZipFile(jarFile).use { zip ->

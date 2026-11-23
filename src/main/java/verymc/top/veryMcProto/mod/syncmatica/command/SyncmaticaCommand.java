@@ -18,6 +18,8 @@ import org.apache.commons.lang3.tuple.Pair;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
+import verymc.top.veryMcProto.framework.nms.Nms;
+import verymc.top.veryMcProto.framework.permission.Perms;
 import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaDebug;
 import verymc.top.veryMcProto.mod.syncmatica.SyncmaticaContext;
 import verymc.top.veryMcProto.mod.syncmatica.app.SyncmaticaModule;
@@ -40,14 +42,14 @@ import verymc.top.veryMcProto.mod.syncmatica.util.SyncmaticaUtil;
  * <p>子命令仅 {@code load}（{@code load_all} + {@code load <file>}）：从 {@code syncmatics/} 目录把
  * {@code .litematic} 注册为 placement 并广播。上传/下载/修改/删除全走协议 exchange。
  *
- * <p><b>权限</b>：{@code syncmatica.command} / {@code .load} / {@code .load_each}（plugin.yml default: true）。
+ * <p><b>权限</b>：{@code syncmatica:command} / {@code .load} / {@code .load_each}（plugin.yml default: true）。
  */
 public class SyncmaticaCommand implements CommandExecutor, TabCompleter
 {
     private static final String USAGE = "§e/syncmatica §7status|save|reload|enable|disable|load [file]|debug [on|off|cat|status|s2c]";
 
-    /** load 成功/计数消息的广播面（vanilla sendSuccess(msg, true) 的 level≥2 OP 广播位近似）。 */
-    private static final String PERMISSION_ADMIN_BROADCAST = "syncmatica.command.admin";
+    public static final String FILE_EXT = ".litematic";
+    public static final DirectoryStream.Filter<Path> FILTER = buildFilter();
 
     private final SyncmaticaContext context;
     private final HashMap<Path, Pair<SchematicMetadata, SchematicSchema>> files = new HashMap<>();
@@ -60,7 +62,7 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
     @Override
     public boolean onCommand(final CommandSender sender, final Command command, final String label, final String[] args)
     {
-        if (!sender.hasPermission("syncmatica.command"))
+        if (!sender.hasPermission("syncmatica:command"))
         {
             sender.sendMessage("§cInsufficient permissions.");
             return true;
@@ -73,14 +75,14 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
 
         if (args[0].equalsIgnoreCase("load"))
         {
-            if (!sender.hasPermission("syncmatica.command.load"))
+            if (!sender.hasPermission("syncmatica:command.load"))
             {
                 sender.sendMessage("§cInsufficient permissions.");
                 return true;
             }
             if (args.length >= 2)
             {
-                if (!sender.hasPermission("syncmatica.command.load_each"))
+                if (!sender.hasPermission("syncmatica:command.load_each"))
                 {
                     sender.sendMessage("§cInsufficient permissions.");
                     return true;
@@ -96,7 +98,7 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
 
         if (args[0].equalsIgnoreCase("debug"))
         {
-            if (!sender.hasPermission("syncmatica.command.debug"))
+            if (!sender.hasPermission("syncmatica:command.debug"))
             {
                 sender.sendMessage("§cInsufficient permissions.");
                 return true;
@@ -133,7 +135,7 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
     /** 检查 admin 权限（save/reload/enable/disable/status），不足则提示并返回 false。 */
     private boolean requireAdmin(final CommandSender sender)
     {
-        if (!sender.hasPermission("syncmatica.command.admin"))
+        if (!sender.hasPermission("syncmatica:command.admin"))
         {
             sender.sendMessage("§cInsufficient permissions.");
             return false;
@@ -300,6 +302,31 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
         return out;
     }
 
+    private static DirectoryStream.Filter<Path> buildFilter()
+    {
+        return entry ->
+        {
+            if (Files.isRegularFile(entry))
+            {
+                final String file = entry.getFileName().toString();
+
+                if (file.endsWith(FILE_EXT))
+                {
+                    String name = file.substring(0, (file.length() - FILE_EXT.length()));
+
+                    try
+                    {
+                        UUID.fromString(name);
+                        return true;
+                    }
+                    catch (IllegalArgumentException ignored) {}
+                }
+            }
+
+            return false;
+        };
+    }
+
     public void updateSyncmaticDir()
     {
         final List<Path> list = new ArrayList<>();
@@ -310,7 +337,7 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
         {
             for (final Path file : stream)
             {
-                if (!Files.isDirectory(file))
+                if (!Files.isDirectory(file) && FILTER.accept(file))
                 {
                     list.add(file);
                 }
@@ -352,7 +379,7 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
         }
         if (this.files.isEmpty())
         {
-            sender.sendMessage("§7No Syncmatic file(s) found that needs to be loaded.");
+            sender.sendMessage("§cNo Syncmatic file(s) found that needs to be loaded.");
             return;
         }
 
@@ -429,7 +456,7 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
 
         final ServerCommunicationManager comms = (ServerCommunicationManager) context.getCommunicationManager();
         final ExchangeTarget target = (sender instanceof final Player player) ? comms.getOrCreateTarget(player) : null;
-        // 对齐上游 :197 意图（"Update placement to all clients"）：控制台也走 addPlacement 广播臂——
+        // 对齐上游 :234 意图（"Update placement to all clients"）：控制台也走 addPlacement 广播臂——
         // 在线已握手客户端即时收到 REGISTER_METADATA（此前 console 分支仅注册不广播，客户端需重进服
         // 重新握手 CONFIRM_USER 才可见）。t=null 由 addPlacement 内部 null 守卫承载（上游
         // fromExistingPlayer(null) 在 playerMap 非空时自身 NPE，不复刻该缺陷）。
@@ -440,19 +467,28 @@ public class SyncmaticaCommand implements CommandExecutor, TabCompleter
     }
 
     /**
-     * vanilla Brigadier {@code sendSuccess(msg, true)} 的 Bukkit 等价（上游 :183/:199）：消息广播给持
-     * {@code syncmatica.command.admin} 权限的全体玩家与控制台（≈ vanilla permission level ≥ 2 的
-     * OP 广播位）。Bukkit.broadcast 只达在线持权者 + console——执行者若不持权（load 节点 default true）
-     * 补直发保证回执不丢。各身份恰收 1 次：admin 经广播、非 admin 经直发、console 恒在广播集。
+     * vanilla Brigadier {@code sendSuccess(msg, true)} 的 Bukkit 等价（上游 :220/:236）：消息广播给
+     * op 等级不低于 2 的全体在线玩家（vanilla permission level ≥ 2 的 OP 广播位）。执行者照发保证
+     * 回执不丢——各身份恰收 1 次：op≥2 玩家经广播、非 op≥2 执行者经直发、console 执行者走照发。
      * "No file"/"Failed to peek" 类提示对齐上游 sendSuccess(..., false) 仍仅回执行者。
      */
     private static void broadcastSuccess(final CommandSender sender, final String msg)
     {
-        org.bukkit.Bukkit.broadcast(msg, PERMISSION_ADMIN_BROADCAST);
-        if (!sender.hasPermission(PERMISSION_ADMIN_BROADCAST))
+        for (final Player p : org.bukkit.Bukkit.getOnlinePlayers())
         {
-            sender.sendMessage(msg);
+            try
+            {
+                if (Perms.level(Nms.toNms(p)) >= 2)
+                {
+                    p.sendMessage(msg);
+                }
+            }
+            catch (final Exception e)
+            {
+                // 单个玩家等级读取失败按不够级处理（不广播），不影响其余玩家与执行者回执
+            }
         }
+        sender.sendMessage(msg);
     }
 
     private ServerPosition playerOrigin(final Player player)

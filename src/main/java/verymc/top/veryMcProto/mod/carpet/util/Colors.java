@@ -8,7 +8,7 @@ import java.util.Map;
 import static java.util.Map.entry;
 
 /**
- * 方块 map colour / sound type 查表（上游 {@code carpet/script/utils/Colors.java} 26.2 树逐字迁包——
+ * 方块 map colour / sound type 查表（上游 {@code carpet/script/utils/Colors.java} 26.3 树逐字迁包——
  * 仅包位迁移：上游位于 scarpet 工具包，本类纯静态数据无 scarpet 引擎依赖，迁入 {@code util} 与
  * {@code Tracer} 迁包同判，{@code BlockInfo} 同包直用）。
  */

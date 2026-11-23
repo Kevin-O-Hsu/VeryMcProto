@@ -46,7 +46,7 @@ import verymc.top.veryMcProto.mod.servux.util.nbt.NbtView;
 
 /**
  * Litematics Provider（mod 层，配 Litematica）。移植自原版 {@code LitematicsDataProvider}
- * （通道 servux:litematics，协议版本 2——26.1 真值，常量 ServuxLitematicaPacket.PROTOCOL_VERSION）。
+ * （通道 servux:litematics，协议版本 2——26.1 真值、26.3 复核同值，常量 ServuxLitematicaPacket.PROTOCOL_VERSION）。
  *
  * <p><b>已实现</b>：
  * <ul>
@@ -81,7 +81,7 @@ public class LitematicsDataProvider extends DataProviderBase
     public ServuxBoolSetting fixRailRotations = new ServuxBoolSetting(this, "fix_rail_rotations", true);
     public ServuxBoolSetting fixStairMirror = new ServuxBoolSetting(this, "fix_stairs_mirror", true);
     public ServuxBoolSetting fixChestMirror = new ServuxBoolSetting(this, "fix_chest_mirror", true);
-    /** 粘贴实体去重（上游键名 deduplicate_schematic_entities，默认 false，LitematicsDataProvider.java:71）：
+    /** 粘贴实体去重（上游键名 deduplicate_schematic_entities，默认 false，LitematicsDataProvider.java:72）：
      *  false = 撞车重排开（id/UUID 与世界撞车时改派新值）；true = 跳过重排，依赖原版 UUID 唯一性拒绝重复实体。 */
     public final ServuxBoolSetting deDuplicateSchematicEntities = new ServuxBoolSetting(this, "deduplicate_schematic_entities", false);
     private final List<IServuxSetting<?>> settings = List.of(
@@ -100,7 +100,7 @@ public class LitematicsDataProvider extends DataProviderBase
         super("litematic_data",
                 ServuxLitematicaHandler.CHANNEL_ID,
                 ServuxLitematicaPacket.PROTOCOL_VERSION,
-                0, ServuxReference.MOD_ID + ".provider.litematic_data",
+                0, ServuxReference.MOD_ID + ":litematic_data",
                 "Litematics Data provider.");
 
         this.metadata.putString("name", this.getName());
@@ -273,7 +273,7 @@ public class LitematicsDataProvider extends DataProviderBase
             {
                 Identifier id = EntityType.getKey(entity.getType());
 
-                // 对齐上游 :522：查询者查自己时保留背包/末影箱（!uuid.equals 才进入剥离判断）
+                // 对齐上游 :523：查询者查自己时保留背包/末影箱（!uuid.equals 才进入剥离判断）
                 if (entity.getType() == EntityTypes.PLAYER && !entity.getUUID().equals(player.getUUID()))
                 {
                     // 复用 Entities Provider 的玩家背包/末影箱权限过滤
@@ -300,7 +300,7 @@ public class LitematicsDataProvider extends DataProviderBase
      */
     public void onBulkEntityRequest(ServerPlayer player, ChunkPos chunkPos, CompoundTag req)
     {
-        // 对齐上游 :544：名册门 + enabled + null/isEmpty 首查（未注册静默，先于权限消息）
+        // 对齐上游 :543-546：名册门 + enabled + null/isEmpty 首查（未注册静默，先于权限消息）
         if (!this.isPlayerRegistered(player) || !this.isEnabled() || req == null || req.isEmpty()) { return; }
 
         if (!this.hasPermission(player))
@@ -323,7 +323,7 @@ public class LitematicsDataProvider extends DataProviderBase
             return;
         }
 
-        // 对齐上游 :570-571：Task 字段须存在 + TAG_STRING + 值相等（26.1+ 客户端恒带此字段，无 Task 的旧形态包不再受理）。
+        // 对齐上游 :571-572：Task 字段须存在 + TAG_STRING + 值相等（26.1+ 客户端恒带此字段，无 Task 的旧形态包不再受理）。
         // vanilla CompoundTag 无 contains(String,int) 重载（上游系 malilib API）——getStringOr 对非 String 类型
         // 恒回退默认 ""，故「contains && getStringOr().equals」与上游 TAG_STRING 类型校验语义等价
         if (req.contains("Task") && req.getStringOr("Task", "").equals("BulkEntityRequest"))
@@ -333,7 +333,7 @@ public class LitematicsDataProvider extends DataProviderBase
             long timeStart = System.currentTimeMillis();
             ListTag tileList = new ListTag();
             ListTag entityList = new ListTag();
-            // 对齐上游 :577-578：回退维度实际上下界（自定义高度维度不再错位切片；26.1+ 客户端恒发 minY/maxY，回退仅兜底）
+            // 对齐上游 :578-579：回退维度实际上下界（自定义高度维度不再错位切片；26.1+ 客户端恒发 minY/maxY，回退仅兜底）
             final int minY = req.getIntOr("minY", world.getMinY());
             final int maxY = req.getIntOr("maxY", world.getMaxY());
             BlockPos pos1 = new BlockPos(chunkPos.getMinBlockX(), minY, chunkPos.getMinBlockZ());
@@ -411,10 +411,10 @@ public class LitematicsDataProvider extends DataProviderBase
     /**
      * 粘贴请求受理（26.1 任务化，对齐上游 LitematicsDataProvider.handleClientPasteRequest:646-692）：
      * 从客户端上传的 NBT 加载 SchematicPlacement，创建 {@link PasteTask}（上游 TaskPasteSchematicPerChunkDirect
-     * 形态）登记 TaskScheduler 分 tick 粘贴到玩家所在世界——同步 pasteTo 直放已被上游注释停用（:684），
-     * 受理处即时完成消息上游 :686-690 亦注释停用（完成反馈走任务 stop 链，受 player_task_feedback 门控）。
+     * 形态）登记 TaskScheduler 分 tick 粘贴到玩家所在世界——同步 pasteTo 直放已被上游注释停用（:685），
+     * 受理处即时完成消息上游 :687-691 亦注释停用（完成反馈走任务 stop 链，受 player_task_feedback 门控）。
      * 需创造模式 + paste 权限。四行为字段（ChangedBlocksOnly/IgnoreBlocks/IgnoreEntities/Interval）随任务透传
-     * （上游 :674-678 同解析；三布尔在任务内存而不用，上游 Direct:107 同源 TODO）。
+     * （上游 :672-678 同解析；三布尔在任务内存而不用，上游 scheduler/tasks/TaskPasteSchematicPerChunkDirect.java:107 同源 TODO）。
      */
     public void handleClientPasteRequest(ServerPlayer player, CompoundTag tags)
     {
@@ -458,7 +458,7 @@ public class LitematicsDataProvider extends DataProviderBase
                     + " interval=" + interval + " changedOnly=" + changedBlocksOnly
                     + " ignoreBlocks=" + ignoreBlocks + " ignoreEntities=" + ignoreEntities);
 
-            // 上游 :681-683 同构：PasteTask（Direct 形态）入 TaskScheduler 分 tick 执行；
+            // 上游 :681-684 同构：PasteTask（Direct 形态）入 TaskScheduler 分 tick 执行；
             // startTime = 解析前捕获（上游 TaskContext 同序：timeStart 先于 createFromNbt）
             PasteTask task = new PasteTask(level.getServer(), level, player, placement, timeStart, layerRange,
                     replaceMode, layerBehavior, changedBlocksOnly, ignoreBlocks, ignoreEntities);
@@ -474,7 +474,7 @@ public class LitematicsDataProvider extends DataProviderBase
     //（2026-10）：其唯一调用方为 handler 的 Transmit 分流；移除后所有粘贴统一走 handleClientPasteRequest。
     // 恢复走 git revert 该修复 commit。
 
-    @Override public boolean hasPermission(ServerPlayer player) { return Perms.check(player, this.permNode, this.permissionLevel.getValue()); }
+    @Override public boolean hasPermission(ServerPlayer player) { return Perms.check(player, this.permNode + ".data_provider", this.permissionLevel.getValue()); }
 
     public boolean hasPermissionsForPaste(ServerPlayer player)
     {
@@ -492,7 +492,7 @@ public class LitematicsDataProvider extends DataProviderBase
     /** 粘贴实体去重开关（上游 shouldDeDuplicateEntities:777-780）。 */
     public boolean shouldDeDuplicateEntities() { return this.deDuplicateSchematicEntities.getValue(); }
 
-    // ───── task 组（type 14-17，26.1 移植；对照上游 LitematicsDataProvider.onTaskRequest:272-437）─────
+    // ───── task 组（type 14-17，26.1 移植；对照上游 LitematicsDataProvider.onTaskRequest:274-438）─────
 
     /** task 组反馈文案（上游 servux en_us.json 原文）。 */
     private static final String MSG_TASK_INSUFFICIENT = "§cServux: Insufficient Permissions for Litematic task operations.§r";

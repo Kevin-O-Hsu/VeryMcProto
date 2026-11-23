@@ -1,7 +1,7 @@
 # Syncmatica 网络协议详解（已实现）
 
 > **状态**：syncmatica（投影共享）已 100% 完整实现并实测通过。本文是【已实现说明】——所有协议字段、收发路径、Exchange 状态机、分片机制均已落地，对应代码在 `src/main/java/verymc/top/veryMcProto/mod/syncmatica/`。
-> **原版对照**：`OriginImpl/syncmatica-LTS-26.2/src/main/java/ch/endte/syncmatica/`（逐行对照的权威实现；26.1 wire 零变化，自 1.21.11 迁移，26.2 复核同）。
+> **原版对照**：`OriginImpl/syncmatica-26.3/src/main/java/ch/endte/syncmatica/`（发布标签 26.3-0.3.20；逐行对照的权威实现；自 1.21.11 迁移，26.1/26.2/26.3 wire 均零变化，已对照 26.3 发布标签树复核）。
 > **相关文档**：架构总览与 Mixin→Bukkit 迁移记录 [syncmatica/architecture.md](architecture.md)（包结构 §2 唯一权威、关键决策 §11）；测试 [syncmatica/testing.md](testing.md)；文档总索引 [index.md](../index.md)；项目权威说明 [../AGENTS.md](../../AGENTS.md)。
 > **字段语义对照**：syncmatica 是双端 mod，同仓库的 `communication/ClientCommunicationManager.java` + 各 `*Client` Exchange 即协议接收端。本文所有字段顺序均已对照客户端 `receiveMetaData` / `receivePositionData` 确认一致。
 
@@ -71,7 +71,7 @@
 
 ## 2. PacketType 全表（18 个逻辑消息）
 
-`network/PacketType.java`。每个枚举对应一个 `Identifier`（`namespace=syncmatica`，path 见下）。**path 与枚举名不严格对应，逐字照抄否则客户端认不出**：
+`network/PacketType.java`。每个枚举对应一个 `Identifier`（`namespace=syncmatica`，path 见下）。**path 与枚举名不严格对应，逐字照抄否则客户端认不出**（18 个包类型 26.2→26.3 零增删改名，已对照 26.3 发布标签树复核）：
 
 | 枚举名 | Identifier path | 方向 | 用途 |
 |---|---|---|---|
@@ -120,7 +120,7 @@
 
 `FeatureSet.java:65-68`：仅一条 `"0.1" → {CORE}`。`fromVersionString(version)`（`:21-33`）用正则 `^\d+(\.\d+){2,4}$` 校验后**逐级去掉末段**查表（`0.1.0` → 查不到 → 去成 `0.1` → 命中 `{CORE}`）；不命中返回 null。
 
-**本实现的关键决策**（`SyncmaticaReference.java:25-26`）：`MOD_VERSION` = 插件版本（`26.2-b3` 式，`-b` 构建号后缀永不命中 `^\d+(\.\d+){2,4}$` 正则），使 `fromVersionString` 返回 null → **强制双方走 FEATURE 交换** → 双方用全集 FeatureSet（MODIFY/DISPLAY_NAME/CORE_EX/VERSION 全开）。这保证 metadata/position 编码所有可选字段都下发，功能完整。
+**本实现的关键决策**（`SyncmaticaReference.java:25-26`）：`MOD_VERSION` = 插件版本（`26.3-b1` 式，`-b` 构建号后缀永不命中 `^\d+(\.\d+){2,4}$` 正则），使 `fromVersionString` 返回 null → **强制双方走 FEATURE 交换** → 双方用全集 FeatureSet（MODIFY/DISPLAY_NAME/CORE_EX/VERSION 全开）。这保证 metadata/position 编码所有可选字段都下发，功能完整。
 
 > 对端若是真原版 `0.1.x` 客户端，`fromVersionString` 命中 `{CORE}` → 只编码 CORE 子集（无 DISPLAY_NAME/CORE_EX/VERSION/MODIFY 字段），客户端镜像 `receiveMetaData` 缺失字段用默认值兜底，仍能工作。
 

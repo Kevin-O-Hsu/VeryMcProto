@@ -23,7 +23,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * /perimeterinfo 周界刷怪诊断（上游 {@code carpet/utils/PerimeterDiagnostics.java} 26.2 树逐字迁包——
+ * /perimeterinfo 周界刷怪诊断（上游 {@code carpet/utils/PerimeterDiagnostics.java} 26.3 树迁包；26.2→26.3 上游仅 :164/:167/:176 三处 getMobsAt 改传 ServerLevel，我方已随 26.3 形态——
  * ±128 圆柱截断 + 24²-128² 球壳剔除 + liquid/ground/specific 三计数 + samples≤10）。
  *
  * <p>同步单次全扫（数千万块迭代，主线程秒级——上游同构，无耗时/进度机制）。全 vanilla 公开 API
@@ -169,10 +169,10 @@ public class PerimeterDiagnostics
 
     private boolean check_entity_spawn(BlockPos pos)
     {
-        if (sle == null || !worldServer.getChunkSource().getGenerator().getMobsAt(worldServer.getBiome(pos), worldServer.structureManager(), ctype, pos).unwrap().contains(sle))
+        if (sle == null || !worldServer.getChunkSource().getGenerator().getMobsAt(worldServer, worldServer.structureManager(), ctype, pos).unwrap().contains(sle))
         {
             sle = null;
-            for (Weighted<MobSpawnSettings.SpawnerData> wsle: worldServer.getChunkSource().getGenerator().getMobsAt(worldServer.getBiome(pos), worldServer.structureManager(), ctype, pos).unwrap())
+            for (Weighted<MobSpawnSettings.SpawnerData> wsle: worldServer.getChunkSource().getGenerator().getMobsAt(worldServer, worldServer.structureManager(), ctype, pos).unwrap())
             {
                 MobSpawnSettings.SpawnerData sle = wsle.value();
                 if (el.getType() == sle.type())
@@ -181,7 +181,7 @@ public class PerimeterDiagnostics
                     break;
                 }
             }
-            if (sle == null || !worldServer.getChunkSource().getGenerator().getMobsAt(worldServer.getBiome(pos), worldServer.structureManager(), ctype, pos).unwrap().contains(sle))
+            if (sle == null || !worldServer.getChunkSource().getGenerator().getMobsAt(worldServer, worldServer.structureManager(), ctype, pos).unwrap().contains(sle))
             {
                 return false;
             }

@@ -253,7 +253,9 @@ public class PlacementHandler
                 // canBuild 时点修正朝向的床头位恒未被本次 vanilla 放置触碰（vanilla 只写事件位与
                 // vanilla 朝向床头，Direction.relative 单射），当前态 == 放置前态，判定等价上游。
                 // 与带参版差异两枝：手持物品==床头位方块 asItem 时上游拒绝/我方放行（更宽）；
-                // Paper isDestroyable 枝（replaceable 且不可毁的组合现实中≈空集）。
+                // Paper isDestroyable 枝（replaceable 且不可毁的组合现实中≈空集）。26.3 终核注：
+                // handleUseItemOn 26.3 :2177-2178 与 26.2 :2113-2114 逐字同构、accessor 括号化无行为差；
+                // asBlockData 26.3 终核：BlockBehaviour$BlockStateBase.asBlockData() 仍在（BlockBehaviour.java:591，返回 CraftBlockData；26.2 为 :571，整体 +20 行位移，形态未变）。
                 BlockPos headPos = context.pos().relative(facing);
 
                 if (context.world().getBlockState(headPos).canBeReplaced() == false)

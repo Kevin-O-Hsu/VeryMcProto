@@ -42,7 +42,7 @@ class SettingsManagerConfRoundtripTest
 
     private SettingsManager newManager()
     {
-        SettingsManager sm = new SettingsManager("26.2", "carpet", "Carpet Mod", dataFolder);
+        SettingsManager sm = new SettingsManager("26.3", "carpet", "Carpet Mod", dataFolder);
         sm.parseSettingsClass(CarpetSettings.class);
         return sm;
     }

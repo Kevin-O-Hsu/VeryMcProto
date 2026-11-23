@@ -13,15 +13,18 @@ import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
+import net.minecraft.util.Prediction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.animal.equine.AbstractHorse;
+import net.minecraft.world.entity.animal.equine.SkeletonHorse;
 import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.vehicle.boat.Boat;
 import net.minecraft.world.entity.vehicle.minecart.Minecart;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
@@ -33,14 +36,14 @@ import verymc.top.veryMcProto.mod.carpet.patches.EntityPlayerMPFake;
 import verymc.top.veryMcProto.mod.carpet.util.Tracer;
 
 /**
- * 假人动作包（克隆上游 {@code carpet/helpers/EntityPlayerActionPack.java} 26.2 树 629 行逐字同构）。
+ * 假人动作包（克隆上游 {@code carpet/helpers/EntityPlayerActionPack.java} tag v26.3 树 640 行为基——除包名/导入/本 javadoc 与 4 处 getActionPack duck 接口替换外逐字同构，本文件 650 行）。
  *
  * <p>每 tick 由 {@link ActionPackManager} 驱动 {@link #onUpdate}（上游 = ServerPlayer.tick HEAD 的
  * Mixin 注入，B 侧 = 侧表 + BukkitRunnable，偏差登记）：逐 action 状态机推进 + 写运动输入
  * （{@code player.zza}/{@code player.xxa}，假人恒写否则停不下来——上游注释）。
  *
  * <p>与上游的唯一替换：{@code ((ServerPlayerInterface) player).getActionPack()} →
- * {@link ActionPackManager#get}（4 处 :295/:364/:386/:457——上游 Mixin duck 接口在 B 侧的等价物）。
+ * {@link ActionPackManager#get}（4 处 :298/:375/:397/:468——上游 Mixin duck 接口在 B 侧的等价物；行号锚 = tag v26.3 树，该仓 HEAD 即 tag）。
  */
 public class EntityPlayerActionPack
 {
@@ -270,7 +273,7 @@ public class EntityPlayerActionPack
         if (!inv.getItem(slot).isEmpty())
             player.drop(inv.removeItem(slot,
                     dropAll ? inv.getItem(slot).getCount() : 1
-            ), false, true); // scatter, keep owner
+            ), false, Prediction.SERVER_ONLY); // scatter, keep owner
     }
 
     public void drop(int selectedSlot, boolean dropAll)
@@ -329,7 +332,7 @@ public class EntityPlayerActionPack
                                 InteractionResult result = player.gameMode.useItemOn(player, world, player.getItemInHand(hand), hand, blockHit);
                                 if (result instanceof InteractionResult.Success success)
                                 {
-                                    if (success.swingSource() == InteractionResult.SwingSource.SERVER) player.swing(hand);
+                                    if (success.swingSource() == InteractionResult.SwingSource.SERVER_ONLY) player.swing(hand, SwingAnimation.DEFAULT, true);
                                     ap.itemUseCooldown = 3;
                                     return true;
                                 }
@@ -341,8 +344,14 @@ public class EntityPlayerActionPack
                             player.resetLastActionTime();
                             EntityHitResult entityHit = (EntityHitResult) hit;
                             Entity entity = entityHit.getEntity();
-                            boolean handWasEmpty = player.getItemInHand(hand).isEmpty();
+                            ItemStack handItem = player.getItemInHand(hand);
+                            boolean handWasEmpty = handItem.isEmpty();
                             boolean itemFrameEmpty = (entity instanceof ItemFrame) && ((ItemFrame) entity).getItem().isEmpty();
+                            // client always consumes action with food on a horse, unless it's a skeleton horse.
+                            boolean isFeedingHorse = entity instanceof AbstractHorse horse
+                                    && horse.isAlive()
+                                    && horse.isFood(handItem)
+                                    && !(horse instanceof SkeletonHorse);
                             Vec3 relativeHitPos = entityHit.getLocation().subtract(entity.getX(), entity.getY(), entity.getZ());
                             if (entity.interact(player,  hand, relativeHitPos).consumesAction())
                             {
@@ -350,7 +359,9 @@ public class EntityPlayerActionPack
                                 return true;
                             }
                             // fix for SS itemframe always returns CONSUME even if no action is performed
-                            if (player.interactOn(entity, hand, relativeHitPos).consumesAction() && !(handWasEmpty && itemFrameEmpty))
+                            InteractionResult interactionResult = player.interactOn(entity, hand, relativeHitPos);
+                            if ((interactionResult.consumesAction() && !(handWasEmpty && itemFrameEmpty))
+                                    || isFeedingHorse)
                             {
                                 ap.itemUseCooldown = 3;
                                 return true;
@@ -386,7 +397,7 @@ public class EntityPlayerActionPack
                         if (!action.isContinuous)
                         {
                             player.attack(entityHit.getEntity());
-                            player.swing(InteractionHand.MAIN_HAND);
+                            player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, true);
                         }
                         player.resetAttackStrengthTicker();
                         player.resetLastActionTime();
@@ -454,7 +465,7 @@ public class EntityPlayerActionPack
 
                         }
                         player.resetLastActionTime();
-                        player.swing(InteractionHand.MAIN_HAND);
+                        player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, true);
                         return blockBroken;
                     }
                 }

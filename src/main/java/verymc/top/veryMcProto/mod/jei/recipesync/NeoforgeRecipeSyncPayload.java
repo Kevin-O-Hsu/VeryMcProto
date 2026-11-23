@@ -16,8 +16,9 @@ import net.minecraft.world.item.crafting.RecipeType;
 
 /**
  * NeoForge 客户端配方内容 payload（mod 层，S2C 通道 {@code neoforge:recipe_content`}）。
- * wire 归属 = NeoForge 加载器层配方同步（Paper 移植参考 Mrbysco/JEIRecipeBridge 26.1（上游无 26.2 线，26.2 仍引 26.1 树），
- * {@code OriginImpl/JEIRecipeBridge-26.1}——mezz/JEI 上游不含此层）。
+ * wire 归属 = NeoForge 加载器层配方同步（Paper 移植参考 Mrbysco/JEIRecipeBridge（上游 26.3 分支 1c872dd
+ * 与 26.1 逐字节相同，wire 持续零变化），
+ * {@code OriginImpl/JEIRecipeBridge-26.1}（或等价的 JEIRecipeBridge-26.3）——mezz/JEI 上游不含此层）。
  *
  * <p>下发 {@code (recipeTypes, 全部 recipes)}：recipeTypes = RECIPE_TYPE 注册表的 id 集合
  * （VarInt count + registry id 串）；recipes = {@code RecipeHolder.STREAM_CODEC} 列表

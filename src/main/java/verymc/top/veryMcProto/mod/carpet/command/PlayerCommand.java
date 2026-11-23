@@ -52,7 +52,7 @@ import static io.papermc.paper.command.brigadier.Commands.literal;
 import static net.minecraft.commands.SharedSuggestionProvider.suggest;
 
 /**
- * /player 命令族（克隆上游 {@code carpet/commands/PlayerCommand.java} 26.2 树 362 行 brigadier 树
+ * /player 命令族（克隆上游 {@code carpet/commands/PlayerCommand.java} 26.3 树 362 行 brigadier 树
  * 逐字移植；Paper Brigadier API 载体——上游 Fabric Dispatcher 注册面在 B 侧的等价物，
  * {@code LifecycleEvents.COMMANDS} 注册，偏差登记 docs/carpet/architecture.md）。
  *

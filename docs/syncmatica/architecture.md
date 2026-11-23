@@ -1,7 +1,7 @@
 # Syncmatica 架构总览（含 Mixin→Bukkit 迁移记录）
 
-> **状态**：syncmatica（投影共享）已完整实现，所有协议路径（握手 / 分享 / 下载 / 修改 / 删除 / 持久化 / 多玩家广播 / 软禁用）均经实测（26.1→26.2 wire 零变化）。
-> **本文描述实际架构**，对应代码 `src/main/java/verymc/top/veryMcProto/mod/syncmatica/`；原版对照 `OriginImpl/syncmatica-LTS-26.2/`。§2 包结构全树与 §10 迁移记录 = 原版→Paper 的逐项权威。
+> **状态**：syncmatica（投影共享）已完整实现，所有协议路径（握手 / 分享 / 下载 / 修改 / 删除 / 持久化 / 多玩家广播 / 软禁用）均经实测（26.1→26.2→26.3 wire 零变化）。
+> **本文描述实际架构**，对应代码 `src/main/java/verymc/top/veryMcProto/mod/syncmatica/`；原版对照 `OriginImpl/syncmatica-26.3/`（发布标签 26.3-0.3.20）。§2 包结构全树与 §10 迁移记录 = 原版→Paper 的逐项权威。
 > 相关文档：网络协议与 Exchange 状态机见 [syncmatica/protocol.md](protocol.md)；测试见 [syncmatica/testing.md](testing.md)；运维命令/配置见 [operations.md](../operations.md)；全局框架见 [architecture.md](../architecture.md)——syncmatica 与 Servux 共享同一套 `framework/network`。
 
 ---

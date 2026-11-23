@@ -10,10 +10,13 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+import org.bukkit.entity.Player;
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
 import verymc.top.veryMcProto.framework.dataproviders.DataProviderManager;
+import verymc.top.veryMcProto.framework.nms.Nms;
+import verymc.top.veryMcProto.framework.permission.Perms;
 import verymc.top.veryMcProto.mod.servux.ServuxDebug;
 import verymc.top.veryMcProto.framework.settings.IServuxSetting;
 import verymc.top.veryMcProto.mod.servux.dataproviders.ConfigProvider;
@@ -23,23 +26,38 @@ import verymc.top.veryMcProto.mod.servux.dataproviders.LitematicsDataProvider;
  * /servux 命令（mod 层）。移植自原版 {@code ServuxCommand}（Brigadier）→ Bukkit {@link CommandExecutor}/{@link TabCompleter}。
  *
  * <p>子命令：reload / save / set / info / list / enable / disable / search / debug / litematic。
- * 权限树对齐上游 ServuxCommand:41-90：根节点 {@code servux.commands}（上游根 requires level 4 的
- * Bukkit 近似，default: op）+ 每子命令独立节点 {@code servux.commands.<sub>}（search 复用 .list，
- * 上游 :90）；旧单节点 {@code servux.command} 经 plugin.yml children 映射自动继承新树（兼容既有授权）。
+ * 权限树对齐上游 ServuxCommand:46-116——根节点 requires {@code servux:command.about} level 3
+ * （26.3 由 servux.commands level 4 降为 3，节点改冒号命名 {@code servux:command.*}，default: op）+
+ * 每子命令独立节点 {@code servux:command.<sub>}（reload/save/set/info/list 均 level 4，
+ * search 复用 list 节点 level 4）；旧单节点 {@code servux.command} 经 plugin.yml children 映射自动继承新树（兼容既有授权）。
  * enable/disable/debug/litematic 为我方扩展子命令（挂同名扩展节点，无上游对应）。
  *
- * <p>持久化语义：{@code set} 对齐上游 configModify :307 纯内存（显式 {@code /servux save} 落盘）；
+ * <p>持久化语义：{@code set} 对齐上游 configModify :302-342 纯内存（setValueFromString :334；显式 {@code /servux save} 落盘；
+ * 26.3 上游成功回显 sendSuccess(...,true)→sendSystemMessage，不再向 ops 广播）；
  * enable/disable/debug 为我方扩展，保留切换即时落盘。
  */
 public class ServuxCommand implements CommandExecutor, TabCompleter
 {
-    private static final String PERM_ROOT = "servux.commands";
+    private static final String PERM_ROOT = "servux:command";
     private static final String USAGE = "§e/servux §7reload|save|set|info|list|enable|disable|search|debug|litematic";
 
-    /** 子命令权限检查（对齐上游每子命令独立节点；search 复用 list 节点）。 */
+    /**
+     * 单点权限判定（上游 PermissionsUtil.require 的 Bukkit 载体形态）：玩家发送者走
+     * {@link Perms#check}（显式优先 + NMS 精确等级回退）；非玩家发送者（控制台）放行。
+     */
+    private static boolean hasPerm(CommandSender sender, String node, int level)
+    {
+        if (sender instanceof Player player)
+        {
+            return Perms.check(Nms.toNms(player), node, level);
+        }
+        return true;
+    }
+
+    /** 子命令权限检查（对齐上游每子命令独立节点 servux:command.<sub> @ level 4；search 复用 list 节点）。 */
     private boolean checkSubPerm(CommandSender sender, String sub)
     {
-        if (!sender.hasPermission(PERM_ROOT + "." + sub))
+        if (!hasPerm(sender, PERM_ROOT + "." + sub, 4))
         {
             sender.sendMessage("§cInsufficient permissions.");
             return false;
@@ -50,8 +68,8 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args)
     {
-        // 根门双查：新树节点 + 旧单节点（对不解析 plugin.yml children 的权限插件双保险）
-        if (!(sender.hasPermission(PERM_ROOT) || sender.hasPermission("servux.command")))
+        // 根门（对齐上游 requires servux:command.about level 3）
+        if (!hasPerm(sender, PERM_ROOT + ".about", 3))
         {
             sender.sendMessage("§cInsufficient permissions.");
             return true;
@@ -90,19 +108,19 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
     {
         if (args.length < 3) { sender.sendMessage("§e/servux set <provider:setting|setting> <value>"); return; }
         String name = args[1];
-        // 对齐上游 value 参的 greedyString()（上游 ServuxCommand:57）：值可含空格（List 型 JSON 数组
+        // 对齐上游 value 参的 greedyString()（上游 ServuxCommand:72）：值可含空格（List 型 JSON 数组
         // 常态带空格），Bukkit args 重组回单串语义——同款范式见 handleSearch 的 query 重组
         String value = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
         IServuxSetting<?> setting = DataProviderManager.INSTANCE.getSettingByName(name);
         if (setting == null) { sender.sendMessage("§cSetting not found: " + name); return; }
         try
         {
-            // 对齐上游 configModify :309-312：命令层前置校验非法值并显式拒绝（上游 throw
+            // 对齐上游 configModify :327-330：命令层前置校验非法值并显式拒绝（上游 throw
             // servux.command.error.invalid_value = "Invalid value"；我方无 lang 资产，Bukkit 形态为
             // 红字直发固定文案）。基类 setValueFromString 的静默闸与上游 AbstractServuxSetting:101-107
             // 逐字同构，仅作二道防线，勿改为抛错
             if (!isValidValue(setting, value)) { sender.sendMessage("§cInvalid value"); return; }
-            // 对齐上游 configModify :302-307：set 纯内存，持久化走显式 /servux save（上游无即时落盘；
+            // 对齐上游 configModify :302-342：set 纯内存，持久化走显式 /servux save（上游无即时落盘；
             // 优雅停服时 onDisable 仍全量落盘，差异窗口仅 crash 场景）
             setting.setValueFromString(value);
         }
@@ -125,7 +143,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
     }
 
     /**
-     * 命令层前置校验（对齐上游 ServuxCommand:309-312 的 validateString 命令层消费点）。
+     * 命令层前置校验（对齐上游 ServuxCommand:327 的 validateString 命令层消费点）。
      *
      * <p>List validator 对畸形输入抛非受检异常（实测两形态：Gson 的 {@code JsonSyntaxException}
      * 与空文档返 null 后 for-each 的 NPE，gson ≥2.10.1 同行为）——此处统一收口为校验失败，属超越
@@ -148,7 +166,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
     }
 
     /**
-     * 对齐上游 list :73-87：裸 list = 全部 provider 的 settings 平铺现值；{@code list <provider>}
+     * 对齐上游 list :88-91：裸 list = 全部 provider 的 settings 平铺现值；{@code list <provider>}
      * = 该 provider 的 settings（上游 getProviderByName 过滤）。providers 概览上游无此形态，不保留。
      */
     private void handleList(CommandSender sender, String[] args)
@@ -172,9 +190,9 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
     }
 
     /**
-     * settings 现值平铺（上游 configList :137-176 的 Bukkit 文本退化版）。
-     * 同名 setting 跨 provider 时附加 {@code (provider)} 消歧（上游 :145-165）；
-     * <b>值字符串 &lt;10 字符才附现值</b>为上游有意怪癖（:168-171，长值刷屏防护）——逐字照抄，勿"修复"。
+     * settings 现值平铺（上游 configList :161-197 的 Bukkit 文本退化版）。
+     * 同名 setting 跨 provider 时附加 {@code (provider)} 消歧（上游循环体 :169-189，消歧 append 在 :185-188）；
+     * <b>值字符串 &lt;10 字符才附现值</b>为上游有意怪癖（:190-193，长值刷屏防护）——逐字照抄，勿"修复"。
      */
     private void configList(CommandSender sender, List<IServuxSetting<?>> list)
     {
@@ -274,7 +292,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
      * <ul>
      *   <li>{@code list} —— 列出 schematics/ 目录的 .litematic 文件。</li>
      * </ul>
-     * 权限：{@code servux.command}（已在 onCommand 检查）+ litematic_data provider 启用。
+     * 权限：{@code servux:command.litematic}（level 4，onCommand 分派统一检查）+ litematic_data provider 启用。
      * <p>S2C 文件投递（transmit 子命令）已移除：26.1 stock 客户端 {@code handleBulkData} 的
      * Transmit 分流整块注释（上游未实现接收端，一切帧坠入仅认 BulkEntityReply 的
      * {@code handleBulkEntityData} 被静默丢弃），上游服务端 {@code sendTransmitFile} 亦
@@ -378,7 +396,7 @@ public class ServuxCommand implements CommandExecutor, TabCompleter
             for (String s : List.of("reload", "save", "set", "info", "list", "enable", "disable", "search", "debug", "litematic"))
             {
                 String node = s.equals("search") ? "list" : s;
-                if (s.startsWith(typed) && sender.hasPermission(PERM_ROOT + "." + node)) { out.add(s); }
+                if (s.startsWith(typed) && hasPerm(sender, PERM_ROOT + "." + node, 4)) { out.add(s); }
             }
         }
         else if (args.length == 2)

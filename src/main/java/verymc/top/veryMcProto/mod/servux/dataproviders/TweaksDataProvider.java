@@ -32,7 +32,7 @@ import verymc.top.veryMcProto.mod.servux.network.ServuxTweaksPacket;
 import verymc.top.veryMcProto.mod.servux.util.nbt.NbtView;
 
 /**
- * Tweaks Provider（mod 层）。移植自原版 {@code TweaksDataProvider}（通道 servux:tweaks，协议版本 2——26.1 真值，常量 ServuxTweaksPacket.PROTOCOL_VERSION）。
+ * Tweaks Provider（mod 层）。移植自原版 {@code TweaksDataProvider}（通道 servux:tweaks，协议版本 2——26.1 真值、26.3 复核同值，常量 ServuxTweaksPacket.PROTOCOL_VERSION）。
  *
  * <p>方块实体 NBT：{@code be.saveWithFullMetadata(registryAccess)}（NMS 公开，与 Entities 一致）。
  * 实体 NBT：{@link NbtView#getWriter} + {@code entity.saveWithoutId}；NBT 查询权限 / 玩家背包权限
@@ -73,7 +73,7 @@ public class TweaksDataProvider extends DataProviderBase
         super("tweaks_data",
                 ServuxTweaksHandler.CHANNEL_ID,
                 ServuxTweaksPacket.PROTOCOL_VERSION,
-                0, ServuxReference.MOD_ID + ".provider.tweaks_data",
+                0, ServuxReference.MOD_ID + ":tweaks_data",
                 "Tweaks Data provider for Client Side mods.");
 
         this.metadata.putString("name", this.getName());
@@ -250,7 +250,7 @@ public class TweaksDataProvider extends DataProviderBase
 
             if (nbt != null)
             {
-                // 对齐上游 :336：查询者查自己时保留背包/末影箱（!uuid.equals 才进入剥离判断）
+                // 对齐上游 :337：查询者查自己时保留背包/末影箱（!uuid.equals 才进入剥离判断）
                 if (entity.getType() == EntityTypes.PLAYER && !entity.getUUID().equals(player.getUUID()))
                 {
                     if (!EntitiesDataProvider.INSTANCE.hasPlayerInventoryPermission(player))
@@ -275,7 +275,7 @@ public class TweaksDataProvider extends DataProviderBase
         }
     }
 
-    @Override public boolean hasPermission(ServerPlayer player) { return Perms.check(player, this.permNode, this.permissionLevel.getValue()); }
+    @Override public boolean hasPermission(ServerPlayer player) { return Perms.check(player, this.permNode + ".data_provider", this.permissionLevel.getValue()); }
 
     /** 白名单：仅已注册玩家推送（旧客户端被版本门禁拒后永不入册 → 永不收 metadata）。 */
     @Override public void onPlayerJoin(ServerPlayer player)

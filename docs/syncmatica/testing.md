@@ -2,7 +2,7 @@
 
 > **实现状态**：syncmatica（投影共享）已 **100% 完整实现并可测试**。本文档从「待移植蓝图」改写为「已实现实测指南」——所有命令/权限/配置/日志/协议流程均与真实代码逐一对齐。
 >
-> **代码定位**：`src/main/java/verymc/top/veryMcProto/mod/syncmatica/`（命令 `command/SyncmaticaCommand.java`、配置 `SyncmaticaReference.java`、握手 `communication/exchange/VersionHandshakeServer.java`、上传/下载 `UploadExchange.java`/`DownloadExchange.java`、持久化 `data/SyncmaticManager.java`、配额 `service/QuotaService.java`、调试 `service/DebugService.java` + `util/SyncmaticaDebug.java`）；权限注册 `src/main/resources/plugin.yml`；客户端对照 `OriginImpl/syncmatica-LTS-26.2/`。
+> **代码定位**：`src/main/java/verymc/top/veryMcProto/mod/syncmatica/`（命令 `command/SyncmaticaCommand.java`、配置 `SyncmaticaReference.java`、握手 `communication/exchange/VersionHandshakeServer.java`、上传/下载 `UploadExchange.java`/`DownloadExchange.java`、持久化 `data/SyncmaticManager.java`、配额 `service/QuotaService.java`、调试 `service/DebugService.java` + `util/SyncmaticaDebug.java`）；权限注册 `src/main/resources/plugin.yml`；客户端对照 `OriginImpl/syncmatica-26.3/`。
 >
 > **关联文档**：协议详解 [syncmatica/protocol.md](protocol.md)；架构/迁移 [syncmatica/architecture.md](architecture.md)（实现总览/关键决策 §11）；姊妹（Servux 客户端测试）[servux/testing.md](../servux/testing.md)；文档总索引 [index.md](../index.md)；项目权威说明 [../AGENTS.md](../../AGENTS.md)。
 
@@ -26,7 +26,7 @@
 
 | 项 | 要求 |
 |---|---|
-| Paper | 26.2（与本项目一致，`api-version: '26.2'`） |
+| Paper | 26.3（与本项目一致，`api-version: '26.3'`） |
 | 插件 | VeryMcProto（含 syncmatica 模块，`POSTWORLD` 加载） |
 | Java | 25 |
 | 配置 | `plugins/VeryMcProto/syncmatica-config.json`（首次启动自动生成）：`{ quota: {enabled: false, limit: 40000000}, debug: {doPacketLogging: false} }` |
@@ -40,12 +40,12 @@
 
 | Mod | 版本（来自 `fabric.mod.json` suggests） | 用途 |
 |---|---|---|
-| **Minecraft Fabric** | 26.2 + Fabric Loader（`depends: minecraft ~26.2-`） | 基础 |
-| **syncmatica** | LTS 26.2（`OriginImpl/syncmatica-LTS-26.2/` 对应版本） | 协议客户端（注入 Litematica GUI） |
-| **Litematica** | `>=0.27.11- <0.28.0`（建议用 syncmatica 兼容的 LTS fork，如 sakura-ryoko） | 投影客户端 |
-| **Malilib** | `>=0.28.10- <0.29.0`（Litematica 前置） | Litematica 前置 |
+| **Minecraft Fabric** | 26.3 + Fabric Loader（上游 26.3 `depends: minecraft >=26.3 <26.4`） | 基础 |
+| **syncmatica** | 26.3 线 0.3.20（发布标签 26.3-0.3.20，`OriginImpl/syncmatica-26.3/` 对应版本） | 协议客户端（注入 Litematica GUI） |
+| **Litematica** | `>=0.29.0- <0.30.0`（建议用 syncmatica 兼容的 LTS fork，如 sakura-ryoko） | 投影客户端 |
+| **Malilib** | `>=0.30.1- <0.31.0`（Litematica 前置） | Litematica 前置 |
 
-> **注意**：syncmatica `fabric.mod.json` 的 `breaks` 声明：malilib `<0.28.10-` / litematica `<0.27.11-` 会冲突。务必用足版本的 LTS fork。
+> **注意**：syncmatica `fabric.mod.json` 的 `breaks` 声明：malilib `<0.30.1-` / litematica `<0.29.0-` 会冲突（26.3 线上游 `depends`：malilib `>=0.30.1- <0.31.0-`、litematica `>=0.29.0- <0.30.0-`）。务必用足版本的 LTS fork。
 
 **至少 2 个客户端账号**（用于多玩家协同测试，§11）。单机多开或两台机器均可。
 
@@ -55,11 +55,11 @@
 
 | 节点 | default | 覆盖命令 |
 |---|---|---|
-| `syncmatica.command` | `true`（全员） | `/syncmatica` 基础入口 |
-| `syncmatica.command.admin` | `op` | `/syncmatica status\|save\|reload\|enable\|disable` |
-| `syncmatica.command.load` | `true` | `/syncmatica load`（全量加载） |
-| `syncmatica.command.load_each` | `true` | `/syncmatica load <file>`（单个加载） |
-| `syncmatica.command.debug` | `op` | `/syncmatica debug [...]` |
+| `syncmatica:command` | `true`（全员，上游 level 0） | `/syncmatica` 基础入口 |
+| `syncmatica:command.admin` | `op`（我方扩展） | `/syncmatica status\|save\|reload\|enable\|disable` |
+| `syncmatica:command.load` | `true`（上游 level 0） | `/syncmatica load`（全量加载） |
+| `syncmatica:command.load_each` | `true`（上游 level 0） | `/syncmatica load <file>`（单个加载） |
+| `syncmatica:command.debug` | `op`（我方扩展） | `/syncmatica debug [...]` |
 
 测试期给 OP 即可全覆盖（`/op <玩家>`）；要测权限边界则用 LuckPerms 精细分发。
 
@@ -96,8 +96,8 @@
 | `save` | `admin` | `context.saveConfiguration()`——把当前 quota/debug 配置 + 调试 master/分类写入 `syncmatica-config.json` |
 | `reload` | `admin` | `context.loadConfiguration()`——从 `syncmatica-config.json` 重读配置 |
 | `enable` / `disable` | `admin` | **软禁用/启用协议**：调 `context.resumeProtocol()`/`suspendProtocol()`。**不重启插件**，只切换协议处理开关；enable 会 `reconnectOnlinePlayers()`（在线玩家重新握手），disable 中断进行中的传输但**不踢玩家**（通道保留） |
-| `load` | `load` | peek `syncmatics/` 目录下所有 `<hash>.litematic`（**文件名须为 UUID**），未注册的逐个建 `ServerPlacement`（owner=发送方玩家，origin=玩家脚下）并 `addPlacement` 广播——**控制台执行同样广播**（在线已握手客户端即时可见，2026-09 修复；此前 console 分支仅注册、客户端需重进服重新握手） |
-| `load <file>` | `load_each` | 加载指定单个 `<file>.litematic`。load 成功/计数消息广播持 `syncmatica.command.admin` 权限的全体玩家与控制台（≈ 上游 `sendSuccess(true)`），执行者不持权则补直发 |
+| `load` | `load` | 只扫描 `syncmatics/` 目录下 `<UUID>.litematic`（目录流级 UUID 过滤，上游 26.3 同款，机制见 §8 文件名过滤），未注册的逐个建 `ServerPlacement`（owner=发送方玩家，origin=玩家脚下）并 `addPlacement` 广播——**控制台执行同样广播**（在线已握手客户端即时可见，2026-09 修复；此前 console 分支仅注册、客户端需重进服重新握手） |
+| `load <file>` | `load_each` | 加载指定单个 `<file>.litematic`。load 成功/计数消息广播给 **op 等级不低于 2** 的全体在线玩家（vanilla Brigadier `sendSuccess(..., true)` 广播位，上游 `:220/:236` 同义），执行者照发保证回执不丢（各身份恰收 1 次）；"No file"/"Failed to peek" 类提示对齐上游 `sendSuccess(..., false)` 仍仅回执行者，空清单回执为失败色红字 `§cNo Syncmatic file(s) found that needs to be loaded.` |
 | `debug [...]` | `debug` | 调试日志宏开关热切换（见 §2.3） |
 
 > **Tab 补全**：一级 `status/save/reload/enable/disable/load/debug`；`load <file>` 列目录内未注册文件（去 `.litematic` 后缀）；`debug <on/off/cat/status/s2c>`；`debug s2c <nms/msg>`；`debug cat <all/none/分类名>`。
@@ -138,16 +138,16 @@ syncmatica 有**两套独立**调试日志系统，互不替代，需配合开�
 **验证**（服务端日志，`SyncmaticaDebug` HANDSHAKE 分类）：
 
 ```
-[DBG/syncmatica/handshake] VersionHandshakeServer.init: 推 REGISTER_VERSION[服务端版本=26.2-b3] → <玩家>
+[DBG/syncmatica/handshake] VersionHandshakeServer.init: 推 REGISTER_VERSION[服务端版本=26.3-b1] → <玩家>
 [DBG/syncmatica/handshake] VersionHandshakeServer: 收到客户端 REGISTER_VERSION[版本=<客户端版本>] ← <玩家>
-（服务端 MOD_VERSION="26.2-b3" 带 `-b` 后缀，不命中版本正则 → FeatureSet.fromVersionString 返回 null → 触发 FEATURE 交换，双方用全集 FeatureSet）
+（服务端 MOD_VERSION="26.3-b1" 带 `-b` 后缀，不命中版本正则 → FeatureSet.fromVersionString 返回 null → 触发 FEATURE 交换，双方用全集 FeatureSet）
 [DBG/syncmatica/handshake] VersionHandshakeServer: fromVersionString 返回 null → requestFeatureSet（FEATURE 交换）
 （FEATURE 交换完成后）
 [DBG/syncmatica/handshake] VersionHandshakeServer.onFeatureSetReceive: 推 CONFIRM_USER[placementCount=N] → <玩家>
 <玩家> 已加入 broadcastTargets（共 N+1 个）
 ```
 
-同时 INFO 级日志：`Syncmatica client joining with local version 26.2-b3 and client version <客户端版本>`。
+同时 INFO 级日志：`Syncmatica client joining with local version 26.3-b1 and client version <客户端版本>`。
 
 **客户端侧**：进服无报错；Litematica 主菜单的「服务端投影」入口可见（即使列表为空）。
 
@@ -299,18 +299,18 @@ syncmatica 有**两套独立**调试日志系统，互不替代，需配合开�
 
 ## 8. 命令 load 测试
 
-**操作**：把一个 `.litematic` 重命名为 `<uuid>.litematic`（文件名必须是 UUID，否则 `updateSyncmaticDir` 跳过）放入 `plugins/VeryMcProto/syncmatics/`，执行：
+**操作**：把一个 `.litematic` 重命名为 `<uuid>.litematic` 放入 `plugins/VeryMcProto/syncmatics/`（文件名必须是 UUID——`updateSyncmaticDir` 的目录流过滤器只接受 `<UUID>.litematic`，其余文件名不进扫描候选，见下方文件名过滤注），执行：
 - `/syncmatica load`（加载目录下所有未注册的，`load_all`）
 - `/syncmatica load <文件名去后缀>`（加载指定一个，`load_each`）
 
-> **文件名 UUID 约束**：`updateSyncmaticDir` 用 `UUID.fromString(name)` 校验文件名（去 `.litematic` 后缀），非 UUID 命名会被静默跳过——这是内容寻址约定（hash 即文件名）。
+> **文件名 UUID 过滤**（上游 26.3 同款）：`updateSyncmaticDir` 经 `DirectoryStream.Filter` 只接受 `<UUID>.litematic`——`FILE_EXT`/`FILTER` 常量 + `buildFilter()`（后缀匹配后 `UUID.fromString(name)`，非法即拒绝，`SyncmaticaCommand.java:305-327`；`updateSyncmaticDir` :330 起套用该过滤器），非 UUID 命名的文件不被扫描（目录流级过滤拒绝，非逐个静默跳过）；hash 即文件名的内容寻址约定不变。上游对照：26.3 `SyncmaticaCommand.java:41-42`（`FILE_EXT`/`FILTER`）/ `:87-110`（`buildFilter`）/ `:112`（`updateSyncmaticDir`），同构。
 
 **验证**：
 - 命令返回加载计数（`§b<NN>§r Syncmatic file(s) found / loaded.`）。
 - `placements.json` 新增记录（owner=发送方玩家；origin=玩家脚下；控制台执行则 owner=随机 UUID、origin=0,0,0）。
-- 玩家执行时（有 ExchangeTarget）走 `comms.addPlacement(target, placement)` → 广播 REGISTER_METADATA；控制台执行无 target → 直接 `manager.addPlacement`（玩家进服握手时 CONFIRM_USER 下发）。
+- 玩家与控制台执行都走 `comms.addPlacement(target, placement)` 广播臂（控制台时 target 为 null，由 addPlacement 内部 null 守卫承载——上游 26.3 `SyncmaticaCommand.java:234` 同构）→ 广播 REGISTER_METADATA，在线已握手客户端即时可见；对 origin 的取消通知仅在 target 非空时发送。
 - 所有在线已握手客户端收到 REGISTER_METADATA（投影出现在列表）。
-- **权限**：无 `syncmatica.command.load` 的玩家执行 `/syncmatica load` 被拒（`§c权限不足。`）；无 `load_each` 执行 `/syncmatica load <file>` 被拒。
+- **权限**：无 `syncmatica:command.load` 的玩家执行 `/syncmatica load` 被拒（`§cInsufficient permissions.`，与代码实际文案一致）；无 `syncmatica:command.load_each` 执行 `/syncmatica load <file>` 被拒。
 
 **失败排查**：
 - 文件未识别 → 文件名是否为合法 UUID；`SyncmaticaUtil.litematicPeek` 解析（`litematica/schematic/` peek 类）；peek 失败的文件不入候选。

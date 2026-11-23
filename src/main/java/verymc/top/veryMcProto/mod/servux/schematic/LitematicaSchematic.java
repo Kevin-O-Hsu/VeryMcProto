@@ -542,7 +542,10 @@ public class LitematicaSchematic
 
     // S2C 文件投递 sendTransmitFile 已删（2026-09）：26.1 stock 客户端 handleBulkData 的 Transmit 分流
     // 整块注释（帧被静默丢弃，上游未实现接收端），上游同方法 @Deprecated(forRemoval=true) 零调用点——
-    // 死信链随唯一调用点（/servux litematic transmit）一并移除。
+    // 死信链随唯一调用点（/servux litematic transmit）一并移除。上游 servux 仓 26.3 发布标签已物理删除
+    // 该方法（schematic/LitematicaSchematic.java 2883→2530 行，tag 全树 grep sendTransmitFile 零命中）；
+    // 注意 litematica 客户端仓的同名方法仍在（litematica-26.3 LitematicaSchematic.java:1529 起 5 处），
+    // 我方删除依据以 servux 服务端仓为准。
     //
     // C2S 文件接收链（receiveFileTransmit + SchematicBuffer/SchematicBufferManager）已于 2026-10 随安全修复
     // 整链移除：客户端可控 FileName 直达 Path.of/dir.resolve 无包含性检查，构成路径穿越任意写/删/读回原语

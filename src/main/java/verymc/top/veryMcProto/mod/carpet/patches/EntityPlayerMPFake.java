@@ -50,7 +50,7 @@ import verymc.top.veryMcProto.mod.carpet.CarpetSettings;
 import verymc.top.veryMcProto.mod.carpet.helpers.ActionPackManager;
 
 /**
- * 假人实体（克隆上游 {@code carpet/patches/EntityPlayerMPFake.java} 26.2 树 286 行同构移植；
+ * 假人实体（克隆上游 {@code carpet/patches/EntityPlayerMPFake.java} 26.3 树 286 行同构移植；
  * 上游零 Mixin 依赖的纯 ServerPlayer 子类——B 侧同类）。
  *
  * <p>spawn 链：{@link #createFake} 解析 UUID / 异步拉取 profile → 原版
@@ -60,7 +60,7 @@ import verymc.top.veryMcProto.mod.carpet.helpers.ActionPackManager;
  *
  * <p>与上游的偏差（docs/carpet/architecture.md 偏差清单）：
  * <ul>
- *   <li>cookie 适配：Paper 26.2 的 {@link CommonListenerCookie} 为 7 组件 record（上游 vanilla 4 参）——
+ *   <li>cookie 适配：Paper 26.3 的 {@link CommonListenerCookie} 为 7 组件 record（上游 vanilla 4 参）——
  *       createFake 用 {@code createInitial(profile, false)}（cli 恰为 createDefault），createShadow 用
  *       7 参 canonical（cli 沿用原玩家自定义）。</li>
  *   <li>shadow 名册守卫：Paper 的重复登录踢线可被第三方插件取消（PlayerKickEvent）——placeNewPlayer 前
@@ -124,7 +124,7 @@ public class EntityPlayerMPFake extends ServerPlayer
             }
 
             EntityPlayerMPFake instance = new EntityPlayerMPFake(server, worldIn, current, ClientInformation.createDefault(), false);
-            // Paper 26.2 cookie 为 7 组件 record——cli=createDefault 与 createInitial 工厂默认逐字段一致
+            // Paper 26.3 cookie 为 7 组件 record——cli=createDefault 与 createInitial 工厂默认逐字段一致
             FakeClientConnection fakeConnection = new FakeClientConnection(PacketFlow.SERVERBOUND);
             server.getPlayerList().placeNewPlayer(fakeConnection, instance, CommonListenerCookie.createInitial(current, false));
             loadPlayerData(instance);
@@ -177,7 +177,7 @@ public class EntityPlayerMPFake extends ServerPlayer
         GameProfile gameprofile = player.getGameProfile();
         EntityPlayerMPFake playerShadow = new EntityPlayerMPFake(server, worldIn, gameprofile, player.clientInformation(), true);
         playerShadow.setChatSession(player.getChatSession());
-        // Paper 26.2 cookie 为 7 组件 record——cli 沿用原玩家自定义，其余字段与 createInitial 默认对齐
+        // Paper 26.3 cookie 为 7 组件 record——cli 沿用原玩家自定义，其余字段与 createInitial 默认对齐
         FakeClientConnection shadowConnection = new FakeClientConnection(PacketFlow.SERVERBOUND);
         server.getPlayerList().placeNewPlayer(shadowConnection, playerShadow,
                 new CommonListenerCookie(gameprofile, 0, player.clientInformation(), true, null, new HashSet<>(), new io.papermc.paper.util.KeepAlive()));
@@ -265,17 +265,22 @@ public class EntityPlayerMPFake extends ServerPlayer
     }
 
     /**
-     * 掉落伤害驱动（Paper 26.2 差异修复，fabric-carpet 同版本实测正常——差异为 Paper 补丁所致）：
+     * 掉落伤害驱动（Paper 26.2/26.3 线差异修复，fabric-carpet 同版本实测正常——差异为 Paper 补丁所致）：
      *
      * <ul>
-     *   <li>vanilla 26.2 的 {@code ServerPlayer.checkFallDamage} 结尾调用 super（伤害在
-     *       {@code Entity.checkFallDamage} → fallOn → causeFallDamage 链），<b>Paper 的补丁删掉了
-     *       这个 super 调用</b>（只余落地粒子）；且 vanilla 物理路径的调用入口与 fallDistance 累积
-     *       在 Paper 上均被客户端权威门对服务端玩家关闭（实测 fallDistance 恒 0、checkFallDamage
-     *       物理路径零调用）。真玩家无感（伤害由 move 包路径结算），假人无 move 包 → 双免疫。</li>
+     *   <li>vanilla 26.2/26.3 的 {@code ServerPlayer.checkFallDamage} 均以 super 调用结尾（26.3 =
+     *       :1825-1835，伤害在 {@code Entity.checkFallDamage} → fallOn → causeFallDamage 链），
+     *       <b>Paper 两线该 super 调用俱在</b>（javap 反编译 ServerPlayer.checkFallDamage 偏移 114 处
+     *       {@code invokespecial Player.checkFallDamage}）。真正被关闭的是物理路径的调用入口与
+     *       fallDistance 累积：vanilla 客户端权威门 {@code Player.isClientAuthoritative()} 恒 true →
+     *       {@code Entity.canSimulateMovement()} 对服务端玩家恒 false（26.3 起
+     *       {@code canSimulateMovement} 改经 {@code getMoveSimulationType()} switch，默认
+     *       {@code AUTHORITATIVE_SIDE} 行为等价），实测 fallDistance 恒 0、checkFallDamage
+     *       物理路径零调用。真玩家无感（伤害由 move 包路径结算），假人无 move 包 → 双免疫。</li>
      *   <li>修复：tick 内手动累积 fallDistance（公开字段直写），落地瞬间直调 vanilla 的
      *       {@code LivingEntity.causeFallDamage(fallDistance, 1.0F, fall)}（伤害本体——护甲/药水/
-     *       荆棘全套公式，与 move 包路径结算点同一方法）。</li>
+     *       荆棘全套公式，与 move 包路径结算点同一方法）。旧维护线走 {@code isClientAuthoritative()}
+     *       覆写机制，与本线手动驱动勿互抄。</li>
      * </ul>
      */
     private void tickFallDamageDrive()

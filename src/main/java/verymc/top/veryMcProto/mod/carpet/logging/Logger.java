@@ -12,7 +12,7 @@ import org.bukkit.entity.Player;
 import verymc.top.veryMcProto.Reference;
 
 /**
- * 订阅模型基类（克隆上游 {@code carpet/logging/Logger.java} 26.2 树，逐段同构——对照行号见各方法注释）。
+ * 订阅模型基类（克隆上游 {@code carpet/logging/Logger.java} 26.3 树，逐段同构——对照行号见各方法注释）。
  *
  * <p>与上游的偏差（对账登记，docs/carpet/architecture.md）：
  * <ul>

@@ -93,7 +93,7 @@ public class EntityUtils
         try
         {
             NbtView view = NbtView.getReader(nbt, world.registryAccess());
-            // 26.2 起 EntityType.create 需要 EntitySpawnRequest（对齐上游 servux-LTS-26.2 EntityUtils:95 逐字）
+            // 26.2 起 EntityType.create 需要 EntitySpawnRequest（对齐上游 servux-26.3 EntityUtils:95 逐字）
             Optional<Entity> optional = EntityType.create(view.getReader(), world, new EntitySpawnRequest(EntitySpawnReason.LOAD, true));
 
             if (optional.isPresent())

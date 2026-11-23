@@ -21,7 +21,7 @@ import verymc.top.veryMcProto.mod.carpet.CarpetSettings;
  * {@code cleanLogs ∧ 实体世界 gamerule} 的该行 DENY——即上游代数的取反等价。
  * <b>cleanLogs 默认 false = 抑制（“干净日志”）；true = 放行 vanilla 命名死亡日志。</b>
  *
- * <p>匹配面：logger 名 + 消息前缀（26.2 映射源实证 {@code net.minecraft.world.entity.LivingEntity} /
+ * <p>匹配面：logger 名 + 消息前缀（26.3 映射源实证 {@code net.minecraft.world.entity.LivingEntity} /
  * {@code "Named entity "}，全 jar 唯一来源）；死亡实体取 {@code LogEvent} 参数[0]（vanilla
  * {@code LOGGER.info("Named entity {} died: {}", this, ...)} 传入实体本体）→ 其世界 gamerule 精确判定
  * （无 anyWorld 近似）；参数缺失/异常 → 保守放行（宁可漏滤不误滤）。
@@ -117,7 +117,7 @@ public final class CleanLogsFilter extends AbstractFilter
             Object[] params = event.getMessage().getParameters();
             if (params != null && params.length > 0 && params[0] instanceof LivingEntity living)
             {
-                // 26.2 映射面：getGameRules() 在 ServerLevel（上游 mixin :26 同判——level() instanceof ServerLevel）
+                // 26.3 映射面：getGameRules() 在 ServerLevel（上游 mixin :26 同判——level() instanceof ServerLevel）
                 if (living.level() instanceof net.minecraft.server.level.ServerLevel serverLevel)
                 {
                     return serverLevel.getGameRules().get(GameRules.SHOW_DEATH_MESSAGES);

@@ -1,6 +1,6 @@
 # Servux 网络协议（五通道 wire 规范）
 
-> 本文档是 Servux 五条通道协议的**现行 as-built 规范**（26.2 线，逐项对照 `OriginImpl/servux-LTS-26.2/` 客户端源码钉死）：通道总表（§2）、Payload 模型（§3–§4）、版本约束与安全闸（§5）、收发流程（§6–§7）、与上游的逐通道差异（§8）。
+> 本文档是 Servux 五条通道协议的**现行 as-built 规范**（26.3 线，逐项对照 `OriginImpl/servux-26.3/` 等上游 26.3 发布标签树源码钉死）：通道总表（§2）、Payload 模型（§3–§4）、版本约束与安全闸（§5）、收发流程（§6–§7）、与上游的逐通道差异（§8）。
 > 网络框架/分片常量/字节限制裸值的唯一权威见 [architecture.md](../architecture.md) §3；各 Provider 的 NBT 数据内容见 [servux/providers.md](providers.md)。
 
 ---
@@ -115,19 +115,19 @@ public interface IServerPayloadData {
 
 ---
 
-## 5. 版本约束与安全闸（26.2 线真值）
+## 5. 版本约束与安全闸（26.3 线真值）
 
-> 本节是跨版本兼容知识与 C2S 安全体制的唯一权威。wire 层面的升级核对方法论见 [operations.md](../operations.md) 升级 SOP。当前线（26.1→26.2）协议面**零变化**——下列真值经 8 个上游仓 26.1/26.2 两树逐文件字节级 diff 实证（非抽样）。
+> 本节是跨版本兼容知识与 C2S 安全体制的唯一权威。wire 层面的升级核对方法论见 [operations.md](../operations.md) 升级 SOP。当前线协议面**零变化**——下列真值经 8 个上游仓 26.1/26.2 两树逐文件字节级 diff 实证（非抽样），26.2→26.3 已对照 26.3 树复核（协议版本 3/2/2/3/2、通道无增删、元数据键与包类型分流不变）。
 
 ### 5.1 MOD_STRING 硬门禁
 
-客户端四处（minihud `HudDataManager:595` / minihud `DataStorage:851` / litematica `EntityDataManager:544` / tweakeroo `EntityDataManager:435`）校验 `servux.startsWith("servux-" + MOD_TYPE + "-" + MC_VERSION)`，`MOD_TYPE="fabric"`、`MC_VERSION` = Fabric loader 精确上游 id——**不匹配即整通道静默退网**。
+客户端五处（litematica `EntityDataManager.java:543` / minihud `HudDataManager.java:594` / minihud `DataStorage.java:851` / minihud `EntityDataManager.java:431` / tweakeroo `EntityDataManager.java:437`，均为 26.3 发布标签树）校验 `servux.startsWith("servux-" + MOD_TYPE + "-" + MC_VERSION)`（原文均为 `startsWith("servux-" + Reference.MOD_TYPE + "-" + MaLiLibReference.MC_VERSION)`），`MOD_TYPE="fabric"`、`MC_VERSION` = Fabric loader 精确上游 id——**不匹配即整通道静默退网**。
 
-→ 我方 `ServuxReference.MOD_TYPE = "fabric"`（伪装），MOD_STRING = `servux-fabric-<mcVersion>-b<buildNumber>`（版本段由 `gradle.properties` 唯一来源注入）。1.21.11 客户端只比对版本号不比对前缀，"paper" 才能蒙混——26.1 起堵死，`"paper"` 前缀会被四通道全部静默拒绝。
+→ 我方 `ServuxReference.MOD_TYPE = "fabric"`（伪装），MOD_STRING = `servux-fabric-<mcVersion>-b<buildNumber>`（版本段由 `gradle.properties` 唯一来源注入），`servux-fabric-26.3-b<N>` 五处全过。1.21.11 客户端只比对版本号不比对前缀，"paper" 才能蒙混——26.1 起堵死，`"paper"` 前缀会被五通道全部静默拒绝。
 
 ### 5.2 协议版本常量表
 
-客户端收 metadata 按 `!=` **严格相等**校验自行退网，错一个即整通道退网 + UnregisterReply：
+客户端收 metadata 按 `!=` **严格相等**校验自行退网，错一个即整通道退网 + UnregisterReply（26.3 复核同值：3/2/2/3/2）：
 
 | 通道 | 协议版本 |
 |---|---|
@@ -259,7 +259,7 @@ else:
 
 ---
 
-## 8. 与上游的逐通道差异/适配点（26.2 复核真值）
+## 8. 与上游的逐通道差异/适配点（26.3 复核真值）
 
 > wire 与可观测行为与上游逐项等价；下列为我方实现侧的适配差异（非协议差异）。EasyPlace/潜影盒等 Mixin 行为类差异见 [architecture.md](../architecture.md) §5.3。
 
@@ -297,8 +297,8 @@ else:
 
 - **元数据握手 / 方块实体 NBT 查询 / 实体 NBT 查询 / 批量实体查询（onBulkEntityRequest）**：实现（复用 Entities 的 `NbtView` + `be.saveWithFullMetadata` / `entity.saveWithoutId` + 玩家背包/末影箱权限过滤；批量查询拼 ListTag 走 PacketSplitter 分包）。
 - **协议帧（toPacket/fromPacket）**：照抄原版（SliceKey + CHANNEL_ID=servux:litematics + 协议版本 2）。
-- **投影粘贴（C2S 上传 .litematic，任务化）**：已实现——客户端上传分片经 `ServuxLitematicaHandler` 重组 → 重组完成后无条件走 `LitematicsDataProvider.handleClientPasteRequest`（上游 0.10.7 `:201` 同构；Task 门控在 Provider——非 `LitematicaPaste` 静默忽略）加载 `SchematicPlacement` 后创建 `PasteTask` 登记 TaskScheduler 分 tick 粘贴。scheduler/task 组 as-built 见 [servux/schematic.md](schematic.md) §9。
-- **S2C 文件投递命令**：**已移除**——当前 stock 客户端 `handleBulkData` 的 Transmit 分流整块注释（无接收端，帧被静默丢弃），上游 `sendTransmitFile` 亦 `@Deprecated(forRemoval)` 零调用点。死信链（`/servux litematic transmit` 命令 + `sendTransmitFile` + 文件字节级门禁）已物理删除，恢复走 git revert。修复版 litematica（≥0.26.11）客户端对 Transmit 帧双向静默丢弃。
+- **投影粘贴（C2S 上传 .litematic，任务化）**：已实现——客户端上传分片经 `ServuxLitematicaHandler` 重组 → 重组完成后无条件走 `LitematicsDataProvider.handleClientPasteRequest`（历史锚 0.10.7 `:201`；现行 26.3 发布树锚 = `LitematicsDataProvider.java:647` 方法头；Task 门控在 Provider——非 `LitematicaPaste` 静默忽略）加载 `SchematicPlacement` 后创建 `PasteTask` 登记 TaskScheduler 分 tick 粘贴。scheduler/task 组 as-built 见 [servux/schematic.md](schematic.md) §9。
+- **S2C 文件投递命令**：**已移除**——当前 stock 客户端 `handleBulkData` 的 Transmit 分流整块注释（无接收端，帧被静默丢弃），上游 `sendTransmitFile` 亦 `@Deprecated(forRemoval)` 零调用点。死信链（`/servux litematic transmit` 命令 + `sendTransmitFile` + 文件字节级门禁）已物理删除，恢复走 git revert。修复版 litematica（≥0.26.11）客户端对 Transmit 帧双向静默丢弃。上游 26.3 删除 `sendTransmitFile` 桥接，与我方 2026-09 S2C 死信链删除同向收敛；`receiveFileTransmit` 上游保留（弃用态）与我方 2026-10 安全删除分歧保持不动。
 - **C2S 文件接收**（`Litematic-Transmit*` → `receiveFileTransmit` 落盘）：**已移除（安全修复）**——客户端可控 `FileName` 直达 `Path.of`/`dir.resolve` 无包含性检查，构成**路径穿越任意写/删/读回**原语（上游安全公告漏洞同源；另有 `new Slice[客户端控长]` 的 OOM 向量），上游同判禁用该实验性接收功能。整链物理删除，恢复走 git revert。
 - **降级点**（schematic 边缘能力，不影响粘贴主链路）：从世界选区创建/采集投影（保存侧）、Sponge/Vanilla structure 格式导入、DataFixer 旧版转换——服务端只消费现成 .litematic，这些原版保存/转换 API 保留签名返回默认值（见 [servux/schematic.md](schematic.md) §7）。
 

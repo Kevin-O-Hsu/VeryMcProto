@@ -59,7 +59,7 @@ public final class VeryMcProto extends JavaPlugin
                 Reference.logger().severe("[" + Reference.PLUGIN_NAME + "] failed to register servux module: " + ex.getMessage());
             }
 
-            // 注册协议 mod 模块（第二个：JEI —— mezz/JustEnoughItems 26.2 完整服务端协议：配方同步 + jei:* 通道交互）
+            // 注册协议 mod 模块（第二个：JEI —— mezz/JustEnoughItems 26.3 完整服务端协议：配方同步 + jei:* 通道交互）
             try
             {
                 verymc.top.veryMcProto.mod.jei.app.JeiModule.enable(this);
@@ -81,7 +81,7 @@ public final class VeryMcProto extends JavaPlugin
                 Reference.logger().severe("[" + Reference.PLUGIN_NAME + "] failed to register syncmatica module: " + ex.getMessage());
             }
 
-            // 注册协议 mod 模块（第四个：Carpet —— gnembon/fabric-carpet 26.2 移植：规则框架 + /carpet 壳 + 8 地基规则）
+            // 注册协议 mod 模块（第四个：Carpet —— gnembon/fabric-carpet 26.3 移植：规则框架 + /carpet 壳 + 8 地基规则）
             try
             {
                 new verymc.top.veryMcProto.mod.carpet.app.CarpetModule().onRegister(DataProviderManager.INSTANCE);

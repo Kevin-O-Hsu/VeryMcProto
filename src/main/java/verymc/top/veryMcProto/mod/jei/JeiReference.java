@@ -3,14 +3,16 @@ package verymc.top.veryMcProto.mod.jei;
 import net.minecraft.resources.Identifier;
 
 /**
- * JEI 模块常量单源（mod 层）。上游 = mezz/JustEnoughItems 26.2 分支（JEI 30.39.0 / MC 26.2，
- * {@code OriginImpl/JustEnoughItems-26.2}，commit {@code f320348}）。
+ * JEI 模块常量单源（mod 层）。上游 = mezz/JustEnoughItems 26.3 线发布 v31.23.0（JEI 31.23.0 / MC 26.3，
+ * {@code OriginImpl/JustEnoughItems-26.3}，发布锚 v31.23.0 = commit {@code a623add}（gradle.properties
+ * minecraftVersion=26.3；服务端协议面 base→tag 零差异）；tag v26.3.0 是 1.21.10 线 JEI 26.3.0，非本线锚）。
  *
  * <p>通道 id 全部逐字镜像上游 {@code mezz.jei.common.network.packets.*} 的
  * {@code CustomPacketPayload.Type} 定义（{@code ModIds.JEI_ID = "jei"}），步骤 0 冻结清单实证。
  * 配方同步两条通道的 wire 归属：{@code fabric:recipe_sync} = Fabric API
  * {@code fabric-recipe-api-v1}（客户端经 {@code ClientRecipeSynchronizedEvent} 消费）；
- * {@code neoforge:recipe_content} = NeoForge 加载器层（参考 Mrbysco/JEIRecipeBridge 实现）。
+ * {@code neoforge:recipe_content} = NeoForge 加载器层（参考 Mrbysco/JEIRecipeBridge 实现——其上游
+ * 26.3 分支（1c872dd）与 26.1 逐字节相同，wire 零变化）。
  *
  * <p><b>客户端门禁（上游实证）</b>：JEI 客户端 {@code isJeiOnServer() = ClientPlayNetworking.canSend(jei:delete_player_item)}
  * ——即<b>服务端是否在 vanilla register 机制中声明过该通道</b>。服务端经 {@code ChannelManager.register}

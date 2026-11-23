@@ -24,20 +24,23 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * 命令输出采集源（mod 层，carpet:hello 协议）——上游 {@code carpet/script/utils/SnoopyCommandSource.java}
- * （26.2 树）的 Paper 移植：以玩家自身权限为载体执行命令（无提权），覆写
- * {@code sendSuccess/sendFailure} 采集输出与错误供 clientCommand 回执组装。
+ * （tag v26.3 树：:34 {@code namesProvider} 字段、:48-100 字段/两构造）的 Paper 移植：以玩家自身权限为
+ * 载体执行命令（无提权），覆写 {@code sendSuccess/sendFailure} 采集输出与错误供 clientCommand 回执组装。
  *
  * <p>与上游的结构差异（对账登记，docs/carpet/protocol.md 偏差清单）：
  * <ul>
  *   <li><b>删 {@code setupPrivates}</b>——上游经 Mixin（{@code CommandSourceStack_scarpetMixin}）把
- *       resultCallback 等 5 个私有字段写入基类；Paper 无 Mixin 运行时不可照抄。B 侧用 9 参 public
- *       构造器（26.2 javap 实证存在）+ {@code with*} 保型覆写承载，基类私有 resultConsumer 保持
- *       构造器默认 {@code CommandResultCallback.EMPTY}（no-op，无 NPE 面）→ 回执帧 {@code return}
+ *       resultCallback 等 5 个私有字段写入基类；Paper 无 Mixin 运行时不可照抄。上游 26.3 已随基类
+ *       NamesProvider 化（原 13 参全量构造收敛）：公开 7 参构造（{@code CommandSourceStack.java:68-79}，
+ *       {@code PermissionSet, server, entity} 三新参面，entity 版内部走 {@code NamesProvider.FOR_ENTITY}；
+ *       8 参/13 参均已 private）。B 侧 7 参形态与上游 26.3 同构（子类镜像 {@code namesProvider} 字段）+
+ *       {@code with*} 保型覆写承载，基类私有 resultConsumer 保持构造器默认
+ *       {@code CommandResultCallback.EMPTY}（no-op，无 NPE 面）→ 回执帧 {@code return}
  *       恒 0。客户端 {@code CarpetClient.onClientCommand} 只读 id/error/output、零消费 return，
  *       该分歧无任何可观测影响（上游 {@code ServerNetworkHandler.java:103} 写真实值——偏差已登记）。</li>
  *   <li>覆写集 = 上游封闭 11 方法清单逐条（withEntity/withPosition/withRotation/withCallback×2/
  *       withPermission/withMaximumPermission/withAnchor/withSigningContext/withLevel/facing）；
- *       26.2 另有的 withSource/withLocation/withSuppressedOutput 上游不覆写，B 侧同判不覆写。</li>
+ *       26.3 另有的 withSource/withLocation/withSuppressedOutput 上游不覆写，B 侧同判不覆写。</li>
  * </ul>
  */
 public class CarpetSnoopyCommandSource extends CommandSourceStack
@@ -46,8 +49,7 @@ public class CarpetSnoopyCommandSource extends CommandSourceStack
     private final Vec3 position;
     private final ServerLevel world;
     private final PermissionSet level;
-    private final String simpleName;
-    private final Component name;
+    private final CommandSourceStack.NamesProvider namesProvider;
     private final MinecraftServer server;
     private final Entity entity;
     private final CommandResultCallback resultConsumer;
@@ -63,14 +65,12 @@ public class CarpetSnoopyCommandSource extends CommandSourceStack
         super(player.commandSource(), player.position(), player.getRotationVector(),
                 player.level() instanceof final ServerLevel serverLevel ? serverLevel : null,
                 player.level().getServer().getProfilePermissions(player.nameAndId()),
-                player.getName().getString(), player.getDisplayName(),
                 player.level().getServer(), player);
         this.output = player.commandSource();
         this.position = player.position();
         this.world = player.level() instanceof final ServerLevel serverLevel ? serverLevel : null;
         this.level = player.level().getServer().getProfilePermissions(player.nameAndId());
-        this.simpleName = player.getName().getString();
-        this.name = player.getDisplayName();
+        this.namesProvider = NamesProvider.FOR_ENTITY;
         this.server = player.level().getServer();
         this.entity = player;
         this.resultConsumer = (b, i) -> result[0] = i;
@@ -83,19 +83,18 @@ public class CarpetSnoopyCommandSource extends CommandSourceStack
     }
 
     private CarpetSnoopyCommandSource(CommandSource output, Vec3 pos, Vec2 rot, ServerLevel world,
-            PermissionSet level, String simpleName, Component name, MinecraftServer server, @Nullable Entity entity,
+            PermissionSet level, CommandSourceStack.NamesProvider namesProvider, MinecraftServer server, @Nullable Entity entity,
             CommandResultCallback consumer, EntityAnchorArgument.Anchor entityAnchor,
             CommandSigningContext context, TaskChainer chainer,
             Component[] error, List<Component> chatOutput)
     {
-        super(output, pos, rot, world, level, simpleName, name, server, entity);
+        super(output, pos, rot, world, level, server, entity);
         this.output = output;
         this.position = pos;
         this.rotation = rot;
         this.world = world;
         this.level = level;
-        this.simpleName = simpleName;
-        this.name = name;
+        this.namesProvider = namesProvider;
         this.server = server;
         this.entity = entity;
         this.resultConsumer = consumer;
@@ -110,7 +109,7 @@ public class CarpetSnoopyCommandSource extends CommandSourceStack
     public CommandSourceStack withEntity(Entity entity)
     {
         return new CarpetSnoopyCommandSource(output, position, rotation, world, level,
-                entity.getName().getString(), entity.getDisplayName(), server, entity,
+                NamesProvider.FOR_ENTITY, server, entity,
                 resultConsumer, entityAnchor, signingContext, taskChainer, error, chatOutput);
     }
 
@@ -118,21 +117,21 @@ public class CarpetSnoopyCommandSource extends CommandSourceStack
     public CommandSourceStack withPosition(Vec3 position)
     {
         return new CarpetSnoopyCommandSource(output, position, rotation, world, level,
-                simpleName, name, server, entity, resultConsumer, entityAnchor, signingContext, taskChainer, error, chatOutput);
+                namesProvider, server, entity, resultConsumer, entityAnchor, signingContext, taskChainer, error, chatOutput);
     }
 
     @Override
     public CommandSourceStack withRotation(Vec2 rotation)
     {
         return new CarpetSnoopyCommandSource(output, position, rotation, world, level,
-                simpleName, name, server, entity, resultConsumer, entityAnchor, signingContext, taskChainer, error, chatOutput);
+                namesProvider, server, entity, resultConsumer, entityAnchor, signingContext, taskChainer, error, chatOutput);
     }
 
     @Override
     public CommandSourceStack withCallback(CommandResultCallback consumer)
     {
         return new CarpetSnoopyCommandSource(output, position, rotation, world, level,
-                simpleName, name, server, entity, consumer, entityAnchor, signingContext, taskChainer, error, chatOutput);
+                namesProvider, server, entity, consumer, entityAnchor, signingContext, taskChainer, error, chatOutput);
     }
 
     @Override
@@ -160,14 +159,14 @@ public class CarpetSnoopyCommandSource extends CommandSourceStack
     public CommandSourceStack withAnchor(EntityAnchorArgument.Anchor anchor)
     {
         return new CarpetSnoopyCommandSource(output, position, rotation, world, level,
-                simpleName, name, server, entity, resultConsumer, anchor, signingContext, taskChainer, error, chatOutput);
+                namesProvider, server, entity, resultConsumer, anchor, signingContext, taskChainer, error, chatOutput);
     }
 
     @Override
     public CommandSourceStack withSigningContext(CommandSigningContext commandSigningContext, TaskChainer taskChainer)
     {
         return new CarpetSnoopyCommandSource(output, position, rotation, world, level,
-                simpleName, name, server, entity, resultConsumer, entityAnchor, commandSigningContext, taskChainer, error, chatOutput);
+                namesProvider, server, entity, resultConsumer, entityAnchor, commandSigningContext, taskChainer, error, chatOutput);
     }
 
     @Override
@@ -176,7 +175,7 @@ public class CarpetSnoopyCommandSource extends CommandSourceStack
         double scale = net.minecraft.world.level.dimension.DimensionType.getTeleportationScale(this.world.dimensionType(), world.dimensionType());
         Vec3 position = new Vec3(this.position.x * scale, this.position.y, this.position.z * scale);
         return new CarpetSnoopyCommandSource(output, position, rotation, world, level,
-                simpleName, name, server, entity, resultConsumer, entityAnchor, signingContext, taskChainer, error, chatOutput);
+                namesProvider, server, entity, resultConsumer, entityAnchor, signingContext, taskChainer, error, chatOutput);
     }
 
     @Override

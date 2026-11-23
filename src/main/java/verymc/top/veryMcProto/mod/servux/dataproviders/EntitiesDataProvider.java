@@ -30,7 +30,7 @@ import verymc.top.veryMcProto.mod.servux.network.ServuxEntitiesPacket;
 import verymc.top.veryMcProto.mod.servux.util.nbt.NbtView;
 
 /**
- * Entities Provider（mod 层）。移植自原版 {@code EntitiesDataProvider}（通道 servux:entity_data，协议版本 2——26.1 真值，常量 ServuxEntitiesPacket.PROTOCOL_VERSION）。
+ * Entities Provider（mod 层）。移植自原版 {@code EntitiesDataProvider}（通道 servux:entity_data，协议版本 2——26.1 真值、26.3 复核同值，常量 ServuxEntitiesPacket.PROTOCOL_VERSION）。
  *
  * <p>方块实体 NBT：{@code be.saveWithFullMetadata(registryAccess)}（NMS 公开）。
  * 实体 NBT：{@link NbtView#getWriter} + {@code entity.saveWithoutId}（绕开 Mixin）。
@@ -69,7 +69,7 @@ public class EntitiesDataProvider extends DataProviderBase
         super("entity_data",
                 ServuxEntitiesHandler.CHANNEL_ID,
                 ServuxEntitiesPacket.PROTOCOL_VERSION,
-                0, ServuxReference.MOD_ID + ".provider.entity_data",
+                0, ServuxReference.MOD_ID + ":entity_data",
                 "Entity Data provider for Client Side mods.");
 
         this.metadata.putString("name", this.getName());
@@ -183,8 +183,9 @@ public class EntitiesDataProvider extends DataProviderBase
 
         BlockEntity be = player.level().getBlockEntity(pos);
 
-        // 对齐上游 :218-222：BE 不存在时不回复（客户端 RequestTracker 自行重试/过期）；
-        // 回空 CompoundTag 会被 litematica 用空 NBT 覆盖客户端缓存并灌入活动方块实体（EntityDataManager:993-1000）。
+        // 对齐上游 :219-223：BE 不存在时不回复（客户端 RequestTracker 自行重试/过期）；
+        // 回空 CompoundTag 会被 litematica 用空 NBT 覆盖客户端缓存并灌入活动方块实体
+        // （litematica EntityDataManager.java:994-1003：removeFromCache :994 / addToCache :995 / loadWithComponents :1002）。
         if (be != null)
         {
             CompoundTag nbt = be.saveWithFullMetadata(player.registryAccess());
@@ -209,7 +210,7 @@ public class EntitiesDataProvider extends DataProviderBase
             {
                 Identifier id = EntityType.getKey(entity.getType());
 
-                // 对齐上游 :251：查询者查自己时保留背包/末影箱（!uuid.equals 才进入剥离判断）
+                // 对齐上游 :252-256：查询者查自己时保留背包/末影箱（!uuid.equals 才进入剥离判断）
                 if (entity.getType() == EntityTypes.PLAYER && !entity.getUUID().equals(player.getUUID()))
                 {
                     if (!this.hasPlayerInventoryPermission(player)) { nbt.remove("Inventory"); nbt.put("Inventory", new ListTag()); }
@@ -231,8 +232,9 @@ public class EntitiesDataProvider extends DataProviderBase
 
     /**
      * NBT 查询权限。原版：override 时按节点，否则 COMMANDS_GAMEMASTER（op level 2，等价 /data get）。
-     * Paper：override 时 Perms.check 节点；否则按 op level 2。
-     * Tweaks Provider 复用此方法。
+     * Paper：override 时 Perms.check 节点；否则纯等级判定（Perms.level 不低于 2，
+     * 等价上游 player.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER)）。
+     * 当前无调用方——上游入口 query-nbt Mixin 未移植，按上游保真保留。
      */
     public boolean hasNbtQueryPermission(ServerPlayer player)
     {
@@ -240,7 +242,7 @@ public class EntitiesDataProvider extends DataProviderBase
         {
             return Perms.check(player, this.permNode + ".nbt_query_override", this.nbtQueryPermissionLevel.getValue());
         }
-        return Perms.check(player, "minecraft.command.data", 2);
+        return Perms.level(player) >= 2;
     }
 
     public boolean hasNbtAllowPlayerInventory() { return this.nbtAllowPlayerInventory.getValue(); }
@@ -266,7 +268,7 @@ public class EntitiesDataProvider extends DataProviderBase
         return false;
     }
 
-    @Override public boolean hasPermission(ServerPlayer player) { return Perms.check(player, this.permNode, this.permissionLevel.getValue()); }
+    @Override public boolean hasPermission(ServerPlayer player) { return Perms.check(player, this.permNode + ".data_provider", this.permissionLevel.getValue()); }
 
     /** 白名单：仅已注册玩家推送（旧客户端被版本门禁拒后永不入册 → 永不收 metadata）。 */
     @Override public void onPlayerJoin(ServerPlayer player)

@@ -46,7 +46,7 @@ import verymc.top.veryMcProto.mod.servux.util.position.PositionUtils;
 
 public class SchematicPlacingUtils
 {
-    // 实体位置修复族 NBT 键——逐字对齐上游 NbtKeys.java（OriginImpl/servux-LTS-26.2/
+    // 实体位置修复族 NBT 键——逐字对齐上游 NbtKeys.java（OriginImpl/servux-26.3/
     // src/main/java/fi/dy/masa/servux/util/nbt/NbtKeys.java）：POS=:12、ATTACHED_BLOCK_POS=:81、
     // LEASH=:111、HOME_RADIUS=:150、HOME_POS=:151。"leash" 自 1.21.5 起为全小写（旧版 "Leash"），
     // 键拼错无任何报错、修复整条静默失效——由 EntityPastePositionFixTest 字面串用例互锁。
@@ -144,7 +144,8 @@ public class SchematicPlacingUtils
         BlockPos regionPos = placement.getPos();
 
         // These are the untransformed relative positions
-        BlockPos posEndRel = (new BlockPos(PositionUtils.getRelativeEndPositionFromAreaSize(regionSize))).offset(regionPos);
+        BlockPos posSize = PositionUtils.getRelativeEndPositionFromAreaSize(regionSize);
+        BlockPos posEndRel = (new BlockPos(posSize.getX(), posSize.getY(), posSize.getZ())).offset(regionPos);
         BlockPos posMinRel = PositionUtils.getMinCorner(regionPos, posEndRel);
 
         // The transformed sub-region origin position
@@ -445,7 +446,7 @@ public class SchematicPlacingUtils
             {
                 CompoundTag tag = info.nbt.copy();
 
-                // 粘贴前实体位置修复族（Pos/TileX/block_pos/leash/home_pos，对齐上游 :446-513）
+                // 粘贴前实体位置修复族（Pos/TileX/block_pos/leash/home_pos，对齐上游 :447-514）
                 applyEntityPastePositionFixes(tag, x, y, z, offX, offY, offZ);
 
                 ListTag rotation = tag.getListOrEmpty("Rotation");
@@ -508,9 +509,9 @@ public class SchematicPlacingUtils
     }
 
     /**
-     * 粘贴前实体 NBT 位置修复族——逐字对齐上游 servux-LTS-26.2
-     * SchematicPlacingUtils.placeEntitiesToWorldWithinChunk（OriginImpl/servux-LTS-26.2/
-     * src/main/java/fi/dy/masa/servux/util/SchematicPlacingUtils.java:446-513）：
+     * 粘贴前实体 NBT 位置修复族——逐字对齐上游 servux-26.3
+     * SchematicPlacingUtils.placeEntitiesToWorldWithinChunk（OriginImpl/servux-26.3/
+     * src/main/java/fi/dy/masa/servux/util/SchematicPlacingUtils.java，声明 :391、修复族 :447-514）：
      * <ol>
      * <li>一切实体：Pos 缺失或不等于世界目标坐标则重写为目标（vanilla 按 NBT Pos 构造实体；
      *     悬挂类载入期依赖正确锚点消除 "invalid hanging position" 告警；修复后的 p 亦是
@@ -525,13 +526,13 @@ public class SchematicPlacingUtils
      *     （缺省 -1）才平移 off*；home_radius 值本身不改写（上游刻意形态）。</li>
      * </ol>
      *
-     * <p>offX/offY/offZ 语义（本类 placeEntitiesToWorldWithinChunk 头部计算 ≡ 上游 :406-408）：
+     * <p>offX/offY/offZ 语义（本类 placeEntitiesToWorldWithinChunk 头部计算 ≡ 上游 :407-409）：
      * 变换后区域原点 + 粘贴原点；leash/home 锚点只平移、不随 mirror/rotation 旋转——上游同源形态。
      *
-     * <p><b>有意偏差（顺序合并）</b>：上游 leash/home 修复位于 Rotation 读取（上游 :480-482）之后，
+     * <p><b>有意偏差（顺序合并）</b>：上游 leash/home 修复位于 Rotation 读取（上游 :481-483）之后，
      * 本方法把 ①-⑤ 收敛为单次调用、整体前置于 Rotation 读取之前——被修复键集
      * （Pos/TileX/block_pos/leash/home_*）与 Rotation 键无交集，origRot 唯一消费点
-     * （本类 ItemFrame yaw 修正 / 上游 :551-558）不读写被修复键，行为等价。
+     * （本类 ItemFrame yaw 修正 / 上游 :552-559）不读写被修复键，行为等价。
      *
      * <p>注：五个键统一走 {@code tag.read(KEY, CODEC).orElse(null)} 直调（Pos 用 Vec3.CODEC，
      * block_pos/leash/home_pos 用 BlockPos.CODEC）——缺失/畸形键一律 null，与上游

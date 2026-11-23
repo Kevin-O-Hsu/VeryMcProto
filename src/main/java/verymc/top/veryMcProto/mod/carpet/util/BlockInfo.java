@@ -22,7 +22,7 @@ import net.minecraft.world.level.pathfinder.PathComputationType;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * /info block 属性清单（上游 {@code carpet/utils/BlockInfo.java} 26.2 树逐字迁包——
+ * /info block 属性清单（上游 {@code carpet/utils/BlockInfo.java} 26.3 树逐字迁包——
  * <b>属性清单非 NBT dump</b>，scope 文档旧述已勘误）。
  *
  * <p>{@link #wander_chances} 为同步重计算（构造临时 ZombifiedPiglin + 1000 次采样 + 最坏

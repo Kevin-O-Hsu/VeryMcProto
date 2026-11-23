@@ -5,7 +5,7 @@ import java.lang.reflect.Field;
 import org.bukkit.entity.Player;
 
 /**
- * HUD 型 logger（克隆上游 {@code carpet/logging/HUDLogger.java} 26.2 树，同构）——消息进
+ * HUD 型 logger（克隆上游 {@code carpet/logging/HUDLogger.java} 26.3 树，同构）——消息进
  * {@link HUDController} footer 缓冲而非系统聊天；退订即时清 footer。
  *
  * <p>偏差：上游 4 参 {@code @Deprecated} 构造器不照抄（零调用死面，AGENTS.md §6 教训 2）。

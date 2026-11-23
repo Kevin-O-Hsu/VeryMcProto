@@ -17,8 +17,8 @@ import verymc.top.veryMcProto.mod.jei.network.JeiServerPacketContext;
 import verymc.top.veryMcProto.mod.jei.network.payload.PacketCheatPermission;
 
 /**
- * cheat 服务端语义（mod 层）。逐字移植上游 {@code mezz.jei.common.util.ServerCommandUtil}（commit f320348；
- * log4j → JUL shim）。权限三切面对应服务端配置三布尔：
+ * cheat 服务端语义（mod 层）。逐字移植上游 {@code mezz.jei.common.util.ServerCommandUtil}（commit a623add——
+ * 26.3 线发布锚 v31.23.0，协议面与分支等价且为本线最新发布；log4j → JUL shim）。权限三切面对应服务端配置三布尔：
  * creative（创造模式玩家）→ op（{@code Permissions.COMMANDS_GAMEMASTER} = 权限级 2）→ give（{/give} 权限），
  * 短路求值顺序与上游一致。
  *
@@ -113,7 +113,7 @@ public final class Cheats
         if (flag && itemStack.isEmpty())
         {
             itemStack.setCount(1);
-            ItemEntity entityitem = entityplayermp.drop(itemStack, false);
+            ItemEntity entityitem = entityplayermp.drop(itemStack, false, net.minecraft.util.Prediction.SERVER_ONLY);
             if (entityitem != null)
             {
                 entityitem.makeFakeItem();
@@ -126,7 +126,7 @@ public final class Cheats
         }
         else
         {
-            ItemEntity entityitem = entityplayermp.drop(itemStack, false);
+            ItemEntity entityitem = entityplayermp.drop(itemStack, false, net.minecraft.util.Prediction.SERVER_ONLY);
             if (entityitem != null)
             {
                 entityitem.setNoPickUpDelay();

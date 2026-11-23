@@ -13,7 +13,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * 射线追踪器（克隆上游 {@code carpet/script/utils/Tracer.java} 26.2 树 90 行逐字同构）。
+ * 射线追踪器（克隆上游 {@code carpet/script/utils/Tracer.java} 26.3 树 90 行逐字同构）。
  *
  * <p>唯一消费面 = 假人 ActionPack 的 {@code getTarget}（USE/ATTACK 瞄准）——方块 clip 与实体拾取的
  * 合并 + 同载具豁免语义是 vanilla 单一 {@code clip} 不提供的组合。上游宿主为 scarpet 工具包，但本类

@@ -2,7 +2,7 @@
 
 > Litematica 投影是 Servux **最大、最复杂**的子系统（约 9000 行）。本文是 as-built 规范：数据结构（§1）、C2S 上传传输（§2–§3）、NBT 序列化（§4）、几何（§5）、放置粘贴与实体修复族（§6）、Task 调度器（§9）。
 > Provider 入口见 [servux/providers.md](providers.md) §Litematics；分包机制见 [architecture.md](../architecture.md) §3.3；通道 wire 与版本约束见 [servux/protocol.md](protocol.md) §8.5。
-> 原版目录：`OriginImpl/servux-LTS-26.2/src/main/java/fi/dy/masa/servux/schematic/`（含 `container/`、`placement/`、`selection/`、`conversion/`；原 `transmit/` 已随安全修复删除）。
+> 原版目录：`OriginImpl/servux-26.3/src/main/java/fi/dy/masa/servux/schematic/`（含 `container/`、`placement/`、`selection/`、`conversion/`；原 `transmit/` 已随安全修复删除）。
 
 ---
 
@@ -198,7 +198,7 @@ class AreaSelection {
 
 ### 6.1 实体位置修复族（`applyEntityPastePositionFixes`）
 
-粘贴实体前对实体 NBT 做六方面位置修复（逐字对齐上游 `SchematicPlacingUtils.java:446-513 + :562-565`）：
+粘贴实体前对实体 NBT 做六方面位置修复（逐字对齐 litematica 仓同名类——我方粘贴工具移植自 litematica 仓而非 servux 仓；26.3 发布标签树锚 `SchematicPlacingUtils.java`：方法头 `placeEntitiesToWorldWithinChunk :422`、offX 区 `:437`、`readVec3dFromListTag :478`、sleeping 修复 `:553-556`、painting 修复块 `:559-570`（instanceof Painting `:564`、width%2 判定 `:568`））：
 
 1. **一切实体 Pos 缺失或 ≠ 世界目标即重写**（vanilla 按 NBT Pos 构造实体；悬挂类消除载入期 "invalid hanging position" 告警；修复后的 p 是后续条目的数据源）。
 2. **四悬挂类**（glow_item_frame/item_frame/leash_knot/painting）恒写 `TileX/Y/Z=(int)` 目标。
@@ -260,7 +260,7 @@ class AreaSelection {
 - 基类 `LitematicaTask` 单点承载共享面（timer、pendingChunks 队列、`updateInfoHudLines` 推帧、`stop()` 完成链、UUID 解析发送）；`FillDeleteTask`（25ms 固定预算 / radius 0 / 进度变化门控推帧）与 `PasteTask`（**vanillaTickTime+60ms 动态预算** / **radius 1** 周边加载判定 / **每 tick 无条件推帧**）只在执行体分叉。
 - `InfoHudTaskSync`：type 16 组帧（进度帧 `Type="REMAINING_CHUNKS"` 枚举常量名——客户端 `valueOf` 无容错；完成帧仅 `InfoHudComplete=true` 缺 InfoHudSync 键）。Data 每条目均为真实区块坐标（n=任务名/rc=总数随条目携带）——**无 cx=-1 标题条目**：上游模板从不入列，客户端标题由 getFirst() 的 n/rc 合成（曾自创标题行占 maxLines 一位，致待处理 ≥10 时客户端少渲染 1 条坐标行，已修正）。
 
-**接线四处**：Handler type 14 → `onTaskRequest`（15/16/17 上游同源忽略）；Provider settings `permission_level_tasks(0)`+`player_task_feedback(false)` + 权限节点 `servux.provider.litematic_data.task.fill/.delete` + `onTaskStatusSync` 四道门 + Box 手工解码（客户端 wire 形状 `{pos1:int[3],pos2:int[3],name}` IntArrayTag）+ FillState `tags.read(codec)`；`LifecycleBridge.onTick` 前置 `onServerTickEndPre()`（对应上游 Mixin tickServer RETURN）；`VeryMcProto.onDisable` 前置 `clearTasks()`。
+**接线四处**：Handler type 14 → `onTaskRequest`（15/16/17 上游同源忽略）；Provider settings `permission_level_tasks(0)`+`player_task_feedback(false)` + 权限节点 `servux:litematic_data.task.fill` / `.task.delete`（挂新基名后）+ `onTaskStatusSync` 四道门 + Box 手工解码（客户端 wire 形状 `{pos1:int[3],pos2:int[3],name}` IntArrayTag）+ FillState `tags.read(codec)`；`LifecycleBridge.onTick` 前置 `onServerTickEndPre()`（对应上游 Mixin tickServer RETURN）；`VeryMcProto.onDisable` 前置 `clearTasks()`。
 
 ### 9.2 `FillDeleteTask` 行为真值（对照上游 TaskFillArea/TaskDeleteArea）
 

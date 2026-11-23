@@ -30,7 +30,8 @@ import verymc.top.veryMcProto.mod.servux.ServuxDebug;
  * BlockPlaceEvent / ack）全部由 vanilla 主线程包队列原生完成。
  *
  * <p><b>手持 desync 命门（本范式存在的理由）</b>：{@code use_item_on} 包内不带物品，方块种类由
- * 「vanilla 主线程包队列时刻的玩家手持」隐式决定（26.1.2 实证；26.2.build.129 复核同构 ServerGamePacketListenerImpl:2096-2134）。litematica
+ * 「vanilla 主线程包队列时刻的玩家手持」隐式决定（26.1.2 实证；26.2.build.129 复核同构 ServerGamePacketListenerImpl:2096-2134；
+ * 26.3 复核同构 handleUseItemOn 方法头 :2157、checkLimit :2160、1.0000001 逐轴校验 :2177-2178）。litematica
  * easyPlace 自动换槽（SetCarriedItem / 容器 SWAP，主线程包队列才应用）与编码包同 tick 背靠背发出——
  * 若在 netty 线程读手持（旧实现），必读到<b>旧槽物品</b>，偶发错块（实机日志 [Netty NIO IO #1]
  * 线程名实锤）。本实现的 netty 路径对玩家状态<b>零读取</b>（不读手持 / 权限 / 世界），该竞态类被
