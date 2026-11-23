@@ -51,7 +51,7 @@ import verymc.top.veryMcProto.mod.carpet.helpers.ActionPackManager;
 
 /**
  * 假人实体（克隆上游 {@code carpet/patches/EntityPlayerMPFake.java} 26.3 树 286 行同构移植；
- * 上游零 Mixin 依赖的纯 ServerPlayer 子类——B 侧同类）。
+ * 上游零 Mixin 依赖的纯 ServerPlayer 子类——Paper 移植侧同类）。
  *
  * <p>spawn 链：{@link #createFake} 解析 UUID / 异步拉取 profile → 原版
  * {@code PlayerList.placeNewPlayer(FakeClientConnection, ...)} 走完整进服管线（读 playerdata、
@@ -66,7 +66,7 @@ import verymc.top.veryMcProto.mod.carpet.helpers.ActionPackManager;
  *   <li>shadow 名册守卫：Paper 的重复登录踢线可被第三方插件取消（PlayerKickEvent）——placeNewPlayer 前
  *       断言目标已从名册移除，否则中止（上游 Fabric 无事件面，不存在此竞态）。</li>
  *   <li>{@code fixStartingPosition} 字段删除：其唯一消费点 = 上游 {@code PlayerList_fakePlayersMixin} ①
- *       在 placeNewPlayer 内部注入运行——B 侧无注入面，定位由 spawn 后的 {@code teleportTo} 承载
+ *       在 placeNewPlayer 内部注入运行——Paper 移植侧无注入面，定位由 spawn 后的 {@code teleportTo} 承载
  *       （上游 :106 同款；差异 = placeNewPlayer 过程中假人短暂处于读档/出生点位置，调参级）。</li>
  *   <li>{@code respawnFake} 工厂删除：其唯一消费点 = 上游 Mixin ② respawn 内 {@code new ServerPlayer}
  *       重定向——Paper respawn 为实例复用（零 new），假人子类身份天然保留。</li>
@@ -399,7 +399,7 @@ public class EntityPlayerMPFake extends ServerPlayer
 
         // If above branch was taken, *this* has been removed and replaced, the new instance has been set
         // on 'our' connection (which is now theirs, but we still have a ref).
-        // （Paper respawn = 实例复用，替换物即自身——上游 Mixin ② 的 respawnFake 重定向在 B 侧无对应现实）
+        // （Paper respawn = 实例复用，替换物即自身——上游 Mixin ② 的 respawnFake 重定向在 Paper 移植侧无对应现实）
         if (connection.player.isChangingDimension()) {
             connection.player.hasChangedDimension();
         }

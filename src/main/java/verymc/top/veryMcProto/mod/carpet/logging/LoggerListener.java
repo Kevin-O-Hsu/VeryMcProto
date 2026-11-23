@@ -18,7 +18,7 @@ import verymc.top.veryMcProto.mod.carpet.CarpetSettings;
 import verymc.top.veryMcProto.mod.carpet.patches.EntityPlayerMPFake;
 
 /**
- * /log 订阅生命周期监听（B 侧新增类——上游对应挂点为 {@code PlayerList_coreMixin}（进服）与
+ * /log 订阅生命周期监听（Paper 移植侧新增类——上游对应挂点为 {@code PlayerList_coreMixin}（进服）与
  * {@code ServerGamePacketListenerImpl_coreMixin}（退服），Paper 无 Mixin 的 Bukkit 事件等价物，偏差登记）。
  *
  * <p><b>join 谓词</b>（钉死，防两种读法分叉）：
@@ -32,13 +32,13 @@ import verymc.top.veryMcProto.mod.carpet.patches.EntityPlayerMPFake;
  * </ul>
  *
  * <p><b>假人豁免</b>：join/quit 全跳过（{@code EntityPlayerMPFake} 判定）——假人 HUD 天然 void
- * （FakeClientConnection.send no-op 吸收，上游发往假人的消息同样不可见 = 可见行为等价），而 B 侧持久层
+ * （FakeClientConnection.send no-op 吸收，上游发往假人的消息同样不可见 = 可见行为等价），而 Paper 移植侧持久层
  * 新增故须显式豁免（防 /player 反复 spawn/kill 向 carpet-logs.json 灌永久死记录；shadow 共享真人
  * UUID 亦不触达，防污染真人册——偏差登记）。
  *
  * <p>与上游的其余偏差：{@code onPlayerQuit} = 桶迁移（上游 :230-240 同构），store 不动（显式状态已持久）。
  * {@link #handleJoin} 供 CarpetModule 启用期对在线玩家补扫（reload 时无 join 事件，CarpetHelloHandler
- * 补扫同款 B 侧增补）。
+ * 补扫同款 Paper 移植侧增补）。
  */
 public class LoggerListener implements Listener
 {
@@ -124,7 +124,7 @@ public class LoggerListener implements Listener
             }
             if (tombstones.contains(def.logger()))
             {
-                continue; // 显式退订墓碑拦截（B 侧持久化新增语义）
+                continue; // 显式退订墓碑拦截（Paper 移植侧持久化新增语义）
             }
             LoggerRegistry.subscribePlayer(name, def.logger(), def.option()); // 不落盘
         }

@@ -11,14 +11,14 @@ import java.util.List;
  * 任务面 = {@link LitematicaTask} 基类（Fill/Delete 与 Paste 共居；上游 {@code List<ITask>} 的对应物，
  * 预算模型任务自带——Fill/Delete 固定 25ms、Paste 为 vanillaTickTime+60ms 动态预算，调度器零预算知识）。
  *
- * <p><b>有意偏差（相对上游，B 轮终审裁定）</b>：
+ * <p><b>有意偏差（相对上游）</b>：
  * <ul>
  *   <li><b>无 synchronized</b>：上游锁防 Fabric netty 线程注入；Paper 上 C2S custom payload 与
  *       BukkitRunnable tick 均在主线程，scheduleTask/runTasks 单写者不变式成立（B2-B3 实证）；</li>
  *   <li><b>无双列表 tasksToAdd</b>：上游双列表唯一效果是"当 tick 注册、同/下 tick 启动"；此处任务内
  *       timer 初值 0（首次 runTasks 即触发）等价承载，另因 Bukkit 心跳先于网络包处理，实际启动恒为
  *       <b>收到请求的下一 tick（≤1 tick 偏移）</b>，不得声称与上游逐 tick 等价；</li>
- *   <li><b>无 hasTask/getAllTasks/removeTask</b>：上游全库零调用点（B/CF 轮调用图实证）。</li>
+ *   <li><b>无 hasTask/getAllTasks/removeTask</b>：上游全库零调用点（调用图核查实证）。</li>
  * </ul>
  */
 public class TaskScheduler

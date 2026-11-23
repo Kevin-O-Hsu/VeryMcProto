@@ -7,7 +7,7 @@ import org.bukkit.command.CommandSender;
 
 /**
  * 规则值验证器（克隆上游 {@code carpet/api/settings/Validator.java} 语义，source 类型换 Bukkit
- * {@link CommandSender}；上游 legacy/api 两代验证器在 B 侧合并为单代——B 无迁移负担）。
+ * {@link CommandSender}；上游 legacy/api 两代验证器在 Paper 移植侧合并为单代——Paper 移植侧无迁移负担）。
  *
  * <p>验证器可在通过时返回修正值（不必是原值）；返回 null = 拒绝本次变更。
  * {@code source == null} 表示 conf 载入路径（上游同语义—— CarpetPermissionLevel 借此放行 conf 侧变更）。
@@ -50,7 +50,7 @@ public abstract class Validator<T>
     /**
      * COMMAND 类目规则的自动挂载验证器（上游 {@code carpet/settings/Validator.java} 的 {@code _COMMAND} 同构）。
      * 上游副作用 = {@code notifyPlayersCommandsChanged}（经 server schedule 重发全服命令树）——
-     * B 侧等价 = {@link org.bukkit.entity.Player#updateCommands()}（命令路径在主线程，直接刷新）。
+     * Paper 移植侧等价 = {@link org.bukkit.entity.Player#updateCommands()}（命令路径在主线程，直接刷新）。
      */
     public static class _COMMAND<T> extends Validator<T>
     {

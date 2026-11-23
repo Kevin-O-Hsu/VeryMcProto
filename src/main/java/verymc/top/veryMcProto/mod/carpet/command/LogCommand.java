@@ -31,7 +31,7 @@ import static net.minecraft.commands.SharedSuggestionProvider.suggest;
  * /log 命令（对照上游 {@code carpet/commands/LogCommand.java} 26.3 树；Paper Brigadier 载体——
  * {@code PlayerCommand} 范式，plugin.yml 无条目）。
  *
- * <p><b>命令形状</b>（subscribe/clear 形——phases §6 交付物① 定义，非上游 flat 树）：
+ * <p><b>命令形状</b>（subscribe/clear 形——本移植定义，非上游 flat 树）：
  * <pre>/log                     订阅状态列表（仅玩家；上游 listLogs :69-135 结构）
  * /log subscribe &lt;logger&gt; [option]   显式订阅（option 缺省 = logger 默认值；重复订阅覆写）
  * /log clear               退订全部
@@ -41,10 +41,10 @@ import static net.minecraft.commands.SharedSuggestionProvider.suggest;
  * <ul>
  *   <li>上游 flat 树（{@code /log <name> [option] [player]} toggle 形 + clear [player] 定向）→
  *       subscribe/clear 形、自用面（无 {@code <player>} 定向参数、无 toggle）；</li>
- *   <li>上游 listLogs 为可点击/悬停组件（:104-131 "!" 点击 + "^" 悬停）→ B 侧纯文本 + 命令提示行
+ *   <li>上游 listLogs 为可点击/悬停组件（:104-131 "!" 点击 + "^" 悬停）→ Paper 移植侧纯文本 + 命令提示行
  *       （假人面偏差 #28 Messenger 替换范式同判）；列表经 Bukkit {@code sendMessage(String)} 发送（§ 码解析）；</li>
  *   <li>console / 非玩家对任意子命令统一回执拒绝（上游裸 /log "For players only" :71-79 同款文案——
- *       其余子命令上游经 getPlayerByName(null) 恒失败 "No player specified"，B 侧自用面无目标参，
+ *       其余子命令上游经 getPlayerByName(null) 恒失败 "No player specified"，Paper 移植侧自用面无目标参，
  *       统一为同一句拒绝）；</li>
  *   <li>每次订阅变更同步 {@link LogSubscriptionStore}（显式 + 墓碑，跨会话持久判据②）。</li>
  * </ul>

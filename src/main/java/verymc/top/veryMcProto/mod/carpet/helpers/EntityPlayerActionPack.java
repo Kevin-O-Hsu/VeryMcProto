@@ -39,11 +39,11 @@ import verymc.top.veryMcProto.mod.carpet.util.Tracer;
  * 假人动作包（克隆上游 {@code carpet/helpers/EntityPlayerActionPack.java} tag v26.3 树 640 行为基——除包名/导入/本 javadoc 与 4 处 getActionPack duck 接口替换外逐字同构，本文件 650 行）。
  *
  * <p>每 tick 由 {@link ActionPackManager} 驱动 {@link #onUpdate}（上游 = ServerPlayer.tick HEAD 的
- * Mixin 注入，B 侧 = 侧表 + BukkitRunnable，偏差登记）：逐 action 状态机推进 + 写运动输入
+ * Mixin 注入，Paper 移植侧 = 侧表 + BukkitRunnable，偏差登记）：逐 action 状态机推进 + 写运动输入
  * （{@code player.zza}/{@code player.xxa}，假人恒写否则停不下来——上游注释）。
  *
  * <p>与上游的唯一替换：{@code ((ServerPlayerInterface) player).getActionPack()} →
- * {@link ActionPackManager#get}（4 处 :298/:375/:397/:468——上游 Mixin duck 接口在 B 侧的等价物；行号锚 = tag v26.3 树，该仓 HEAD 即 tag）。
+ * {@link ActionPackManager#get}（4 处 :298/:375/:397/:468——上游 Mixin duck 接口在 Paper 移植侧的等价物；行号锚 = tag v26.3 树，该仓 HEAD 即 tag）。
  */
 public class EntityPlayerActionPack
 {

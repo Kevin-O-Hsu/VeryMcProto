@@ -12,7 +12,7 @@ import verymc.top.veryMcProto.Reference;
  * /carpet 权限判定（克隆上游 {@code carpet/utils/CommandHelper.canUseCommand} :44-60 的 26.3 等价物）。
  *
  * <p>上游以 {@code CommandSourceStack} 直判 {@code Commands.LEVEL_*.check(source.permissions())}；
- * B 侧统一经 {@code VanillaCommandWrapper.getListener(sender)} 取等价 CommandSourceStack——
+ * Paper 移植侧统一经 {@code VanillaCommandWrapper.getListener(sender)} 取等价 CommandSourceStack——
  * 全 sender 类型精确（玩家/命令方块/矿车命令方块/RCON/Console/Proxied 七分支，Paper 自带映射，
  * 无手写矩阵漂移面）。true/false 值在 sender 分派前全局短路（Console × "false" 正确拒绝，上游 :46-51 同构）。
  */

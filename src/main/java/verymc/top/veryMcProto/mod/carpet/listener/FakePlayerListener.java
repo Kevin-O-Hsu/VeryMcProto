@@ -12,7 +12,7 @@ import verymc.top.veryMcProto.mod.carpet.helpers.ActionPackManager;
 import verymc.top.veryMcProto.mod.carpet.patches.EntityPlayerMPFake;
 
 /**
- * 假人相关事件处理（B 侧新增类——上游对应行为由 Mixin 字段生命周期与
+ * 假人相关事件处理（Paper 移植侧新增类——上游对应行为由 Mixin 字段生命周期与
  * {@code Player_fakePlayersMixin} 击退 redirect 承载，Paper 无 Mixin 的等价物，偏差登记）。
  *
  * <ul>
@@ -23,7 +23,7 @@ import verymc.top.veryMcProto.mod.carpet.patches.EntityPlayerMPFake;
  *       复用，须显式 stopAll 复刻"重生后动作清零"上游语义。</li>
  *   <li><b>velocity</b>：击退保真——上游 {@code Player_fakePlayersMixin} 让假人不进
  *       {@code causeExtraKnockback} 的"向目标客户端回发 motion 包 + 回滚服务端速度"分支（假人无客户端，
- *       vanilla 却按客户端权威速度处理 ServerPlayer 目标）。B 侧等价 = 取消该事件
+ *       vanilla 却按客户端权威速度处理 ServerPlayer 目标）。Paper 移植侧等价 = 取消该事件
  *       （cancelled 路径跳过回滚三件套，假人保留服务端击退速度）。{@code syncVelocity} 门控把取消面
  *       收窄到攻击击退路径（事件恰在 syncVelocity 置位后 fire），不误伤插件主动 setVelocity。
  *       已知局限：任意伤害同 tick 内插件 setVelocity 的残余误伤窗口（≤1 tick，事件无 cause 字段，

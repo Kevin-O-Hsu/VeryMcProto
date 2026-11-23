@@ -10,7 +10,7 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * /distance 距离计算体（上游 {@code carpet/utils/DistanceCalculator.java} 26.3 树逐字迁包——
- * <b>非寻路算法</b>：两点 Spherical/Cylindrical/Manhattan 三距离公式，phases/scope 文档旧述
+ * <b>非寻路算法</b>：两点 Spherical/Cylindrical/Manhattan 三距离公式；早期工作文档曾误述（
  * "A* 寻路/Tracer" 系笔误已勘误，docs/carpet/architecture.md §19）。
  *
  * <p>{@link #START_POINT_STORAGE} 按命令源名键控（{@code from}/{@code to} 两次独立调用间的进程内

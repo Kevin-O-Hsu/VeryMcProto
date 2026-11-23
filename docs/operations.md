@@ -121,7 +121,7 @@
 /carpet removeDefault <rule>                     移除 conf 覆盖并复位默认值
 ```
 
-> 上游 `/carpet <rule> [value]` 会话级 set 与 `list defaults` / `list <tag>` 子面未移植（B 侧四子命令面，偏差清单见 [`carpet/architecture.md`](carpet/architecture.md)）；规则全表与各键行为面见 §3.4。
+> 上游 `/carpet <rule> [value]` 会话级 set 与 `list defaults` / `list <tag>` 子面未移植（Paper 移植侧四子命令面，偏差清单见 [`carpet/architecture.md`](carpet/architecture.md)）；规则全表与各键行为面见 §3.4。
 
 ### 1.7 `/player`（Carpet 假人）
 
@@ -430,7 +430,7 @@ commands:
 
 | 规则键 | 类型 | 默认 | 选项域 | 行为面 |
 |---|---|---|---|---|
-| `language` | string | `en_us` | 6 语言 strict | 纯壳注册（B 侧无 i18n，对外恒英文） |
+| `language` | string | `en_us` | 6 语言 strict | 纯壳注册（Paper 移植侧无 i18n，对外恒英文） |
 | `carpetCommandPermissionLevel` | string | `ops` | `ops`\|`2`\|`4` | /carpet 动态门禁（NMS 判级；conf 载入自由、命令路径改需 op 4） |
 | `superSecretSetting` | bool | `false` | — | 纯壳注册（上游 debug 行为不随地基移植） |
 | `explosionNoBlockDamage` | bool | `false` | — | `EntityExplodeEvent` + `BlockExplodeEvent` 双挂点 `blockList().clear()`（即时生效） |
@@ -449,7 +449,7 @@ commands:
 | `commandPerimeterInfo` | string | `true` | CommandLevel OPTIONS | /perimeterinfo 命令门禁（§1.9） |
 | `commandDraw` | string | `ops` | CommandLevel OPTIONS | /draw 命令门禁（§1.9） |
 
-### 3.5 `carpet-logs.json`（/log 订阅持久化——B 侧新增，上游无对应物）
+### 3.5 `carpet-logs.json`（/log 订阅持久化——Paper 移植侧新增，上游无对应物）
 
 JSON（Gson pretty + 原子 tmp/move）：`{ "<uuid>": { "name": 名字快照, "subs": { "<logger>": "<option|\"\">" }, "off": ["<logger>"...] } }`——`subs` = **显式**订阅（/log 命令产生，`""` = null option 哨兵）；`off` = **退订墓碑**（/log clear 产生，压制默认施用复活）。变更即落盘；**文件从不主动创建**（从未有玩家触过 /log 的服不产生）；坏 JSON 按空册起步（默认订阅重施）。改名玩家经 UUID 复原订阅（名字快照随进服更新）；假人永不写入。模型细节见 [`carpet/architecture.md`](carpet/architecture.md) §16.1。
 

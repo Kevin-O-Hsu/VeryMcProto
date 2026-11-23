@@ -15,7 +15,7 @@
 
 ## §2 规则框架（`settings/`，上游 `api/settings/SettingsManager.java` 集群同构）
 
-| B 侧类 | 上游对照 | 说明 |
+| Paper 移植侧类 | 上游对照 | 说明 |
 |---|---|---|
 | `Rule`（注解） | `carpet/settings/Rule.java`（legacy——上游 `CarpetSettings` 实际使用者） | 七元素 name/desc/extra/category/options/strict/validate 逐字；删 `appSource`/`condition`（§9） |
 | `Validator` | `carpet/api/settings/Validator.java` + legacy 嵌套类 | source 类型换 `CommandSender`；内置 `_COMMAND`（值变更→全服 `Player#updateCommands()` 重发命令树）/`StrictValidator`（索引 0 前置）/`CommandLevel`（OPTIONS 常量） |
@@ -39,9 +39,9 @@
 - `util/CommandHelper.canUseCommand`（上游 `CommandHelper.java:44-60` 同构）：`true`/`false` 值**先于 sender 分派全局短路**；级别判定统一走 `VanillaCommandWrapper.getListener(sender).permissions()` + `Commands.LEVEL_*.check(...)`（26.2 PermissionSet API，26.3 复核同构；全 sender 类型精确——玩家/命令方块/矿车命令方块/RCON/Console/Proxied/FeedbackForwarding 七分支为 Paper 自带映射，`getListener` 返回 null/异常 → deny+warn 兜底）。`parseLevel` 纯函数：`ops`→2、`0-4`→对应档、其余→-1（单测全矩阵）。
 - `carpetCommandPermissionLevel` 的 `CarpetPermissionLevel` 验证器：**conf 载入（source==null）自由；命令路径修改需 owner 级（op 4）**（上游 `CarpetSettings.java:134-146` validator 实机制——其注解 desc "Can only be set via .conf file" 与机制脱节，系上游文案陈旧，以 validator 为准）。
 
-## §5 8 地基规则表（默认值/选项域/上游行号/B 侧行为面）
+## §5 8 地基规则表（默认值/选项域/上游行号/Paper 移植侧行为面）
 
-| 规则 | 默认 | 选项域 | 上游行号 | B 侧行为面 |
+| 规则 | 默认 | 选项域 | 上游行号 | Paper 移植侧行为面 |
 |---|---|---|---|---|
 | `language` | `en_us` | 6 语言 strict | `CarpetSettings.java:77-84` | 纯壳注册（B 无 i18n，对外恒英文——对账语言维不继承） |
 | `carpetCommandPermissionLevel` | `ops` | `ops`\|`2`\|`4` | `:147-153` | §4 动态门禁 |
@@ -61,7 +61,7 @@
 ## §7 cleanLogs 过滤器代数（`logging/CleanLogsFilter`）
 
 - **上游真机制**（语义权威）：`LivingEntity_cleanLogsMixin.java:23-27` @Redirect `die()` 内 `hasCustomName()` → `named && ServerLevel && cleanLogs && SHOW_DEATH_MESSAGES(实体世界)` 才放行命名死亡日志行。**极性警示：cleanLogs 默认 `false` = 抑制（"干净日志"）；`true` = 放行 vanilla 命名死亡日志——勿"纠正"反转。**（上游自身 desc 声称滤 "Maximum sound pool size" 行，与唯一机制 mixin 脱节——文案陈旧勘误，B 按 mixin 代数实现。）
-- **B 侧等价**：log4j2 Filter（挂 root LoggerConfig，`addFilter + updateLoggers` 安装 / `removeFilter + updateLoggers` 摘除——不摘除会钉住旧类加载器）。匹配面：logger 名 `net.minecraft.world.entity.LivingEntity` + 消息前缀 `"Named entity "`（26.2 映射源实证全 jar 唯一来源）；DENY 条件 = 命中匹配面 && `!(cleanLogs && 实体世界 SHOW_DEATH_MESSAGES)`——**死亡实体取 `LogEvent` 参数[0]**（vanilla `LOGGER.info("Named entity {} died: {}", this, ...)` 传入实体本体）→ 其 `level()` 的 gamerule，per-entity per-world 精确、无聚合近似；参数缺失/异常 → 保守放行（宁可漏滤不误滤）。
+- **Paper 移植侧等价**：log4j2 Filter（挂 root LoggerConfig，`addFilter + updateLoggers` 安装 / `removeFilter + updateLoggers` 摘除——不摘除会钉住旧类加载器）。匹配面：logger 名 `net.minecraft.world.entity.LivingEntity` + 消息前缀 `"Named entity "`（26.2 映射源实证全 jar 唯一来源）；DENY 条件 = 命中匹配面 && `!(cleanLogs && 实体世界 SHOW_DEATH_MESSAGES)`——**死亡实体取 `LogEvent` 参数[0]**（vanilla `LOGGER.info("Named entity {} died: {}", this, ...)` 传入实体本体）→ 其 `level()` 的 gamerule，per-entity per-world 精确、无聚合近似；参数缺失/异常 → 保守放行（宁可漏滤不误滤）。
 - 共存开关：spigot.yml `settings.log-named-deaths`（默认 true）为原生总闸——false 时该行根本不产生，与过滤器无冲突。
 
 ## §8 perfPermissionLevel 真因果（只读登记）
@@ -110,15 +110,15 @@
 
 上游对照 = `OriginImpl/fabric-carpet-26.3/` 的 `patches/`（三件套 286/47/43 行，纯子类零 Mixin）+ `helpers/EntityPlayerActionPack.java`（640 行纯逻辑，v26.3 树为基）+ `commands/PlayerCommand.java`（362 行 brigadier 树）+ `script/utils/Tracer.java`（90 行纯算法）。**判定结论"可完整实现，约 95% 等价"经实机实证成立**——缺口 = tick-freeze（唯一功能缺口）+ 击退近似残余窗口（§14）。
 
-B 侧结构（`mod/carpet/` 下）：
+Paper 移植侧结构（`mod/carpet/` 下）：
 
-| B 侧类 | 上游对照 | 说明 |
+| Paper 移植侧类 | 上游对照 | 说明 |
 |---|---|---|
 | `patches/EntityPlayerMPFake` | `carpet/patches/EntityPlayerMPFake.java`（286 行同构） | spawn/kill/die/tick/teleport(override) 链逐字 + 三处 Paper 适配（cookie 7 参 / shadow 名册守卫 / kill 链注释） |
 | `patches/FakeClientConnection` | 同名（47 行照抄） | EmbeddedChannel 直赋 public `channel` 字段（上游经 duck 接口）；五 no-op 覆写不可省（`setupInboundProtocol` 会碰裸 channel 的 netty pipeline） |
 | `patches/NetHandlerPlayServerFake` | 同名（kick 拦截面重推导） | 拦 Paper kick 漏斗**终端** `disconnect(DisconnectionDetails)`（上游单参 `disconnect(Component)` 已退化为转发壳）：idling/duplicate_login 两 key → `kill(reason)`，其余 return 吞掉 |
 | `helpers/EntityPlayerActionPack` | 同名（上游 v26.3 树 640 行为基） | 除包名/导入/javadoc 与 4 处 `ServerPlayerInterface.getActionPack()` → `ActionPackManager.get(player)` duck 替换外逐字同构；我方文件 650 行（26.3 喂马修复随迁，见 §25 #72） |
-| `helpers/ActionPackManager` | 上游 = Mixin 字段 + tick HEAD 注入 | B 侧等价：`Map<UUID,ActionPack>` 侧表 + BukkitRunnable 每 tick `tickAll` + 生命周期（quit 清/respawn 复位/卸载 kill 全假人） |
+| `helpers/ActionPackManager` | 上游 = Mixin 字段 + tick HEAD 注入 | Paper 移植侧等价：`Map<UUID,ActionPack>` 侧表 + BukkitRunnable 每 tick `tickAll` + 生命周期（quit 清/respawn 复位/卸载 kill 全假人） |
 | `util/Tracer` | `carpet/script/utils/Tracer.java`（90 行照抄） | 零 scarpet 依赖纯算法，迁包 |
 | `command/PlayerCommand` | 同名（362 行树移植） | Paper Brigadier API 载体（§12） |
 | `listener/FakePlayerListener` | 上游 = Mixin 字段生命周期 + `Player_fakePlayersMixin` | quit（侧表 remove）/respawn（动作归零）/velocity（击退保真，syncVelocity 门控——26.2 前名 hurtMarked）三事件 |
@@ -139,7 +139,7 @@ B 侧结构（`mod/carpet/` 下）：
 
 - **spawn**：`createFake` 异步 profile 解析（`spawning` 名册防重入）→ `placeNewPlayer(FakeClientConnection, fake, CommonListenerCookie.createInitial(profile, false))` 走原版进服管线（读 playerdata/入名册/入世界/PlayerJoinEvent）→ 返回后 `new NetHandlerPlayServerFake(...)` 替换监听器（ctor 自动 `player.connection = this`；被弃的真实例无全局注册面；Paper `createTextFilterForPlayer` 恒 DUMMY，双 join 无害——placeNewPlayer 内对真监听器的 suspendFlushing/teleport 调用落在被弃实例，无害）→ loadPlayerData/teleportTo/setHealth/STEP_HEIGHT/gameMode/广播 RotateHead+PositionSync/model layers/flying。**Paper 26.2 的 `CommonListenerCookie` 为 7 组件 record**（vanilla 4 参已扩：clientBrand/channels/KeepAlive）——createFake 用 `createInitial`（cli=createDefault 逐字段等价），createShadow 用 7 参 canonical（cli 沿用原玩家自定义）。
 - **kill**（假人唯一移除协议）：`shakeOff`（卸载玩家乘客）→ duplicate_login 立即 / 其余 schedule 下 tick → `this.connection.onDisconnect(details)`——`this.connection` 静态类型 = **SGPL**（`ServerPlayer.connection` 字段声明），`SGPL.onDisconnect` = 完整退出链（`removePlayerFromWorld` → PlayerQuitEvent + 名册/世界移除 + 存档），不经 kick 终端、与 `NetHandlerPlayServerFake.disconnect` 覆写无递归。`die()` = shakeOff + super.die + setHealth(20) + new FoodData + kill(deathMessage)——假人死亡即移除不留尸。
-- **respawn**：**Paper `PlayerList.respawn` 为实例复用**（`ServerPlayer serverPlayer = player`，vanilla `new ServerPlayer` 已被 CraftBukkit 移除，playerweight 源码实证）——上游 Mixin ② 的 respawnFake 重定向在 B 侧**无对应现实**，假人子类身份与 fake 监听器 respawn 后天然保留，零重组代码（预研期"手工三步重组"方案作废，勘误记档）。唯一触发源 = 上游 `teleport(TeleportTransition)` override 的 wonGame 分支（PERFORM_RESPAWN 经 `connection.handleClientCommand` 走 vanilla respawn 链，末地门场景）——照抄。`fixStartingPosition` 字段删除（其唯一消费点 = 上游 Mixin ① 的 placeNewPlayer 内注入；B 侧定位由 spawn 后 `teleportTo` 承载，差异 = placeNewPlayer 过程中假人短暂处于读档位置，调参级）。
+- **respawn**：**Paper `PlayerList.respawn` 为实例复用**（`ServerPlayer serverPlayer = player`，vanilla `new ServerPlayer` 已被 CraftBukkit 移除，playerweight 源码实证）——上游 Mixin ② 的 respawnFake 重定向在 Paper 移植侧**无对应现实**，假人子类身份与 fake 监听器 respawn 后天然保留，零重组代码（预研期"手工三步重组"方案作废，勘误记档）。唯一触发源 = 上游 `teleport(TeleportTransition)` override 的 wonGame 分支（PERFORM_RESPAWN 经 `connection.handleClientCommand` 走 vanilla respawn 链，末地门场景）——照抄。`fixStartingPosition` 字段删除（其唯一消费点 = 上游 Mixin ① 的 placeNewPlayer 内注入；Paper 移植侧定位由 spawn 后 `teleportTo` 承载，差异 = placeNewPlayer 过程中假人短暂处于读档位置，调参级）。
 - **shadow**：原玩家 `disconnect(duplicate_login)` → **名册守卫**（`getPlayer(uuid) != null` → 中止——Paper 的顶号踢线可被第三方插件取消（PlayerKickEvent），上游 Fabric 无事件面不存在此竞态）→ 复用 GameProfile/ClientInformation placeNewPlayer → ActionPack copyFrom（侧表覆盖真实玩家语义的来源）。
 
 ## §14 假人偏差清单（B ↔ 上游）
@@ -155,7 +155,7 @@ B 侧结构（`mod/carpet/` 下）：
 | 25 | tick 驱动 = BukkitRunnable 每 tick 遍历侧表（上游 = `ServerPlayer.tick` HEAD 注入） | scheduler 阶段早于同 tick 玩家 tick——运动输入写的消费不错过；实机 5.6 m/s 标定实证等价 |
 | 26 | 命令载体 = Paper Brigadier API lifecycle 注册（上游 = Fabric Dispatcher） | §12；偏差 #3 勘误的前置 |
 | 27 | NMS Argument 取值 = `context.getArgument`（上游 = NMS 静态 get） | Paper 树泛型与 NMS context 泛型不兼容；语义等价 |
-| 28 | `Messenger` 输出 → `sendFailure`/bold 组件（消息文本逐字英文） | B 侧无 carpet Messenger |
+| 28 | `Messenger` 输出 → `sendFailure`/bold 组件（消息文本逐字英文） | Paper 移植侧无 carpet Messenger |
 | 29 | `CommonListenerCookie` = `createInitial` / 7 参 canonical（上游 = vanilla 4 参） | Paper 26.2 扩展 record（§13） |
 | 30 | 插件卸载 kill 全假人（上游 = CarpetServer 关服链） | 防插件 reload 后 NMS 对象引用已卸载类 → NoClassDefFoundError |
 | 31 | shadow 名册守卫（上游无） | Paper 特有：顶号踢线可被插件取消 → 同 UUID 双实体 |
@@ -179,33 +179,33 @@ B 侧结构（`mod/carpet/` 下）：
 
 上游对照 = `carpet/logging/`（LoggerRegistry 173 行 + Logger 255 行 + HUDLogger 53 行 + HUDController 149 行）+ `carpet/commands/LogCommand.java`（222 行）+ `carpet/utils/SpawnReporter.java:93,:99-152`（mobcaps 切片）+ `carpet/utils/Messenger.java:30-123`（色表）。范围 = tps/mobcaps 两条 HUD logger + 框架；chat 型五条（tnt/explosions/projectiles/fallingBlocks/pathfinding）与 counter/packets 不做（终局——近似实现无法对等上游语义）。
 
-B 侧结构（`mod/carpet/` 下）：
+Paper 移植侧结构（`mod/carpet/` 下）：
 
-| B 侧类 | 上游对照 | 说明 |
+| Paper 移植侧类 | 上游对照 | 说明 |
 |---|---|---|
 | `logging/Logger` | `carpet/logging/Logger.java`（逐段同构） | 名键 online/offline 双桶 + 桶迁移 + 两 log 重载 + isOptionValid；删上游 6 死成员（偏差 #45） |
 | `logging/HUDLogger` | 同名（同构） | removePlayer→clearPlayer / sendPlayerMessage→HUD 缓冲 |
 | `logging/LoggerRegistry` | 同名（同构减 seenPlayers/toggle） | 双 Map + `__tps`/`__mobcaps` 反射快捷位（上游 Field 机制保留）+ 订阅三原语；注册面 = tps(null,null) + mobcaps("dynamic",四选项) 两条（上游 :44/:47 逐字） |
 | `logging/HUDController` | `HUDController.java:70-129`（/log 面） | tps 行（MSPT/TPS 公式逐字）+ mobcaps 行（option→维度 switch）+ footer flush + runTaskTimer(20,20) 任务 |
 | `logging/SpawnReport` | `SpawnReporter.java:99-152` 切片 + Messenger 色表 | MAGIC_NUMBER=289 硬编码 + 先除后乘公式逐字 + 热力色/类别色 § 码化 |
-| `logging/LogSubscriptionStore` | —（B 侧新增层） | 跨会话持久（上游无）：显式订阅 + 退订墓碑双表、UUID 键 + 名字快照、`""`↔null 哨兵、变更即原子写、空册不主动建文件 |
+| `logging/LogSubscriptionStore` | —（Paper 移植侧新增层） | 跨会话持久（上游无）：显式订阅 + 退订墓碑双表、UUID 键 + 名字快照、`""`↔null 哨兵、变更即原子写、空册不主动建文件 |
 | `logging/LoggerListener` | 上游 = PlayerList/SGPL 双 Mixin 挂点 | join/quit Bukkit 事件；join 谓词见 §16.1；假人全链豁免；handleJoin 供启用期补扫 |
 | `command/LogCommand` | `carpet/commands/LogCommand.java` | Paper Brigadier 载体（PlayerCommand 范式）；subscribe/clear 形 |
 
-装配（`CarpetModule.onRegister` 追加）：`store.load()` → `LoggerRegistry.initLoggers()` → `LoggerListener` 注册 → `LifecycleEvents.COMMANDS` 注册 `LogCommand.build(store)` → `HUDController.start(plugin)` → 在线玩家补扫 `handleJoin`（reload 空窗闭合，hello 补扫同款 B 侧增补）。`disable()` 追加三连清：`HUDController.shutdown()`（停任务 + 清在线订阅者 footer——须先于 stopLoggers，订阅名册仍存活）→ `store.save()` 兜底 → `LoggerRegistry.stopLoggers()`。plugin.yml 无 /log 条目（Brigadier 注册自足，/player 先例）。
+装配（`CarpetModule.onRegister` 追加）：`store.load()` → `LoggerRegistry.initLoggers()` → `LoggerListener` 注册 → `LifecycleEvents.COMMANDS` 注册 `LogCommand.build(store)` → `HUDController.start(plugin)` → 在线玩家补扫 `handleJoin`（reload 空窗闭合，hello 补扫同款 Paper 移植侧增补）。`disable()` 追加三连清：`HUDController.shutdown()`（停任务 + 清在线订阅者 footer——须先于 stopLoggers，订阅名册仍存活）→ `store.save()` 兜底 → `LoggerRegistry.stopLoggers()`。plugin.yml 无 /log 条目（Brigadier 注册自足，/player 先例）。
 
 ### §16.1 订阅状态模型（设计要点：显式订阅 + 退订墓碑 + 默认不落盘三性质）
 
 **内存册**（上游同构）：`playerSubscriptions`（名→logger→option，HashMap 容 null 值——tps 默认 option 即 null）+ 每 Logger 内 online/offline 名键双桶（quit/connect 桶迁移，会话内重登保活）。
 
-**持久册**（`carpet-logs.json`，B 侧新增——判据②跨会话持久）双信号模型：
+**持久册**（`carpet-logs.json`，Paper 移植侧新增——判据②跨会话持久）双信号模型：
 
 - `subs` = **显式**订阅（/log 命令产生），UUID 键 + 名字快照；
 - `off` = **退订墓碑**（/log clear 产生）——压制默认施用对已显式退订者的重施（防「退订项重登复活」）；
 - **默认订阅永不落盘**——每次 join 由 LoggerListener 按当前 `defaultLoggers` 规则值对「未订阅且无墓碑」的 logger 重评估（防规则变更对存量玩家永久冻结；管理员改默认对未显式选择者下次 join 生效）；
 - join 谓词（钉死）：当前名**在内存册**（`getPlayerSubscriptions != null`——主表即名册，清空删键、离线条目亦镜像）→ 仅桶迁移；**不在册**（新玩家/重启首连/**改名重登**）→ store 经 UUID 载入 + 以当前名入册 + 名字快照更新。
 
-**假人豁免**：join/quit/补扫全跳过（`EntityPlayerMPFake` 判定，shadow 共享真人 UUID 一并豁免）——假人 HUD 天然 void（上游发往假人同样不可见 = 可见行为等价），B 侧持久层新增故须显式豁免（防 /player 反复 spawn/kill 灌永久死记录）。
+**假人豁免**：join/quit/补扫全跳过（`EntityPlayerMPFake` 判定，shadow 共享真人 UUID 一并豁免）——假人 HUD 天然 void（上游发往假人同样不可见 = 可见行为等价），Paper 移植侧持久层新增故须显式豁免（防 /player 反复 spawn/kill 灌永久死记录）。
 
 ### §16.2 HUD 投递
 
@@ -228,7 +228,7 @@ B 侧结构（`mod/carpet/` 下）：
 | 45 | 命令形状 = `/log`（裸列表）/`subscribe <logger> [option]`/`clear [logger]`（上游 flat 树 `/log <name> [option] [player]` + toggle + `<name> clear`） | 字面 subscribe/clear 形；自用面无 `<player>` 定向参、无 toggle |
 | 46 | listLogs 纯文本 + 命令提示行（上游可点击/悬停组件 `!`/`^`） | 假人偏差 #28 Messenger 替换范式同判；option-less logger（tps）分支结构保持 |
 | 47 | console/非玩家全子命令统一 "For players only" 拒绝（上游各执行体经 getPlayerByName(null) 恒失败走 "No player specified"） | 自用面无目标参，收敛为同一句（上游裸 /log 文案同源） |
-| 48 | 假人全链豁免（上游对假人照常施用默认与订阅——会话即清无累积面） | B 侧持久层新增：防 /player 反复 spawn/kill 灌永久死记录 + shadow 污染真人册 |
+| 48 | 假人全链豁免（上游对假人照常施用默认与订阅——会话即清无累积面） | Paper 移植侧持久层新增：防 /player 反复 spawn/kill 灌永久死记录 + shadow 污染真人册 |
 | 49 | Logger 删上游 6 死成员：`stardardLogger` 工厂/`log(lMessageIgnorePlayer)`/`getAcceptedOption`/两 4 参 `@Deprecated` 构造器/`togglePlayerSubscription` | 上游全树零调用或消费点全在不做面（counter/packets/chat 五条——终局）——AGENTS.md §6 教训 2「勿照抄死 API」；不做，永不回填 |
 | 50 | `seenPlayers`/`firstTime` 整体删除（上游 :139-164 会话级首连判定） | 唯一消费点（默认施用 else-if :215-226）已随持久化模型迁 LoggerListener 每 join 重评估——无第二消费方 |
 | 51 | 注册面 = tps/mobcaps 两条（上游 9 条） | chat 型五条与 counter/packets 不做（终局）——框架留有注册位 |
@@ -248,9 +248,9 @@ B 侧结构（`mod/carpet/` 下）：
 
 上游对照 = `carpet/commands/{DistanceCommand(44),InfoCommand(87),PerimeterInfoCommand(84),DrawCommand(451),SpawnCommand(250 行——仅 mobcaps/entities 两子树)}.java` + `carpet/utils/{DistanceCalculator,BlockInfo,PerimeterDiagnostics,Messenger}.java` + `carpet/script/utils/Colors.java` + `carpet/utils/SpawnReporter.java:99-152,:234-258`（多行 mobcaps 与实体清单切片）。**上游语义勘误（命令族落地时实证）**：`/distance` = 两点三距离公式（Spherical/Cylindrical/Manhattan，`DistanceCalculator`——非寻路、零 Tracer 消费）；`/info` = block-only 属性清单（`BlockInfo`——无实体分支、非 NBT dump）。
 
-B 侧结构（`mod/carpet/` 下）：
+Paper 移植侧结构（`mod/carpet/` 下）：
 
-| B 侧类 | 上游对照 | 说明 |
+| Paper 移植侧类 | 上游对照 | 说明 |
 |---|---|---|
 | `util/Messenger` | `carpet/utils/Messenger.java`（~320 行全量逐字） | **命令族新增的命令输出层**：色字母码→Style、可点击/悬停（`!`/`?`/`^`/`@`/`&`）、`tp` 坐标行、`heatmap_color`/`creatureTypeColor` 字母码版。imports 全 vanilla chat API + slf4j（NMS 自带）——零 Mixin/scarpet 依赖。**三代输出面并存**：/player /log = § 码（#28/#43/#46 已裁决面，不回改）；HUD footer = § 码 String（传输载体）；命令族命令 = Messenger 组件（上游一致，锚点扩展①裁决） |
 | `util/DistanceCalculator` | 同名（逐字） | `START_POINT_STORAGE` 按源名键控 + 三距离公式（`Mth.abs((float)a-(float)b)` float 域逐字）+ setEnd 无起点回落；`findDistanceBetweenTwoPoints(Vec3,Vec3)` 返回组件列表**零 source 依赖 → 纯 JVM 单测直调**（测试缝隙抽取取消——比原计划更贴上游） |
@@ -277,7 +277,7 @@ B 侧结构（`mod/carpet/` 下）：
 | 56 | `/perimeterinfo` mob 参数取值 = `getArgument(Holder.Reference.class)` 直取，canSummon 复检省略 | vanilla `ResourceArgument.getSummonableEntityType` 的 `ERROR_NOT_SUMMONABLE_ENTITY` 非 public 不可引用；suggests 已过滤 + 非 Mob 拒绝行双兜底（不可达面经 loadEntityRecursive 后仍落上游同款拒绝文案） |
 | 57 | `/draw` fillUpdates 固定 true 语义：`impendingFillSkipUpdates` ThreadLocal 删除、收尾 `updateNeighborsAt` 无条件 | ThreadLocal 消费端 = 6 个 fillUpdates Mixin（BlockInput/Level/LevelChunk/StructureBlockEntity/Commands/SGPL），Paper 无 Mixin 物理不可移植——机械照抄得无消费者死代码 + 虚假保真；上游 `fillUpdates` 规则不纳入（终局）；false 路径（放置态邻居形状后处理剥离）随之不可达 |
 | 58 | `/spawn mobcaps set` 子分支裁剪 | 写场 `SpawnReporter.mobcap_exponent` 的消费端全在 Mixin（`MobCategory_spawnMixin.java:21` + `NaturalSpawnerMixin.java:233`）——移植即得"打印成功实为 no-op"的说谎命令（/log 的 MAGIC_NUMBER=289 硬编码连显示都不变） |
-| 59 | `/spawn` 数据面 = `SpawnReport`（/log 切片类 + 命令族追加多行/实体清单）；rounds 段恒 `"w "` 空段 | 上游单类 `SpawnReporter` 的 B 侧承载——chunkcount 谱系随偏差 #52（SpawnState 公开 API）；`spawn_tries` 属 tracking 面（未移植）→ rounds 恒 1，上游 :124-128 rounds==1 分支同位行为 |
+| 59 | `/spawn` 数据面 = `SpawnReport`（/log 切片类 + 命令族追加多行/实体清单）；rounds 段恒 `"w "` 空段 | 上游单类 `SpawnReporter` 的 Paper 移植侧承载——chunkcount 谱系随偏差 #52（SpawnState 公开 API）；`spawn_tries` 属 tracking 面（未移植）→ rounds 恒 1，上游 :124-128 rounds==1 分支同位行为 |
 | 60 | NMS 参数取值等价体族：`Vec3Argument.getVec3`/`BlockPosArgument.getSpawnablePos`/`BlockStateArgument.getBlock`/`BlockPredicateArgument.getBlockPredicate`/`DimensionArgument.getDimension`/`ResourceArgument.getSummonableEntityType` → `context.getArgument(name, Result.class)` 直取 | 假人偏差 #27 同判扩展：这些 vanilla 静态助手签名钉死 NMS 泛型上下文、paper 树泛型不可直调；javap 实证各助手体即 `getArgument` 直取（BlockStateArgument.getBlock = 单条 getArgument 指令；getBlockPredicate = getArgument(Result)——Result implements Predicate 直接可用） |
 | 61 | `wander_chances` 照抄不加限（已知继承风险） | 上游同构同步重计算（主线程最坏 1000×36000 次 goal 评估——实体被困 1×1 场景分钟级停顿）；保真裁决 R5；上游 Fabric 同风险 |
 | 62 | `CommandBuildContext` = `CommandBuildContext.simple(registryAccess, VANILLA_SET)` 懒加载单点（上游 = vanilla `Commands` 构建期注入同一实例） | paper lifecycle 注册面无 ctx 注入位；公开静态工厂（javap 实证签名）+ registryAccess 只读快照可安全缓存 |

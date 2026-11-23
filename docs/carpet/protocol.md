@@ -11,7 +11,7 @@
 
 ## §1 通道与载体
 
-- **通道**：`carpet:hello`（上游 `CarpetClient.java:48` 逐字；B 侧 `CarpetReference.CARPET_CHANNEL`，地基预声明）。
+- **通道**：`carpet:hello`（上游 `CarpetClient.java:48` 逐字；Paper 移植侧 `CarpetReference.CARPET_CHANNEL`，地基预声明）。
 - **载体**：`record CarpetPayload(CompoundTag data)` —— **单 CompoundTag 经 vanilla `writeNbt/readNbt`**
   （上游 `CarpetClient.java:18-38`）。不是 servux 的 DataTag、无 VarInt packetType 前缀——消息区分靠
   CompoundTag 的**字符串键**（`"69"`/`"420"`/`"Rules"`/`"clientCommand"`）。
@@ -34,14 +34,14 @@
 
 ## §2 消息面全表
 
-| # | 方向 | 键 | 载荷 | B 侧实现 | 上游锚 |
+| # | 方向 | 键 | 载荷 | Paper 移植侧实现 | 上游锚 |
 |---|---|---|---|---|---|
 | 1 | S2C | `HI`（"69"） | string（服务端 carpet 版本） | `onJoin → sendHi`：`{"69": CARPET_VERSION}` | ServerNetworkHandler.java:38-50 |
 | 2 | C2S | `hello`（"420"） | string（客户端 carpet 版本） | `receivePlayPayload → onHello` | :52-67 |
 | 3 | S2C | `Rules` | `{规则名键: {Value, Manager, Rule}}` | `onHello → sendRules`（全量）+ `onRuleChanged`（单规则增量） | :64-66 / :219-239 |
 | 4 | C2S | `clientCommand` | `{command, id}` | `receivePlayPayload → handleClientCommand` | :80-115 |
 | 5 | S2C | `clientCommand` 回执 | `{id, error?, return, output?}`（output 空则无键） | `buildClientCommandReply` | :97-113 |
-| 6 | S2C | 自定义 NBT（任意键） | 任意 Tag | `broadcastCustomCommand` / `sendCustomCommand`（机制面，B 侧无调用者——上游唯一在用者 scShapes 随 Scarpet 不移植） | :144-162 |
+| 6 | S2C | 自定义 NBT（任意键） | 任意 Tag | `broadcastCustomCommand` / `sendCustomCommand`（机制面，Paper 移植侧无调用者——上游唯一在用者 scShapes 随 Scarpet 不移植） | :144-162 |
 | 7 | C2S | 未知键 | — | warn 日志丢弃（上游 onClientData 同构） | :117-130 |
 
 **版本串纪律（同 servux MOD_STRING 门禁级）**：HI 帧版本串 = `CarpetReference.CARPET_VERSION` =
@@ -79,7 +79,7 @@ carpet 客户端（装 carpet mod）            vanilla / 未装 carpet / 假人
 
 - **名册 = 单表 `Map<UUID, String>`**（hello 写入、quit 清除、shutdown 清空）。上游 valid/remote 双集
   的差异仅在单机集成服（memory connection）场景，Paper 专用服恒等价；UUID 键对 respawn 实例重建
-  免疫（上游以 ServerPlayer 实例为键，靠 connection 存续送达——B 侧加固，偏差 #1）。
+  免疫（上游以 ServerPlayer 实例为键，靠 connection 存续送达——Paper 移植侧加固，偏差 #1）。
 - **客户端规则可达集 = 我方规则集 ∩ 客户端本地同名规则集**（客户端 `ClientNetworkHandler.java:60-61`
   按 `Manager`+`Rule` 在自身注册表查名，查不到静默跳过、零报错）——**硬门禁：进 Rules 帧的规则名
   必须逐字存在于上游 `CarpetSettings` 注册表**（当前 18 条已逐一核验——/log 规则的 commandLog/defaultLoggers
@@ -92,7 +92,7 @@ carpet 客户端（装 carpet mod）            vanilla / 未装 carpet / 假人
 
 - **全量帧**（onHello 应答）：`SettingsManager.getRules()` 全部规则（含默认值——上游 :64-66 口径），
   每条 `{Value: String.valueOf(value()), Manager: "carpet", Rule: name}`；键撞名时追加 `"2"`
-  （上游 :229-232 while 循环逐字保留——多管理器场景防御，B 侧单管理器下不可达，单测经直构双同名
+  （上游 :229-232 while 循环逐字保留——多管理器场景防御，Paper 移植侧单管理器下不可达，单测经直构双同名
   规则锁死该行为）。
 - **增量推送**：`ParsedRule.set`（命令路径 source≠null）→ `SettingsManager.notifyRuleChanged`
   （经 `setRuleChangedCallback` 注入的回调——保持 settings/ 包零 network/ 依赖，地基单测形态不破）
@@ -115,7 +115,7 @@ carpet 客户端（装 carpet mod）            vanilla / 未装 carpet / 假人
 - 执行入口 = `server.getCommands().performPrefixedCommand(source, command)`（NMS 直调）。
 - **回执**：`{id, error?[错误文本], return:0, output?[ListTag<String>]}`（output 空则无键，
   上游 :109-112）。客户端只消费 id/error/output（`CarpetClient.onClientCommand:95-112` 逐行实证）。
-- **安全面**：上游同构零门禁（不查名册/不限速）+ B 侧增补 **INFO 审计行**（`[Carpet] clientCommand
+- **安全面**：上游同构零门禁（不查名册/不限速）+ Paper 移植侧增补 **INFO 审计行**（`[Carpet] clientCommand
   from <玩家>: <命令>`）——`performPrefixedCommand` 直调 NMS 命令链绕过
   `PlayerCommandPreprocessEvent` 与 ops 广播，审计行补偿该缺口（偏差 #4）。畸形包缺键抛
   NoSuchElementException → 框架 `ProtocolChannel` catch 记 warn 丢弃（不踢人——plugin messaging
@@ -126,7 +126,7 @@ carpet 客户端（装 carpet mod）            vanilla / 未装 carpet / 假人
 - **onRegister 追加**（`CarpetModule`）：`new CarpetHelloHandler` → `ChannelManager.register`
   → `registerEvents(handler)`（join/quit）→ `sm.setRuleChangedCallback(handler::onRuleChanged)` →
   **对 `Bukkit.getOnlinePlayers()` 补发 HI**（插件中途启用/reload 时在线玩家无 join 事件——
-  上游 init 期无在线玩家、无此路径，B 侧增补闭合「reload 后规则推送永久空转」半失效态，偏差 #6）。
+  上游 init 期无在线玩家、无此路径，Paper 移植侧增补闭合「reload 后规则推送永久空转」半失效态，偏差 #6）。
 - **disable 追加**：`ChannelManager.unregister(CARPET_CHANNEL)` + `handler.shutdown()`（名册清空；
   须先于框架 `ChannelManager.unregisterAll`——`VeryMcProto.onDisable` 时序，jei 先例）。
 - plugin.yml **零改动**（通道 = 运行时 Messenger 注册，先例 jei/syncmatica；clientCommand 是协议

@@ -88,7 +88,7 @@ class CarpetHelloFrameTest
     void collidingRuleKeysGetUpstreamSuffixLoop()
     {
         // 上游 :229-232 撞名 while 循环：key 已存在则追加 "2"（多管理器同名规则场景；
-        // B 侧单管理器下不可达，本用例经 ParsedRule.of 直构两同名规则锁死该行为）
+        // Paper 移植侧单管理器下不可达，本用例经 ParsedRule.of 直构两同名规则锁死该行为）
         ParsedRule<?> first = ParsedRule.of(field("dup"), manager);
         ParsedRule<?> second = ParsedRule.of(field("dupAgain"), manager);
         CompoundTag rules = CarpetHelloHandler.buildRulesFrame(List.of(first, second), manager.identifier()).getCompound("Rules").orElseThrow();

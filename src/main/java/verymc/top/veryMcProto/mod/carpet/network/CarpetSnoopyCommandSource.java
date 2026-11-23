@@ -33,14 +33,14 @@ import net.minecraft.world.phys.Vec3;
  *       resultCallback 等 5 个私有字段写入基类；Paper 无 Mixin 运行时不可照抄。上游 26.3 已随基类
  *       NamesProvider 化（原 13 参全量构造收敛）：公开 7 参构造（{@code CommandSourceStack.java:68-79}，
  *       {@code PermissionSet, server, entity} 三新参面，entity 版内部走 {@code NamesProvider.FOR_ENTITY}；
- *       8 参/13 参均已 private）。B 侧 7 参形态与上游 26.3 同构（子类镜像 {@code namesProvider} 字段）+
+ *       8 参/13 参均已 private）。Paper 移植侧 7 参形态与上游 26.3 同构（子类镜像 {@code namesProvider} 字段）+
  *       {@code with*} 保型覆写承载，基类私有 resultConsumer 保持构造器默认
  *       {@code CommandResultCallback.EMPTY}（no-op，无 NPE 面）→ 回执帧 {@code return}
  *       恒 0。客户端 {@code CarpetClient.onClientCommand} 只读 id/error/output、零消费 return，
  *       该分歧无任何可观测影响（上游 {@code ServerNetworkHandler.java:103} 写真实值——偏差已登记）。</li>
  *   <li>覆写集 = 上游封闭 11 方法清单逐条（withEntity/withPosition/withRotation/withCallback×2/
  *       withPermission/withMaximumPermission/withAnchor/withSigningContext/withLevel/facing）；
- *       26.3 另有的 withSource/withLocation/withSuppressedOutput 上游不覆写，B 侧同判不覆写。</li>
+ *       26.3 另有的 withSource/withLocation/withSuppressedOutput 上游不覆写，Paper 移植侧同判不覆写。</li>
  * </ul>
  */
 public class CarpetSnoopyCommandSource extends CommandSourceStack
@@ -201,7 +201,7 @@ public class CarpetSnoopyCommandSource extends CommandSourceStack
     public void sendSuccess(Supplier<Component> message, boolean broadcastToOps)
     {
         // 上游语义逐字（:209-213）：采集进 chatOutput，丢弃 broadcastToOps 广播——
-        // clientCommand 的输出回传客户端而非 op 广播（审计缺口由 handler 的 INFO 审计行补偿，B 侧增补）
+        // clientCommand 的输出回传客户端而非 op 广播（审计缺口由 handler 的 INFO 审计行补偿，Paper 移植侧增补）
         chatOutput.add(message.get());
     }
 }

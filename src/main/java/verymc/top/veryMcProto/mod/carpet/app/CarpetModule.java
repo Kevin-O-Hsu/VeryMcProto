@@ -66,7 +66,7 @@ public final class CarpetModule implements ModModule
         Bukkit.getPluginManager().registerEvents(new verymc.top.veryMcProto.mod.carpet.listener.FakePlayerListener(), Reference.plugin());
         verymc.top.veryMcProto.mod.carpet.helpers.ActionPackManager.start(Reference.plugin());
 
-        // /player 命令（Paper Brigadier API——上游 brigadier 树的 B 侧注册面；requires = commandPlayer
+        // /player 命令（Paper Brigadier API——上游 brigadier 树的 Paper 移植侧注册面；requires = commandPlayer
         // 规则门，plugin.yml 无条目）。注册面失败仅降级日志，不影响规则框架
         try
         {
@@ -85,7 +85,7 @@ public final class CarpetModule implements ModModule
         // carpet:hello 协议：通道注册（incoming 接收 + outgoing 声明成对，黄金模板
         // JeiModule.enable 注册形态）→ join/quit 监听 → 规则推送回调挂载 → 在线玩家补扫 HI。
         // 插件中途启用（reload）时在线玩家无 join 事件——补发 HI 闭合握手空窗（上游 init 期无在线
-        // 玩家、无此路径，B 侧增补，偏差登记 docs/carpet/protocol.md）
+        // 玩家、无此路径，Paper 移植侧增补，偏差登记 docs/carpet/protocol.md）
         carpetHelloHandler = new CarpetHelloHandler();
         ChannelManager.INSTANCE.register(CarpetReference.CARPET_CHANNEL, carpetHelloHandler);
         carpetHelloHandler.setPlayRegistered(CarpetReference.CARPET_CHANNEL);
@@ -105,7 +105,7 @@ public final class CarpetModule implements ModModule
 
         // /log 日志子系统：注册 tps/mobcaps 两 logger → 持久册载入 → join/quit 监听 →
         // /log 命令注册（Brigadier，plugin.yml 无条目）→ HUD 20 tick 任务 → 在线玩家补扫（reload 时
-        // 无 join 事件，hello 补扫同款 B 侧增补）。整块失败只降级日志，不影响规则框架与其余子系统
+        // 无 join 事件，hello 补扫同款 Paper 移植侧增补）。整块失败只降级日志，不影响规则框架与其余子系统
         try
         {
             verymc.top.veryMcProto.mod.carpet.logging.LogSubscriptionStore store =
@@ -168,7 +168,7 @@ public final class CarpetModule implements ModModule
             Reference.logger().severe("[Carpet] failed to register /spawn command: " + t.getMessage());
         }
         // /perimeterinfo 与 /draw：参数树含 BlockState/BlockPredicate/Resource 参数类（上游由 vanilla
-        // Commands 构建期注入 CommandBuildContext）——B 侧等价 = CommandBuildContext.simple 公开
+        // Commands 构建期注入 CommandBuildContext）——Paper 移植侧等价 = CommandBuildContext.simple 公开
         // 静态工厂（registryAccess + VANILLA_SET，javap 实证），commandContext() 懒加载单点
         try
         {

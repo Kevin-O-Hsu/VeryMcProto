@@ -17,7 +17,7 @@ import verymc.top.veryMcProto.framework.nms.Nms;
 import verymc.top.veryMcProto.mod.carpet.patches.EntityPlayerMPFake;
 
 /**
- * 动作包侧表与驱动（B 侧新增类——上游载体 = {@code ServerPlayer_actionPackMixin} 对所有
+ * 动作包侧表与驱动（Paper 移植侧新增类——上游载体 = {@code ServerPlayer_actionPackMixin} 对所有
  * {@link ServerPlayer} 注入 {@code actionPack} 字段 + {@code tick} HEAD 钩子，Paper 无 Mixin 的等价物）。
  *
  * <p>三个职责：

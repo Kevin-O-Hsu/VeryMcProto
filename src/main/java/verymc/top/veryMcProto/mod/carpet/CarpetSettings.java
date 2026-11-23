@@ -13,13 +13,13 @@ import verymc.top.veryMcProto.mod.carpet.settings.Validator;
  *
  * <p>与上游的偏差（对账登记，docs/carpet/architecture.md）：
  * <ul>
- *   <li>{@code language} 的 LanguageValidator 删 Translations 副作用（B 侧无 i18n，仓库铁律对外英文；
+ *   <li>{@code language} 的 LanguageValidator 删 Translations 副作用（Paper 移植侧无 i18n，仓库铁律对外英文；
  *       strict + options 已足约束值域）；</li>
  *   <li>{@code superSecretSetting} / {@code language} 为纯壳规则（上游行为面 = 客户端 i18n 切换 /
  *       Mixin 强制命令堆栈 debug 日志，均不随地基移植）；{@code commandTick} 为上游三线零使用死规则
  *       （注册仅为规则面完整，上游 /tick 即原版命令，Paper 天然同构）；</li>
  *   <li>{@code cleanLogs} 的 desc/extra 为上游逐字——其声称的 "Maximum sound pool size" 行与上游唯一
- *       机制（LivingEntity_cleanLogsMixin 命名死亡日志门控）脱节，系上游 desc 陈旧；B 侧按 mixin 代数
+ *       机制（LivingEntity_cleanLogsMixin 命名死亡日志门控）脱节，系上游 desc 陈旧；Paper 移植侧按 mixin 代数
  *       实现（docs/carpet/architecture.md 勘误记档）。</li>
  * </ul>
  */
@@ -84,7 +84,7 @@ public class CarpetSettings
         @Override
         public Integer validate(CommandSender source, ParsedRule<Integer> currentRule, Integer newValue, String userInput)
         {
-            // 上游副作用位（写 perfPermissionCheck 静态字段供 PerfCommand mixin 消费）的 B 侧等价：
+            // 上游副作用位（写 perfPermissionCheck 静态字段供 PerfCommand mixin 消费）的 Paper 移植侧等价：
             // 只读登记 + 真因果日志（Paper 无 Mixin 无 /perf requires 替换面）
             CarpetModule.applyPerfPermission(newValue);
             return newValue;

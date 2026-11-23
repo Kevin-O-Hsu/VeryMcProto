@@ -43,7 +43,7 @@ import static net.minecraft.commands.SharedSuggestionProvider.suggest;
  *   <li><b>mobcaps set 子分支裁剪</b>：写场 {@code SpawnReporter.mobcap_exponent} 的消费端全在
  *       Mixin（MobCategory_spawnMixin/NaturalSpawnerMixin，上游 SpawnCommand.java:230-236）——Paper
  *       无 Mixin 物理不可移植，移植即得"打印成功实为 no-op"的命令；</li>
- *   <li>数据面换轨：上游 {@code SpawnReporter} → B 侧 {@link SpawnReport}（/log 切片类——chunkcount
+ *   <li>数据面换轨：上游 {@code SpawnReporter} → Paper 移植侧 {@link SpawnReport}（/log 切片类——chunkcount
  *       走 SpawnState 公开 API 谱系偏差 #52；spawn_tries 追踪面未移植 → rounds 段恒空）；</li>
  *   <li>参数取值 {@code DimensionArgument.getDimension} → {@code getArgument(ServerLevel.class)}
  *       等价体（vanilla 体即此，PlayerCommand :322 同款先例）。</li>

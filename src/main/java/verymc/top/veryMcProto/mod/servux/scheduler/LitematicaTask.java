@@ -32,7 +32,7 @@ import verymc.top.veryMcProto.mod.servux.util.position.PositionUtils;
  *       {@code TaskFeedbackListener:56/:75} 双终行，文案 en_us.json:154-155 逐字）。</li>
  * </ul>
  *
- * <p><b>有意偏差（相对上游，B/CF 轮终审裁定）</b>：
+ * <p><b>有意偏差（相对上游）</b>：
  * <ul>
  *   <li>无 TaskContext / ITaskCompletionListener 双对象——上游 listener 的缓冲仅在 stop 同栈写读，直接内联
  *       （原 FillDeleteTask 的 feedbackBuffer 仪式随基类化消除）；</li>

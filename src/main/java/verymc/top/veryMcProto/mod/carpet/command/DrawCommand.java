@@ -46,7 +46,7 @@ import static net.minecraft.commands.SharedSuggestionProvider.suggest;
  * <p><b>与上游的偏差</b>（登记，docs/carpet/architecture.md）：
  * <ul>
  *   <li><b>fillUpdates 固定 true 语义</b>：上游更新抑制 = {@code impendingFillSkipUpdates}
- *       ThreadLocal（消费端全在 6 个 fillUpdates Mixin，Paper 无 Mixin 物理不可移植）→ B 侧删
+ *       ThreadLocal（消费端全在 6 个 fillUpdates Mixin，Paper 无 Mixin 物理不可移植）→ Paper 移植侧删
  *       ThreadLocal 行，收尾 {@code updateNeighborsAt} 无条件执行（= 上游 fillUpdates=true 路径
  *       逐字；false 路径 = 放置态邻居形状后处理剥离，随 Mixin 一并不可移植）；</li>
  *   <li>参数取值等价体：{@code BlockStateArgument.getBlock} → {@code getArgument(BlockInput)}
@@ -259,7 +259,7 @@ public class DrawCommand
                 }
             }
         }
-        // 上游 if (fillUpdates) 门控——B 侧固定 true（规则面未移植），无条件收尾
+        // 上游 if (fillUpdates) 门控——Paper 移植侧固定 true（规则面未移植），无条件收尾
         list.forEach(blockpos1 -> world.updateNeighborsAt(blockpos1, world.getBlockState(blockpos1).getBlock()));
         Messenger.m(nms(ctx.getSource()), "gi Filled " + affected + " blocks");
         return affected;

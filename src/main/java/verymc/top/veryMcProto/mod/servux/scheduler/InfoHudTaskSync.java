@@ -19,7 +19,7 @@ import net.minecraft.world.level.ChunkPos;
  *       由 getFirst() 条目的 n/rc 合成（InfoHudSyncChunks:73-91），rc = 待处理区块总数、n = 任务名；</li>
  *   <li>完成帧：<b>仅</b> {@code {InfoHudComplete:true}}、不带 InfoHudSync 键（客户端缺键回空列表，安全）；</li>
  *   <li>{@code Type} 字面量必须是枚举常量名 {@value #TYPE_REMAINING_CHUNKS}——客户端
- *       {@code InfoHudSyncType.valueOf} 无容错，未知值直接抛异常（B 轮实证，单测断言锁死）。</li>
+ *       {@code InfoHudSyncType.valueOf} 无容错，未知值直接抛异常（字节码实证，单测断言锁死）。</li>
  * </ul>
  */
 public final class InfoHudTaskSync

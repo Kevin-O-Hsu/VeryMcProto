@@ -514,7 +514,7 @@ public class LitematicsDataProvider extends DataProviderBase
      * TASK_REQUEST（type 14）受理：权限 → 创造模式 → Boxes/FillState 解析 → 登记 TaskScheduler。
      * 检查顺序与消息门控照抄上游（insufficient/creative 无条件、no_fill_state/no_boxes/invalid 受
      * player_task_feedback 门控）。Box 线格式 = 客户端 Box.CODEC 产物 {pos1:int[3], pos2:int[3], name}
-     * （malilib DataOps INT_STREAM → IntArrayTag，B 轮实证），手工解 IntArrayTag。
+     * （malilib DataOps INT_STREAM → IntArrayTag，字节码实证），手工解 IntArrayTag。
      */
     public void onTaskRequest(ServerPlayer player, CompoundTag tags)
     {

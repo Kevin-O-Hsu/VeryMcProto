@@ -20,7 +20,7 @@ import net.minecraft.world.entity.Relative;
  * {@code disconnect(Component)} 单参方法拦截 idling/重复登录转 kill；Paper 26.3 中该单参方法已退化为
  * 纯转发壳，且 idling 踢出（{@code ServerGamePacketListenerImpl.tick} keepalive 超时）与重复登录踢出
  * 均直接调用双参重载族，全部收敛于 {@code disconnect(DisconnectionDetails)} 终端（PlayerKickEvent 的
- * fire 点也位于该终端内部）。故 B 侧改拦终端：idling / duplicate_login 两 key 转
+ * fire 点也位于该终端内部）。故 Paper 移植侧改拦终端：idling / duplicate_login 两 key 转
  * {@link EntityPlayerMPFake#kill}（保留完整清理语义），其余 reason 直接吞掉——假人不可被踢，
  * 与上游单参覆写的语义逐位一致。kill 链走 {@code onDisconnect}（不经本终端），无递归。
  *

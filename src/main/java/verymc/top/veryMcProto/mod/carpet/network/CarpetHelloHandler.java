@@ -48,7 +48,7 @@ import verymc.top.veryMcProto.mod.carpet.settings.SettingsManager;
  *       "2"（上游 :229-232）；全量口径含默认值规则；</li>
  *   <li>C2S/S2C {@code clientCommand}：命令执行 + 回执 {@code {id, error?, return, output?}}；</li>
  *   <li>自定义 NBT 广播机制面：{@link #broadcastCustomCommand}/{@link #sendCustomCommand}（上游唯一
- *       调用者 scShapes 随 Scarpet 不移植，B 侧无调用者——机制面交付）。</li>
+ *       调用者 scShapes 随 Scarpet 不移植，Paper 移植侧无调用者——机制面交付）。</li>
  * </ul>
  *
  * <p><b>superSecretSetting gate 封闭清单（勿外溢）</b>：上游仅三处抑制——规则变更推送
@@ -172,7 +172,7 @@ public final class CarpetHelloHandler implements IPluginServerPlayHandler, Liste
 
     /**
      * 自定义 NBT 广播（上游 broadcastCustomCommand :144-154；gate 封闭清单第 2 处）。
-     * 上游唯一调用者 = scShapes（Scarpet 图形渲染，整体不移植）——B 侧作为机制面 API 暴露。
+     * 上游唯一调用者 = scShapes（Scarpet 图形渲染，整体不移植）——Paper 移植侧作为机制面 API 暴露。
      */
     public void broadcastCustomCommand(String command, Tag data)
     {
@@ -215,7 +215,7 @@ public final class CarpetHelloHandler implements IPluginServerPlayHandler, Liste
     }
 
     /**
-     * clientCommand 执行（上游 handleClientCommand :80-115 同构 + B 侧增补 INFO 审计行）。
+     * clientCommand 执行（上游 handleClientCommand :80-115 同构 + Paper 移植侧增补 INFO 审计行）。
      * 命令以<b>玩家自身权限</b>执行（无提权）；畸形包缺键抛 NoSuchElementException → 框架
      * ProtocolChannel catch 记 warn 丢弃（不踢人——plugin messaging 路径结构性语义，偏差登记）。
      */
@@ -235,7 +235,7 @@ public final class CarpetHelloHandler implements IPluginServerPlayHandler, Liste
             player.level().getServer().getCommands().performPrefixedCommand(
                     new CarpetSnoopyCommandSource(player, error, output, returnValue), command);
         }
-        // B 侧增补（上游无）：performPrefixedCommand 直调 NMS 命令链，绕过 PlayerCommandPreprocessEvent
+        // Paper 移植侧增补（上游无）：performPrefixedCommand 直调 NMS 命令链，绕过 PlayerCommandPreprocessEvent
         // 与 ops 广播——审计行补偿该缺口（偏差登记 docs/carpet/protocol.md）
         Reference.logger().info("[Carpet] clientCommand from " + player.getName().getString() + ": " + command);
         List<String> lines = new ArrayList<>(output.size());

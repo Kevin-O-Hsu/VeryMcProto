@@ -17,8 +17,8 @@ import verymc.top.veryMcProto.mod.carpet.settings.SettingsManager;
 import verymc.top.veryMcProto.mod.carpet.util.CommandHelper;
 
 /**
- * /carpet 命令（四子命令面 = 本移植的 B 侧命令面约定；上游命令树见
- * {@code carpet/api/settings/SettingsManager.java:597-642}——B 侧差异（弃裸 {@code <rule> [value]}
+ * /carpet 命令（四子命令面 = 本移植的 Paper 移植侧命令面约定；上游命令树见
+ * {@code carpet/api/settings/SettingsManager.java:597-642}——Paper 移植侧差异（弃裸 {@code <rule> [value]}
  * 会话级 set 与 {@code list defaults}/{@code list <tag>} 子面）登记于 docs/carpet/architecture.md 偏差清单。
  *
  * <p><b>双层门禁</b>：plugin.yml 静态 {@code carpet.command}（Bukkit 面，default op）+ 运行时动态
@@ -121,7 +121,7 @@ public class CarpetCommand implements CommandExecutor, TabCompleter
             sender.sendMessage("§cUnknown rule: " + args[1]);
             return;
         }
-        // Bukkit args 已按空白切分——单空格重组 = 空格规范化输入串（上游 greedyString 的 B 侧保真边界）
+        // Bukkit args 已按空白切分——单空格重组 = 空格规范化输入串（上游 greedyString 的 Paper 移植侧保真边界）
         final String value = String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length));
         if (manager.setDefault(sender, rule, value))
         {

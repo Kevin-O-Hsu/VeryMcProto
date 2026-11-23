@@ -33,7 +33,7 @@ import verymc.top.veryMcProto.Reference;
  *   <li>conf 位置 = 构造注入的插件数据目录（上游 = 世界根目录 LevelResource.ROOT）；构造注入目录
  *       兼使纯 JVM 单测可用（Reference.plugin() 在测试环境为 null）；</li>
  *   <li>写盘加原子 tmp/move（仓库配置落盘纪律，上游为直写）；</li>
- *   <li>命令面解耦到 Bukkit {@code CarpetCommand}（上游内嵌 brigadier 命令树，B 侧无该注册面）；</li>
+ *   <li>命令面解耦到 Bukkit {@code CarpetCommand}（上游内嵌 brigadier 命令树，Paper 移植侧无该注册面）；</li>
  *   <li>删 Translations/scarpet/网络推送的<b>内嵌实现</b>——{@link #notifyRuleChanged} 经注入的
  *       回调（{@link #setRuleChangedCallback}）转发给 carpet:hello 规则推送
  *       （docs/carpet/protocol.md）；回调经 setter 注入以保持本包零 network/ 依赖（纯 JVM 单测
@@ -81,7 +81,7 @@ public class SettingsManager
         return fancyName;
     }
 
-    /** 反射扫描 @Rule 静态字段注册（上游 parseSettingsClass :175-215 同构；B 侧无 conditions 面）。 */
+    /** 反射扫描 @Rule 静态字段注册（上游 parseSettingsClass :175-215 同构；Paper 移植侧无 conditions 面）。 */
     public void parseSettingsClass(Class<?> settingsClass)
     {
         for (Field field : settingsClass.getDeclaredFields())
@@ -113,7 +113,7 @@ public class SettingsManager
         return rules.values().stream().sorted(Comparator.comparing(r -> r.name)).toList();
     }
 
-    /** conf 文件（上游 getFile :342-345 = 世界根 identifier+".conf"；B 侧 = 插件数据目录，见类 javadoc）。 */
+    /** conf 文件（上游 getFile :342-345 = 世界根 identifier+".conf"；Paper 移植侧 = 插件数据目录，见类 javadoc）。 */
     private Path getFile()
     {
         return configDir.resolve(identifier + ".conf");
@@ -237,7 +237,7 @@ public class SettingsManager
 
     /**
      * locked 置位时禁用 COMMAND 类可关规则（上游 disableBooleanCommands :356-371 同构——
-     * 建议值含 "false" 的命令规则一律置 false；B 侧 commandTick 即此面）。
+     * 建议值含 "false" 的命令规则一律置 false；Paper 移植侧 commandTick 即此面）。
      */
     private void disableBooleanCommands()
     {
@@ -317,7 +317,7 @@ public class SettingsManager
 
     /**
      * 规则变更通知（上游 :261-267 的 Paper 形态——上游此处推 observers/网络客户端/scarpet 三支，
-     * B 侧仅网络推送一支，经注入回调转发给 carpet:hello 的规则推送）。
+     * Paper 移植侧仅网络推送一支，经注入回调转发给 carpet:hello 的规则推送）。
      * 仅命令路径（source != null）经 ParsedRule.set 触发；conf 载入（source==null）不通知——
      * 上游同构，载入后的首帧由 hello 应答的全量 Rules 承载。
      */

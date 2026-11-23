@@ -37,7 +37,7 @@ import verymc.top.veryMcProto.mod.servux.util.position.PositionUtils;
  *   <li><b>单 chunk 内无时间预算</b>（Direct:105-121 同源）——巨型区块单次调用可击穿 60ms 上限。</li>
  * </ul>
  *
- * <p><b>有意偏差（相对上游，B/CF 轮终审裁定）</b>：
+ * <p><b>有意偏差（相对上游）</b>：
  * <ul>
  *   <li><b>单 placement 字段</b>：上游 multimap（{@code placementsPerChunk}）支持多 placement，但上游自身两处
  *       调用点恒 {@code singletonList(placement)}（上游 LitematicsDataProvider:682/:734），我方两入口亦单投影——

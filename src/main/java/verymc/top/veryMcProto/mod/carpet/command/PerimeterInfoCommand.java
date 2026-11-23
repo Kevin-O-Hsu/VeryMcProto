@@ -53,7 +53,7 @@ public class PerimeterInfoCommand
 {
     /**
      * SUMMONABLE_ENTITIES 跨泛型桥（上游 :43 cast() 的 unchecked 直桥形态；论证见类 javadoc——
-     * B 侧首个触 source 的 NMS suggestion provider，tab 补全实测为完成判据）。
+     * Paper 移植侧首个触 source 的 NMS suggestion provider，tab 补全实测为完成判据）。
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static final SuggestionProvider<io.papermc.paper.command.brigadier.CommandSourceStack> SUMMONABLE_ENTITIES =

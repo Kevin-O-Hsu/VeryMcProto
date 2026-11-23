@@ -104,7 +104,7 @@ public class Logger
         return !subscribedOnlinePlayers.isEmpty();
     }
 
-    /** 服务停止清空（上游 :118-122）；跨会话持久由 {@link LogSubscriptionStore} 承载（B 侧新增层）。 */
+    /** 服务停止清空（上游 :118-122）；跨会话持久由 {@link LogSubscriptionStore} 承载（Paper 移植侧新增层）。 */
     public void serverStopped()
     {
         subscribedOnlinePlayers.clear();
@@ -199,7 +199,7 @@ public class Logger
         LoggerRegistry.setAccess(this);
     }
 
-    /** option 合法性（上游 :248-254）：strict = 必须在 options 内；非 strict = 任意非 null（B 侧命令入参
+    /** option 合法性（上游 :248-254）：strict = 必须在 options 内；非 strict = 任意非 null（Paper 移植侧命令入参
      * 的 null 缺省已在 subscribePlayer 归一为 logger 默认值，此处的 null 判定与上游同构）。 */
     public boolean isOptionValid(String option)
     {

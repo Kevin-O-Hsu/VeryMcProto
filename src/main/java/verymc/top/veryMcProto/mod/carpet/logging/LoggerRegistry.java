@@ -19,7 +19,7 @@ import verymc.top.veryMcProto.Reference;
  *       （每 join 墓碑感知重评估），无第二消费方；</li>
  *   <li><b>删 {@code togglePlayerSubscription}</b>（上游 :91-103）——上游唯一调用点 = flat 命令形状
  *       {@code /log <name>} 切换分支（LogCommand.java:182），该形状已被 subscribe/clear 命令形替代
- *       （phases §6 交付物①），B 侧永久无消费面（零调用死面不照抄，AGENTS.md §6 教训 2）；</li>
+ *       （/log 命令形状为 subscribe/clear），Paper 移植侧永久无消费面（零调用死面不照抄，AGENTS.md §6 教训 2）；</li>
  *   <li>玩家名键保留上游形态（HashMap 容 null option 值——tps 默认 option 即 null，上游 :70 同构）；
  *       跨会话持久层（UUID 键 + 名字快照）在 {@link LogSubscriptionStore}，与本内存册经
  *       {@link LoggerListener} join 谓词会合。</li>

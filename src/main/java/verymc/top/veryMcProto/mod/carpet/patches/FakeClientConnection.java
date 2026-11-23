@@ -16,7 +16,7 @@ import net.minecraft.network.protocol.PacketFlow;
  * 丢弃，假人"能收不能回"。
  *
  * <p>与上游的偏差（对账登记，docs/carpet/architecture.md）：上游经 {@code ClientConnectionInterface}
- * duck 接口（{@code Connection_packetCounterMixin} 注入的 setChannel）注入 channel——B 侧
+ * duck 接口（{@code Connection_packetCounterMixin} 注入的 setChannel）注入 channel——Paper 移植侧
  * {@link Connection#channel} 本为 public 字段，构造器直接赋值，零 Mixin。
  *
  * <p>no-op 覆写不可省略：{@link Connection#setupInboundProtocol} 内部操作 netty pipeline

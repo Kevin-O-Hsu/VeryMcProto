@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * task 组（type 14-17）形状黄金样本单测——全部以 <b>26.1 客户端真实编码形状</b>为固定样本（非自编自解；26.3 wire 逐字节相同，样本继续有效）：
  * <ul>
  *   <li>Box 线格式 = 客户端 {@code Box.CODEC}（RecordCodecBuilder: pos1/pos2 = BlockPos.CODEC，malilib DataOps
- *       INT_STREAM → IntArrayTag[x,y,z]，name = string）——B 轮字节码级实证；</li>
+ *       INT_STREAM → IntArrayTag[x,y,z]，name = string）——字节码级实证；</li>
  *   <li>type 16 进度/完成帧（InfoHudTaskSync 组包 ↔ litematica InfoHudSync 读端对偶）：Data 每条目均为
  *       真实区块坐标——上游 TaskBase:165 模板从不入列，无 cx=-1 标题条目（2026-09 修正：曾自创标题行
  *       占 maxLines 一位致客户端少渲染 1 条坐标行）；</li>

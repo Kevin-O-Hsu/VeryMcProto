@@ -56,7 +56,7 @@ masa 客户端是 **C2S 主动拉取（pull）模式**，不是服务端推送�
 
 ### 判官逻辑：`not_enabled` vs `not_connected`（务必分清）
 
-> 这是上一轮实测中从 `minihud/.../InfoLineServux.java` 提炼的铁证，对 tweakeroo / litematica 同样适用。
+> 这是从 `minihud/.../InfoLineServux.java` 提炼的铁证，对 tweakeroo / litematica 同样适用。
 
 | 客户端显示 | 含义 | 是否服务端 bug |
 |---|---|---|

@@ -19,18 +19,18 @@ import net.minecraft.world.level.entity.EntityTypeTest;
 import verymc.top.veryMcProto.mod.carpet.util.Messenger;
 
 /**
- * mobcaps 采集与格式化（上游 {@code carpet/utils/SpawnReporter.java} 的 B 侧承载切片：
+ * mobcaps 采集与格式化（上游 {@code carpet/utils/SpawnReporter.java} 的 Paper 移植侧承载切片：
  * /log = :93,:99-152 短行 HUD 面 + {@code Messenger.java:30-123} 色表的 § 码化；命令族追加 =
  * :99-152 多行组件面与 :234-258 实体清单，供 /spawn mobcaps,entities——见文件尾部命令族节，
  * /log 短行 § 码面与其单测零触碰）。
  *
  * <p><b>硬编码魔数</b>：{@value #MAGIC_NUMBER} = 17×17（上游 SpawnReporter.java:93 亦为硬编码
  * {@code (int)Math.pow(17.0, 2.0)}；vanilla 来源 = NaturalSpawner 私有常量）——注释标来源防漂移，
- * 勿引入上游没有的反射（phases §6 交付物④ 裁决；仓库同款先例 {@code mod/servux/loggers/DataLoggerMobCaps.java:29-30}）。
+ * 勿引入上游没有的反射（约束：MAGIC_NUMBER 为上游包私有，公开面仅 SpawnState.getSpawnableChunkCount 可用；仓库同款先例 {@code mod/servux/loggers/DataLoggerMobCaps.java:29-30}）。
  *
  * <p><b>数据源谱系偏差（登记）</b>：上游 chunkcount 来自其自有事件计数 map
  * {@code chunkCounts}（ServerChunkCacheMixin 区块加载/卸载事件维护，SpawnReporter.java:108/:111）；
- * B 侧按 phases §6 交付物④ 钉死为 {@code SpawnState.getSpawnableChunkCount()} 公开 API（上游 Monitoring.java:61 自用同款、
+ * Paper 移植侧钉死为 {@code SpawnState.getSpawnableChunkCount()} 公开 API（上游 Monitoring.java:61 自用同款、
  * 仓库 DataLoggerMobCaps.java:51 同路径）——两谱系数值可偏差（事件计数 vs 刷怪周期快照）。
  *
  * <p><b>公式逐字</b>（:119）：{@code max = (int)(chunkcount * ((double) maxPerChunk / MAGIC_NUMBER))}
@@ -159,7 +159,7 @@ public final class SpawnReport
         if (multiline)
             lst.add(Messenger.s(String.format("Mobcaps for %s:",name)));
         NaturalSpawner.SpawnState lastSpawner = world.getChunkSource().getLastSpawnState();
-        // B 侧谱系（偏差 #52）：上游 chunkcount 来自 chunkCounts 事件计数 map（Mixin 维护）；此处走
+        // Paper 移植侧谱系（偏差 #52）：上游 chunkcount 来自 chunkCounts 事件计数 map（Mixin 维护）；此处走
         // SpawnState 公开 API——两谱系数值可偏差，公式仍逐字
         Object2IntMap<MobCategory> dimCounts = lastSpawner == null ? null : lastSpawner.getMobCategoryCounts();
         int chunkcount = lastSpawner == null ? -1 : lastSpawner.getSpawnableChunkCount();

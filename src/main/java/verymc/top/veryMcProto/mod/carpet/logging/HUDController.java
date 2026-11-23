@@ -26,14 +26,14 @@ import verymc.top.veryMcProto.framework.nms.Nms;
  * <p>与上游的偏差（对账登记，docs/carpet/architecture.md）：
  * <ul>
  *   <li><b>投递面</b>：上游直发 NMS {@code ClientboundTabListPacket}（:109-113，tab 头=scarpet 保留、
- *       脚=logger 内容）；B 侧 = Bukkit {@code setPlayerListFooter(String)}（服务端侧同效 vanilla 包，
+ *       脚=logger 内容）；Paper 移植侧 = Bukkit {@code setPlayerListFooter(String)}（服务端侧同效 vanilla 包，
  *       paper-api 26.3 实 jar 实证存在（CraftPlayer.java:646））——<b>只写脚、零 header 触碰</b>（scarpet 头机制不移植，
  *       他插件 header 不覆写）；§ 码 String 为该 API 的原生输入；</li>
- *   <li><b>节流面</b>：上游每 tick 被调 + 内部 {@code %20} 门（:72）；B 侧以
+ *   <li><b>节流面</b>：上游每 tick 被调 + 内部 {@code %20} 门（:72）；Paper 移植侧以
  *       {@code runTaskTimer(period 20)} 直接承载同拍率（初相 20 = 首帧不抢跑）；</li>
- *   <li><b>缓冲键</b>：上游以 ServerPlayer 实例为键（:38）；B 侧以玩家<b>名</b>为键——Bukkit Player
+ *   <li><b>缓冲键</b>：上游以 ServerPlayer 实例为键（:38）；Paper 移植侧以玩家<b>名</b>为键——Bukkit Player
  *       引用不持有（reload 防泄漏纪律），flush 时经 {@code getPlayerExact} 复查在线；</li>
- *   <li>行分隔：上游以 {@code Component.literal("\n")} 组件分隔（:58）；B 侧行列表 flush 时
+ *   <li>行分隔：上游以 {@code Component.literal("\n")} 组件分隔（:58）；Paper 移植侧行列表 flush 时
  *       {@code String.join("\n")} 等价承载。</li>
  * </ul>
  */

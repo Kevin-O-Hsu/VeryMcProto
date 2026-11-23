@@ -27,7 +27,7 @@ import verymc.top.veryMcProto.mod.servux.util.position.PositionUtils;
 
 /**
  * Litematica Fill/Delete 选区任务（26.1 移植，v3 合并形态；timer / 队列 / 推帧 / 完成链共享面已上提
- * {@link LitematicaTask}——paste 任务化时基类化，B/CF 轮终审裁定）。
+ * {@link LitematicaTask}——paste 任务化时基类化，共享面上提属有意设计）。
  *
  * <p>合并上游五个类：{@code TaskBase + TaskProcessChunkBase + TaskProcessChunkMultiPhase + TaskFillArea +
  * TaskDeleteArea}（Delete = fillState=AIR 的 Fill，上游 TaskDeleteArea.java:11-16 同构）。行为真值逐项对照：
@@ -46,7 +46,7 @@ import verymc.top.veryMcProto.mod.servux.util.position.PositionUtils;
  *   <li>完成链顺序（帧先于聊天、feedback 门控读活值）见基类 {@link LitematicaTask#stop()}。</li>
  * </ul>
  *
- * <p><b>有意偏差（相对上游，B 轮终审裁定）</b>：裁掉 sendCommand 死机制与 SEND_COMMAND_FEEDBACK gamerule
+ * <p><b>有意偏差（相对上游）</b>：裁掉 sendCommand 死机制与 SEND_COMMAND_FEEDBACK gamerule
  * 翻转（对不发命令的任务零可观测效果，MultiPhase:259 零调用点）；玩家退出<b>不取消</b>任务（上游跑完语义，
  * 保证世界方块结果一致性）；中断终行文案随基类化由恒 completed 修正为 finished 条件（对齐上游
  * TaskFeedbackListener:75 aborted 行——Fill/Delete 的中断仅插件停用 clearTasks 路径可达，见 docs/servux/schematic.md §9）。
